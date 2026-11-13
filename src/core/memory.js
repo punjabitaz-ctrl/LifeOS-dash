@@ -1,0 +1,165 @@
+(function () {
+  'use strict';
+  const L = (globalThis.LifeOS = globalThis.LifeOS || {});
+  const MAX_TEXT = 280, MAX_ITEMS = 5, LESSON_CAP = 30, INSIGHT_CAP = 5000, CTX_MAX = 8;
+  const domains = () => L.DOMAINS.map((d) => d.id).concat(['overall']);
+  const BIDI = /[\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF]/g;
+  const newId = () => L._webcrypto.randomUUID();
+
+  function checkPeriod(p) {
+    if (!p || !L.metrics.isDate(p.from) || !L.metrics.isDate(p.to) || p.from > p.to) throw new Error('Invalid period');
+    return { from: p.from, to: p.to };
+  }
+  function checkLevel(l) { if (l !== 1 && l !== 2 && l !== 3) throw new Error('Invalid level'); return l; }
+
+  function rulesInsights(state, weekStartISO) {
+    const dg = L.metrics.weeklyDigest(state, weekStartISO);
+    const t = state.settings.targets, cur = state.settings.currency;
+    const out = [];
+    const money = (v) => L.metrics.fmtMoney(v, cur);
+    for (const d of L.DOMAINS) {
+      const { now, prev, unit } = dg.domains[d.id];
+      if (now === 0 && prev === 0) continue;
+      let text = null;
+      const dir = now > prev ? 'up' : 'down';
+      switch (d.id) {
+        case 'health':
+          text = now < t.workoutsPerWeek
+            ? 'Workouts: ' + now + ' this week against a target of ' + t.workoutsPerWeek + ' (last week ' + prev + ').'
+            : 'Workout target met: ' + now + ' of ' + t.workoutsPerWeek + ' this week.';
+          break;
+        case 'social':
+          if (now > 0) text = now + (now === 1 ? ' person is' : ' people are') + ' overdue for contact (more than ' + t.contactDays + ' days).';
+          else if (prev > 0) text = 'Nobody is overdue for contact now, down from ' + prev + ' last week.';
+          break;
+        case 'money':
+          if (now === 0) break;
+          text = now < t.savingsRate * 100
+            ? 'Savings rate this week was ' + now + '%, below your ' + Math.round(t.savingsRate * 100) + '% target.'
+            : 'Savings rate this week was ' + now + '%, at or above your ' + Math.round(t.savingsRate * 100) + '% target.';
+          break;
+        case 'assets':
+          if (now !== prev) text = 'Net worth moved ' + dir + ' from ' + money(prev) + ' to ' + money(now) + '.';
+          break;
+        case 'wellbeing':
+          if (now === 0) break;
+          if (prev > 0 && now !== prev) text = 'Average mood is ' + dir + ' from ' + prev + ' to ' + now + '.';
+          else if (prev === 0) text = 'Average mood this week is ' + now + ' out of 5.';
+          break;
+        case 'goals':
+          if (now === 0 && prev === 0) break;
+          if (now !== prev) text = 'Share of goals on track moved ' + dir + ' from ' + prev + '% to ' + now + '%.';
+          break;
+        default:
+          if (now !== prev) text = d.label + ': ' + now + ' ' + unit + ' this week, ' + dir + ' from ' + prev + '.';
+      }
+      if (text) out.push({ domain: d.id, text: text.slice(0, MAX_TEXT) });
+    }
+    return out;
+  }
+
+  function buildPrompt(state, level, period) {
+    checkLevel(level);
+    const p = checkPeriod(period);
+    const mem = state.memory;
+    const approvedAll = mem.insights.filter((i) => i.status === 'approved');
+    const lines = [];
+    let ctx;
+    if (level === 1) {
+      const dg = L.metrics.weeklyDigest(state, p.from);
+      lines.push('Level 1 weekly review. Week of ' + dg.week + '.', 'Digest (this week vs previous week):');
+      for (const d of L.DOMAINS) {
+        const x = dg.domains[d.id];
+        lines.push('- ' + d.id + ': now ' + x.now + ' ' + x.unit + ', previous ' + x.prev + ' ' + x.unit);
+      }
+      ctx = approvedAll.slice(-CTX_MAX);
+      lines.push('Approved insights so far:');
+    } else {
+      const from = level - 1;
+      ctx = approvedAll.filter((i) => i.level === from && i.period.from >= p.from && i.period.to <= p.to).slice(-CTX_MAX);
+      lines.push('Level ' + level + (level === 2 ? ' monthly' : ' quarterly') + ' consolidation for ' + p.from + ' to ' + p.to + '.',
+        'Approved level ' + from + ' insights to consolidate:');
+    }
+    if (!ctx.length) lines.push('- none');
+    for (const i of ctx) lines.push('- [' + i.domain + '] ' + i.text);
+    lines.push('Lessons from earlier rejections (respect these):');
+    const ls = mem.lessons.slice(-CTX_MAX);
+    if (!ls.length) lines.push('- none');
+    for (const l of ls) lines.push('- ' + l.text);
+    lines.push('Return the JSON array now.');
+    const system = 'You are a careful personal reflection assistant. You only see numeric summaries and short approved notes, never raw records. ' +
+      'Reply with ONLY a JSON array of at most ' + MAX_ITEMS + ' objects shaped {"domain":string,"text":string}. ' +
+      'domain must be one of: ' + domains().join(', ') + '. text is plain text, at most ' + MAX_TEXT + ' characters, specific and grounded in the numbers given. ' +
+      'Do not invent data. Do not give medical, legal or financial advice. Follow the lessons.';
+    return { system, user: lines.join('\n') };
+  }
+
+  function parseResponse(text) {
+    if (typeof text !== 'string' || text.length > 20000) throw new Error('AI response is not usable');
+    let t = text.trim();
+    const m = /^```(?:json)?[ \t]*\r?\n([\s\S]*?)\r?\n?```$/.exec(t);
+    if (m) t = m[1].trim();
+    if (t[0] !== '[') throw new Error('AI response is not a JSON array');
+    let a;
+    try { a = JSON.parse(t); } catch (e) { throw new Error('AI response is not valid JSON'); }
+    if (!Array.isArray(a)) throw new Error('AI response is not a JSON array');
+    if (a.length > MAX_ITEMS) throw new Error('AI response has too many items');
+    const ok = domains();
+    return a.map((x) => {
+      if (!x || typeof x !== 'object' || Array.isArray(x)) throw new Error('AI item is not an object');
+      if (typeof x.domain !== 'string' || !ok.includes(x.domain)) throw new Error('AI item has an unknown domain');
+      if (typeof x.text !== 'string') throw new Error('AI item text is not text');
+      const s = x.text.replace(BIDI, '').replace(/[\u0000-\u001f\u007f]+/g, ' ').trim();
+      if (!s || s.length > MAX_TEXT) throw new Error('AI item text is empty or too long');
+      return { domain: x.domain, text: s };
+    });
+  }
+
+  function propose(state, items, opts) {
+    const { level, period, source } = opts || {};
+    checkLevel(level);
+    const p = checkPeriod(period);
+    if (source !== 'rules' && source !== 'ai') throw new Error('Invalid source');
+    if (!Array.isArray(items) || items.length > 20) throw new Error('Invalid items');
+    const ok = domains();
+    const ins = state.memory.insights;
+    for (const it of items) {
+      if (!it || !ok.includes(it.domain) || typeof it.text !== 'string') throw new Error('Invalid insight');
+      const text = it.text.trim();
+      if (!text || text.length > MAX_TEXT) throw new Error('Invalid insight text');
+      if (ins.some((x) => x.level === level && x.period.from === p.from && x.domain === it.domain && x.text === text)) continue;
+      if (ins.length >= INSIGHT_CAP) throw new Error('Insight limit reached');
+      ins.push({ id: newId(), level, period: { from: p.from, to: p.to }, domain: it.domain, text, source, status: 'proposed', createdAt: new Date().toISOString() });
+    }
+  }
+
+  function decide(state, id, decision, reason) {
+    if (decision !== 'approved' && decision !== 'rejected') throw new Error('Invalid decision');
+    const ins = state.memory.insights.find((i) => i.id === id);
+    if (!ins) throw new Error('Insight not found');
+    ins.status = decision;
+    ins.decidedAt = new Date().toISOString();
+    if (decision === 'rejected' && typeof reason === 'string') {
+      const r = reason.replace(/[\u0000-\u001f\u007f]+/g, ' ').trim().slice(0, MAX_TEXT);
+      if (r) {
+        const ls = state.memory.lessons;
+        ls.push({ id: newId(), text: r, createdAt: ins.decidedAt });
+        while (ls.length > LESSON_CAP) ls.shift();
+      }
+    }
+    return ins;
+  }
+
+  // Pure: returns a deep copy of state with every approved insight set back to proposed (no decidedAt).
+  function demoteApproved(state) {
+    const out = JSON.parse(JSON.stringify(state));
+    for (const i of out.memory.insights) if (i.status === 'approved') { i.status = 'proposed'; delete i.decidedAt; }
+    return out;
+  }
+
+  function approved(state, level) {
+    return state.memory.insights.filter((i) => i.status === 'approved' && (level === undefined || i.level === level));
+  }
+
+  L.memory = { rulesInsights, buildPrompt, parseResponse, propose, decide, approved, demoteApproved };
+})();

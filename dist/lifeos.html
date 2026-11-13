@@ -1,0 +1,1937 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-wNBQfYxOhDZGF2X5gS5QbzFtyzgZoSJn9ut2qR5B6wk='; style-src 'sha256-/LNsdIVgIYiKO5FU2mFsTwSic5mAzsQMdKyJRemFWoI='; connect-src https://api.anthropic.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LifeOS</title>
+<style>:root{color-scheme:light dark;--bg:#f4f5f7;--card:#fff;--fg:#14171c;--mut:#5b6573;--line:#dde1e7;--acc:#2255d4;--acc-fg:#fff;--ok:#1c7a46;--warn:#9a5b00;--bad:#b42318;--r:14px;--sh:0 1px 2px rgba(0,0,0,.06);--font:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+@media (prefers-color-scheme:dark){:root{--bg:#0f1216;--card:#181c22;--fg:#e8ebf0;--mut:#9aa4b2;--line:#2a313a;--acc:#6b93ff;--acc-fg:#0b1020;--ok:#4ac283;--warn:#e2a03f;--bad:#f2766b;--sh:none}}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.45 var(--font)}
+.hidden{display:none}
+.app{min-height:100vh;display:flex;flex-direction:column}
+.top{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--card);border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+.brand{font-weight:700;letter-spacing:.02em}
+.main{flex:1;width:100%;max-width:1100px;margin:0 auto;padding:16px 16px 96px}
+h1{font-size:1.4rem;margin:.2rem 0 1rem}
+h2{font-size:1.05rem;margin:1.4rem 0 .6rem}
+h1:focus{outline:none}
+p{margin:.4rem 0}
+.mut{color:var(--mut)}
+.small{font-size:.85rem}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px;box-shadow:var(--sh);margin:0 0 12px}
+.grid{display:grid;grid-template-columns:1fr;gap:12px}
+@media (min-width:560px){.grid{grid-template-columns:repeat(2,1fr)}}
+@media (min-width:820px){.grid{grid-template-columns:repeat(3,1fr)}}
+@media (min-width:1040px){.grid{grid-template-columns:repeat(4,1fr)}}
+.tile{display:flex;flex-direction:column;gap:2px;text-align:left;font:inherit;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px;cursor:pointer;box-shadow:var(--sh);min-height:132px}
+.tile:hover{border-color:var(--acc)}
+.tile-title{font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)}
+.tile-value{font-size:1.7rem;font-weight:700}
+.tile-sub{font-size:.85rem;color:var(--mut)}
+.spark{width:100%;height:28px;margin-top:auto;color:var(--acc)}
+.spark polyline{fill:none;stroke:currentColor;stroke-width:1.8;stroke-linejoin:round;stroke-linecap:round}
+.spark circle{fill:currentColor}
+.btn{font:inherit;border:1px solid var(--line);background:var(--card);color:var(--fg);border-radius:10px;padding:10px 14px;cursor:pointer;min-height:44px}
+.btn:hover{border-color:var(--acc)}
+.btn.pri{background:var(--acc);color:var(--acc-fg);border-color:var(--acc);font-weight:600}
+.btn.bad{color:var(--bad);border-color:var(--bad)}
+.btn.sm{min-height:36px;padding:6px 10px;font-size:.9rem}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.busy .btn{pointer-events:none;opacity:.7}
+.busy .btn.lockbtn{pointer-events:auto;opacity:1}
+:focus-visible{outline:3px solid var(--acc);outline-offset:2px}
+.row{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.row.sp{justify-content:space-between}
+.field{display:flex;flex-direction:column;gap:4px;margin:0 0 12px}
+.lbl{font-size:.85rem;color:var(--mut)}
+.hint{font-size:.8rem;color:var(--mut)}
+input,select,textarea{font:inherit;color:var(--fg);background:var(--bg);border:1px solid var(--line);border-radius:10px;padding:10px;width:100%;min-height:44px}
+textarea{min-height:90px;resize:vertical}
+input[type=file]{padding:8px}
+.notice{border-radius:10px;padding:10px 12px;margin:0 0 12px;border:1px solid var(--line);background:var(--card)}
+.notice:empty{display:none}
+.notice.err{border-color:var(--bad);color:var(--bad)}
+.notice.ok{border-color:var(--ok);color:var(--ok)}
+.warn{border:1px solid var(--warn);color:var(--warn);border-radius:10px;padding:10px 12px;margin:0 0 12px}
+.lockwrap{max-width:420px;margin:8vh auto;padding:0 16px}
+.nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--card);border-top:1px solid var(--line);z-index:6}
+.nav button{flex:1;font:inherit;color:var(--mut);background:none;border:0;padding:12px 4px;min-height:52px;cursor:pointer}
+.nav button[aria-current=page]{color:var(--acc);font-weight:700}
+@media (min-width:820px){.nav{position:static;border:0;background:none;justify-content:center;gap:8px;padding:8px 0 0}.nav button{flex:0 0 auto;padding:8px 18px;border-radius:999px}.nav button[aria-current=page]{background:var(--card);border:1px solid var(--line)}.main{padding-bottom:32px}.app{flex-direction:column}}
+.entry{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line)}
+.entry:last-child{border-bottom:0}
+.entry-t{font-weight:600;overflow-wrap:anywhere}
+.chip{display:inline-block;font-size:.75rem;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--mut);margin-right:6px}
+.chip.ok{color:var(--ok);border-color:var(--ok)}
+.chip.bad{color:var(--bad);border-color:var(--bad)}
+table{border-collapse:collapse;width:100%}
+th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);font-size:.92rem}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);display:flex;align-items:center;justify-content:center;padding:16px;z-index:20}
+.dialog{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px;max-width:440px;width:100%}
+.dialog h2{margin-top:0}
+.back{margin-bottom:8px}
+input[type=checkbox]{width:auto;min-height:0;flex:none}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>(function () {
+  'use strict';
+  const L = (globalThis.LifeOS = globalThis.LifeOS || {});
+  const C = globalThis.crypto || (typeof require === 'function' ? require('node:crypto').webcrypto : undefined);
+  L._webcrypto = C;
+  const sub = () => { if (!C || !C.subtle) throw new Error('WEBCRYPTO_UNAVAILABLE'); return C.subtle; };
+  const ITER = 600000, MIN_PASS = 12, MAX_BACKUP = 64 * 1024 * 1024;
+  const enc = new TextEncoder(), dec = new TextDecoder();
+  const bad = () => new Error('BAD_PASSPHRASE_OR_DATA');
+
+  function b64(bytes) {
+    let s = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) s += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+    return btoa(s);
+  }
+  function unb64(s) {
+    if (typeof s !== 'string' || s.length > 3e8 || s.length % 4 || !/^[A-Za-z0-9+/]*={0,2}$/.test(s)) throw bad();
+    let bin;
+    try { bin = atob(s); } catch (e) { throw bad(); }
+    const out = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+    return out;
+  }
+  function checkPassphrase(p) {
+    if (typeof p !== 'string' || p.length < MIN_PASS) throw new Error('Passphrase must be at least 12 characters');
+  }
+  function newSalt() { return C.getRandomValues(new Uint8Array(16)); }
+
+  async function deriveKey(passphrase, salt) {
+    if (typeof passphrase !== 'string' || !salt || salt.length !== 16) throw bad();
+    const s = sub();
+    const base = await s.importKey('raw', enc.encode(passphrase), 'PBKDF2', false, ['deriveKey']);
+    return s.deriveKey({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations: ITER }, base,
+      { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+  }
+  async function encrypt(key, obj) {
+    const iv = C.getRandomValues(new Uint8Array(12));
+    const ct = await sub().encrypt({ name: 'AES-GCM', iv }, key, enc.encode(JSON.stringify(obj)));
+    return { iv: b64(iv), ct: b64(new Uint8Array(ct)) };
+  }
+  async function decrypt(key, box) {
+    try {
+      const iv = unb64(box && box.iv);
+      if (iv.length !== 12) throw bad();
+      const pt = await sub().decrypt({ name: 'AES-GCM', iv }, key, unb64(box.ct));
+      return JSON.parse(dec.decode(pt));
+    } catch (e) { throw bad(); }
+  }
+  async function makeEnvelope(key, salt, obj) {
+    const { iv, ct } = await encrypt(key, obj);
+    return { v: 1, kdf: { name: 'PBKDF2', hash: 'SHA-256', iter: ITER, salt: b64(salt) }, iv, ct };
+  }
+  function parseEnvelope(env) {
+    if (!env || typeof env !== 'object' || env.v !== 1 || !env.kdf || typeof env.kdf !== 'object') throw bad();
+    const k = env.kdf;
+    if (k.name !== 'PBKDF2' || k.hash !== 'SHA-256' || k.iter !== ITER) throw bad();
+    const salt = unb64(k.salt);
+    if (salt.length !== 16) throw bad();
+    if (typeof env.iv !== 'string' || typeof env.ct !== 'string') throw bad();
+    return { salt, iv: env.iv, ct: env.ct };
+  }
+  async function exportBackup(passphrase, state) {
+    checkPassphrase(passphrase);
+    const clean = L.store.validateState(state);
+    const salt = newSalt();
+    const key = await deriveKey(passphrase, salt);
+    const out = JSON.stringify(await makeEnvelope(key, salt, clean));
+    if (out.length > MAX_BACKUP) throw new Error('Backup would be larger than 64 MB. Delete old entries and try again.');
+    return out;
+  }
+  async function importBackup(passphrase, text) {
+    if (typeof text !== 'string' || text.length > MAX_BACKUP) throw new Error('Not a LifeOS backup');
+    let env;
+    try { env = JSON.parse(text); } catch (e) { throw new Error('Not a LifeOS backup'); }
+    const { salt } = parseEnvelope(env);
+    const key = await deriveKey(passphrase, salt);
+    return L.store.validateState(await decrypt(key, env));
+  }
+
+  L.vault = { MAX_BACKUP, newSalt, deriveKey, encrypt, decrypt, exportBackup, importBackup, checkPassphrase, makeEnvelope, parseEnvelope };
+})();
+
+;
+(function () {
+  'use strict';
+  const L = (globalThis.LifeOS = globalThis.LifeOS || {});
+  const KEY = 'envelope';
+  const ENTRY_CAP = 50000, INSIGHT_CAP = 5000, REVIEW_CAP = 1000, LESSON_CAP = 30, AUDIT_CAP = 200;
+  const BLOCKED = new Set(['__proto__', 'constructor', 'prototype']);
+  // Same rule as ai.isLocalUrl (ai.js loads after this file, so call it lazily).
+  const BIDI = /[\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF]/g;
+  const strip = (v) => (typeof v === 'string' ? v.replace(BIDI, '') : v);
+  let adapter = null, key = null, salt = null, state = null, queue = Promise.resolve();
+
+  function idbAdapter() {
+    const open = () => new Promise((res, rej) => {
+      const r = indexedDB.open('lifeos', 1);
+      r.onupgradeneeded = () => r.result.createObjectStore('kv');
+      r.onsuccess = () => res(r.result);
+      r.onerror = () => rej(new Error('STORAGE_ERROR'));
+    });
+    const tx = async (mode, fn) => {
+      const db = await open();
+      try {
+        return await new Promise((res, rej) => {
+          const t = db.transaction('kv', mode);
+          const rq = fn(t.objectStore('kv'));
+          t.oncomplete = () => res(rq && rq.result);
+          t.onerror = t.onabort = () => rej(new Error('STORAGE_ERROR'));
+        });
+      } finally { db.close(); }
+    };
+    return {
+      get: (k) => tx('readonly', (s) => s.get(k)),
+      set: (k, v) => tx('readwrite', (s) => s.put(v, k)),
+      del: (k) => tx('readwrite', (s) => s.delete(k)),
+    };
+  }
+  function getAdapter() {
+    if (!adapter) {
+      if (typeof indexedDB === 'undefined') throw new Error('NO_STORAGE');
+      adapter = idbAdapter();
+    }
+    return adapter;
+  }
+  function _setAdapter(a) {
+    if (!a || typeof a.get !== 'function' || typeof a.set !== 'function' || typeof a.del !== 'function') throw new Error('Bad adapter');
+    adapter = a;
+  }
+
+  // ---- validation ----
+  const fail = (m) => { throw new Error('Invalid data: ' + m); };
+  const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+  function scan(v, depth, budget) {
+    if (depth > 12) fail('nesting too deep');
+    if (v === null || typeof v !== 'object') return;
+    if (--budget.n < 0) fail('too large');
+    if (Array.isArray(v)) { for (let i = 0; i < v.length; i++) scan(v[i], depth + 1, budget); return; }
+    for (const k of Object.keys(v)) {
+      if (BLOCKED.has(k)) fail('forbidden key');
+      scan(v[k], depth + 1, budget);
+    }
+  }
+  function str(v, max, name, allowEmpty) {
+    if (typeof v !== 'string') fail(name + ' must be text');
+    if (v.length > max) fail(name + ' too long');
+    if (!allowEmpty && v.length === 0) fail(name + ' is empty');
+    return v;
+  }
+  function num(v, min, max, name, int) {
+    if (typeof v !== 'number' || !isFinite(v) || v < min || v > max || (int && !Number.isInteger(v))) fail(name + ' out of range');
+    return v;
+  }
+  function isDate(s) {
+    if (typeof s !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
+    const t = Date.parse(s + 'T00:00:00Z');
+    return !isNaN(t) && new Date(t).toISOString().slice(0, 10) === s;
+  }
+  const date = (v, name) => { if (!isDate(v)) fail(name + ' must be a date'); return v; };
+  function ts(v, name) {
+    if (typeof v === 'number' && isFinite(v)) return v;
+    return str(v, 40, name);
+  }
+  function oneOf(v, list, name) { if (!list.includes(v)) fail(name + ' not allowed'); return v; }
+  function arr(v, cap, name) {
+    if (!Array.isArray(v)) fail(name + ' must be a list');
+    if (v.length > cap) fail(name + ' has too many items');
+    return v;
+  }
+  function domainIds() { return L.metrics.DOMAINS.map((d) => d.id); }
+
+  function cleanSettings(s) {
+    if (!isObj(s)) fail('settings');
+    const t = isObj(s.targets) ? s.targets : fail('targets');
+    const p = isObj(s.provider) ? s.provider : fail('provider');
+    const provider = {
+      kind: oneOf(p.kind, ['none', 'anthropic', 'local', 'manual'], 'provider kind'),
+      baseUrl: str(p.baseUrl, 200, 'baseUrl', true),
+      model: str(p.model, 100, 'model', true),
+      apiKey: str(p.apiKey, 300, 'apiKey', true),
+    };
+    if (provider.kind === 'local' && provider.baseUrl && !(L.ai && L.ai.isLocalUrl(provider.baseUrl))) fail('local provider must use localhost');
+    if (typeof s.currency !== 'string' || !/^[A-Z]{3}$/.test(s.currency)) fail('currency');
+    return {
+      currency: s.currency,
+      autoLockMin: Math.min(60, Math.max(1, num(s.autoLockMin, 1, 1440, 'autoLockMin', true))),
+      targets: {
+        workoutsPerWeek: num(t.workoutsPerWeek, 0, 21, 'workoutsPerWeek'),
+        contactDays: num(t.contactDays, 1, 3650, 'contactDays', true),
+        savingsRate: num(t.savingsRate, 0, 1, 'savingsRate'),
+      },
+      provider,
+    };
+  }
+  function cleanEntryText(e) {
+    if (!isObj(e)) return e;
+    const o = Object.assign({}, e);
+    for (const k of ['title', 'notes', 'person', 'status']) if (typeof o[k] === 'string') o[k] = strip(o[k]);
+    return o;
+  }
+  function cleanEntries(list) {
+    arr(list, ENTRY_CAP, 'entries');
+    const seen = new Set(), out = new Array(list.length);
+    for (let i = 0; i < list.length; i++) {
+      let e;
+      try { e = L.metrics.validateEntry(cleanEntryText(list[i])); } catch (err) { fail('entry ' + (i + 1) + ': ' + err.message); }
+      if (seen.has(e.id)) fail('duplicate entry id');
+      seen.add(e.id);
+      out[i] = e;
+    }
+    return out;
+  }
+  function cleanDigest(d) {
+    if (!isObj(d) || !isObj(d.domains)) fail('digest');
+    const domains = {};
+    for (const id of domainIds()) {
+      const x = d.domains[id];
+      if (x === undefined) continue;
+      if (!isObj(x)) fail('digest domain');
+      domains[id] = { now: num(x.now, -1e15, 1e15, 'digest'), prev: num(x.prev, -1e15, 1e15, 'digest'), unit: str(x.unit, 20, 'unit', true) };
+    }
+    return { week: date(d.week, 'digest week'), domains };
+  }
+  function cleanMemory(m) {
+    if (!isObj(m)) fail('memory');
+    const doms = domainIds().concat(['overall']);
+    const insights = arr(m.insights, INSIGHT_CAP, 'insights').map((x) => {
+      if (!isObj(x) || !isObj(x.period)) fail('insight');
+      const o = {
+        id: str(x.id, 100, 'id'),
+        level: oneOf(x.level, [1, 2, 3], 'level'),
+        period: { from: date(x.period.from, 'period'), to: date(x.period.to, 'period') },
+        domain: oneOf(x.domain, doms, 'domain'),
+        text: str(strip(x.text), 280, 'text'),
+        source: oneOf(x.source, ['rules', 'ai'], 'source'),
+        status: oneOf(x.status, ['proposed', 'approved', 'rejected'], 'status'),
+        createdAt: ts(x.createdAt, 'createdAt'),
+      };
+      if (x.decidedAt !== undefined) o.decidedAt = ts(x.decidedAt, 'decidedAt');
+      return o;
+    });
+    const lessons = arr(m.lessons, LESSON_CAP, 'lessons').map((x) => {
+      if (!isObj(x)) fail('lesson');
+      return { id: str(x.id, 100, 'id'), text: str(strip(x.text), 280, 'lesson'), createdAt: ts(x.createdAt, 'createdAt') };
+    });
+    const reviews = arr(m.reviews, REVIEW_CAP, 'reviews').map((x) => {
+      if (!isObj(x)) fail('review');
+      return {
+        id: str(x.id, 100, 'id'),
+        weekOf: date(x.weekOf, 'weekOf'),
+        digest: cleanDigest(x.digest),
+        priorities: arr(x.priorities, 3, 'priorities').map((p) => str(strip(p), 200, 'priority', true)),
+        completedAt: ts(x.completedAt, 'completedAt'),
+      };
+    });
+    return { insights, lessons, reviews };
+  }
+  function cleanAudit(a) {
+    if (a === undefined) return [];
+    if (!Array.isArray(a)) fail('audit');
+    return a.slice(-AUDIT_CAP).map((x) => {
+      if (!isObj(x)) fail('audit item');
+      return { ts: ts(x.ts, 'ts'), action: str(x.action, 100, 'action', true) };
+    });
+  }
+  function validateState(o) {
+    if (!isObj(o)) fail('state must be an object');
+    scan(o, 0, { n: 4e6 });
+    if (o.schema !== 1) fail('unsupported schema');
+    if (!L.metrics) fail('metrics module missing');
+    return { schema: 1, settings: cleanSettings(o.settings), entries: cleanEntries(o.entries), memory: cleanMemory(o.memory), audit: cleanAudit(o.audit) };
+  }
+
+  function defaultState() {
+    return {
+      schema: 1,
+      settings: {
+        currency: 'USD', autoLockMin: 15,
+        targets: { workoutsPerWeek: 4, contactDays: 30, savingsRate: 0.2 },
+        provider: { kind: 'none', baseUrl: '', model: '', apiKey: '' },
+      },
+      entries: [],
+      memory: { insights: [], lessons: [], reviews: [] },
+      audit: [],
+    };
+  }
+  function newId() {
+    const c = L._webcrypto;
+    if (!c || !c.randomUUID) throw new Error('WEBCRYPTO_UNAVAILABLE');
+    return c.randomUUID();
+  }
+
+  // ---- lifecycle ----
+  const V = () => L.vault;
+  const replaceContents = (target, src) => {
+    for (const k of Object.keys(target)) delete target[k];
+    Object.assign(target, src);
+  };
+  const serial = (fn) => { const run = queue.then(fn); queue = run.catch(() => {}); return run; };
+  const requireUnlocked = () => { if (!state || !key) throw new Error('LOCKED'); };
+
+  async function exists() { return !!(await getAdapter().get(KEY)); }
+  async function init(passphrase) {
+    V().checkPassphrase(passphrase);
+    const a = getAdapter();
+    if (await a.get(KEY)) throw new Error('VAULT_EXISTS');
+    const sl = V().newSalt();
+    const k = await V().deriveKey(passphrase, sl);
+    const st = defaultState();
+    await a.set(KEY, await V().makeEnvelope(k, sl, st));
+    key = k; salt = sl; state = st;
+    return st;
+  }
+  async function unlock(passphrase) {
+    const env = await getAdapter().get(KEY);
+    if (!env) throw new Error('NO_VAULT');
+    const { salt: sl } = V().parseEnvelope(env);
+    const k = await V().deriveKey(passphrase, sl);
+    const st = validateState(await V().decrypt(k, env));
+    key = k; salt = sl; state = st;
+    return st;
+  }
+  function lock() {
+    // Empty the live state object too, so any reference still held elsewhere no longer reaches plaintext.
+    if (state) { try { replaceContents(state, {}); } catch (e) { /* ignore */ } }
+    key = null; salt = null; state = null;
+  }
+  const isUnlocked = () => !!(state && key);
+  function getState() { requireUnlocked(); return state; }
+
+  function commit(fn) {
+    return serial(async () => {
+      requireUnlocked();
+      const st = state, k = key, sl = salt;
+      const snapshot = JSON.parse(JSON.stringify(st));
+      try {
+        await fn(st);
+        const clean = validateState(st);
+        const env = await V().makeEnvelope(k, sl, clean);
+        if (key !== k) throw new Error('LOCKED');
+        await getAdapter().set(KEY, env);
+        if (state !== st) throw new Error('LOCKED');
+        replaceContents(st, clean);
+      } catch (e) {
+        if (state === st) replaceContents(st, snapshot);
+        throw e;
+      }
+    });
+  }
+  function changePassphrase(oldP, newP) {
+    return serial(async () => {
+      requireUnlocked();
+      const st = state;
+      V().checkPassphrase(newP);
+      const a = getAdapter();
+      const env = await a.get(KEY);
+      const { salt: sl } = V().parseEnvelope(env);
+      await V().decrypt(await V().deriveKey(oldP, sl), env);
+      const nsl = V().newSalt();
+      const nk = await V().deriveKey(newP, nsl);
+      const env2 = await V().makeEnvelope(nk, nsl, validateState(st));
+      if (state !== st) throw new Error('LOCKED');
+      await a.set(KEY, env2);
+      if (state !== st) throw new Error('LOCKED');
+      key = nk; salt = nsl;
+    });
+  }
+  function replaceState(next) {
+    return serial(async () => {
+      requireUnlocked();
+      const st = state;
+      const clean = validateState(next);
+      const env = await V().makeEnvelope(key, salt, clean);
+      if (state !== st) throw new Error('LOCKED');
+      await getAdapter().set(KEY, env);
+      if (state !== st) throw new Error('LOCKED');
+      replaceContents(st, clean);
+    });
+  }
+  async function wipe() {
+    await serial(async () => { await getAdapter().del(KEY); });
+    lock();
+  }
+
+  L.store = { _setAdapter, exists, init, unlock, lock, isUnlocked, getState, commit, changePassphrase, replaceState, wipe, validateState, newId, defaultState };
+})();
+
+;
+(function () {
+  'use strict';
+  const L = (globalThis.LifeOS = globalThis.LifeOS || {});
+  const MAX_BYTES = 5 * 1024 * 1024, MAX_ROWS = 20000, MAX_COLS = 100, MAX_CELL = 10000;
+  const DANGER = /^[=+\-@\t\r\n]/;
+
+  function parse(text) {
+    if (typeof text !== 'string') throw new Error('CSV must be text');
+    if (text.length > MAX_BYTES || (text.length * 3 > MAX_BYTES && new TextEncoder().encode(text).length > MAX_BYTES))
+      throw new Error('CSV is larger than 5 MB');
+    if (text.charCodeAt(0) === 0xfeff) text = text.slice(1);
+    const rows = [];
+    let row = [], cell = '', inQ = false, quoted = false;
+    const endCell = () => {
+      if (cell.length > MAX_CELL) throw new Error('A CSV cell is too long');
+      row.push(cell); cell = ''; quoted = false;
+      if (row.length > MAX_COLS) throw new Error('CSV has too many columns');
+    };
+    const endRow = () => {
+      const blank = row.length === 0 && cell === '' && !quoted;
+      if (!blank) { endCell(); rows.push(row); if (rows.length > MAX_ROWS + 1) throw new Error('CSV has more than 20000 rows'); }
+      row = [];
+    };
+    const n = text.length;
+    for (let i = 0; i < n; i++) {
+      const c = text[i];
+      if (inQ) {
+        if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else inQ = false; }
+        else cell += c;
+      } else if (c === '"' && cell === '' && !quoted) { inQ = true; quoted = true; }
+      else if (c === ',') endCell();
+      else if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; endRow(); }
+      else cell += c;
+      if (cell.length > MAX_CELL) throw new Error('A CSV cell is too long');
+    }
+    if (inQ) throw new Error('CSV has an unterminated quote');
+    if (cell !== '' || row.length || quoted) endRow();
+    if (!rows.length) throw new Error('CSV is empty');
+    return { headers: rows[0].map((h) => h.trim()), rows: rows.slice(1) };
+  }
+
+  const unneutralise = (s) => (/^'[=+\-@\t\r\n]/.test(s) ? s.slice(1) : s);
+  function normDate(s) {
+    s = s.trim();
+    let m = /^(\d{4}-\d{2}-\d{2})(?:[T ].*)?$/.exec(s);
+    if (m) return m[1];
+    m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(s);
+    if (m) return m[3] + '-' + m[1].padStart(2, '0') + '-' + m[2].padStart(2, '0');
+    return s;
+  }
+  function normNum(s) {
+    const t = s.replace(/[\s,$€£]/g, '');
+    if (t.length > 40 || !/^[+-]?(\d+(\.\d*)?|\.\d+)$/.test(t)) return NaN;
+    return Number(t);
+  }
+  const EXTRA = ['status', 'person', 'due'];
+
+  function toEntries(parsed, opts) {
+    if (!parsed || !Array.isArray(parsed.headers) || !Array.isArray(parsed.rows)) throw new Error('Nothing to import');
+    const { domain, type, map } = opts || {};
+    const dom = L.DOMAINS.find((d) => d.id === domain);
+    if (!dom || !dom.types.some((t) => t.id === type)) throw new Error('Unknown domain or type');
+    if (!map || typeof map !== 'object') throw new Error('Column mapping required');
+    const tfields = dom.types.find((t) => t.id === type).fields;
+    // Only fields the selected type has may be mapped; its required fields must be mapped.
+    for (const k of ['value'].concat(EXTRA)) {
+      const given = !(map[k] === undefined || map[k] === null || map[k] === '');
+      const f = tfields.find((x) => x.id === k);
+      if (given && !f) throw new Error('This type has no ' + k + ' field');
+      if (!given && f && f.required) throw new Error(f.label + ' column is required');
+    }
+    const idx = {};
+    for (const k of ['date', 'title', 'value', 'notes'].concat(EXTRA)) {
+      const m = map[k];
+      if (m === undefined || m === null || m === '') continue;
+      const i = typeof m === 'number' ? m : parsed.headers.indexOf(m);
+      if (!Number.isInteger(i) || i < 0 || i >= parsed.headers.length) throw new Error('Column not found for ' + k);
+      idx[k] = i;
+    }
+    if (idx.date === undefined || idx.title === undefined) throw new Error('Date and title columns are required');
+    const entries = [];
+    let rejected = 0;
+    for (const r of parsed.rows) {
+      if (!Array.isArray(r) || r.length !== parsed.headers.length) { rejected++; continue; }
+      const cell = (k) => (idx[k] === undefined ? '' : unneutralise(String(r[idx[k]])));
+      try {
+        const p = { domain, type, date: normDate(cell('date')), title: cell('title') };
+        if (idx.value !== undefined && cell('value').trim() !== '') {
+          p.value = normNum(cell('value'));
+          if (Number.isNaN(p.value)) throw new Error('bad number');
+        }
+        if (idx.notes !== undefined) p.notes = cell('notes');
+        for (const k of EXTRA) {
+          if (idx[k] === undefined) continue;
+          p[k] = k === 'status' ? cell(k).trim().toLowerCase() : cell(k);
+        }
+        entries.push(L.metrics.validateEntry(p));
+      } catch (e) { rejected++; }
+    }
+    return { entries, rejected };
+  }
+
+  function exportEntries(entries) {
+    const cols = ['id', 'domain', 'type', 'date', 'title', 'value', 'status', 'person', 'due', 'notes', 'createdAt'];
+    const q = (v) => {
+      let s = v === undefined || v === null ? '' : String(v);
+      if (DANGER.test(s)) s = "'" + s;
+      return '"' + s.replace(/"/g, '""') + '"';
+    };
+    const lines = [cols.map(q).join(',')];
+    for (const e of entries || []) lines.push(cols.map((c) => q(e[c])).join(','));
+    return lines.join('\r\n') + '\r\n';
+  }
+
+  L.csv = { parse, toEntries, exportEntries };
+})();
+
+;
+(function () {
+  'use strict';
+  const L = (globalThis.LifeOS = globalThis.LifeOS || {});
+
+  const num = (id, label, o) => Object.assign({ id, label, kind: 'number', required: true }, o);
+  const sel = (id, label, options) => ({ id, label, kind: 'select', required: false, options, default: options[0] });
+  const txt = (id, label) => ({ id, label, kind: 'text', required: true });
+  const dt = (id, label) => ({ id, label, kind: 'date', required: true });
+  const T = (id, label, fields) => ({ id, label, fields: fields || [] });
+  const DOMAINS = [
+    { id: 'money', label: 'Money', types: [
+      T('income', 'Income', [num('value', 'Amount', { min: 0, max: 1e12 })]),
+      T('expense', 'Expense', [num('value', 'Amount', { min: 0, max: 1e12 })])] },
+    { id: 'assets', label: 'Assets', types: [T('balance', 'Balance', [num('value', 'Balance (negative for a liability)', { min: -1e12, max: 1e12 })])] },
+    { id: 'work', label: 'Work', types: [T('outcome', 'Outcome', [sel('status', 'Status', ['todo', 'done'])])] },
+    { id: 'health', label: 'Health', types: [
+      T('workout', 'Workout'),
+      T('sleep', 'Sleep', [num('value', 'Hours', { min: 0, max: 24 })]),
+      T('weight', 'Weight', [num('value', 'Weight', { min: 0, max: 1000 })])] },
+    { id: 'activities', label: 'Activities', types: [T('session', 'Session')] },
+    { id: 'social', label: 'Social', types: [T('contact', 'Contact', [txt('person', 'Person')])] },
+    { id: 'learning', label: 'Learning', types: [
+      T('item', 'Item', [sel('status', 'Status', ['active', 'done'])]),
+      T('hours', 'Hours', [num('value', 'Hours', { min: 0, max: 1000 })])] },
+    { id: 'home', label: 'Home', types: [T('due', 'Due item', [dt('due', 'Due date'), sel('status', 'Status', ['open', 'done'])])] },
+    { id: 'goals', label: 'Goals', types: [T('goal', 'Goal', [sel('status', 'Status', ['on-track', 'at-risk', 'off-track', 'done'])])] },
+    { id: 'wellbeing', label: 'Wellbeing', types: [T('mood', 'Mood', [num('value', 'Mood (1 to 5)', { min: 1, max: 5 })])] },
+  ];
+  (function freeze(o) { if (o && typeof o === 'object' && !Object.isFrozen(o)) { Object.freeze(o); Object.values(o).forEach(freeze); } })(DOMAINS);
+
+  // ---- dates ----
+  function isDate(s) {
+    if (typeof s !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(s) || s < '1900-01-01' || s > '2200-12-31') return false;
+    const t = Date.parse(s + 'T00:00:00Z');
+    return !isNaN(t) && new Date(t).toISOString().slice(0, 10) === s;
+  }
+  const ms = (s) => Date.parse(s + 'T00:00:00Z');
+  const iso = (t) => new Date(t).toISOString().slice(0, 10);
+  const addDays = (s, n) => iso(ms(s) + n * 864e5);
+  const daysBetween = (a, b) => Math.round((ms(a) - ms(b)) / 864e5);
+  function weekStart(d) {
+    if (!isDate(d)) throw new Error('Invalid date');
+    return addDays(d, -((new Date(ms(d)).getUTCDay() + 6) % 7));
+  }
+  const todayISO = () => new Date().toISOString().slice(0, 10);
+
+  // ---- entries ----
+  const NUM_RE = /^[+-]?(\d+(\.\d*)?|\.\d+)(e[+-]?\d+)?$/i;
+  const isEmpty = (v) => v === undefined || v === null || v === '';
+  function validateEntry(p) {
+    if (!p || typeof p !== 'object' || Array.isArray(p)) throw new Error('Entry must be an object');
+    const dom = DOMAINS.find((d) => d.id === p.domain);
+    if (!dom) throw new Error('Unknown domain');
+    const ty = dom.types.find((t) => t.id === p.type);
+    if (!ty) throw new Error('Unknown entry type');
+    if (!isDate(p.date)) throw new Error('Date must be a valid date (YYYY-MM-DD)');
+    if (typeof p.title !== 'string' || !p.title.trim()) throw new Error('Title is required');
+    const title = p.title.trim();
+    if (title.length > 200) throw new Error('Title must be 200 characters or fewer');
+    let id = p.id;
+    if (isEmpty(id)) id = L._webcrypto.randomUUID();
+    if (typeof id !== 'string' || !id || id.length > 100) throw new Error('Invalid id');
+    const out = { id, domain: dom.id, type: ty.id, date: p.date, title };
+    for (const f of ty.fields) {
+      const raw = p[f.id];
+      if (isEmpty(raw)) {
+        if (f.kind === 'select') { out[f.id] = f.default; continue; }
+        if (f.required) throw new Error(f.label + ' is required');
+        continue;
+      }
+      if (f.kind === 'number') {
+        const v = typeof raw === 'number' ? raw : (typeof raw === 'string' && raw.length <= 64 && NUM_RE.test(raw.trim()) ? Number(raw) : NaN);
+        if (!isFinite(v) || v < f.min || v > f.max) throw new Error(f.label + ' must be a number between ' + f.min + ' and ' + f.max);
+        out[f.id] = v;
+      } else if (f.kind === 'text') {
+        if (typeof raw !== 'string' || !raw.trim() || raw.trim().length > 200) throw new Error(f.label + ' must be 1 to 200 characters');
+        out[f.id] = raw.trim();
+      } else if (f.kind === 'date') {
+        if (!isDate(raw)) throw new Error(f.label + ' must be a valid date');
+        out[f.id] = raw;
+      } else if (f.kind === 'select') {
+        if (!f.options.includes(raw)) throw new Error(f.label + ' must be one of ' + f.options.join(', '));
+        out[f.id] = raw;
+      }
+    }
+    if (!isEmpty(p.notes)) {
+      if (typeof p.notes !== 'string') throw new Error('Notes must be text');
+      const n = p.notes.trim();
+      if (n.length > 2000) throw new Error('Notes must be 2000 characters or fewer');
+      if (n) out.notes = n;
+    }
+    const ca = p.createdAt;
+    out.createdAt = (typeof ca === 'string' && ca.length <= 40 && ca) || (typeof ca === 'number' && isFinite(ca) && ca) || new Date().toISOString();
+    return out;
+  }
+
+  // ---- calculations ----
+  const r1 = (x) => Math.round(x * 10) / 10;
+  const r2 = (x) => Math.round(x * 100) / 100;
+  const inR = (e, a, b) => e.date >= a && e.date <= b;
+  function savings(ents, a, b) {
+    let inc = 0, exp = 0;
+    for (const e of ents) if (inR(e, a, b)) { if (e.type === 'income') inc += e.value; else if (e.type === 'expense') exp += e.value; }
+    return { inc, exp, rate: inc > 0 ? (inc - exp) / inc : null };
+  }
+  function netWorth(ents, asOf) {
+    const m = new Map();
+    for (const e of ents) {
+      if (e.type !== 'balance' || e.date > asOf) continue;
+      const k = e.title.trim().toLowerCase(), cur = m.get(k);
+      if (!cur || e.date >= cur.date) m.set(k, e);
+    }
+    let total = 0;
+    for (const e of m.values()) total += e.value;
+    return { total, count: m.size };
+  }
+  function overdue(ents, asOf, days) {
+    const last = new Map();
+    for (const e of ents) {
+      if (e.type !== 'contact' || e.date > asOf) continue;
+      const k = e.person.toLowerCase();
+      if (!last.has(k) || e.date > last.get(k)) last.set(k, e.date);
+    }
+    let n = 0;
+    for (const d of last.values()) if (daysBetween(asOf, d) > days) n++;
+    return { n, total: last.size };
+  }
+  function goals(ents, asOf) {
+    const m = new Map();
+    for (const e of ents) {
+      if (e.type !== 'goal' || e.date > asOf) continue;
+      const k = e.title.trim().toLowerCase(), cur = m.get(k);
+      if (!cur || e.date >= cur.date) m.set(k, e);
+    }
+    let active = 0, on = 0;
+    for (const e of m.values()) if (e.status !== 'done') { active++; if (e.status === 'on-track') on++; }
+    return { active, on, share: active ? on / active : null };
+  }
+  function dueSoon(ents, from, days) {
+    const end = addDays(from, days);
+    let soon = 0, late = 0;
+    for (const e of ents) {
+      if (e.type !== 'due' || e.status === 'done') continue;
+      if (e.due < from) late++; else if (e.due <= end) soon++;
+    }
+    return { soon, late };
+  }
+  const count = (ents, a, b, f) => { let n = 0; for (const e of ents) if (inR(e, a, b) && f(e)) n++; return n; };
+  function avgMood(ents, a, b) {
+    let s = 0, n = 0;
+    for (const e of ents) if (e.type === 'mood' && inR(e, a, b)) { s += e.value; n++; }
+    return { n, avg: n ? s / n : null };
+  }
+  function activeDays(ents, a, b) {
+    const s = new Set();
+    for (const e of ents) if (e.type === 'session' && inR(e, a, b)) s.add(e.date);
+    return s.size;
+  }
+
+  const UNITS = { money: '%', work: 'outcomes', health: 'workouts', activities: 'days', social: 'people', learning: 'items', home: 'items', goals: '%', wellbeing: 'score' };
+  function weekMetric(state, id, ws, ents) {
+    const we = addDays(ws, 6);
+    const tg = state.settings.targets;
+    switch (id) {
+      case 'money': { const s = savings(ents, ws, we); return s.rate === null ? 0 : s.rate * 100; }
+      case 'assets': return netWorth(ents, we).total;
+      case 'work': return count(ents, ws, we, (e) => e.type === 'outcome' && e.status === 'done');
+      case 'health': return count(ents, ws, we, (e) => e.type === 'workout');
+      case 'activities': return activeDays(ents, ws, we);
+      case 'social': return overdue(ents, we, tg.contactDays).n;
+      case 'learning': return count(ents, ws, we, (e) => e.type === 'item' && e.status === 'done');
+      case 'home': return dueSoon(ents, we, 30).soon;
+      case 'goals': { const g = goals(ents, we); return g.share === null ? 0 : g.share * 100; }
+      case 'wellbeing': { const m = avgMood(ents, ws, we); return m.avg === null ? 0 : m.avg; }
+    }
+    throw new Error('Unknown domain');
+  }
+  const unitOf = (state, id) => (id === 'assets' ? state.settings.currency : UNITS[id]);
+  const byDomain = (state, id) => state.entries.filter((e) => e.domain === id);
+
+  function weeklyDigest(state, weekStartISO) {
+    const ws = weekStart(weekStartISO), pw = addDays(ws, -7);
+    const domains = {};
+    for (const d of DOMAINS) {
+      const ents = byDomain(state, d.id);
+      domains[d.id] = { now: r2(weekMetric(state, d.id, ws, ents)), prev: r2(weekMetric(state, d.id, pw, ents)), unit: unitOf(state, d.id) };
+    }
+    return { week: ws, domains };
+  }
+  function series(state, domainId, n, today) {
+    if (!DOMAINS.some((d) => d.id === domainId)) throw new Error('Unknown domain');
+    n = Math.max(1, Math.min(104, Math.floor(Number(n)) || 1));
+    const cur = weekStart(isDate(today) ? today : todayISO());
+    const ents = byDomain(state, domainId), out = [];
+    for (let i = n - 1; i >= 0; i--) {
+      const ws = addDays(cur, -7 * i);
+      out.push({ label: ws, value: r2(weekMetric(state, domainId, ws, ents)) });
+    }
+    return out;
+  }
+
+  function fmtMoney(n, cur) {
+    try { return new Intl.NumberFormat('en-US', { style: 'currency', currency: cur || 'USD', maximumFractionDigits: 0 }).format(n); }
+    catch (e) { return String(Math.round(n)); }
+  }
+  function headline(state, id, today) {
+    if (!DOMAINS.some((d) => d.id === id)) throw new Error('Unknown domain');
+    if (!isDate(today)) throw new Error('today must be YYYY-MM-DD');
+    const ents = byDomain(state, id), st = state.settings, tg = st.targets;
+    const ws = weekStart(today), we = addDays(ws, 6), mon = today.slice(0, 7);
+    const R = (label, display, value, sub) => ({ label, display, value, sub });
+    switch (id) {
+      case 'money': {
+        const s = savings(ents, mon + '-01', mon + '-31');
+        const v = s.rate === null ? 0 : r1(s.rate * 100);
+        return R('Savings rate this month', s.rate === null ? 'n/a' : v + '%', v,
+          fmtMoney(s.inc, st.currency) + ' in, ' + fmtMoney(s.exp, st.currency) + ' out. Target ' + Math.round(tg.savingsRate * 100) + '%');
+      }
+      case 'assets': {
+        const w = netWorth(ents, today);
+        return R('Net worth', fmtMoney(w.total, st.currency), w.total, w.count + (w.count === 1 ? ' account' : ' accounts'));
+      }
+      case 'work': {
+        const total = count(ents, ws, we, (e) => e.type === 'outcome');
+        const done = count(ents, ws, we, (e) => e.type === 'outcome' && e.status === 'done');
+        return R('Outcomes done this week', done + ' of ' + total, done, total ? Math.round(done / total * 100) + '% complete' : 'No outcomes set this week');
+      }
+      case 'health': {
+        const n = count(ents, ws, we, (e) => e.type === 'workout');
+        return R('Workouts this week', n + ' of ' + tg.workoutsPerWeek, n, n >= tg.workoutsPerWeek ? 'Target met' : (tg.workoutsPerWeek - n) + ' to go');
+      }
+      case 'activities': {
+        const d = activeDays(ents, ws, we), s = count(ents, ws, we, (e) => e.type === 'session');
+        return R('Active days this week', String(d), d, s + (s === 1 ? ' session' : ' sessions'));
+      }
+      case 'social': {
+        const o = overdue(ents, today, tg.contactDays);
+        return R('People overdue', String(o.n), o.n, o.total + ' tracked, over ' + tg.contactDays + ' days since contact');
+      }
+      case 'learning': {
+        const n = count(ents, mon + '-01', mon + '-31', (e) => e.type === 'item' && e.status === 'done');
+        let h = 0;
+        for (const e of ents) if (e.type === 'hours' && e.date.slice(0, 7) === mon) h += e.value;
+        return R('Items finished this month', String(n), n, r1(h) + ' hours logged');
+      }
+      case 'home': {
+        const d = dueSoon(ents, today, 30);
+        return R('Due within 30 days', String(d.soon), d.soon, d.late ? d.late + ' overdue' : 'Nothing overdue');
+      }
+      case 'goals': {
+        const g = goals(ents, today);
+        const v = g.share === null ? 0 : Math.round(g.share * 100);
+        return R('Goals on track', g.share === null ? 'n/a' : v + '%', v, g.on + ' of ' + g.active + ' active goals');
+      }
+      case 'wellbeing': {
+        const m = avgMood(ents, addDays(today, -6), today);
+        const v = m.avg === null ? 0 : r2(m.avg);
+        return R('Mood, 7-day average', m.avg === null ? 'n/a' : v.toFixed(1), v, m.n + (m.n === 1 ? ' entry' : ' entries'));
+      }
+    }
+  }
+
+  L.metrics = { DOMAINS, isDate, addDays, validateEntry, headline, weekStart, weeklyDigest, series, fmtMoney };
+  L.DOMAINS = DOMAINS;
+})();
+
+;
+(function () {
+  'use strict';
+  const L = (globalThis.LifeOS = globalThis.LifeOS || {});
+  const MAX_TEXT = 280, MAX_ITEMS = 5, LESSON_CAP = 30, INSIGHT_CAP = 5000, CTX_MAX = 8;
+  const domains = () => L.DOMAINS.map((d) => d.id).concat(['overall']);
+  const BIDI = /[\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF]/g;
+  const newId = () => L._webcrypto.randomUUID();
+
+  function checkPeriod(p) {
+    if (!p || !L.metrics.isDate(p.from) || !L.metrics.isDate(p.to) || p.from > p.to) throw new Error('Invalid period');
+    return { from: p.from, to: p.to };
+  }
+  function checkLevel(l) { if (l !== 1 && l !== 2 && l !== 3) throw new Error('Invalid level'); return l; }
+
+  function rulesInsights(state, weekStartISO) {
+    const dg = L.metrics.weeklyDigest(state, weekStartISO);
+    const t = state.settings.targets, cur = state.settings.currency;
+    const out = [];
+    const money = (v) => L.metrics.fmtMoney(v, cur);
+    for (const d of L.DOMAINS) {
+      const { now, prev, unit } = dg.domains[d.id];
+      if (now === 0 && prev === 0) continue;
+      let text = null;
+      const dir = now > prev ? 'up' : 'down';
+      switch (d.id) {
+        case 'health':
+          text = now < t.workoutsPerWeek
+            ? 'Workouts: ' + now + ' this week against a target of ' + t.workoutsPerWeek + ' (last week ' + prev + ').'
+            : 'Workout target met: ' + now + ' of ' + t.workoutsPerWeek + ' this week.';
+          break;
+        case 'social':
+          if (now > 0) text = now + (now === 1 ? ' person is' : ' people are') + ' overdue for contact (more than ' + t.contactDays + ' days).';
+          else if (prev > 0) text = 'Nobody is overdue for contact now, down from ' + prev + ' last week.';
+          break;
+        case 'money':
+          if (now === 0) break;
+          text = now < t.savingsRate * 100
+            ? 'Savings rate this week was ' + now + '%, below your ' + Math.round(t.savingsRate * 100) + '% target.'
+            : 'Savings rate this week was ' + now + '%, at or above your ' + Math.round(t.savingsRate * 100) + '% target.';
+          break;
+        case 'assets':
+          if (now !== prev) text = 'Net worth moved ' + dir + ' from ' + money(prev) + ' to ' + money(now) + '.';
+          break;
+        case 'wellbeing':
+          if (now === 0) break;
+          if (prev > 0 && now !== prev) text = 'Average mood is ' + dir + ' from ' + prev + ' to ' + now + '.';
+          else if (prev === 0) text = 'Average mood this week is ' + now + ' out of 5.';
+          break;
+        case 'goals':
+          if (now === 0 && prev === 0) break;
+          if (now !== prev) text = 'Share of goals on track moved ' + dir + ' from ' + prev + '% to ' + now + '%.';
+          break;
+        default:
+          if (now !== prev) text = d.label + ': ' + now + ' ' + unit + ' this week, ' + dir + ' from ' + prev + '.';
+      }
+      if (text) out.push({ domain: d.id, text: text.slice(0, MAX_TEXT) });
+    }
+    return out;
+  }
+
+  function buildPrompt(state, level, period) {
+    checkLevel(level);
+    const p = checkPeriod(period);
+    const mem = state.memory;
+    const approvedAll = mem.insights.filter((i) => i.status === 'approved');
+    const lines = [];
+    let ctx;
+    if (level === 1) {
+      const dg = L.metrics.weeklyDigest(state, p.from);
+      lines.push('Level 1 weekly review. Week of ' + dg.week + '.', 'Digest (this week vs previous week):');
+      for (const d of L.DOMAINS) {
+        const x = dg.domains[d.id];
+        lines.push('- ' + d.id + ': now ' + x.now + ' ' + x.unit + ', previous ' + x.prev + ' ' + x.unit);
+      }
+      ctx = approvedAll.slice(-CTX_MAX);
+      lines.push('Approved insights so far:');
+    } else {
+      const from = level - 1;
+      ctx = approvedAll.filter((i) => i.level === from && i.period.from >= p.from && i.period.to <= p.to).slice(-CTX_MAX);
+      lines.push('Level ' + level + (level === 2 ? ' monthly' : ' quarterly') + ' consolidation for ' + p.from + ' to ' + p.to + '.',
+        'Approved level ' + from + ' insights to consolidate:');
+    }
+    if (!ctx.length) lines.push('- none');
+    for (const i of ctx) lines.push('- [' + i.domain + '] ' + i.text);
+    lines.push('Lessons from earlier rejections (respect these):');
+    const ls = mem.lessons.slice(-CTX_MAX);
+    if (!ls.length) lines.push('- none');
+    for (const l of ls) lines.push('- ' + l.text);
+    lines.push('Return the JSON array now.');
+    const system = 'You are a careful personal reflection assistant. You only see numeric summaries and short approved notes, never raw records. ' +
+      'Reply with ONLY a JSON array of at most ' + MAX_ITEMS + ' objects shaped {"domain":string,"text":string}. ' +
+      'domain must be one of: ' + domains().join(', ') + '. text is plain text, at most ' + MAX_TEXT + ' characters, specific and grounded in the numbers given. ' +
+      'Do not invent data. Do not give medical, legal or financial advice. Follow the lessons.';
+    return { system, user: lines.join('\n') };
+  }
+
+  function parseResponse(text) {
+    if (typeof text !== 'string' || text.length > 20000) throw new Error('AI response is not usable');
+    let t = text.trim();
+    const m = /^```(?:json)?[ \t]*\r?\n([\s\S]*?)\r?\n?```$/.exec(t);
+    if (m) t = m[1].trim();
+    if (t[0] !== '[') throw new Error('AI response is not a JSON array');
+    let a;
+    try { a = JSON.parse(t); } catch (e) { throw new Error('AI response is not valid JSON'); }
+    if (!Array.isArray(a)) throw new Error('AI response is not a JSON array');
+    if (a.length > MAX_ITEMS) throw new Error('AI response has too many items');
+    const ok = domains();
+    return a.map((x) => {
+      if (!x || typeof x !== 'object' || Array.isArray(x)) throw new Error('AI item is not an object');
+      if (typeof x.domain !== 'string' || !ok.includes(x.domain)) throw new Error('AI item has an unknown domain');
+      if (typeof x.text !== 'string') throw new Error('AI item text is not text');
+      const s = x.text.replace(BIDI, '').replace(/[\u0000-\u001f\u007f]+/g, ' ').trim();
+      if (!s || s.length > MAX_TEXT) throw new Error('AI item text is empty or too long');
+      return { domain: x.domain, text: s };
+    });
+  }
+
+  function propose(state, items, opts) {
+    const { level, period, source } = opts || {};
+    checkLevel(level);
+    const p = checkPeriod(period);
+    if (source !== 'rules' && source !== 'ai') throw new Error('Invalid source');
+    if (!Array.isArray(items) || items.length > 20) throw new Error('Invalid items');
+    const ok = domains();
+    const ins = state.memory.insights;
+    for (const it of items) {
+      if (!it || !ok.includes(it.domain) || typeof it.text !== 'string') throw new Error('Invalid insight');
+      const text = it.text.trim();
+      if (!text || text.length > MAX_TEXT) throw new Error('Invalid insight text');
+      if (ins.some((x) => x.level === level && x.period.from === p.from && x.domain === it.domain && x.text === text)) continue;
+      if (ins.length >= INSIGHT_CAP) throw new Error('Insight limit reached');
+      ins.push({ id: newId(), level, period: { from: p.from, to: p.to }, domain: it.domain, text, source, status: 'proposed', createdAt: new Date().toISOString() });
+    }
+  }
+
+  function decide(state, id, decision, reason) {
+    if (decision !== 'approved' && decision !== 'rejected') throw new Error('Invalid decision');
+    const ins = state.memory.insights.find((i) => i.id === id);
+    if (!ins) throw new Error('Insight not found');
+    ins.status = decision;
+    ins.decidedAt = new Date().toISOString();
+    if (decision === 'rejected' && typeof reason === 'string') {
+      const r = reason.replace(/[\u0000-\u001f\u007f]+/g, ' ').trim().slice(0, MAX_TEXT);
+      if (r) {
+        const ls = state.memory.lessons;
+        ls.push({ id: newId(), text: r, createdAt: ins.decidedAt });
+        while (ls.length > LESSON_CAP) ls.shift();
+      }
+    }
+    return ins;
+  }
+
+  // Pure: returns a deep copy of state with every approved insight set back to proposed (no decidedAt).
+  function demoteApproved(state) {
+    const out = JSON.parse(JSON.stringify(state));
+    for (const i of out.memory.insights) if (i.status === 'approved') { i.status = 'proposed'; delete i.decidedAt; }
+    return out;
+  }
+
+  function approved(state, level) {
+    return state.memory.insights.filter((i) => i.status === 'approved' && (level === undefined || i.level === level));
+  }
+
+  L.memory = { rulesInsights, buildPrompt, parseResponse, propose, decide, approved, demoteApproved };
+})();
+
+;
+(function () {
+  'use strict';
+  const L = (globalThis.LifeOS = globalThis.LifeOS || {});
+  // http://localhost or http://127.0.0.1, explicit port 1024-65535, path empty or exactly /v1. No query, fragment or credentials.
+  const LOCAL_RE = /^http:\/\/(?:localhost|127\.0\.0\.1):([1-9]\d{3,4})(?:\/v1)?$/;
+  const MAX_BODY = 1024 * 1024;
+  function isLocalUrl(u) {
+    if (typeof u !== 'string') return false;
+    const m = LOCAL_RE.exec(u);
+    return !!m && Number(m[1]) >= 1024 && Number(m[1]) <= 65535;
+  }
+  const DEFAULT_MODEL = 'claude-haiku-4-5';
+  const MAX_OUT = 20000;
+
+  function validateProvider(p) {
+    if (!p || typeof p !== 'object') throw new Error('Provider required');
+    const kind = p.kind;
+    if (!['none', 'anthropic', 'local', 'manual'].includes(kind)) throw new Error('Unknown provider');
+    const s = (v, max, n) => { if (v === undefined || v === null) return ''; if (typeof v !== 'string' || v.length > max) throw new Error(n + ' is invalid'); return v.trim(); };
+    const out = { kind, baseUrl: s(p.baseUrl, 200, 'Base URL'), model: s(p.model, 100, 'Model'), apiKey: s(p.apiKey, 300, 'API key') };
+    if (out.apiKey && !/^[\x21-\x7e]+$/.test(out.apiKey)) throw new Error('API key contains invalid characters');
+    if (kind === 'local') {
+      out.baseUrl = out.baseUrl.replace(/\/+$/, '');
+      if (!isLocalUrl(out.baseUrl)) throw new Error('Local provider must be http://localhost or http://127.0.0.1 with a port from 1024 to 65535 and a path of nothing or /v1');
+      if (!out.model) throw new Error('Model name is required for a local provider');
+    }
+    if (kind === 'anthropic') { out.baseUrl = ''; if (!out.model) out.model = DEFAULT_MODEL; }
+    return out;
+  }
+
+  // Reads the body as a stream and aborts as soon as more than MAX_BODY bytes arrive.
+  async function readCapped(res, ctl) {
+    const tooBig = () => new Error('The AI provider reply was too large');
+    const cl = res.headers && typeof res.headers.get === 'function' ? Number(res.headers.get('content-length')) : NaN;
+    if (cl > MAX_BODY) { ctl.abort(); throw tooBig(); }
+    if (!res.body || typeof res.body.getReader !== 'function') throw new Error('The AI provider sent an unreadable reply');
+    const reader = res.body.getReader();
+    const chunks = [];
+    let total = 0;
+    try {
+      for (;;) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        total += value.byteLength;
+        if (total > MAX_BODY) {
+          ctl.abort();
+          try { await reader.cancel(); } catch (e) { /* ignore */ }
+          throw tooBig();
+        }
+        chunks.push(value);
+      }
+    } catch (e) {
+      if (e && e.message === tooBig().message) throw e;
+      throw new Error(ctl.signal.aborted ? 'The AI request timed out' : 'The AI provider sent an unreadable reply');
+    }
+    const buf = new Uint8Array(total);
+    let o = 0;
+    for (const c of chunks) { buf.set(c, o); o += c.byteLength; }
+    return new TextDecoder().decode(buf);
+  }
+
+  async function complete(provider, prompt, fetchImpl) {
+    const p = validateProvider(provider);
+    if (p.kind === 'none' || p.kind === 'manual') throw new Error('MANUAL');
+    if (!prompt || typeof prompt.system !== 'string' || typeof prompt.user !== 'string') throw new Error('Invalid prompt');
+    if (p.kind === 'anthropic' && !p.apiKey) throw new Error('API key is missing');
+    const doFetch = fetchImpl || ((...a) => globalThis.fetch(...a));
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 20000);
+    let url, headers, body;
+    if (p.kind === 'anthropic') {
+      url = 'https://api.anthropic.com/v1/messages';
+      headers = { 'content-type': 'application/json', 'x-api-key': p.apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' };
+      body = { model: p.model, max_tokens: 600, system: prompt.system, messages: [{ role: 'user', content: prompt.user }] };
+    } else {
+      url = p.baseUrl + '/chat/completions';
+      headers = { 'content-type': 'application/json' };
+      if (p.apiKey) headers.authorization = 'Bearer ' + p.apiKey;
+      body = { model: p.model, max_tokens: 600, stream: false, messages: [{ role: 'system', content: prompt.system }, { role: 'user', content: prompt.user }] };
+    }
+    let res;
+    try {
+      res = await doFetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: ctl.signal, credentials: 'omit', redirect: 'error', referrerPolicy: 'no-referrer' });
+    } catch (e) {
+      clearTimeout(timer);
+      throw new Error(e && e.name === 'AbortError' ? 'The AI request timed out' : 'Could not reach the AI provider');
+    }
+    try {
+      if (!res || !res.ok) throw new Error('The AI provider returned an error' + (res && res.status ? ' (HTTP ' + res.status + ')' : ''));
+      let j;
+      const raw = await readCapped(res, ctl);
+      try { j = JSON.parse(raw); } catch (e) { throw new Error('The AI provider sent an unreadable reply'); }
+      let text;
+      if (p.kind === 'anthropic') {
+        text = Array.isArray(j && j.content) ? j.content.filter((b) => b && b.type === 'text' && typeof b.text === 'string').map((b) => b.text).join('') : undefined;
+      } else {
+        const c = j && j.choices && j.choices[0] && j.choices[0].message;
+        text = c && c.content;
+      }
+      if (typeof text !== 'string' || !text || text.length > MAX_OUT) throw new Error('The AI provider sent an unexpected reply');
+      return text;
+    } finally { clearTimeout(timer); }
+  }
+
+  L.ai = { validateProvider, complete, isLocalUrl };
+})();
+
+;
+(function () {
+  'use strict';
+  var L = globalThis.LifeOS;
+  var MAX_FILE = 5 * 1024 * 1024;
+  var SVGNS = 'http://www.w3.org/2000/svg';
+  var SVGTAGS = { svg: 1, polyline: 1, circle: 1, line: 1, path: 1 };
+  var PROPS = { checked: 1, disabled: 1, readOnly: 1, selected: 1 };
+  var STATUS = {
+    'work:outcome': ['todo', 'done'],
+    'learning:item': ['active', 'done'],
+    'home:due': ['open', 'done'],
+    'goals:goal': ['on-track', 'at-risk', 'off-track', 'done']
+  };
+
+  // ---------- helpers ----------
+  function add(el, kids) {
+    for (var i = 0; i < kids.length; i++) {
+      var k = kids[i];
+      if (k == null || k === false) continue;
+      if (Array.isArray(k)) add(el, k);
+      else if (k instanceof Node) el.appendChild(k);
+      else el.appendChild(document.createTextNode(String(k)));
+    }
+  }
+  function h(tag, props) {
+    var kids = Array.prototype.slice.call(arguments, 2);
+    var svg = !!SVGTAGS[tag];
+    var el = svg ? document.createElementNS(SVGNS, tag) : document.createElement(tag);
+    var val;
+    if (props) {
+      Object.keys(props).forEach(function (k) {
+        var v = props[k];
+        if (v == null || v === false) return;
+        if (k.slice(0, 2) === 'on' && typeof v === 'function') { el.addEventListener(k.slice(2), v); return; }
+        if (k === 'text') { el.textContent = String(v); return; }
+        if (k === 'value' && !svg) { val = String(v); return; }
+        if (!svg && PROPS[k]) { el[k] = !!v; return; }
+        el.setAttribute(k, v === true ? '' : String(v));
+      });
+    }
+    add(el, kids);
+    if (val !== undefined) el.value = val;
+    return el;
+  }
+  function field(label, input, hint) {
+    return h('label', { class: 'field' }, h('span', { class: 'lbl', text: label }), input, hint ? h('span', { class: 'hint', text: hint }) : null);
+  }
+  function btn(text, onclick, cls, extra) {
+    return h('button', Object.assign({ type: 'button', class: 'btn' + (cls ? ' ' + cls : ''), onclick: onclick, text: text }, extra || {}));
+  }
+  function sel(id, opts, cur, onchange) {
+    return h('select', { id: id, onchange: onchange }, opts.map(function (o) {
+      return h('option', { value: o.v, text: o.t, selected: o.v === cur });
+    }));
+  }
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+  function today() { var d = new Date(); return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function addDays(iso, n) {
+    var p = iso.split('-').map(Number);
+    var d = new Date(Date.UTC(p[0], p[1] - 1, p[2] + n));
+    return d.getUTCFullYear() + '-' + pad(d.getUTCMonth() + 1) + '-' + pad(d.getUTCDate());
+  }
+  function monthPeriod(iso) {
+    var p = iso.split('-').map(Number);
+    var last = new Date(Date.UTC(p[0], p[1], 0)).getUTCDate();
+    return { from: p[0] + '-' + pad(p[1]) + '-01', to: p[0] + '-' + pad(p[1]) + '-' + pad(last) };
+  }
+  function quarterPeriod(iso) {
+    var p = iso.split('-').map(Number);
+    var q = Math.floor((p[1] - 1) / 3);
+    var m1 = q * 3 + 1, m3 = q * 3 + 3;
+    var last = new Date(Date.UTC(p[0], m3, 0)).getUTCDate();
+    return { from: p[0] + '-' + pad(m1) + '-01', to: p[0] + '-' + pad(m3) + '-' + pad(last) };
+  }
+  function friendly(e) {
+    var m = e && e.message ? String(e.message) : '';
+    if (m === 'BAD_PASSPHRASE_OR_DATA') return 'That passphrase did not work, or the data is damaged.';
+    if (!m) return 'Something went wrong.';
+    return m.slice(0, 300);
+  }
+  function domainLabel(id) {
+    var d = L.DOMAINS.find(function (x) { return x.id === id; });
+    return d ? d.label : id;
+  }
+  function download(name, text, type) {
+    var url = URL.createObjectURL(new Blob([text], { type: type }));
+    var a = h('a', { href: url, download: name, class: 'hidden' });
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1500);
+  }
+  function readFile(file, max) {
+    if (!file) return Promise.reject(new Error('Choose a file first.'));
+    if (file.size > (max || MAX_FILE)) return Promise.reject(new Error('That file is larger than ' + Math.round((max || MAX_FILE) / 1048576) + ' MB.'));
+    return new Promise(function (res, rej) {
+      var r = new FileReader();
+      r.onload = function () { res(String(r.result)); };
+      r.onerror = function () { rej(new Error('Could not read that file.')); };
+      r.readAsText(file);
+    });
+  }
+  function copyText(ta) {
+    ta.focus(); ta.select();
+    var p = (navigator.clipboard && navigator.clipboard.writeText) ? navigator.clipboard.writeText(ta.value) : Promise.reject();
+    return p.catch(function () { if (!document.execCommand || !document.execCommand('copy')) throw new Error('Copy failed. Select the text and copy it manually.'); });
+  }
+  function checkPass(p) {
+    if (typeof p !== 'string' || p.length < 12) throw new Error('Passphrase must be at least 12 characters.');
+  }
+  function passNote() {
+    return h('p', { class: 'warn small', text: 'Your data is encrypted with this passphrase. If you forget it, your data cannot be recovered. There is no reset and no backdoor.' });
+  }
+
+  // ---------- state ----------
+  var view = { name: 'lock' };
+  var vaultExists = false;
+  var notice = null, noticeEl = null;
+  var busy = false;
+  var csvPending = null;
+  var ai = null;
+  var dlgEl = null, dlgReturn = null;
+  var idleTimer = null, lastActive = 0, locking = null;
+
+  function setNotice(kind, text) {
+    notice = text ? { kind: kind, text: text } : null;
+    if (noticeEl) {
+      noticeEl.textContent = text || '';
+      noticeEl.setAttribute('class', 'notice' + (notice ? ' ' + kind : ''));
+      if (text && noticeEl.scrollIntoView) noticeEl.scrollIntoView({ block: 'nearest' });
+    }
+  }
+  function act(fn, okMsg) {
+    if (busy) return Promise.resolve();
+    busy = true;
+    var root = document.getElementById('app');
+    root.classList.add('busy');
+    root.setAttribute('aria-busy', 'true');
+    return Promise.resolve().then(fn).then(function () {
+      if (okMsg) setNotice('ok', okMsg);
+    }, function (e) { setNotice('err', friendly(e)); }).then(function () {
+      busy = false;
+      root.classList.remove('busy');
+      root.removeAttribute('aria-busy');
+    });
+  }
+  function addAudit(s, action) {
+    if (!Array.isArray(s.audit)) s.audit = [];
+    s.audit.push({ ts: new Date().toISOString(), action: action });
+    while (s.audit.length > 200) s.audit.shift();
+  }
+  function commit(fn, action) {
+    return L.store.commit(function (s) { if (fn) fn(s); if (action) addAudit(s, action); });
+  }
+  function st() { return L.store.getState(); }
+  function go(name, extra) {
+    view = Object.assign({ name: name }, extra || {});
+    notice = null; csvPending = null; ai = null;
+    render();
+    window.scrollTo(0, 0);
+    var t = document.querySelector('h1');
+    if (t) { t.setAttribute('tabindex', '-1'); t.focus(); }
+  }
+
+  // ---------- dialog ----------
+  function closeDialog() {
+    if (dlgEl) { dlgEl.remove(); dlgEl = null; }
+    if (dlgReturn && dlgReturn.isConnected) dlgReturn.focus();
+    dlgReturn = null;
+  }
+  function openDialog(o) {
+    closeDialog();
+    dlgReturn = document.activeElement;
+    var err = h('p', { class: 'small', role: 'status', text: '' });
+    var yes = btn(o.yes || 'OK', function () {
+      Promise.resolve().then(function () { return o.onYes(); }).then(function (keep) {
+        if (keep !== false) closeDialog();
+      }, function (e) { err.textContent = friendly(e); });
+    }, o.danger ? 'bad' : 'pri');
+    var box = h('div', { class: 'dialog', role: 'dialog', 'aria-modal': 'true', 'aria-label': o.title },
+      h('h2', { text: o.title }), o.body || null, err,
+      h('div', { class: 'row' }, yes, btn('Cancel', closeDialog)));
+    dlgEl = h('div', { class: 'overlay' }, box);
+    dlgEl.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') { closeDialog(); return; }
+      if (e.key === 'Tab') {
+        var f = box.querySelectorAll('button,input,select,textarea');
+        if (!f.length) return;
+        var first = f[0], last = f[f.length - 1];
+        if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+        else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+      }
+    });
+    document.body.appendChild(dlgEl);
+    var inp = box.querySelector('input,textarea');
+    (inp || yes).focus();
+  }
+
+  // ---------- auto-lock ----------
+  function limitMs() {
+    try { return (st().settings.autoLockMin || 15) * 60000; } catch (e) { return 900000; }
+  }
+  function resetIdle() {
+    clearTimeout(idleTimer);
+    if (!L.store.isUnlocked() || locking) return;
+    lastActive = Date.now();
+    idleTimer = setTimeout(function () { lockNow(); }, limitMs());
+  }
+  // Wall-clock check: timers can pause during device sleep or background throttling.
+  function checkIdle() {
+    if (L.store.isUnlocked() && !locking && lastActive && Date.now() - lastActive >= limitMs()) lockNow();
+  }
+  function lockNow() {
+    if (locking) return locking;
+    clearTimeout(idleTimer);
+    // Record the lock in the audit log, but never let a slow or stuck write delay the lock itself.
+    var p = L.store.isUnlocked() ? Promise.race([commit(null, 'lock').catch(function () {}), new Promise(function (r) { setTimeout(r, 1000); })]) : Promise.resolve();
+    locking = p.then(function () {
+      L.store.lock();
+      closeDialog();
+      csvPending = null; ai = null; notice = null; lastActive = 0;
+      view = { name: 'lock' };
+      render();
+    }).then(function () { locking = null; }, function () { locking = null; });
+    return locking;
+  }
+  ['pointerdown', 'keydown', 'touchstart', 'scroll'].forEach(function (ev) {
+    window.addEventListener(ev, resetIdle, { capture: true, passive: true });
+  });
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) checkIdle(); });
+  window.addEventListener('focus', checkIdle);
+  window.addEventListener('pageshow', checkIdle);
+  setInterval(checkIdle, 10000);
+
+  // ---------- chrome ----------
+  function render() {
+    var root = document.getElementById('app');
+    root.replaceChildren();
+    noticeEl = h('div', { class: 'notice' + (notice ? ' ' + notice.kind : ''), role: 'status', 'aria-live': 'polite', text: notice ? notice.text : '' });
+    if (!L.store.isUnlocked() || view.name === 'lock') { root.appendChild(lockScreen()); return; }
+    var s = st();
+    var body;
+    try {
+      body = view.name === 'domain' ? domainScreen(s)
+        : view.name === 'review' ? reviewScreen(s)
+        : view.name === 'memory' ? memoryScreen(s)
+        : view.name === 'settings' ? settingsScreen(s)
+        : dashScreen(s);
+    } catch (e) { body = h('p', { text: friendly(e) }); }
+    var cur = view.name === 'domain' ? 'dashboard' : view.name;
+    var nav = h('nav', { class: 'nav', 'aria-label': 'Main' }, [['dashboard', 'Home'], ['review', 'Review'], ['memory', 'Memory'], ['settings', 'Settings']].map(function (n) {
+      return h('button', { type: 'button', text: n[1], 'aria-current': n[0] === cur ? 'page' : null, onclick: function () { go(n[0]); } });
+    }));
+    root.appendChild(h('div', { class: 'app' },
+      h('header', { class: 'top' }, h('span', { class: 'brand', text: 'LifeOS' }), btn('Lock', function () { lockNow(); }, 'sm lockbtn')),
+      nav,
+      h('main', { class: 'main' }, noticeEl, body)));
+  }
+
+  // ---------- lock screen ----------
+  function lockScreen() {
+    var create = !vaultExists;
+    var p1 = h('input', { type: 'password', id: 'pass', autocomplete: create ? 'new-password' : 'current-password', required: true, minlength: create ? '12' : null });
+    var p2 = create ? h('input', { type: 'password', id: 'pass2', autocomplete: 'new-password', required: true, minlength: '12' }) : null;
+    var form = h('form', {
+      onsubmit: function (e) {
+        e.preventDefault();
+        act(function () {
+          var a = p1.value, b = p2 ? p2.value : '';
+          if (create) {
+            checkPass(a);
+            if (a !== b) throw new Error('The two passphrases do not match.');
+            return L.store.init(a).then(function () { vaultExists = true; return commit(null, 'create'); }).then(afterUnlock);
+          }
+          if (!a) throw new Error('Enter your passphrase.');
+          return L.store.unlock(a).then(function () { return commit(null, 'unlock'); }).then(afterUnlock);
+        }).then(function () { p1.value = ''; if (p2) p2.value = ''; });
+      }
+    },
+      field(create ? 'Choose a passphrase (12 characters or more)' : 'Passphrase', p1),
+      p2 ? field('Confirm passphrase', p2) : null,
+      create ? passNote() : null,
+      h('button', { type: 'submit', class: 'btn pri', text: create ? 'Create vault' : 'Unlock' }));
+    return h('div', { class: 'lockwrap' },
+      h('h1', { text: 'LifeOS' }),
+      h('p', { class: 'mut', text: create ? 'Your private life dashboard. Everything stays on this device, encrypted.' : 'Unlock your vault.' }),
+      noticeEl, form);
+  }
+  function afterUnlock() {
+    notice = null; csvPending = null; ai = null;
+    resetIdle();
+    view = { name: 'dashboard' };
+    render();
+  }
+
+  // ---------- dashboard ----------
+  function spark(series) {
+    var vals = (series || []).map(function (p) { return Number(p.value) || 0; });
+    if (vals.length < 2) vals = [0, 0];
+    var min = Math.min.apply(null, vals), max = Math.max.apply(null, vals), rng = max - min || 1;
+    var W = 100, H = 28, P = 3;
+    var pts = vals.map(function (v, i) {
+      var x = P + (i * (W - 2 * P)) / (vals.length - 1);
+      var y = max === min ? H / 2 : H - P - ((v - min) / rng) * (H - 2 * P);
+      return [x.toFixed(1), y.toFixed(1)];
+    });
+    var last = pts[pts.length - 1];
+    return h('svg', { class: 'spark', viewBox: '0 0 ' + W + ' ' + H, preserveAspectRatio: 'none', 'aria-hidden': 'true', focusable: 'false' },
+      h('polyline', { points: pts.map(function (p) { return p.join(','); }).join(' ') }),
+      h('circle', { cx: last[0], cy: last[1], r: '2' }));
+  }
+  function dashScreen(s) {
+    var t = today(), wk = L.metrics.weekStart(t);
+    var tiles = L.DOMAINS.map(function (d) {
+      var hl, ser;
+      try { hl = L.metrics.headline(s, d.id, t); } catch (e) { hl = { label: '', display: '-', sub: '' }; }
+      try { ser = L.metrics.series(s, d.id, 8); } catch (e) { ser = []; }
+      return h('button', { type: 'button', class: 'tile', 'data-domain': d.id, onclick: function () { go('domain', { domain: d.id }); } },
+        h('span', { class: 'tile-title', text: d.label }),
+        h('span', { class: 'tile-value', text: hl.display }),
+        h('span', { class: 'tile-sub', text: hl.label }),
+        h('span', { class: 'tile-sub', text: hl.sub }),
+        spark(ser));
+    });
+    var rv = s.memory.reviews.filter(function (r) { return r.weekOf === wk; })[0] || s.memory.reviews[s.memory.reviews.length - 1];
+    var pr = h('div', { class: 'card' },
+      h('h2', { text: rv && rv.weekOf === wk ? 'This week\'s priorities' : 'Priorities' }));
+    if (rv) {
+      pr.appendChild(h('ol', null, rv.priorities.map(function (p) { return h('li', { text: p }); })));
+      if (rv.weekOf !== wk) pr.appendChild(h('p', { class: 'mut small', text: 'From the week of ' + rv.weekOf + '.' }));
+    } else pr.appendChild(h('p', { class: 'mut', text: 'No priorities yet. Run your weekly review to set three.' }));
+    if (!rv || rv.weekOf !== wk) pr.appendChild(btn('Start weekly review', function () { go('review'); }, 'pri'));
+    return h('div', null, h('h1', { text: 'Dashboard' }), pr, h('div', { class: 'grid' }, tiles));
+  }
+
+  // ---------- domain ----------
+  function fieldNames(t) {
+    return (t.fields || []).map(function (f) { return typeof f === 'string' ? f : (f.id || f.name || f.key); });
+  }
+  function domainScreen(s) {
+    var d = L.DOMAINS.find(function (x) { return x.id === view.domain; });
+    if (!d) return h('p', { text: 'Unknown area.' });
+    var tid = view.type && d.types.some(function (t) { return t.id === view.type; }) ? view.type : d.types[0].id;
+    var type = d.types.filter(function (t) { return t.id === tid; })[0];
+    var names = fieldNames(type);
+    var skey = d.id + ':' + type.id;
+    var refs = {};
+    var typeSel = d.types.length > 1 ? field('Type', sel('f-type', d.types.map(function (t) { return { v: t.id, t: t.label }; }), tid, function (e) { view.type = e.target.value; render(); })) : null;
+    refs.date = h('input', { type: 'date', id: 'f-date', value: today(), required: true });
+    refs.title = h('input', { type: 'text', id: 'f-title', maxlength: '200', required: true });
+    var fs = [typeSel, field('Date', refs.date), field('Title', refs.title)];
+    if (names.indexOf('value') >= 0) {
+      if (d.id === 'wellbeing') refs.value = sel('f-value', [1, 2, 3, 4, 5].map(function (n) { return { v: String(n), t: String(n) }; }), '3');
+      else refs.value = h('input', { type: 'number', id: 'f-value', step: 'any', inputmode: 'decimal' });
+      fs.push(field('Value', refs.value));
+    }
+    if (STATUS[skey] || names.indexOf('status') >= 0) {
+      var so = STATUS[skey] || ['open', 'done'];
+      refs.status = sel('f-status', so.map(function (x) { return { v: x, t: x }; }), so[0]);
+      fs.push(field('Status', refs.status));
+    }
+    if (names.indexOf('person') >= 0) { refs.person = h('input', { type: 'text', id: 'f-person', maxlength: '200' }); fs.push(field('Person', refs.person)); }
+    if (names.indexOf('due') >= 0) { refs.due = h('input', { type: 'date', id: 'f-due' }); fs.push(field('Due date', refs.due)); }
+    refs.notes = h('textarea', { id: 'f-notes', maxlength: '2000' });
+    fs.push(field('Notes (optional)', refs.notes));
+    var form = h('form', {
+      onsubmit: function (e) {
+        e.preventDefault();
+        act(function () {
+          var p = { domain: d.id, type: type.id, date: refs.date.value, title: refs.title.value.trim() };
+          if (refs.value && refs.value.value !== '') p.value = Number(refs.value.value);
+          if (refs.status) p.status = refs.status.value;
+          if (refs.person && refs.person.value.trim()) p.person = refs.person.value.trim();
+          if (refs.due && refs.due.value) p.due = refs.due.value;
+          if (refs.notes.value.trim()) p.notes = refs.notes.value.trim();
+          var en = L.metrics.validateEntry(p);
+          en.id = en.id || L.store.newId();
+          en.createdAt = en.createdAt || new Date().toISOString();
+          return commit(function (x) { x.entries.push(en); }).then(function () { setNotice('ok', 'Entry added.'); render(); });
+        });
+      }
+    }, fs, h('button', { type: 'submit', class: 'btn pri', text: 'Add entry' }));
+
+    var list = s.entries.filter(function (x) { return x.domain === d.id; }).sort(function (a, b) {
+      return b.date.localeCompare(a.date) || String(b.createdAt || '').localeCompare(String(a.createdAt || ''));
+    });
+    var shown = view.shown || 50;
+    var tl = {}; d.types.forEach(function (t) { tl[t.id] = t.label; });
+    var rows = list.slice(0, shown).map(function (en) {
+      var meta = [tl[en.type] || en.type];
+      if (en.value !== undefined) meta.push(String(en.value));
+      if (en.status) meta.push(en.status);
+      if (en.person) meta.push(en.person);
+      if (en.due) meta.push('due ' + en.due);
+      return h('div', { class: 'entry' },
+        h('div', null, h('div', { class: 'entry-t', text: en.title }),
+          h('div', { class: 'mut small', text: en.date + ' | ' + meta.join(' | ') }),
+          en.notes ? h('div', { class: 'small', text: en.notes }) : null),
+        btn('Delete', function () {
+          openDialog({
+            title: 'Delete this entry?', yes: 'Delete', danger: true,
+            body: h('p', { class: 'mut', text: en.title }),
+            onYes: function () { return commit(function (x) { x.entries = x.entries.filter(function (z) { return z.id !== en.id; }); }).then(function () { render(); }); }
+          });
+        }, 'sm bad', { 'aria-label': 'Delete ' + en.title }));
+    });
+    var out = h('div', null,
+      btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'),
+      h('h1', { text: d.label }),
+      h('div', { class: 'card' }, h('h2', { text: 'Add entry' }), form),
+      h('h2', { text: 'Entries (' + list.length + ')' }),
+      h('div', { class: 'card' }, rows.length ? rows : h('p', { class: 'mut', text: 'Nothing here yet.' })),
+      list.length > shown ? btn('Show more', function () { view.shown = shown + 50; render(); }) : null,
+      h('h2', { text: 'CSV' }),
+      csvCard(d, s, list));
+    return out;
+  }
+  function csvCard(d, s, list) {
+    var card = h('div', { class: 'card' });
+    var fileIn = h('input', { type: 'file', id: 'csv-file', accept: '.csv,text/csv' });
+    fileIn.addEventListener('change', function () {
+      var f = fileIn.files && fileIn.files[0];
+      if (!f) return;
+      act(function () {
+        return readFile(f).then(function (text) {
+          if (!L.store.isUnlocked()) return;
+          var parsed = L.csv.parse(text);
+          csvPending = { parsed: parsed, domain: d.id };
+          render();
+        });
+      });
+    });
+    card.appendChild(field('Import a CSV file (5 MB max)', fileIn));
+    if (csvPending && csvPending.domain === d.id) {
+      var hd = csvPending.parsed.headers;
+      var tid = csvPending.type || d.types[0].id;
+      var type = d.types.filter(function (t) { return t.id === tid; })[0];
+      var names = fieldNames(type);
+      var opts = [{ v: '', t: '(none)' }].concat(hd.map(function (x, i) { return { v: String(i), t: x || ('Column ' + (i + 1)) }; }));
+      var guess = function (re) { var i = hd.findIndex(function (x) { return re.test(x); }); return i >= 0 ? String(i) : ''; };
+      var m = {
+        date: sel('m-date', opts, guess(/date/i)),
+        title: sel('m-title', opts, guess(/title|name|desc|memo|payee/i)),
+        notes: sel('m-notes', opts, guess(/note/i))
+      };
+      var extra = { value: [/value|amount|total|hours/i, 'Value column'], person: [/person|contact|who/i, 'Person column'], due: [/due/i, 'Due date column'], status: [/status|state/i, 'Status column'] };
+      var extraOrder = ['value', 'person', 'due', 'status'].filter(function (k) { return names.indexOf(k) >= 0; });
+      extraOrder.forEach(function (k) { m[k] = sel('m-' + k, opts, guess(extra[k][0])); });
+      card.appendChild(h('p', { class: 'mut small', text: hd.length + ' columns, ' + csvPending.parsed.rows.length + ' rows.' }));
+      if (d.types.length > 1) card.appendChild(field('Import as', sel('m-type', d.types.map(function (t) { return { v: t.id, t: t.label }; }), tid, function (e) { csvPending.type = e.target.value; render(); })));
+      card.appendChild(field('Date column', m.date));
+      card.appendChild(field('Title column', m.title));
+      extraOrder.forEach(function (k) { card.appendChild(field(extra[k][1], m[k])); });
+      card.appendChild(field('Notes column', m.notes));
+      card.appendChild(h('div', { class: 'row' },
+        btn('Import rows', function () {
+          act(function () {
+            var map = {};
+            ['date', 'title', 'notes'].concat(extraOrder).forEach(function (k) {
+              if (m[k] && m[k].value !== '') map[k] = Number(m[k].value);
+            });
+            if (map.date === undefined || map.title === undefined) throw new Error('Choose the date and title columns.');
+            var r = L.csv.toEntries(csvPending.parsed, { domain: d.id, type: tid, map: map });
+            var now = new Date().toISOString();
+            var ens = r.entries.map(function (en) { en.id = en.id || L.store.newId(); en.createdAt = en.createdAt || now; return en; });
+            return commit(function (x) { ens.forEach(function (en) { x.entries.push(en); }); }, 'import').then(function () {
+              csvPending = null;
+              setNotice('ok', 'Imported ' + ens.length + ' rows. Rejected ' + r.rejected + '.');
+              render();
+            });
+          });
+        }, 'pri'),
+        btn('Cancel', function () { csvPending = null; render(); })));
+    }
+    card.appendChild(h('div', { class: 'row' }, btn('Export CSV', function () {
+      act(function () {
+        if (!list.length) throw new Error('No entries to export.');
+        download('lifeos-' + d.id + '.csv', L.csv.exportEntries(list), 'text/csv');
+        return commit(null, 'export');
+      }, 'CSV exported.');
+    })));
+    return card;
+  }
+
+  // ---------- insights and AI ----------
+  function insightCard(i, withActions) {
+    var kids = [
+      h('div', { class: 'row' },
+        h('span', { class: 'chip', text: domainLabel(i.domain) }),
+        h('span', { class: 'chip', text: 'Level ' + i.level }),
+        h('span', { class: 'chip', text: i.source === 'ai' ? 'AI' : 'Rules' }),
+        i.status !== 'proposed' ? h('span', { class: 'chip ' + (i.status === 'approved' ? 'ok' : 'bad'), text: i.status }) : null),
+      h('p', { text: i.text })
+    ];
+    if (withActions && i.status === 'proposed') {
+      kids.push(h('div', { class: 'row' },
+        btn('Approve', function () {
+          act(function () { return commit(function (x) { L.memory.decide(x, i.id, 'approved'); }).then(render); });
+        }, 'pri sm'),
+        btn('Reject', function () { rejectDialog(i); }, 'sm')));
+    }
+    return h('div', { class: 'card' }, kids);
+  }
+  function rejectDialog(i) {
+    var why = h('input', { type: 'text', id: 'reject-reason', maxlength: '200' });
+    openDialog({
+      title: 'Reject this insight', yes: 'Reject',
+      body: [h('p', { class: 'mut', text: i.text }), field('Why? (optional, helps future suggestions)', why)],
+      onYes: function () {
+        var r = why.value.trim().slice(0, 200);
+        return commit(function (x) { L.memory.decide(x, i.id, 'rejected', r || undefined); }).then(function () { render(); });
+      }
+    });
+  }
+  function runPropose(items, level, period, source) {
+    return commit(function (x) { L.memory.propose(x, items, { level: level, period: period, source: source }); });
+  }
+  function suggestAI(level, period) {
+    return act(function () {
+      var s = st();
+      var kind = s.settings.provider.kind;
+      var pr = L.memory.buildPrompt(s, level, period);
+      if (kind === 'none' || kind === 'manual') {
+        ai = { level: level, period: period, prompt: pr.system + '\n\n' + pr.user };
+        render();
+        return;
+      }
+      return L.ai.complete(s.settings.provider, pr).then(function (text) {
+        return runPropose(L.memory.parseResponse(text), level, period, 'ai');
+      }).then(function () { setNotice('ok', 'Suggestions added for your review.'); render(); }, function (e) {
+        if (e && e.message === 'MANUAL') { ai = { level: level, period: period, prompt: pr.system + '\n\n' + pr.user }; render(); return; }
+        throw e;
+      });
+    });
+  }
+  function aiPanel(level, period, label) {
+    var kind = st().settings.provider.kind;
+    var box = h('div', null,
+      h('div', { class: 'row' }, btn(label, function () { suggestAI(level, period); }, 'sm', { id: 'ai-suggest' })),
+      h('p', { class: 'mut small', text: kind === 'anthropic' ? 'Sends only the numeric digest, approved insights and lessons to api.anthropic.com.' : kind === 'local' ? 'Sends only the numeric digest, approved insights and lessons to your local model.' : 'Manual mode: copy the prompt into your own AI chat and paste the reply here.' }));
+    if (ai && ai.level === level && ai.period.from === period.from) {
+      var ta = h('textarea', { id: 'ai-prompt', readOnly: true, value: ai.prompt, 'aria-label': 'Prompt to copy' });
+      var paste = h('textarea', { id: 'ai-paste', 'aria-label': 'Paste the AI reply here', maxlength: '20000' });
+      box.appendChild(h('div', { class: 'card' },
+        h('p', { class: 'small', text: 'The prompt has numbers only, no entries, titles or names.' }),
+        ta,
+        h('div', { class: 'row' }, btn('Copy', function () { copyText(ta).then(function () { setNotice('ok', 'Copied.'); }, function (e) { setNotice('err', friendly(e)); }); }, 'sm')),
+        field('Paste the reply (a JSON list)', paste),
+        h('div', { class: 'row' },
+          btn('Add suggestions', function () {
+            act(function () {
+              var items = L.memory.parseResponse(paste.value);
+              return runPropose(items, level, period, 'ai').then(function () { ai = null; setNotice('ok', 'Suggestions added for your review.'); render(); });
+            });
+          }, 'pri sm'),
+          btn('Close', function () { ai = null; render(); }, 'sm'))));
+    }
+    return box;
+  }
+
+  // ---------- weekly review ----------
+  function reviewScreen(s) {
+    var t = today(), wk = L.metrics.weekStart(t);
+    var period = { from: wk, to: addDays(wk, 6) };
+    var dg = L.metrics.weeklyDigest(s, wk);
+    var rows = L.DOMAINS.map(function (d) {
+      var x = (dg.domains && dg.domains[d.id]) || { now: 0, prev: 0, unit: '' };
+      var dl = Math.round((x.now - x.prev) * 100) / 100;
+      return h('tr', null, h('td', { text: d.label }), h('td', { text: String(Math.round(x.now * 100) / 100) + ' ' + x.unit }),
+        h('td', { text: String(Math.round(x.prev * 100) / 100) }), h('td', { text: (dl > 0 ? '+' : '') + dl }));
+    });
+    var mine = s.memory.insights.filter(function (i) { return i.level === 1 && i.period && i.period.from === wk; });
+    var haveRules = mine.some(function (i) { return i.source === 'rules'; });
+    var rv = s.memory.reviews.filter(function (r) { return r.weekOf === wk; })[0];
+    var pri = [0, 1, 2].map(function (n) {
+      return h('input', { type: 'text', maxlength: '200', id: 'prio' + (n + 1), value: rv ? rv.priorities[n] : '', required: true });
+    });
+    return h('div', null, h('h1', { text: 'Weekly review' }),
+      h('p', { class: 'mut', text: 'Week of ' + wk }),
+      h('h2', { text: '1. This week vs last week' }),
+      h('div', { class: 'card' }, h('table', null, h('thead', null, h('tr', null, ['Area', 'This week', 'Last week', 'Change'].map(function (x) { return h('th', { text: x }); }))), h('tbody', null, rows))),
+      h('h2', { text: '2. Insights' }),
+      h('div', { class: 'row' },
+        btn(haveRules ? 'Rules suggestions added' : 'Run rules suggestions', function () {
+          act(function () {
+            var items = L.memory.rulesInsights(st(), wk);
+            if (!items.length) throw new Error('No rule-based suggestions this week.');
+            return runPropose(items, 1, period, 'rules').then(render);
+          });
+        }, 'pri sm', { id: 'rules-run', disabled: haveRules })),
+      aiPanel(1, period, 'Suggest with AI'),
+      mine.length ? mine.map(function (i) { return insightCard(i, true); }) : h('p', { class: 'mut', text: 'No insights yet this week.' }),
+      h('h2', { text: '3. Your three priorities' }),
+      h('form', {
+        class: 'card',
+        onsubmit: function (e) {
+          e.preventDefault();
+          act(function () {
+            var ps = pri.map(function (p) { return p.value.trim(); });
+            if (ps.some(function (p) { return !p; })) throw new Error('Enter all three priorities.');
+            var digest = L.metrics.weeklyDigest(st(), wk);
+            return commit(function (x) {
+              x.memory.reviews = x.memory.reviews.filter(function (r) { return r.weekOf !== wk; });
+              x.memory.reviews.push({ id: L.store.newId(), weekOf: wk, digest: digest, priorities: ps, completedAt: new Date().toISOString() });
+            }).then(function () { go('dashboard'); setNotice('ok', 'Review finished.'); });
+          });
+        }
+      }, pri.map(function (p, n) { return field('Priority ' + (n + 1), p); }),
+        h('button', { type: 'submit', class: 'btn pri', id: 'finish-review', text: 'Finish review' })));
+  }
+
+  // ---------- memory ----------
+  function memoryScreen(s) {
+    var t = today(), mp = monthPeriod(t), qp = quarterPeriod(t);
+    var out = [h('h1', { text: 'Memory' }),
+      h('p', { class: 'mut', text: 'Only insights you approve are kept and used. Nothing is approved automatically.' }),
+      h('h2', { text: 'Consolidate' }),
+      aiPanel(2, mp, 'Consolidate month'),
+      aiPanel(3, qp, 'Consolidate quarter')];
+    var prop = s.memory.insights.filter(function (i) { return i.status === 'proposed' && i.level > 1; });
+    if (prop.length) { out.push(h('h2', { text: 'Waiting for your decision' })); prop.forEach(function (i) { out.push(insightCard(i, true)); }); }
+    [1, 2, 3].forEach(function (lv) {
+      var a = L.memory.approved(s, lv);
+      out.push(h('h2', { text: ['Weekly', 'Monthly', 'Quarterly'][lv - 1] + ' insights (' + a.length + ')' }));
+      if (!a.length) out.push(h('p', { class: 'mut', text: 'None yet.' }));
+      a.forEach(function (i) { out.push(insightCard(i, false)); });
+    });
+    out.push(h('h2', { text: 'Lessons from rejections (' + s.memory.lessons.length + ')' }));
+    if (!s.memory.lessons.length) out.push(h('p', { class: 'mut', text: 'None yet.' }));
+    out.push(h('div', null, s.memory.lessons.map(function (l) { return h('div', { class: 'card' }, h('p', { text: l.text })); })));
+    return h('div', null, out);
+  }
+
+  // ---------- settings ----------
+  var passOnly = function (id, auto) { return h('input', { type: 'password', id: id, autocomplete: auto || 'off', minlength: '12' }); };
+  function settingsScreen(s) {
+    var set = s.settings, pv = set.provider;
+    var kind = view.kind || pv.kind;
+    var out = [h('h1', { text: 'Settings' })];
+
+    // provider
+    var base = h('input', { type: 'text', id: 'p-base', value: pv.baseUrl || 'http://localhost:11434/v1', autocomplete: 'off' });
+    var urlShow = h('p', { class: 'mut small', id: 'p-url' });
+    var showUrl = function () {
+      try { urlShow.textContent = 'Requests will be sent to: ' + L.ai.validateProvider({ kind: 'local', baseUrl: base.value.trim(), model: 'x' }).baseUrl + '/chat/completions'; }
+      catch (e) { urlShow.textContent = 'This URL is not allowed. Use http://localhost:PORT/v1 or http://127.0.0.1:PORT/v1 with a port from 1024 to 65535.'; }
+    };
+    base.addEventListener('input', showUrl);
+    showUrl();
+    var model = h('input', { type: 'text', id: 'p-model', value: pv.model || '', autocomplete: 'off', maxlength: '100' });
+    var key = h('input', { type: 'password', id: 'p-key', autocomplete: 'off', placeholder: pv.apiKey ? 'Leave blank to keep the saved key' : 'Paste API key' });
+    var provCard = h('form', {
+      class: 'card',
+      onsubmit: function (e) {
+        e.preventDefault();
+        act(function () {
+          var p = { kind: kind, baseUrl: kind === 'local' ? base.value.trim() : '', model: (kind === 'anthropic' || kind === 'local') ? model.value.trim() : '', apiKey: kind === 'anthropic' ? (key.value.trim() || pv.apiKey || '') : '' };
+          p = L.ai.validateProvider(p);
+          return commit(function (x) { x.settings.provider = p; }, 'provider change').then(function () { key.value = ''; view.kind = null; setNotice('ok', 'Provider saved.'); render(); });
+        });
+      }
+    },
+      h('h2', { text: 'AI provider' }),
+      field('Mode', sel('p-kind', [{ v: 'none', t: 'None (rules only)' }, { v: 'manual', t: 'Manual copy and paste' }, { v: 'anthropic', t: 'Anthropic API' }, { v: 'local', t: 'Local model (OpenAI compatible)' }], kind, function (e) { view.kind = e.target.value; render(); })),
+      kind === 'anthropic' ? [field('Model', model), field('API key', key, pv.apiKey ? 'Saved key ends in ' + pv.apiKey.slice(-4) : 'No key saved'),
+        h('p', { class: 'mut small', text: 'The key is stored only inside your encrypted vault. Requests go straight from this page to api.anthropic.com.' })] : null,
+      kind === 'local' ? [field('Base URL (localhost only)', base), urlShow, field('Model', model)] : null,
+      h('div', { class: 'row' }, h('button', { type: 'submit', class: 'btn pri', text: 'Save provider' }),
+        pv.apiKey ? btn('Remove saved key', function () {
+          act(function () { return commit(function (x) { x.settings.provider.apiKey = ''; }, 'provider change').then(function () { setNotice('ok', 'Key removed.'); render(); }); });
+        }) : null));
+    out.push(provCard);
+
+    // targets
+    var tg = set.targets;
+    var wpw = h('input', { type: 'number', id: 't-wpw', min: '0', max: '21', step: '1', value: tg.workoutsPerWeek });
+    var cd = h('input', { type: 'number', id: 't-cd', min: '1', max: '365', step: '1', value: tg.contactDays });
+    var sr = h('input', { type: 'number', id: 't-sr', min: '0', max: '100', step: '1', value: Math.round(tg.savingsRate * 100) });
+    var cur = h('input', { type: 'text', id: 't-cur', maxlength: '3', value: set.currency });
+    var al = sel('t-al', [1, 5, 15, 30, 60].map(function (n) { return { v: String(n), t: n + ' min' }; }), String(set.autoLockMin));
+    out.push(h('form', {
+      class: 'card',
+      onsubmit: function (e) {
+        e.preventDefault();
+        act(function () {
+          var w = parseInt(wpw.value, 10), c = parseInt(cd.value, 10), r = Number(sr.value), cu = cur.value.trim().toUpperCase();
+          if (!(w >= 0 && w <= 21)) throw new Error('Workouts per week must be 0 to 21.');
+          if (!(c >= 1 && c <= 365)) throw new Error('Contact days must be 1 to 365.');
+          if (!(r >= 0 && r <= 100)) throw new Error('Savings rate must be 0 to 100.');
+          if (!/^[A-Z]{3}$/.test(cu)) throw new Error('Currency must be a three letter code.');
+          var m = Number(al.value);
+          return commit(function (x) { x.settings.targets = { workoutsPerWeek: w, contactDays: c, savingsRate: r / 100 }; x.settings.currency = cu; x.settings.autoLockMin = m; }).then(function () { resetIdle(); setNotice('ok', 'Settings saved.'); });
+        });
+      }
+    }, h('h2', { text: 'Targets and preferences' }), field('Workouts per week', wpw), field('Days between contacts', cd), field('Savings rate target (%)', sr), field('Currency code', cur), field('Auto-lock after idle', al),
+      h('button', { type: 'submit', class: 'btn pri', text: 'Save settings' })));
+
+    // passphrase
+    var o = passOnly('pp-old', 'current-password'), n1 = passOnly('pp-new', 'new-password'), n2 = passOnly('pp-new2', 'new-password');
+    out.push(h('form', {
+      class: 'card',
+      onsubmit: function (e) {
+        e.preventDefault();
+        act(function () {
+          checkPass(n1.value);
+          if (n1.value !== n2.value) throw new Error('The new passphrases do not match.');
+          return L.store.changePassphrase(o.value, n1.value).then(function () { return commit(null, 'passphrase change'); }).then(function () { setNotice('ok', 'Passphrase changed.'); });
+        }).then(function () { o.value = ''; n1.value = ''; n2.value = ''; });
+      }
+    }, h('h2', { text: 'Change passphrase' }), field('Current passphrase', o), field('New passphrase (12 characters or more)', n1), field('Confirm new passphrase', n2), passNote(),
+      h('button', { type: 'submit', class: 'btn', text: 'Change passphrase' })));
+
+    // backup
+    var bp = passOnly('bk-pass', 'new-password'), bp2 = passOnly('bk-pass2', 'new-password');
+    var bf = h('input', { type: 'file', id: 'bk-file', accept: '.json,application/json' });
+    var ip = passOnly('bk-ipass', 'current-password');
+    out.push(h('div', { class: 'card' }, h('h2', { text: 'Encrypted backup' }),
+      h('form', {
+        onsubmit: function (e) {
+          e.preventDefault();
+          act(function () {
+            checkPass(bp.value);
+            if (bp.value !== bp2.value) throw new Error('The backup passphrases do not match.');
+            return L.vault.exportBackup(bp.value, st()).then(function (text) {
+              download('lifeos-backup-' + today() + '.json', text, 'application/json');
+              return commit(null, 'export');
+            }).then(function () { setNotice('ok', 'Backup downloaded.'); });
+          }).then(function () { bp.value = ''; bp2.value = ''; });
+        }
+      }, field('Backup passphrase (12 characters or more)', bp), field('Confirm backup passphrase', bp2), passNote(),
+        h('button', { type: 'submit', class: 'btn', text: 'Export backup' })),
+      h('hr'),
+      h('form', {
+        onsubmit: function (e) {
+          e.preventDefault();
+          var f = bf.files && bf.files[0];
+          if (!f) { setNotice('err', 'Choose a backup file first.'); return; }
+          if (f.size > L.vault.MAX_BACKUP) { setNotice('err', 'That file is larger than 64 MB.'); return; }
+          if (!ip.value) { setNotice('err', 'Enter the backup passphrase.'); return; }
+          act(function () {
+            return readFile(f, L.vault.MAX_BACKUP).then(function (text) { return L.vault.importBackup(ip.value, text); }).then(function (state) {
+              ip.value = '';
+              if (!L.store.isUnlocked()) return;
+              var ins = state.memory.insights, pv2 = state.settings.provider;
+              var nAppr = ins.filter(function (i) { return i.status === 'approved'; }).length;
+              var rr = h('input', { type: 'checkbox', id: 'bk-rereview', checked: true });
+              openDialog({
+                title: 'Replace all data with this backup?', yes: 'Replace', danger: true,
+                body: [
+                  h('ul', { class: 'small', id: 'bk-summary' },
+                    h('li', { text: 'Entries: ' + state.entries.length }),
+                    h('li', { text: 'Approved insights: ' + nAppr }),
+                    h('li', { text: 'Lessons: ' + state.memory.lessons.length }),
+                    h('li', { text: 'Provider settings: ' + (pv2.kind === 'none' ? 'none' : 'included (' + pv2.kind + ')') }),
+                    h('li', { text: 'API key: ' + (pv2.apiKey ? 'included' : 'not included') })),
+                  h('label', { class: 'row small' }, rr, h('span', { text: 'Re-review insights (restore every approved insight as proposed)' })),
+                  h('p', { class: 'mut', text: 'This replaces everything in this vault with the backup. It cannot be undone.' })],
+                onYes: function () {
+                  var next = rr.checked ? L.memory.demoteApproved(state) : state;
+                  return L.store.replaceState(next).then(function () { return commit(null, 'import'); }).then(function () { setNotice('ok', 'Backup restored.'); render(); });
+                }
+              });
+            });
+          });
+        }
+      }, field('Restore from a backup file (64 MB max)', bf), field('Backup passphrase', ip),
+        h('button', { type: 'submit', class: 'btn', text: 'Import backup' }))));
+
+    out.push(h('p', { class: 'mut small', id: 'app-version', text: 'LifeOS v0.2.0' }));
+
+    // session
+    var typed = h('input', { type: 'text', id: 'wipe-confirm', autocomplete: 'off' });
+    out.push(h('div', { class: 'card' }, h('h2', { text: 'Session and data' }),
+      h('div', { class: 'row' },
+        btn('Lock now', function () { lockNow(); }, 'lockbtn'),
+        btn('Wipe all data', function () {
+          openDialog({
+            title: 'Wipe all data?', yes: 'Wipe everything', danger: true,
+            body: [h('p', { class: 'mut', text: 'This permanently deletes the vault from this device. Type WIPE to confirm.' }), field('Confirmation', typed)],
+            onYes: function () {
+              if (typed.value !== 'WIPE') throw new Error('Type WIPE exactly to continue.');
+              return commit(null, 'wipe').catch(function () {}).then(function () { return L.store.wipe(); }).then(function () {
+                try { L.store.lock(); } catch (e) { /* already locked */ }
+                clearTimeout(idleTimer);
+                vaultExists = false; view = { name: 'lock' }; notice = { kind: 'ok', text: 'All data wiped.' };
+                setTimeout(render, 0);
+              });
+            }
+          });
+        }, 'bad', { id: 'wipe-btn' }))));
+
+    // audit
+    var au = (s.audit || []).slice(-10).reverse();
+    out.push(h('div', { class: 'card' }, h('h2', { text: 'Recent activity' }),
+      au.length ? au.map(function (a) { return h('div', { class: 'small mut', text: a.ts.replace('T', ' ').slice(0, 19) + ' ' + a.action }); }) : h('p', { class: 'mut', text: 'Nothing yet.' })));
+    return h('div', null, out);
+  }
+
+  // ---------- boot ----------
+  function boot() {
+    var p = Promise.resolve();
+    if (!globalThis.crypto || !globalThis.crypto.subtle) notice = { kind: 'err', text: 'This browser does not support the required encryption features.' };
+    else p = L.store.exists().then(function (x) { vaultExists = !!x; }, function () { notice = { kind: 'err', text: 'Storage is unavailable in this browser.' }; });
+    p.then(function () { view = { name: 'lock' }; render(); });
+  }
+  boot();
+})();
+</script>
+</body>
+</html>
