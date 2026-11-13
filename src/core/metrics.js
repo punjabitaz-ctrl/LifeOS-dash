@@ -14,9 +14,13 @@
     { id: 'assets', label: 'Assets', types: [T('balance', 'Balance', [num('value', 'Balance (negative for a liability)', { min: -1e12, max: 1e12 })])] },
     { id: 'work', label: 'Work', types: [T('outcome', 'Outcome', [sel('status', 'Status', ['todo', 'done'])])] },
     { id: 'health', label: 'Health', types: [
-      T('workout', 'Workout'),
+      T('workout', 'Workout', [
+        { id: 'kind', label: 'Type', kind: 'text', required: false, max: 40 },
+        num('minutes', 'Minutes', { min: 0, max: 1440, required: false }),
+        num('effort', 'Effort (1 to 10)', { min: 1, max: 10, int: true, required: false })]),
       T('sleep', 'Sleep', [num('value', 'Hours', { min: 0, max: 24 })]),
-      T('weight', 'Weight', [num('value', 'Weight', { min: 0, max: 1000 })])] },
+      T('weight', 'Weight', [num('value', 'Weight', { min: 0, max: 1000 })]),
+      T('bodyfat', 'Body fat', [num('value', 'Body fat %', { min: 0, max: 100 })])] },
     { id: 'activities', label: 'Activities', types: [T('session', 'Session')] },
     { id: 'social', label: 'Social', types: [T('contact', 'Contact', [txt('person', 'Person')])] },
     { id: 'learning', label: 'Learning', types: [
@@ -42,7 +46,8 @@
     if (!isDate(d)) throw new Error('Invalid date');
     return addDays(d, -((new Date(ms(d)).getUTCDay() + 6) % 7));
   }
-  const todayISO = () => new Date().toISOString().slice(0, 10);
+  // Dates are local calendar days: use the device's local date, never the UTC one.
+  const todayISO = () => { const d = new Date(); return String(d.getFullYear()).padStart(4, '0') + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 
   // ---- entries ----
   const NUM_RE = /^[+-]?(\d+(\.\d*)?|\.\d+)(e[+-]?\d+)?$/i;
@@ -70,10 +75,11 @@
       }
       if (f.kind === 'number') {
         const v = typeof raw === 'number' ? raw : (typeof raw === 'string' && raw.length <= 64 && NUM_RE.test(raw.trim()) ? Number(raw) : NaN);
-        if (!isFinite(v) || v < f.min || v > f.max) throw new Error(f.label + ' must be a number between ' + f.min + ' and ' + f.max);
+        if (!isFinite(v) || v < f.min || v > f.max || (f.int && !Number.isInteger(v))) throw new Error(f.label + ' must be a number between ' + f.min + ' and ' + f.max);
         out[f.id] = v;
       } else if (f.kind === 'text') {
-        if (typeof raw !== 'string' || !raw.trim() || raw.trim().length > 200) throw new Error(f.label + ' must be 1 to 200 characters');
+        const mx = f.max || 200;
+        if (typeof raw !== 'string' || !raw.trim() || raw.trim().length > mx) throw new Error(f.label + ' must be 1 to ' + mx + ' characters');
         out[f.id] = raw.trim();
       } else if (f.kind === 'date') {
         if (!isDate(raw)) throw new Error(f.label + ' must be a valid date');
@@ -361,6 +367,185 @@
     };
   }
 
+  // ---- health: body metrics, workouts, cycle, sleep, habits (schema 4) ----
+  const LB_PER_KG = 2.20462262185;
+  const DEFAULT_KINDS = ['strength', 'kettlebell', 'mace and clubs', 'bodyweight', 'cardio', 'HIIT', 'mobility', 'carries'];
+  const HABIT_CAP = 8;
+  const healthSettings = (state) => (state.settings && state.settings.health) || { units: 'lb' };
+  const hEntries = (state, type) => state.entries.filter((e) => e.domain === 'health' && e.type === type)
+    .sort((a, b) => a.date.localeCompare(b.date) || String(a.createdAt).localeCompare(String(b.createdAt)));
+  function convertWeight(v, from, to) {
+    if (!['lb', 'kg'].includes(from) || !['lb', 'kg'].includes(to)) throw new Error('Units must be lb or kg');
+    if (from === to) return v;
+    return r1(from === 'lb' ? v / LB_PER_KG : v * LB_PER_KG);
+  }
+  // Mean of the last n values at each position (the window is shorter at the start).
+  function movingAverage(values, n) {
+    n = n || 7;
+    return values.map((_, i) => { const w = values.slice(Math.max(0, i - n + 1), i + 1); return r2(w.reduce((a, b) => a + b, 0) / w.length); });
+  }
+  function bodySeries(state, type, today) {
+    if (type !== 'weight' && type !== 'bodyfat') throw new Error('Unknown body metric');
+    const pts = hEntries(state, type).filter((e) => !today || e.date <= today).map((e) => ({ date: e.date, value: e.value }));
+    const avg = movingAverage(pts.map((p) => p.value), 7);
+    return pts.map((p, i) => ({ date: p.date, value: p.value, avg: avg[i] }));
+  }
+  // latest, 7-entry average, change per week over the last 28 days (first to last entry in that window), progress to target.
+  function bodyMetrics(state, type, today) {
+    if (!isDate(today)) throw new Error('today must be YYYY-MM-DD');
+    const hs = healthSettings(state), w = type === 'weight';
+    const unit = w ? hs.units : '%', start = hs[w ? 'weightStart' : 'bodyFatStart'], target = hs[w ? 'weightTarget' : 'bodyFatTarget'];
+    const series = bodySeries(state, type, today);
+    const out = { unit, count: series.length, latest: null, latestDate: null, avg: null, start: start === undefined ? null : start, target: target === undefined ? null : target, weeklyRate: null, progressPct: null, toTarget: null, series };
+    if (!series.length) return out;
+    const last = series[series.length - 1];
+    out.latest = last.value; out.latestDate = last.date; out.avg = last.avg;
+    if (out.start === null) out.start = series[0].value;
+    const win = series.filter((p) => p.date >= addDays(today, -28));
+    if (win.length >= 2) {
+      const span = daysBetween(win[win.length - 1].date, win[0].date);
+      if (span > 0) out.weeklyRate = r2((win[win.length - 1].value - win[0].value) / span * 7);
+    }
+    if (out.target !== null) {
+      out.toTarget = r1(out.target - last.value);
+      if (out.start !== out.target) out.progressPct = r1(Math.max(0, Math.min(1, (out.start - last.value) / (out.start - out.target))) * 100);
+    }
+    return out;
+  }
+  function isoWeek(d) {
+    if (!isDate(d)) throw new Error('Invalid date');
+    const thu = addDays(d, 3 - ((new Date(ms(d)).getUTCDay() + 6) % 7));
+    return Math.floor(daysBetween(thu, thu.slice(0, 4) + '-01-01') / 7) + 1;
+  }
+  // 1-based week number counted from the cycle start date (0 before the start).
+  function weekNumber(d, startDate) {
+    if (!isDate(d) || !isDate(startDate)) throw new Error('Invalid date');
+    const n = daysBetween(d, startDate);
+    return n < 0 ? 0 : Math.floor(n / 7) + 1;
+  }
+  function workoutWeek(state, ws) {
+    ws = weekStart(ws);
+    const we = addDays(ws, 6), cy = state.cycle || null;
+    const wk = hEntries(state, 'workout').filter((e) => inR(e, ws, we));
+    const mix = new Map();
+    let minutes = 0;
+    for (const e of wk) {
+      minutes += e.minutes || 0;
+      const k = e.kind || 'untyped', g = mix.get(k) || { kind: k, count: 0, minutes: 0 };
+      g.count++; g.minutes += e.minutes || 0; mix.set(k, g);
+    }
+    return {
+      weekStart: ws, isoWeek: isoWeek(ws), cycleWeek: cy ? weekNumber(ws, cy.startDate) : null,
+      sessions: wk.length, target: state.settings.targets.workoutsPerWeek, minutes,
+      mix: [...mix.values()].sort((a, b) => b.count - a.count || b.minutes - a.minutes || a.kind.localeCompare(b.kind)),
+    };
+  }
+  // Training cycle: sprintsPerCycle sprints of sprintDays back to back, then restDays of rest, repeating.
+  // Heavy/light alternates weekly, counted from the start of each cycle (continuing across sprints, restarting after rest).
+  function trainingCycle(cycle, d) {
+    if (!cycle || !isDate(cycle.startDate) || !isDate(d)) throw new Error('Invalid cycle or date');
+    const sd = cycle.sprintDays, spc = cycle.sprintsPerCycle, rd = cycle.restDays;
+    const base = { sprintDays: sd, sprintsPerCycle: spc, restDays: rd };
+    const n = daysBetween(d, cycle.startDate);
+    if (n < 0) return Object.assign(base, { phase: 'before', daysToStart: -n, sprint: 0, dayInSprint: 0, cycleNumber: 0, week: null, daysToRest: null });
+    const training = sd * spc, len = training + rd, c = Math.floor(n / len), k = n % len;
+    const o = Object.assign(base, { cycleNumber: c + 1 });
+    if (k >= training) return Object.assign(o, { phase: 'rest', sprint: 0, dayInSprint: 0, restDay: k - training + 1, week: null, daysToRest: 0, daysToTraining: len - k });
+    let week = null;
+    if (cycle.alternateHeavyLight) week = ((Math.floor(k / 7) % 2 === 0) === (cycle.firstWeek === 'heavy')) ? 'heavy' : 'light';
+    return Object.assign(o, { phase: 'sprint', sprint: Math.floor(k / sd) + 1, dayInSprint: k % sd + 1, week, daysToRest: rd > 0 ? training - k : null });
+  }
+  function cycleLabel(c) {
+    if (!c) return '';
+    if (c.phase === 'before') return 'Cycle starts in ' + c.daysToStart + (c.daysToStart === 1 ? ' day' : ' days');
+    if (c.phase === 'rest') return 'Rest period, day ' + c.restDay + ' of ' + c.restDays;
+    return 'Sprint ' + c.sprint + ' of ' + c.sprintsPerCycle + ', day ' + c.dayInSprint + ' of ' + c.sprintDays + (c.week ? ', ' + c.week + ' week' : '');
+  }
+  function sleepAvg(state, a, b) {
+    let s = 0, n = 0;
+    for (const e of hEntries(state, 'sleep')) if (inR(e, a, b)) { s += e.value; n++; }
+    return { n, avg: n ? r2(s / n) : null };
+  }
+  function sleepSummary(state, today) {
+    if (!isDate(today)) throw new Error('today must be YYYY-MM-DD');
+    const cur = sleepAvg(state, addDays(today, -6), today), prev = sleepAvg(state, addDays(today, -13), addDays(today, -7));
+    const series = [];
+    for (let i = 13; i >= 0; i--) { const d = addDays(today, -i), a = sleepAvg(state, d, d); series.push({ date: d, value: a.avg }); }
+    return { avg7: cur.avg, nights7: cur.n, prevAvg7: prev.avg, delta: cur.avg !== null && prev.avg !== null ? r2(cur.avg - prev.avg) : null, series };
+  }
+  // ---- daily checks ----
+  const habitDates = (state, id) => new Set((state.habitLog || []).filter((x) => x.habitId === id).map((x) => x.date));
+  function habitStats(state, id, today) {
+    if (!isDate(today)) throw new Error('today must be YYYY-MM-DD');
+    const ds = habitDates(state, id);
+    let c7 = 0;
+    for (let i = 0; i < 7; i++) if (ds.has(addDays(today, -i))) c7++;
+    // The streak counts back from today, or from yesterday while today is not ticked yet.
+    let d = ds.has(today) ? today : addDays(today, -1), streak = 0;
+    while (ds.has(d) && streak < 100000) { streak++; d = addDays(d, -1); }
+    return { checks7: c7, rate7: r1(c7 / 7 * 100), streak, doneToday: ds.has(today) };
+  }
+  function habitRate(state, a, b) {
+    const hs = state.habits || [], days = daysBetween(b, a) + 1;
+    if (!hs.length || days < 1) return 0;
+    const ids = new Set(hs.map((x) => x.id));
+    let n = 0;
+    for (const x of state.habitLog || []) if (ids.has(x.habitId) && inR({ date: x.date }, a, b)) n++;
+    return r1(n / (hs.length * days) * 100);
+  }
+  function addHabit(state, name) {
+    if (typeof name !== 'string' || !name.trim() || name.trim().length > 60) throw new Error('Habit name must be 1 to 60 characters');
+    if (state.habits.length >= HABIT_CAP) throw new Error('You can keep up to ' + HABIT_CAP + ' daily checks');
+    const h = { id: L._webcrypto.randomUUID(), name: name.trim() };
+    state.habits.push(h);
+    return h;
+  }
+  function deleteHabit(state, id) {
+    if (!state.habits.some((x) => x.id === id)) throw new Error('Habit not found');
+    state.habits = state.habits.filter((x) => x.id !== id);
+    state.habitLog = state.habitLog.filter((x) => x.habitId !== id);
+  }
+  // Ticks or unticks one habit on one day; returns true when it is now ticked.
+  function toggleHabit(state, id, d) {
+    if (!isDate(d)) throw new Error('Invalid date');
+    if (!state.habits.some((x) => x.id === id)) throw new Error('Habit not found');
+    const n = state.habitLog.length;
+    state.habitLog = state.habitLog.filter((x) => !(x.habitId === id && x.date === d));
+    if (state.habitLog.length < n) return false;
+    state.habitLog.push({ habitId: id, date: d });
+    return true;
+  }
+  function weightChange(state, ws, we) {
+    const all = hEntries(state, 'weight'), cur = all.filter((e) => e.date <= we).pop();
+    if (!cur) return 0;
+    const base = all.filter((e) => e.date < ws).pop() || all.find((e) => inR(e, ws, we));
+    return !base || base === cur ? 0 : r1(cur.value - base.value);
+  }
+  function healthDigest(state, ws) {
+    const we = addDays(ws, 6), wk = workoutWeek(state, ws), sl = sleepAvg(state, ws, we);
+    return { sessions: wk.sessions, minutes: wk.minutes, avgSleep: sl.avg === null ? 0 : sl.avg, weightChange: weightChange(state, ws, we), habitRate: habitRate(state, ws, we) };
+  }
+  // Mutators for the unit setting and project delete.
+  function setWeightUnits(state, units) {
+    const hs = state.settings.health, from = hs.units;
+    if (units !== 'lb' && units !== 'kg') throw new Error('Units must be lb or kg');
+    if (units === from) return;
+    // Stored values keep 6 decimals so switching back and forth does not drift; screens round to 0.1.
+    const conv = (v) => Math.round((from === 'lb' ? v / LB_PER_KG : v * LB_PER_KG) * 1e6) / 1e6;
+    for (const e of state.entries) if (e.domain === 'health' && e.type === 'weight') e.value = conv(e.value);
+    for (const k of ['weightStart', 'weightTarget']) if (hs[k] !== undefined) hs[k] = conv(hs[k]);
+    hs.units = units;
+  }
+  const linkedOutcomeCount = (state, id) => outcomes(state).filter((e) => e.projectId === id).length;
+  // Deletes a project; its outcomes are kept and unlinked. Returns how many were unlinked.
+  function deleteProject(state, id) {
+    if (!(state.projects || []).some((p) => p.id === id)) throw new Error('Project not found');
+    let n = 0;
+    for (const e of state.entries) if (e.projectId === id) { delete e.projectId; n++; }
+    state.projects = state.projects.filter((p) => p.id !== id);
+    return n;
+  }
+
   const UNITS = { money: '%', work: 'outcomes', health: 'workouts', activities: 'days', social: 'people', learning: 'items', home: 'items', goals: '%', wellbeing: 'score' };
   function weekMetric(state, id, ws, ents) {
     const we = addDays(ws, 6);
@@ -392,7 +577,7 @@
     const we = addDays(ws, 6), wm = sumMoney(byDomain(state, 'money'), ws, we), nw = netWorthDetail(state, we);
     const mv = monthView(state, monthOf(we));
     const money = { income: dollars(wm.incC), spend: dollars(wm.expC), budgetUsedPct: mv.budgetCents > 0 ? r1(mv.budgetedSpentCents * 100 / mv.budgetCents) : 0, netWorth: nw.total, liabilities: nw.liabilities };
-    return { week: ws, domains, money, work: workDigest(state, ws) };
+    return { week: ws, domains, money, work: workDigest(state, ws), health: healthDigest(state, ws) };
   }
   function series(state, domainId, n, today) {
     if (!DOMAINS.some((d) => d.id === domainId)) throw new Error('Unknown domain');
@@ -435,7 +620,9 @@
       }
       case 'health': {
         const n = count(ents, ws, we, (e) => e.type === 'workout');
-        return R('Workouts this week', n + ' of ' + tg.workoutsPerWeek, n, n >= tg.workoutsPerWeek ? 'Target met' : (tg.workoutsPerWeek - n) + ' to go');
+        const base = n >= tg.workoutsPerWeek ? 'Target met' : (tg.workoutsPerWeek - n) + ' to go';
+        const cl = state.cycle ? cycleLabel(trainingCycle(state.cycle, today)) : '';
+        return R('Workouts this week', n + ' of ' + tg.workoutsPerWeek, n, cl ? base + '. ' + cl : base);
       }
       case 'activities': {
         const d = activeDays(ents, ws, we), s = count(ents, ws, we, (e) => e.type === 'session');
@@ -468,6 +655,6 @@
     }
   }
 
-  L.metrics = { STAGES, OPEN_STAGES, STALE_DAYS, overdueProjects, isStale, pipelineCounts, openPipeline, weekOutcomes, carryOverCandidates, carryOver, workSummary, DOMAINS, isDate, addDays, validateEntry, headline, weekStart, weeklyDigest, series, fmtMoney, cents, ACCOUNT_KINDS, LIAB_KINDS, DEFAULT_CATEGORIES, UNCAT, addMonths, monthEnd, advanceDate, netWorthDetail, netWorthHistory, monthView, cashflow, dueRecurring, confirmRecurring, skipRecurring };
+  L.metrics = { todayISO, DEFAULT_KINDS, HABIT_CAP, convertWeight, movingAverage, bodySeries, bodyMetrics, isoWeek, weekNumber, workoutWeek, trainingCycle, cycleLabel, sleepAvg, sleepSummary, habitStats, habitRate, addHabit, deleteHabit, toggleHabit, healthDigest, setWeightUnits, linkedOutcomeCount, deleteProject, liveProjects, STAGES, OPEN_STAGES, STALE_DAYS, overdueProjects, isStale, pipelineCounts, openPipeline, weekOutcomes, carryOverCandidates, carryOver, workSummary, DOMAINS, isDate, addDays, validateEntry, headline, weekStart, weeklyDigest, series, fmtMoney, cents, ACCOUNT_KINDS, LIAB_KINDS, DEFAULT_CATEGORIES, UNCAT, addMonths, monthEnd, advanceDate, netWorthDetail, netWorthHistory, monthView, cashflow, dueRecurring, confirmRecurring, skipRecurring };
   L.DOMAINS = DOMAINS;
 })();

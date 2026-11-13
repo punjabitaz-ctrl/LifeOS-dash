@@ -147,3 +147,27 @@ Manual entry, phone first. Schema 3 with a tested migration from 1 and 2 (no dat
 - Dashboard Work tile: outcomes done x of y, with sub line showing overdue next actions and open pipeline count.
 - weeklyDigest gains numeric work fields only (outcomes done/planned, active projects, overdue next actions, pipeline counts by stage, moved this week). Never project names, org names, titles or notes.
 - validateState whitelists and caps every new field; sync, backup import and CSV export must handle schema 3; a schema 2 device meeting a schema 3 remote must migrate, and a schema 3 vault must never be downgraded.
+
+## v0.5.0 addendum: Health, and project delete
+Manual entry, phone first. Schema 4 with tested migrations from 1, 2 and 3 (no data loss; existing health entries keep working). The schema-downgrade guards from SEC-27/28 must cover schema 4 data (name the new collections in the warnings).
+- Project delete (SEC-31): delete a project with an in-page confirm showing how many outcomes are linked; linked outcomes are kept and unlinked. Archived projects no longer count toward the cap.
+- Body metrics: weight and body fat % entries with user-set targets and start values in settings (units lb or kg), trend chart with 7-entry moving average, progress to target, rate of change per week over the last 4 weeks.
+- Workouts: entry gains `kind` from a user-editable list (defaults: strength, kettlebell, mace and clubs, bodyweight, cardio, HIIT, mobility, carries), `minutes`, optional `effort` 1 to 10, notes. Week view: sessions vs `workoutsPerWeek` target, minutes, mix by kind.
+- Training cycle (optional): `cycle:{startDate, sprintDays, sprintsPerCycle, restDays, alternateHeavyLight:bool, firstWeek:'heavy'|'light'}`. Pure function returns sprint number, day in sprint, heavy or light week, or rest period, and days to next rest; shown on the Health view and dashboard tile sub line.
+- Sleep: hours entries, 7-day average, trend.
+- Daily checks: up to 8 user-defined yes/no habits (for example protein target hit, mobility done), one-tap today, 7-day completion rate, current streak.
+- Health view at 390 px: today card (cycle status, one-tap habit checks, quick log workout/weight/sleep), then trends. Inline SVG charts.
+- weeklyDigest gains numeric health fields only (sessions, minutes, average sleep, weight change, habit completion rate). Never habit names, notes or workout kinds typed by the user. Body metrics are sensitive: they must not appear in the audit log, error messages or anything outside the vault.
+- This is a tracker, not medical advice: no health recommendations or diagnoses in UI copy or in rules-generated insights (rules may state numeric facts only).
+
+## v0.6.0 addendum: Goals, and v0.5.0 leftovers
+Manual entry, phone first. Schema 5 with tested migrations from 1 to 4 (no data loss; existing `goals/goal` entries become goals with horizon 'quarterly', metric 'manual'). Downgrade guards extended to schema 5 collections.
+- Leftovers to fix first: (a) CSV import for health workouts must map kind, minutes and effort; (b) the daily-check tick store must not stop saving at 30,000 ticks: compact old ticks into per-month counts or raise the cap safely with a tested path; (c) find the root cause of the intermittent failure in test/vault.test.mjs (about 1 run in 11; run it 60 times in a loop) and fix the cause, not the test.
+- `goals:[{id,title,horizon:'weekly'|'monthly'|'quarterly'|'annual'|'3y'|'5y'|'10y',domain,metric,direction:'up'|'down',startValue,targetValue,startDate,dueDate,parentId?,manualValue?,statusOverride?,state:'active'|'achieved'|'dropped',notes,createdAt}]`. Cap 300.
+- Linked metrics, computed live from existing data by pure functions (no stored copies): net worth, savings rate (month), monthly spend, weight, body fat %, workouts per week, average sleep, daily-check completion rate, work outcomes done per week, pipeline items won, plus `manual` where the user types the current value. A metric with no data shows "no data yet", never zero.
+- Progress = (current - start) / (target - start), clamped 0 to 1, direction aware. Pace status derived, not stored: ahead / on track / behind by comparing progress with elapsed share of startDate to dueDate (tolerance 10 points); the user can override status, and achieving or dropping a goal is always a user tap (never automatic; offer when the target is reached).
+- Cascade: a goal may have a parent on a longer horizon; the Goals view shows the ladder 10y, 5y, 3y, annual, quarterly, monthly, weekly, with children under parents and unlinked goals listed separately. Deleting a parent keeps children and unlinks them (confirm dialog shows the count). No cycles; a parent must be on a strictly longer horizon.
+- Weekly review gains a Goals step: goals due this period, pace changes since last week, and an offer (never automatic) to roll an unfinished weekly or monthly goal into the next period.
+- Dashboard Goals tile: share of active goals on track or ahead; sub line: behind count and next due date.
+- Privacy: goal titles and notes never reach a prompt, the digest or the audit log. The digest gains counts only (active, ahead, on track, behind, achieved this week). Goals whose metric is weight or body fat are excluded from every prompt and from rules insights text that would reveal the value (SEC-32 applies).
+- No advice wording; pace labels are arithmetic facts.

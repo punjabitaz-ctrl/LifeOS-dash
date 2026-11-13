@@ -2,7 +2,8 @@
   'use strict';
   const L = (globalThis.LifeOS = globalThis.LifeOS || {});
   const KEY = 'envelope';
-  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 3, PROJECT_CAP = 200, PIPELINE_CAP = 1000;
+  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 4, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
+  const HABIT_CAP = 8, HABIT_LOG_CAP = 30000, KIND_CAP = 30;
   const ENTRY_CAP = 50000, INSIGHT_CAP = 5000, REVIEW_CAP = 1000, LESSON_CAP = 30, AUDIT_CAP = 200;
   const BLOCKED = new Set(['__proto__', 'constructor', 'prototype']);
   // Same rule as ai.isLocalUrl (ai.js loads after this file, so call it lazily).
@@ -89,7 +90,7 @@
   }
   function domainIds() { return L.metrics.DOMAINS.map((d) => d.id); }
 
-  function cleanSettings(s) {
+  function cleanSettings(s, schema) {
     if (!isObj(s)) fail('settings');
     const t = isObj(s.targets) ? s.targets : fail('targets');
     const p = isObj(s.provider) ? s.provider : fail('provider');
@@ -111,7 +112,64 @@
       },
       provider,
       sync: cleanSync(s.sync),
+      health: schema >= 4 ? cleanHealthSettings(s.health) : { units: 'lb' },
     };
+  }
+  // 6 decimals, like converted weights, so a unit switch round trip does not drift.
+  const r6 = (x) => Math.round(x * 1e6) / 1e6;
+  function cleanHealthSettings(x) {
+    if (x === undefined) return { units: 'lb' };
+    if (!isObj(x)) fail('health settings');
+    const o = { units: oneOf(x.units, ['lb', 'kg'], 'units') };
+    for (const k of ['weightStart', 'weightTarget']) if (x[k] !== undefined && x[k] !== null) o[k] = r6(num(x[k], 1, 1000, k));
+    for (const k of ['bodyFatStart', 'bodyFatTarget']) if (x[k] !== undefined && x[k] !== null) o[k] = r6(num(x[k], 1, 100, k));
+    return o;
+  }
+  function cleanCycle(x) {
+    if (x === undefined || x === null) return null;
+    if (!isObj(x)) fail('cycle');
+    return {
+      startDate: date(x.startDate, 'cycle start'),
+      sprintDays: num(x.sprintDays, 1, 365, 'sprintDays', true),
+      sprintsPerCycle: num(x.sprintsPerCycle, 1, 52, 'sprintsPerCycle', true),
+      restDays: num(x.restDays, 0, 90, 'restDays', true),
+      alternateHeavyLight: bool(x.alternateHeavyLight, 'alternateHeavyLight'),
+      firstWeek: oneOf(x.firstWeek, ['heavy', 'light'], 'firstWeek'),
+    };
+  }
+  const clean = (v) => (typeof v === 'string' ? strip(v).trim() : v);
+  function cleanKinds(list) {
+    if (list === undefined) return L.metrics.DEFAULT_KINDS.slice();
+    const seen = new Set();
+    return arr(list, KIND_CAP, 'workout types').map((x) => {
+      const v = str(clean(x), 40, 'workout type');
+      if (seen.has(v.toLowerCase())) fail('duplicate workout type');
+      seen.add(v.toLowerCase());
+      return v;
+    });
+  }
+  function cleanHabits(list) {
+    if (list === undefined) return [];
+    const seen = new Set();
+    return arr(list, HABIT_CAP, 'daily checks').map((x) => {
+      if (!isObj(x)) fail('daily check');
+      const id = str(x.id, 100, 'habit id');
+      if (seen.has(id)) fail('duplicate habit id');
+      seen.add(id);
+      return { id, name: str(clean(x.name), 60, 'habit name') };
+    });
+  }
+  // A tick for a habit that no longer exists is dropped; repeats collapse to one.
+  function cleanHabitLog(list, habits) {
+    if (list === undefined) return [];
+    const ids = new Set(habits.map((h) => h.id)), seen = new Set(), out = [];
+    for (const x of arr(list, HABIT_LOG_CAP, 'habit log')) {
+      if (!isObj(x)) fail('habit tick');
+      const id = str(x.habitId, 100, 'habit id'), d = date(x.date, 'habit date'), k = id + '|' + d;
+      if (!ids.has(id) || seen.has(k)) continue;
+      seen.add(k); out.push({ habitId: id, date: d });
+    }
+    return out;
   }
   function cleanSync(x) {
     const d = { clientId: '', remoteRev: -1, fp: '', fileId: '', keySalt: '' };
@@ -129,7 +187,7 @@
   function cleanEntryText(e) {
     if (!isObj(e)) return e;
     const o = Object.assign({}, e);
-    for (const k of ['title', 'notes', 'person', 'status', 'category']) if (typeof o[k] === 'string') o[k] = strip(o[k]);
+    for (const k of ['title', 'notes', 'person', 'status', 'category', 'kind']) if (typeof o[k] === 'string') o[k] = strip(o[k]);
     return o;
   }
   function cleanEntries(list) {
@@ -150,7 +208,10 @@
   function cleanProjects(list) {
     if (list === undefined) return [];
     const seen = new Set();
-    return arr(list, PROJECT_CAP, 'projects').map((x) => {
+    arr(list, PROJECT_TOTAL_CAP, 'projects');
+    // Archived projects do not count toward the 200 cap; a separate total cap keeps the list bounded.
+    if (list.filter((x) => !(isObj(x) && x.archived === true)).length > PROJECT_CAP) fail('projects has too many items');
+    return list.map((x) => {
       if (!isObj(x)) fail('project');
       const id = str(x.id, 100, 'project id');
       if (seen.has(id)) fail('duplicate project id');
@@ -208,6 +269,14 @@
       w.pipeline = {};
       for (const k of STAGES) w.pipeline[k] = num(d.work.pipeline[k], 0, 1e9, 'digest work', true);
       out.work = w;
+    }
+    if (d.health !== undefined) {
+      if (!isObj(d.health)) fail('digest health');
+      const x = d.health;
+      out.health = {
+        sessions: num(x.sessions, 0, 1e6, 'digest health', true), minutes: num(x.minutes, 0, 1e9, 'digest health'), avgSleep: num(x.avgSleep, 0, 24, 'digest health'),
+        weightChange: num(x.weightChange, -1e4, 1e4, 'digest health'), habitRate: num(x.habitRate, 0, 100, 'digest health'),
+      };
     }
     return out;
   }
@@ -338,15 +407,20 @@
   function validateState(o) {
     if (!isObj(o)) fail('state must be an object');
     scan(o, 0, { n: 4e6 });
-    if (o.schema !== 1 && o.schema !== 2 && o.schema !== SCHEMA) fail('unsupported schema');
+    if (![1, 2, 3, SCHEMA].includes(o.schema)) fail('unsupported schema');
     if (!L.metrics) fail('metrics module missing');
-    const settings = cleanSettings(o.settings), entries = cleanEntries(o.entries);
+    const settings = cleanSettings(o.settings, o.schema), entries = cleanEntries(o.entries);
     const out = { schema: SCHEMA, settings, entries };
     if (o.schema === 1) Object.assign(out, { accounts: deriveAccounts(entries), recurring: [], budgets: [], categories: defaultCategories() });
     else Object.assign(out, { accounts: cleanAccounts(o.accounts), recurring: cleanRecurring(o.recurring), budgets: cleanBudgets(o.budgets), categories: cleanCategories(o.categories) });
     // Schema 1 and 2 carry no work data; schema 3 data is whitelisted and capped like everything else.
-    out.projects = o.schema === 3 ? cleanProjects(o.projects) : [];
-    out.pipeline = o.schema === 3 ? cleanPipeline(o.pipeline) : [];
+    out.projects = o.schema >= 3 ? cleanProjects(o.projects) : [];
+    out.pipeline = o.schema >= 3 ? cleanPipeline(o.pipeline) : [];
+    // Schema 4 adds the training cycle, workout types, daily checks and their log; older formats get empty defaults.
+    out.cycle = o.schema >= 4 ? cleanCycle(o.cycle) : null;
+    out.kinds = o.schema >= 4 ? cleanKinds(o.kinds) : cleanKinds(undefined);
+    out.habits = o.schema >= 4 ? cleanHabits(o.habits) : [];
+    out.habitLog = o.schema >= 4 ? cleanHabitLog(o.habitLog, out.habits) : [];
     // An outcome may only point at a project that exists; a dangling link is dropped, the outcome is kept.
     const pids = new Set(out.projects.map((p) => p.id));
     for (const e of entries) if (e.projectId !== undefined && !pids.has(e.projectId)) delete e.projectId;
@@ -357,9 +431,30 @@
     Object.defineProperty(out, 'sourceSchema', { value: o.schema, enumerable: false });
     return out;
   }
-  // True when replacing the live state with `next` would silently drop work data because `next` is an older format.
-  const hasWork = (s) => !!s && ((s.projects || []).length > 0 || (s.pipeline || []).length > 0);
-  const dropsWork = (cur, next) => hasWork(cur) && !!next && typeof next.sourceSchema === 'number' && next.sourceSchema < SCHEMA;
+  // Data the live state holds that an older-format copy (`next`, marked by validateState) cannot carry.
+  // Schema 3 added projects and pipeline; schema 4 added the training cycle, daily checks, workout types and body targets.
+  const sameJson = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  function droppedData(cur, next) {
+    const src = next && next.sourceSchema;
+    if (!cur || typeof src !== 'number') return [];
+    const out = [];
+    if (src < 3) { if ((cur.projects || []).length) out.push('projects'); if ((cur.pipeline || []).length) out.push('pipeline items'); }
+    if (src < 4) {
+      if (cur.cycle) out.push('training cycle');
+      if ((cur.habits || []).length) out.push('daily checks');
+      if (cur.kinds && !sameJson(cur.kinds, L.metrics.DEFAULT_KINDS)) out.push('workout types');
+      const hs = cur.settings && cur.settings.health;
+      if (hs && !sameJson(hs, { units: 'lb' })) out.push('body targets and units');
+    }
+    return out;
+  }
+  const dropsWork = (cur, next) => droppedData(cur, next).length > 0;
+  const andList = (l) => (l.length > 1 ? l.slice(0, -1).join(', ') + ' and ' + l[l.length - 1] : l.join(''));
+  // Plain-language list for warnings, with counts: "3 projects and 4 pipeline items". Names only, never values.
+  function lossText(cur, next) {
+    return andList(droppedData(cur, next).map((n) => (n === 'projects' ? cur.projects.length + ' projects' : n === 'pipeline items' ? cur.pipeline.length + ' pipeline items' : n === 'daily checks' ? cur.habits.length + ' daily checks' : 'your ' + n)));
+  }
+  const nameList = (l) => (l.length > 1 ? l.slice(0, -1).join(', ') + ' or ' + l[l.length - 1] : l.join(''));
 
   function defaultState() {
     return {
@@ -369,10 +464,12 @@
         targets: { workoutsPerWeek: 4, contactDays: 30, savingsRate: 0.2 },
         provider: { kind: 'none', baseUrl: '', model: '', apiKey: '' },
         sync: { clientId: '', remoteRev: -1, fp: '', fileId: '', keySalt: '' },
+        health: { units: 'lb' },
       },
       entries: [],
       accounts: [], recurring: [], budgets: [], categories: defaultCategories(),
       projects: [], pipeline: [],
+      cycle: null, kinds: L.metrics.DEFAULT_KINDS.slice(), habits: [], habitLog: [],
       memory: { insights: [], lessons: [], reviews: [] },
       audit: [],
     };
@@ -484,7 +581,7 @@
       requireUnlocked();
       const st = state;
       if (dropsWork(st, next) && !(opts && opts.allowWorkLoss === true)) {
-        const e = new Error('This backup is from an older version and has no projects or pipeline. Nothing was replaced.'); e.code = 'OLDER_FORMAT'; throw e;
+        const e = new Error('This backup is from an older version and has no ' + nameList(droppedData(st, next)) + '. Nothing was replaced.'); e.code = 'OLDER_FORMAT'; throw e;
       }
       const clean = validateState(next);
       // A restored backup never brings its own sync bookkeeping: an older remoteRev would weaken the rollback
@@ -554,5 +651,5 @@
     lock();
   }
 
-  L.store = { _setAdapter, exists, init, unlock, lock, isUnlocked, getState, commit, changePassphrase, replaceState, wipe, validateState, newId, defaultState, getMeta, saltId, exportEnvelope, inspectEnvelope, adoptEnvelope, dropsWork };
+  L.store = { _setAdapter, exists, init, unlock, lock, isUnlocked, getState, commit, changePassphrase, replaceState, wipe, validateState, newId, defaultState, getMeta, saltId, exportEnvelope, inspectEnvelope, adoptEnvelope, dropsWork, droppedData, nameList, lossText };
 })();

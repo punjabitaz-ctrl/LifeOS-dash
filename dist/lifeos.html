@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-BLWns3AmqQ7dFHk8FnEOvyVj4p9AjrS9lAFaCaNEMKo='; style-src 'sha256-zdkNMRxuta4EniYDVHI/4S/By6o5zJlUQqNQQdbgXO8='; connect-src https://api.anthropic.com https://www.googleapis.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-4+uoG2VXE6/AeVYQ5JOowMPPd4nWTLGeZrcJ85Go/+4='; style-src 'sha256-G99AukSviqNT0qGV47zSFK7lrxPeEBUvey1m796TbH4='; connect-src https://api.anthropic.com https://www.googleapis.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>LifeOS</title>
 <style>:root{color-scheme:light dark;--bg:#f4f5f7;--card:#fff;--fg:#14171c;--mut:#5b6573;--line:#dde1e7;--acc:#2255d4;--acc-fg:#fff;--ok:#1c7a46;--warn:#9a5b00;--bad:#b42318;--r:14px;--sh:0 1px 2px rgba(0,0,0,.06);--font:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
@@ -131,6 +131,13 @@ h1{margin-right:auto}
 .pitem .row{margin-top:6px}
 .nav button{overflow:hidden;text-overflow:ellipsis;min-width:0}
 @media (max-width:520px){.nav button{font-size:.74rem}}
+.ln-raw{fill:none;stroke:var(--mut);stroke-width:1;stroke-linejoin:round}
+.ln-avg{fill:none;stroke:var(--acc);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round}
+.ln-target{stroke:var(--ok);stroke-width:1.2;stroke-dasharray:4 3}
+.dot-raw{fill:var(--mut)}
+.sub{border-top:1px solid var(--line);margin-top:10px;padding-top:6px}
+h3{font-size:.95rem;margin:.6rem 0 .4rem}
+@media (max-width:520px){.nav button{flex:1 1 auto;font-size:.7rem;padding:12px 1px}}
 </style>
 </head>
 <body>
@@ -222,7 +229,8 @@ h1{margin-right:auto}
   'use strict';
   const L = (globalThis.LifeOS = globalThis.LifeOS || {});
   const KEY = 'envelope';
-  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 3, PROJECT_CAP = 200, PIPELINE_CAP = 1000;
+  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 4, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
+  const HABIT_CAP = 8, HABIT_LOG_CAP = 30000, KIND_CAP = 30;
   const ENTRY_CAP = 50000, INSIGHT_CAP = 5000, REVIEW_CAP = 1000, LESSON_CAP = 30, AUDIT_CAP = 200;
   const BLOCKED = new Set(['__proto__', 'constructor', 'prototype']);
   // Same rule as ai.isLocalUrl (ai.js loads after this file, so call it lazily).
@@ -309,7 +317,7 @@ h1{margin-right:auto}
   }
   function domainIds() { return L.metrics.DOMAINS.map((d) => d.id); }
 
-  function cleanSettings(s) {
+  function cleanSettings(s, schema) {
     if (!isObj(s)) fail('settings');
     const t = isObj(s.targets) ? s.targets : fail('targets');
     const p = isObj(s.provider) ? s.provider : fail('provider');
@@ -331,7 +339,64 @@ h1{margin-right:auto}
       },
       provider,
       sync: cleanSync(s.sync),
+      health: schema >= 4 ? cleanHealthSettings(s.health) : { units: 'lb' },
     };
+  }
+  // 6 decimals, like converted weights, so a unit switch round trip does not drift.
+  const r6 = (x) => Math.round(x * 1e6) / 1e6;
+  function cleanHealthSettings(x) {
+    if (x === undefined) return { units: 'lb' };
+    if (!isObj(x)) fail('health settings');
+    const o = { units: oneOf(x.units, ['lb', 'kg'], 'units') };
+    for (const k of ['weightStart', 'weightTarget']) if (x[k] !== undefined && x[k] !== null) o[k] = r6(num(x[k], 1, 1000, k));
+    for (const k of ['bodyFatStart', 'bodyFatTarget']) if (x[k] !== undefined && x[k] !== null) o[k] = r6(num(x[k], 1, 100, k));
+    return o;
+  }
+  function cleanCycle(x) {
+    if (x === undefined || x === null) return null;
+    if (!isObj(x)) fail('cycle');
+    return {
+      startDate: date(x.startDate, 'cycle start'),
+      sprintDays: num(x.sprintDays, 1, 365, 'sprintDays', true),
+      sprintsPerCycle: num(x.sprintsPerCycle, 1, 52, 'sprintsPerCycle', true),
+      restDays: num(x.restDays, 0, 90, 'restDays', true),
+      alternateHeavyLight: bool(x.alternateHeavyLight, 'alternateHeavyLight'),
+      firstWeek: oneOf(x.firstWeek, ['heavy', 'light'], 'firstWeek'),
+    };
+  }
+  const clean = (v) => (typeof v === 'string' ? strip(v).trim() : v);
+  function cleanKinds(list) {
+    if (list === undefined) return L.metrics.DEFAULT_KINDS.slice();
+    const seen = new Set();
+    return arr(list, KIND_CAP, 'workout types').map((x) => {
+      const v = str(clean(x), 40, 'workout type');
+      if (seen.has(v.toLowerCase())) fail('duplicate workout type');
+      seen.add(v.toLowerCase());
+      return v;
+    });
+  }
+  function cleanHabits(list) {
+    if (list === undefined) return [];
+    const seen = new Set();
+    return arr(list, HABIT_CAP, 'daily checks').map((x) => {
+      if (!isObj(x)) fail('daily check');
+      const id = str(x.id, 100, 'habit id');
+      if (seen.has(id)) fail('duplicate habit id');
+      seen.add(id);
+      return { id, name: str(clean(x.name), 60, 'habit name') };
+    });
+  }
+  // A tick for a habit that no longer exists is dropped; repeats collapse to one.
+  function cleanHabitLog(list, habits) {
+    if (list === undefined) return [];
+    const ids = new Set(habits.map((h) => h.id)), seen = new Set(), out = [];
+    for (const x of arr(list, HABIT_LOG_CAP, 'habit log')) {
+      if (!isObj(x)) fail('habit tick');
+      const id = str(x.habitId, 100, 'habit id'), d = date(x.date, 'habit date'), k = id + '|' + d;
+      if (!ids.has(id) || seen.has(k)) continue;
+      seen.add(k); out.push({ habitId: id, date: d });
+    }
+    return out;
   }
   function cleanSync(x) {
     const d = { clientId: '', remoteRev: -1, fp: '', fileId: '', keySalt: '' };
@@ -349,7 +414,7 @@ h1{margin-right:auto}
   function cleanEntryText(e) {
     if (!isObj(e)) return e;
     const o = Object.assign({}, e);
-    for (const k of ['title', 'notes', 'person', 'status', 'category']) if (typeof o[k] === 'string') o[k] = strip(o[k]);
+    for (const k of ['title', 'notes', 'person', 'status', 'category', 'kind']) if (typeof o[k] === 'string') o[k] = strip(o[k]);
     return o;
   }
   function cleanEntries(list) {
@@ -370,7 +435,10 @@ h1{margin-right:auto}
   function cleanProjects(list) {
     if (list === undefined) return [];
     const seen = new Set();
-    return arr(list, PROJECT_CAP, 'projects').map((x) => {
+    arr(list, PROJECT_TOTAL_CAP, 'projects');
+    // Archived projects do not count toward the 200 cap; a separate total cap keeps the list bounded.
+    if (list.filter((x) => !(isObj(x) && x.archived === true)).length > PROJECT_CAP) fail('projects has too many items');
+    return list.map((x) => {
       if (!isObj(x)) fail('project');
       const id = str(x.id, 100, 'project id');
       if (seen.has(id)) fail('duplicate project id');
@@ -428,6 +496,14 @@ h1{margin-right:auto}
       w.pipeline = {};
       for (const k of STAGES) w.pipeline[k] = num(d.work.pipeline[k], 0, 1e9, 'digest work', true);
       out.work = w;
+    }
+    if (d.health !== undefined) {
+      if (!isObj(d.health)) fail('digest health');
+      const x = d.health;
+      out.health = {
+        sessions: num(x.sessions, 0, 1e6, 'digest health', true), minutes: num(x.minutes, 0, 1e9, 'digest health'), avgSleep: num(x.avgSleep, 0, 24, 'digest health'),
+        weightChange: num(x.weightChange, -1e4, 1e4, 'digest health'), habitRate: num(x.habitRate, 0, 100, 'digest health'),
+      };
     }
     return out;
   }
@@ -558,15 +634,20 @@ h1{margin-right:auto}
   function validateState(o) {
     if (!isObj(o)) fail('state must be an object');
     scan(o, 0, { n: 4e6 });
-    if (o.schema !== 1 && o.schema !== 2 && o.schema !== SCHEMA) fail('unsupported schema');
+    if (![1, 2, 3, SCHEMA].includes(o.schema)) fail('unsupported schema');
     if (!L.metrics) fail('metrics module missing');
-    const settings = cleanSettings(o.settings), entries = cleanEntries(o.entries);
+    const settings = cleanSettings(o.settings, o.schema), entries = cleanEntries(o.entries);
     const out = { schema: SCHEMA, settings, entries };
     if (o.schema === 1) Object.assign(out, { accounts: deriveAccounts(entries), recurring: [], budgets: [], categories: defaultCategories() });
     else Object.assign(out, { accounts: cleanAccounts(o.accounts), recurring: cleanRecurring(o.recurring), budgets: cleanBudgets(o.budgets), categories: cleanCategories(o.categories) });
     // Schema 1 and 2 carry no work data; schema 3 data is whitelisted and capped like everything else.
-    out.projects = o.schema === 3 ? cleanProjects(o.projects) : [];
-    out.pipeline = o.schema === 3 ? cleanPipeline(o.pipeline) : [];
+    out.projects = o.schema >= 3 ? cleanProjects(o.projects) : [];
+    out.pipeline = o.schema >= 3 ? cleanPipeline(o.pipeline) : [];
+    // Schema 4 adds the training cycle, workout types, daily checks and their log; older formats get empty defaults.
+    out.cycle = o.schema >= 4 ? cleanCycle(o.cycle) : null;
+    out.kinds = o.schema >= 4 ? cleanKinds(o.kinds) : cleanKinds(undefined);
+    out.habits = o.schema >= 4 ? cleanHabits(o.habits) : [];
+    out.habitLog = o.schema >= 4 ? cleanHabitLog(o.habitLog, out.habits) : [];
     // An outcome may only point at a project that exists; a dangling link is dropped, the outcome is kept.
     const pids = new Set(out.projects.map((p) => p.id));
     for (const e of entries) if (e.projectId !== undefined && !pids.has(e.projectId)) delete e.projectId;
@@ -577,9 +658,30 @@ h1{margin-right:auto}
     Object.defineProperty(out, 'sourceSchema', { value: o.schema, enumerable: false });
     return out;
   }
-  // True when replacing the live state with `next` would silently drop work data because `next` is an older format.
-  const hasWork = (s) => !!s && ((s.projects || []).length > 0 || (s.pipeline || []).length > 0);
-  const dropsWork = (cur, next) => hasWork(cur) && !!next && typeof next.sourceSchema === 'number' && next.sourceSchema < SCHEMA;
+  // Data the live state holds that an older-format copy (`next`, marked by validateState) cannot carry.
+  // Schema 3 added projects and pipeline; schema 4 added the training cycle, daily checks, workout types and body targets.
+  const sameJson = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+  function droppedData(cur, next) {
+    const src = next && next.sourceSchema;
+    if (!cur || typeof src !== 'number') return [];
+    const out = [];
+    if (src < 3) { if ((cur.projects || []).length) out.push('projects'); if ((cur.pipeline || []).length) out.push('pipeline items'); }
+    if (src < 4) {
+      if (cur.cycle) out.push('training cycle');
+      if ((cur.habits || []).length) out.push('daily checks');
+      if (cur.kinds && !sameJson(cur.kinds, L.metrics.DEFAULT_KINDS)) out.push('workout types');
+      const hs = cur.settings && cur.settings.health;
+      if (hs && !sameJson(hs, { units: 'lb' })) out.push('body targets and units');
+    }
+    return out;
+  }
+  const dropsWork = (cur, next) => droppedData(cur, next).length > 0;
+  const andList = (l) => (l.length > 1 ? l.slice(0, -1).join(', ') + ' and ' + l[l.length - 1] : l.join(''));
+  // Plain-language list for warnings, with counts: "3 projects and 4 pipeline items". Names only, never values.
+  function lossText(cur, next) {
+    return andList(droppedData(cur, next).map((n) => (n === 'projects' ? cur.projects.length + ' projects' : n === 'pipeline items' ? cur.pipeline.length + ' pipeline items' : n === 'daily checks' ? cur.habits.length + ' daily checks' : 'your ' + n)));
+  }
+  const nameList = (l) => (l.length > 1 ? l.slice(0, -1).join(', ') + ' or ' + l[l.length - 1] : l.join(''));
 
   function defaultState() {
     return {
@@ -589,10 +691,12 @@ h1{margin-right:auto}
         targets: { workoutsPerWeek: 4, contactDays: 30, savingsRate: 0.2 },
         provider: { kind: 'none', baseUrl: '', model: '', apiKey: '' },
         sync: { clientId: '', remoteRev: -1, fp: '', fileId: '', keySalt: '' },
+        health: { units: 'lb' },
       },
       entries: [],
       accounts: [], recurring: [], budgets: [], categories: defaultCategories(),
       projects: [], pipeline: [],
+      cycle: null, kinds: L.metrics.DEFAULT_KINDS.slice(), habits: [], habitLog: [],
       memory: { insights: [], lessons: [], reviews: [] },
       audit: [],
     };
@@ -704,7 +808,7 @@ h1{margin-right:auto}
       requireUnlocked();
       const st = state;
       if (dropsWork(st, next) && !(opts && opts.allowWorkLoss === true)) {
-        const e = new Error('This backup is from an older version and has no projects or pipeline. Nothing was replaced.'); e.code = 'OLDER_FORMAT'; throw e;
+        const e = new Error('This backup is from an older version and has no ' + nameList(droppedData(st, next)) + '. Nothing was replaced.'); e.code = 'OLDER_FORMAT'; throw e;
       }
       const clean = validateState(next);
       // A restored backup never brings its own sync bookkeeping: an older remoteRev would weaken the rollback
@@ -774,7 +878,7 @@ h1{margin-right:auto}
     lock();
   }
 
-  L.store = { _setAdapter, exists, init, unlock, lock, isUnlocked, getState, commit, changePassphrase, replaceState, wipe, validateState, newId, defaultState, getMeta, saltId, exportEnvelope, inspectEnvelope, adoptEnvelope, dropsWork };
+  L.store = { _setAdapter, exists, init, unlock, lock, isUnlocked, getState, commit, changePassphrase, replaceState, wipe, validateState, newId, defaultState, getMeta, saltId, exportEnvelope, inspectEnvelope, adoptEnvelope, dropsWork, droppedData, nameList, lossText };
 })();
 
 ;
@@ -890,7 +994,7 @@ h1{margin-right:auto}
     for (const e of rows || []) lines.push(cols.map((c) => q(e[c])).join(','));
     return lines.join('\r\n') + '\r\n';
   }
-  const exportEntries = (entries) => toCsv(['id', 'domain', 'type', 'date', 'title', 'value', 'status', 'person', 'due', 'notes', 'createdAt', 'projectId'], entries);
+  const exportEntries = (entries) => toCsv(['id', 'domain', 'type', 'date', 'title', 'value', 'status', 'person', 'due', 'notes', 'createdAt', 'kind', 'minutes', 'effort', 'projectId'], entries);
   const exportPipeline = (items) => toCsv(['id', 'title', 'org', 'kind', 'stage', 'source', 'nextStep', 'nextDate', 'updatedAt', 'notes'], items);
   const exportProjects = (items) => toCsv(['id', 'name', 'kind', 'status', 'nextAction', 'nextDate', 'archived'], items);
 
@@ -914,9 +1018,13 @@ h1{margin-right:auto}
     { id: 'assets', label: 'Assets', types: [T('balance', 'Balance', [num('value', 'Balance (negative for a liability)', { min: -1e12, max: 1e12 })])] },
     { id: 'work', label: 'Work', types: [T('outcome', 'Outcome', [sel('status', 'Status', ['todo', 'done'])])] },
     { id: 'health', label: 'Health', types: [
-      T('workout', 'Workout'),
+      T('workout', 'Workout', [
+        { id: 'kind', label: 'Type', kind: 'text', required: false, max: 40 },
+        num('minutes', 'Minutes', { min: 0, max: 1440, required: false }),
+        num('effort', 'Effort (1 to 10)', { min: 1, max: 10, int: true, required: false })]),
       T('sleep', 'Sleep', [num('value', 'Hours', { min: 0, max: 24 })]),
-      T('weight', 'Weight', [num('value', 'Weight', { min: 0, max: 1000 })])] },
+      T('weight', 'Weight', [num('value', 'Weight', { min: 0, max: 1000 })]),
+      T('bodyfat', 'Body fat', [num('value', 'Body fat %', { min: 0, max: 100 })])] },
     { id: 'activities', label: 'Activities', types: [T('session', 'Session')] },
     { id: 'social', label: 'Social', types: [T('contact', 'Contact', [txt('person', 'Person')])] },
     { id: 'learning', label: 'Learning', types: [
@@ -942,7 +1050,8 @@ h1{margin-right:auto}
     if (!isDate(d)) throw new Error('Invalid date');
     return addDays(d, -((new Date(ms(d)).getUTCDay() + 6) % 7));
   }
-  const todayISO = () => new Date().toISOString().slice(0, 10);
+  // Dates are local calendar days: use the device's local date, never the UTC one.
+  const todayISO = () => { const d = new Date(); return String(d.getFullYear()).padStart(4, '0') + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 
   // ---- entries ----
   const NUM_RE = /^[+-]?(\d+(\.\d*)?|\.\d+)(e[+-]?\d+)?$/i;
@@ -970,10 +1079,11 @@ h1{margin-right:auto}
       }
       if (f.kind === 'number') {
         const v = typeof raw === 'number' ? raw : (typeof raw === 'string' && raw.length <= 64 && NUM_RE.test(raw.trim()) ? Number(raw) : NaN);
-        if (!isFinite(v) || v < f.min || v > f.max) throw new Error(f.label + ' must be a number between ' + f.min + ' and ' + f.max);
+        if (!isFinite(v) || v < f.min || v > f.max || (f.int && !Number.isInteger(v))) throw new Error(f.label + ' must be a number between ' + f.min + ' and ' + f.max);
         out[f.id] = v;
       } else if (f.kind === 'text') {
-        if (typeof raw !== 'string' || !raw.trim() || raw.trim().length > 200) throw new Error(f.label + ' must be 1 to 200 characters');
+        const mx = f.max || 200;
+        if (typeof raw !== 'string' || !raw.trim() || raw.trim().length > mx) throw new Error(f.label + ' must be 1 to ' + mx + ' characters');
         out[f.id] = raw.trim();
       } else if (f.kind === 'date') {
         if (!isDate(raw)) throw new Error(f.label + ' must be a valid date');
@@ -1261,6 +1371,185 @@ h1{margin-right:auto}
     };
   }
 
+  // ---- health: body metrics, workouts, cycle, sleep, habits (schema 4) ----
+  const LB_PER_KG = 2.20462262185;
+  const DEFAULT_KINDS = ['strength', 'kettlebell', 'mace and clubs', 'bodyweight', 'cardio', 'HIIT', 'mobility', 'carries'];
+  const HABIT_CAP = 8;
+  const healthSettings = (state) => (state.settings && state.settings.health) || { units: 'lb' };
+  const hEntries = (state, type) => state.entries.filter((e) => e.domain === 'health' && e.type === type)
+    .sort((a, b) => a.date.localeCompare(b.date) || String(a.createdAt).localeCompare(String(b.createdAt)));
+  function convertWeight(v, from, to) {
+    if (!['lb', 'kg'].includes(from) || !['lb', 'kg'].includes(to)) throw new Error('Units must be lb or kg');
+    if (from === to) return v;
+    return r1(from === 'lb' ? v / LB_PER_KG : v * LB_PER_KG);
+  }
+  // Mean of the last n values at each position (the window is shorter at the start).
+  function movingAverage(values, n) {
+    n = n || 7;
+    return values.map((_, i) => { const w = values.slice(Math.max(0, i - n + 1), i + 1); return r2(w.reduce((a, b) => a + b, 0) / w.length); });
+  }
+  function bodySeries(state, type, today) {
+    if (type !== 'weight' && type !== 'bodyfat') throw new Error('Unknown body metric');
+    const pts = hEntries(state, type).filter((e) => !today || e.date <= today).map((e) => ({ date: e.date, value: e.value }));
+    const avg = movingAverage(pts.map((p) => p.value), 7);
+    return pts.map((p, i) => ({ date: p.date, value: p.value, avg: avg[i] }));
+  }
+  // latest, 7-entry average, change per week over the last 28 days (first to last entry in that window), progress to target.
+  function bodyMetrics(state, type, today) {
+    if (!isDate(today)) throw new Error('today must be YYYY-MM-DD');
+    const hs = healthSettings(state), w = type === 'weight';
+    const unit = w ? hs.units : '%', start = hs[w ? 'weightStart' : 'bodyFatStart'], target = hs[w ? 'weightTarget' : 'bodyFatTarget'];
+    const series = bodySeries(state, type, today);
+    const out = { unit, count: series.length, latest: null, latestDate: null, avg: null, start: start === undefined ? null : start, target: target === undefined ? null : target, weeklyRate: null, progressPct: null, toTarget: null, series };
+    if (!series.length) return out;
+    const last = series[series.length - 1];
+    out.latest = last.value; out.latestDate = last.date; out.avg = last.avg;
+    if (out.start === null) out.start = series[0].value;
+    const win = series.filter((p) => p.date >= addDays(today, -28));
+    if (win.length >= 2) {
+      const span = daysBetween(win[win.length - 1].date, win[0].date);
+      if (span > 0) out.weeklyRate = r2((win[win.length - 1].value - win[0].value) / span * 7);
+    }
+    if (out.target !== null) {
+      out.toTarget = r1(out.target - last.value);
+      if (out.start !== out.target) out.progressPct = r1(Math.max(0, Math.min(1, (out.start - last.value) / (out.start - out.target))) * 100);
+    }
+    return out;
+  }
+  function isoWeek(d) {
+    if (!isDate(d)) throw new Error('Invalid date');
+    const thu = addDays(d, 3 - ((new Date(ms(d)).getUTCDay() + 6) % 7));
+    return Math.floor(daysBetween(thu, thu.slice(0, 4) + '-01-01') / 7) + 1;
+  }
+  // 1-based week number counted from the cycle start date (0 before the start).
+  function weekNumber(d, startDate) {
+    if (!isDate(d) || !isDate(startDate)) throw new Error('Invalid date');
+    const n = daysBetween(d, startDate);
+    return n < 0 ? 0 : Math.floor(n / 7) + 1;
+  }
+  function workoutWeek(state, ws) {
+    ws = weekStart(ws);
+    const we = addDays(ws, 6), cy = state.cycle || null;
+    const wk = hEntries(state, 'workout').filter((e) => inR(e, ws, we));
+    const mix = new Map();
+    let minutes = 0;
+    for (const e of wk) {
+      minutes += e.minutes || 0;
+      const k = e.kind || 'untyped', g = mix.get(k) || { kind: k, count: 0, minutes: 0 };
+      g.count++; g.minutes += e.minutes || 0; mix.set(k, g);
+    }
+    return {
+      weekStart: ws, isoWeek: isoWeek(ws), cycleWeek: cy ? weekNumber(ws, cy.startDate) : null,
+      sessions: wk.length, target: state.settings.targets.workoutsPerWeek, minutes,
+      mix: [...mix.values()].sort((a, b) => b.count - a.count || b.minutes - a.minutes || a.kind.localeCompare(b.kind)),
+    };
+  }
+  // Training cycle: sprintsPerCycle sprints of sprintDays back to back, then restDays of rest, repeating.
+  // Heavy/light alternates weekly, counted from the start of each cycle (continuing across sprints, restarting after rest).
+  function trainingCycle(cycle, d) {
+    if (!cycle || !isDate(cycle.startDate) || !isDate(d)) throw new Error('Invalid cycle or date');
+    const sd = cycle.sprintDays, spc = cycle.sprintsPerCycle, rd = cycle.restDays;
+    const base = { sprintDays: sd, sprintsPerCycle: spc, restDays: rd };
+    const n = daysBetween(d, cycle.startDate);
+    if (n < 0) return Object.assign(base, { phase: 'before', daysToStart: -n, sprint: 0, dayInSprint: 0, cycleNumber: 0, week: null, daysToRest: null });
+    const training = sd * spc, len = training + rd, c = Math.floor(n / len), k = n % len;
+    const o = Object.assign(base, { cycleNumber: c + 1 });
+    if (k >= training) return Object.assign(o, { phase: 'rest', sprint: 0, dayInSprint: 0, restDay: k - training + 1, week: null, daysToRest: 0, daysToTraining: len - k });
+    let week = null;
+    if (cycle.alternateHeavyLight) week = ((Math.floor(k / 7) % 2 === 0) === (cycle.firstWeek === 'heavy')) ? 'heavy' : 'light';
+    return Object.assign(o, { phase: 'sprint', sprint: Math.floor(k / sd) + 1, dayInSprint: k % sd + 1, week, daysToRest: rd > 0 ? training - k : null });
+  }
+  function cycleLabel(c) {
+    if (!c) return '';
+    if (c.phase === 'before') return 'Cycle starts in ' + c.daysToStart + (c.daysToStart === 1 ? ' day' : ' days');
+    if (c.phase === 'rest') return 'Rest period, day ' + c.restDay + ' of ' + c.restDays;
+    return 'Sprint ' + c.sprint + ' of ' + c.sprintsPerCycle + ', day ' + c.dayInSprint + ' of ' + c.sprintDays + (c.week ? ', ' + c.week + ' week' : '');
+  }
+  function sleepAvg(state, a, b) {
+    let s = 0, n = 0;
+    for (const e of hEntries(state, 'sleep')) if (inR(e, a, b)) { s += e.value; n++; }
+    return { n, avg: n ? r2(s / n) : null };
+  }
+  function sleepSummary(state, today) {
+    if (!isDate(today)) throw new Error('today must be YYYY-MM-DD');
+    const cur = sleepAvg(state, addDays(today, -6), today), prev = sleepAvg(state, addDays(today, -13), addDays(today, -7));
+    const series = [];
+    for (let i = 13; i >= 0; i--) { const d = addDays(today, -i), a = sleepAvg(state, d, d); series.push({ date: d, value: a.avg }); }
+    return { avg7: cur.avg, nights7: cur.n, prevAvg7: prev.avg, delta: cur.avg !== null && prev.avg !== null ? r2(cur.avg - prev.avg) : null, series };
+  }
+  // ---- daily checks ----
+  const habitDates = (state, id) => new Set((state.habitLog || []).filter((x) => x.habitId === id).map((x) => x.date));
+  function habitStats(state, id, today) {
+    if (!isDate(today)) throw new Error('today must be YYYY-MM-DD');
+    const ds = habitDates(state, id);
+    let c7 = 0;
+    for (let i = 0; i < 7; i++) if (ds.has(addDays(today, -i))) c7++;
+    // The streak counts back from today, or from yesterday while today is not ticked yet.
+    let d = ds.has(today) ? today : addDays(today, -1), streak = 0;
+    while (ds.has(d) && streak < 100000) { streak++; d = addDays(d, -1); }
+    return { checks7: c7, rate7: r1(c7 / 7 * 100), streak, doneToday: ds.has(today) };
+  }
+  function habitRate(state, a, b) {
+    const hs = state.habits || [], days = daysBetween(b, a) + 1;
+    if (!hs.length || days < 1) return 0;
+    const ids = new Set(hs.map((x) => x.id));
+    let n = 0;
+    for (const x of state.habitLog || []) if (ids.has(x.habitId) && inR({ date: x.date }, a, b)) n++;
+    return r1(n / (hs.length * days) * 100);
+  }
+  function addHabit(state, name) {
+    if (typeof name !== 'string' || !name.trim() || name.trim().length > 60) throw new Error('Habit name must be 1 to 60 characters');
+    if (state.habits.length >= HABIT_CAP) throw new Error('You can keep up to ' + HABIT_CAP + ' daily checks');
+    const h = { id: L._webcrypto.randomUUID(), name: name.trim() };
+    state.habits.push(h);
+    return h;
+  }
+  function deleteHabit(state, id) {
+    if (!state.habits.some((x) => x.id === id)) throw new Error('Habit not found');
+    state.habits = state.habits.filter((x) => x.id !== id);
+    state.habitLog = state.habitLog.filter((x) => x.habitId !== id);
+  }
+  // Ticks or unticks one habit on one day; returns true when it is now ticked.
+  function toggleHabit(state, id, d) {
+    if (!isDate(d)) throw new Error('Invalid date');
+    if (!state.habits.some((x) => x.id === id)) throw new Error('Habit not found');
+    const n = state.habitLog.length;
+    state.habitLog = state.habitLog.filter((x) => !(x.habitId === id && x.date === d));
+    if (state.habitLog.length < n) return false;
+    state.habitLog.push({ habitId: id, date: d });
+    return true;
+  }
+  function weightChange(state, ws, we) {
+    const all = hEntries(state, 'weight'), cur = all.filter((e) => e.date <= we).pop();
+    if (!cur) return 0;
+    const base = all.filter((e) => e.date < ws).pop() || all.find((e) => inR(e, ws, we));
+    return !base || base === cur ? 0 : r1(cur.value - base.value);
+  }
+  function healthDigest(state, ws) {
+    const we = addDays(ws, 6), wk = workoutWeek(state, ws), sl = sleepAvg(state, ws, we);
+    return { sessions: wk.sessions, minutes: wk.minutes, avgSleep: sl.avg === null ? 0 : sl.avg, weightChange: weightChange(state, ws, we), habitRate: habitRate(state, ws, we) };
+  }
+  // Mutators for the unit setting and project delete.
+  function setWeightUnits(state, units) {
+    const hs = state.settings.health, from = hs.units;
+    if (units !== 'lb' && units !== 'kg') throw new Error('Units must be lb or kg');
+    if (units === from) return;
+    // Stored values keep 6 decimals so switching back and forth does not drift; screens round to 0.1.
+    const conv = (v) => Math.round((from === 'lb' ? v / LB_PER_KG : v * LB_PER_KG) * 1e6) / 1e6;
+    for (const e of state.entries) if (e.domain === 'health' && e.type === 'weight') e.value = conv(e.value);
+    for (const k of ['weightStart', 'weightTarget']) if (hs[k] !== undefined) hs[k] = conv(hs[k]);
+    hs.units = units;
+  }
+  const linkedOutcomeCount = (state, id) => outcomes(state).filter((e) => e.projectId === id).length;
+  // Deletes a project; its outcomes are kept and unlinked. Returns how many were unlinked.
+  function deleteProject(state, id) {
+    if (!(state.projects || []).some((p) => p.id === id)) throw new Error('Project not found');
+    let n = 0;
+    for (const e of state.entries) if (e.projectId === id) { delete e.projectId; n++; }
+    state.projects = state.projects.filter((p) => p.id !== id);
+    return n;
+  }
+
   const UNITS = { money: '%', work: 'outcomes', health: 'workouts', activities: 'days', social: 'people', learning: 'items', home: 'items', goals: '%', wellbeing: 'score' };
   function weekMetric(state, id, ws, ents) {
     const we = addDays(ws, 6);
@@ -1292,7 +1581,7 @@ h1{margin-right:auto}
     const we = addDays(ws, 6), wm = sumMoney(byDomain(state, 'money'), ws, we), nw = netWorthDetail(state, we);
     const mv = monthView(state, monthOf(we));
     const money = { income: dollars(wm.incC), spend: dollars(wm.expC), budgetUsedPct: mv.budgetCents > 0 ? r1(mv.budgetedSpentCents * 100 / mv.budgetCents) : 0, netWorth: nw.total, liabilities: nw.liabilities };
-    return { week: ws, domains, money, work: workDigest(state, ws) };
+    return { week: ws, domains, money, work: workDigest(state, ws), health: healthDigest(state, ws) };
   }
   function series(state, domainId, n, today) {
     if (!DOMAINS.some((d) => d.id === domainId)) throw new Error('Unknown domain');
@@ -1335,7 +1624,9 @@ h1{margin-right:auto}
       }
       case 'health': {
         const n = count(ents, ws, we, (e) => e.type === 'workout');
-        return R('Workouts this week', n + ' of ' + tg.workoutsPerWeek, n, n >= tg.workoutsPerWeek ? 'Target met' : (tg.workoutsPerWeek - n) + ' to go');
+        const base = n >= tg.workoutsPerWeek ? 'Target met' : (tg.workoutsPerWeek - n) + ' to go';
+        const cl = state.cycle ? cycleLabel(trainingCycle(state.cycle, today)) : '';
+        return R('Workouts this week', n + ' of ' + tg.workoutsPerWeek, n, cl ? base + '. ' + cl : base);
       }
       case 'activities': {
         const d = activeDays(ents, ws, we), s = count(ents, ws, we, (e) => e.type === 'session');
@@ -1368,7 +1659,7 @@ h1{margin-right:auto}
     }
   }
 
-  L.metrics = { STAGES, OPEN_STAGES, STALE_DAYS, overdueProjects, isStale, pipelineCounts, openPipeline, weekOutcomes, carryOverCandidates, carryOver, workSummary, DOMAINS, isDate, addDays, validateEntry, headline, weekStart, weeklyDigest, series, fmtMoney, cents, ACCOUNT_KINDS, LIAB_KINDS, DEFAULT_CATEGORIES, UNCAT, addMonths, monthEnd, advanceDate, netWorthDetail, netWorthHistory, monthView, cashflow, dueRecurring, confirmRecurring, skipRecurring };
+  L.metrics = { todayISO, DEFAULT_KINDS, HABIT_CAP, convertWeight, movingAverage, bodySeries, bodyMetrics, isoWeek, weekNumber, workoutWeek, trainingCycle, cycleLabel, sleepAvg, sleepSummary, habitStats, habitRate, addHabit, deleteHabit, toggleHabit, healthDigest, setWeightUnits, linkedOutcomeCount, deleteProject, liveProjects, STAGES, OPEN_STAGES, STALE_DAYS, overdueProjects, isStale, pipelineCounts, openPipeline, weekOutcomes, carryOverCandidates, carryOver, workSummary, DOMAINS, isDate, addDays, validateEntry, headline, weekStart, weeklyDigest, series, fmtMoney, cents, ACCOUNT_KINDS, LIAB_KINDS, DEFAULT_CATEGORIES, UNCAT, addMonths, monthEnd, advanceDate, netWorthDetail, netWorthHistory, monthView, cashflow, dueRecurring, confirmRecurring, skipRecurring };
   L.DOMAINS = DOMAINS;
 })();
 
@@ -1430,9 +1721,20 @@ h1{margin-right:auto}
       }
       if (text) out.push({ domain: d.id, text: text.slice(0, MAX_TEXT) });
     }
+    // Health: numeric facts only, never advice.
+    const hd = dg.health, ph = L.metrics.healthDigest(state, L.metrics.addDays(dg.week, -7));
+    if (hd) {
+      const unit = state.settings.health ? state.settings.health.units : 'lb';
+      if (hd.avgSleep > 0) out.push({ domain: 'health', text: ('Average sleep this week was ' + hd.avgSleep + ' hours' + (ph.avgSleep > 0 ? ' (last week ' + ph.avgSleep + ').' : '.')).slice(0, MAX_TEXT) });
+      if (hd.weightChange !== 0) out.push({ domain: 'health', text: ('Weight moved ' + (hd.weightChange < 0 ? 'down ' : 'up ') + Math.abs(hd.weightChange) + ' ' + unit + ' this week.').slice(0, MAX_TEXT) });
+      if ((state.habits || []).length && (hd.habitRate > 0 || ph.habitRate > 0)) out.push({ domain: 'health', text: ('Daily checks completed: ' + hd.habitRate + '% this week (last week ' + ph.habitRate + '%).').slice(0, MAX_TEXT) });
+    }
     return out;
   }
 
+  // The rules insight that states a weight change. It stays in the vault and is never part of a prompt.
+  const BODY_TEXT = /^Weight moved (up|down) /;
+  const isBodyInsight = (i) => i.domain === 'health' && i.source === 'rules' && BODY_TEXT.test(i.text);
   function buildPrompt(state, level, period) {
     checkLevel(level);
     const p = checkPeriod(period);
@@ -1452,11 +1754,14 @@ h1{margin-right:auto}
         lines.push('- work detail: outcomes done ' + w.done + ' of ' + w.planned + ', active projects ' + w.activeProjects + ', overdue next actions ' + w.overdueNext + ', moved this week ' + w.moved + ', pipeline ' +
           Object.keys(w.pipeline).map((k) => k + ' ' + w.pipeline[k]).join(', '));
       }
-      ctx = approvedAll.slice(-CTX_MAX);
+      const hh = dg.health;
+      // Body metrics (weight change) stay in the vault: they are never sent to a provider.
+      if (hh) lines.push('- health detail: sessions ' + hh.sessions + ', minutes ' + hh.minutes + ', average sleep ' + hh.avgSleep + ' hours, daily checks completed ' + hh.habitRate + '%');
+      ctx = approvedAll.filter((i) => !isBodyInsight(i)).slice(-CTX_MAX);
       lines.push('Approved insights so far:');
     } else {
       const from = level - 1;
-      ctx = approvedAll.filter((i) => i.level === from && i.period.from >= p.from && i.period.to <= p.to).slice(-CTX_MAX);
+      ctx = approvedAll.filter((i) => !isBodyInsight(i) && i.level === from && i.period.from >= p.from && i.period.to <= p.to).slice(-CTX_MAX);
       lines.push('Level ' + level + (level === 2 ? ' monthly' : ' quarterly') + ' consolidation for ' + p.from + ' to ' + p.to + '.',
         'Approved level ' + from + ' insights to consolidate:');
     }
@@ -1864,7 +2169,7 @@ h1{margin-right:auto}
     return Array.from(new Uint8Array(d), (x) => x.toString(16).padStart(2, '0')).join('');
   }
   const count = (a) => (Array.isArray(a) ? a.length : 0);
-  const summary = (meta, state, schema) => ({ rev: meta.rev, updatedAt: meta.updatedAt, entries: count(state.entries), projects: count(state.projects), pipeline: count(state.pipeline), schema });
+  const summary = (meta, state, schema) => ({ rev: meta.rev, updatedAt: meta.updatedAt, entries: count(state.entries), projects: count(state.projects), pipeline: count(state.pipeline), habits: count(state.habits), cycle: !!state.cycle, schema });
 
   async function inspect(text, passphrase) {
     let envObj;
@@ -1925,12 +2230,12 @@ h1{margin-right:auto}
       return { kind: 'uploaded', rev: env.rev };
     }
     const lm = S.getMeta();
-    // An older-format Drive copy (schema 1 or 2) has no projects or pipeline: using it would drop this device's work data.
-    const dropsWork = S.dropsWork(cur, { sourceSchema: info.sourceSchema });
+    // An older-format Drive copy has no projects, pipeline (before schema 3) or cycle, daily checks, workout types, body targets (before schema 4): using it would drop this device's data.
+    const dropped = S.droppedData(cur, { sourceSchema: info.sourceSchema }), dropsWork = dropped.length > 0;
     return hide({
       kind: localChanged ? 'conflict' : 'download-offer',
-      local: summary(lm, cur, cur.schema), remote: summary(info.meta, info.state, info.sourceSchema), passphraseDiffers: keyDiffers, dropsWork,
-    }, { file, dl, info, clientId, fp, dropsWork });
+      local: summary(lm, cur, cur.schema), remote: summary(info.meta, info.state, info.sourceSchema), passphraseDiffers: keyDiffers, dropsWork, dropped,
+    }, { file, dl, info, clientId, fp, dropsWork, dropped });
   }
 
   // choice: 'download' (offer), or 'remote' | 'local' | 'cancel' (conflict). Conflict resolutions first save the losing copy via saveBackup(text, name).
@@ -1939,13 +2244,13 @@ h1{margin-right:auto}
     const ctx = decision && decision._ctx;
     if (!ctx) throw err('BAD_DECISION', 'Nothing to apply.');
     const S = L.store;
-    const stamp = new Date().toISOString().slice(0, 10);
+    const stamp = L.metrics.todayISO();
     if (choice === 'cancel' || choice === 'skip') return { kind: 'cancelled' };
     const wantsRemote = (decision.kind === 'download-offer' && choice === 'download') || (decision.kind === 'conflict' && choice === 'remote');
     const wantsLocal = decision.kind === 'conflict' && choice === 'local';
     if (!wantsRemote && !wantsLocal) throw err('BAD_CHOICE', 'Unknown choice.');
     if (wantsRemote && ctx.dropsWork && opts.allowWorkLoss !== true) {
-      throw err('OLDER_FORMAT', 'The Drive copy is from an older version and has no projects or pipeline. Nothing was replaced.');
+      throw err('OLDER_FORMAT', 'The Drive copy is from an older version and has no ' + S.nameList(ctx.dropped || []) + '. Nothing was replaced.');
     }
     // The offer was made because this device had no changes. If it changed since, do not replace it.
     if (decision.kind === 'download-offer' && (await fingerprint(S.getState())) !== ctx.fp) {
@@ -2219,15 +2524,15 @@ h1{margin-right:auto}
     var s = st();
     var body;
     try {
-      body = view.name === 'domain' ? (view.domain === 'money' ? moneyScreen(s) : view.domain === 'assets' ? assetsScreen(s) : view.domain === 'work' ? workScreen(s) : domainScreen(s))
+      body = view.name === 'domain' ? (view.domain === 'money' ? moneyScreen(s) : view.domain === 'assets' ? assetsScreen(s) : view.domain === 'work' ? workScreen(s) : view.domain === 'health' ? healthScreen(s) : domainScreen(s))
         : view.name === 'review' ? reviewScreen(s)
         : view.name === 'memory' ? memoryScreen(s)
         : view.name === 'settings' ? settingsScreen(s)
         : dashScreen(s);
     } catch (e) { body = h('p', { text: friendly(e) }); }
-    var cur = view.name === 'domain' ? (view.domain === 'money' || view.domain === 'assets' || view.domain === 'work' ? view.domain : 'dashboard') : view.name;
-    var nav = h('nav', { class: 'nav', 'aria-label': 'Main' }, [['dashboard', 'Home'], ['money', 'Money'], ['assets', 'Assets'], ['work', 'Work'], ['review', 'Review'], ['memory', 'Memory'], ['settings', 'Settings']].map(function (n) {
-      return h('button', { type: 'button', text: n[1], 'aria-current': n[0] === cur ? 'page' : null, onclick: function () { if (n[0] === 'money' || n[0] === 'assets' || n[0] === 'work') go('domain', { domain: n[0] }); else go(n[0]); } });
+    var cur = view.name === 'domain' ? (view.domain === 'money' || view.domain === 'assets' || view.domain === 'work' || view.domain === 'health' ? view.domain : 'dashboard') : view.name;
+    var nav = h('nav', { class: 'nav', 'aria-label': 'Main' }, [['dashboard', 'Home'], ['money', 'Money'], ['assets', 'Assets'], ['work', 'Work'], ['health', 'Health'], ['review', 'Review'], ['memory', 'Memory'], ['settings', 'Settings']].map(function (n) {
+      return h('button', { type: 'button', text: n[1], 'aria-current': n[0] === cur ? 'page' : null, onclick: function () { if (n[0] === 'money' || n[0] === 'assets' || n[0] === 'work' || n[0] === 'health') go('domain', { domain: n[0] }); else go(n[0]); } });
     }));
     root.appendChild(h('div', { class: 'app' },
       h('header', { class: 'top' }, h('span', { class: 'brand', text: 'LifeOS' }), btn('Lock', function () { lockNow(); }, 'sm lockbtn')),
@@ -2296,7 +2601,7 @@ h1{margin-right:auto}
     var tiles = L.DOMAINS.map(function (d) {
       var hl, ser;
       try { hl = L.metrics.headline(s, d.id, t); } catch (e) { hl = { label: '', display: '-', sub: '' }; }
-      try { ser = L.metrics.series(s, d.id, 8); } catch (e) { ser = []; }
+      try { ser = L.metrics.series(s, d.id, 8, t); } catch (e) { ser = []; }
       return h('button', { type: 'button', class: 'tile', 'data-domain': d.id, onclick: function () { go('domain', { domain: d.id }); } },
         h('span', { class: 'tile-title', text: d.label }),
         h('span', { class: 'tile-value', text: hl.display }),
@@ -2351,6 +2656,9 @@ h1{margin-right:auto}
     }
     if (names.indexOf('person') >= 0) { refs.person = h('input', { type: 'text', id: 'f-person', maxlength: '200' }); fs.push(field('Person', refs.person)); }
     if (names.indexOf('due') >= 0) { refs.due = h('input', { type: 'date', id: 'f-due' }); fs.push(field('Due date', refs.due)); }
+    if (names.indexOf('kind') >= 0) { refs.kind = sel('f-kind', [{ v: '', t: '(none)' }].concat((s.kinds || []).map(function (k) { return { v: k, t: k }; })), ''); fs.push(field('Type (optional)', refs.kind)); }
+    if (names.indexOf('minutes') >= 0) { refs.minutes = h('input', { type: 'number', id: 'f-minutes', min: '0', max: '1440', step: '1', inputmode: 'numeric' }); fs.push(field('Minutes (optional)', refs.minutes)); }
+    if (names.indexOf('effort') >= 0) { refs.effort = sel('f-effort', [{ v: '', t: '(none)' }].concat([1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(function (n) { return { v: String(n), t: String(n) }; })), ''); fs.push(field('Effort 1 to 10 (optional)', refs.effort)); }
     refs.notes = h('textarea', { id: 'f-notes', maxlength: '2000' });
     fs.push(field('Notes (optional)', refs.notes));
     var form = h('form', {
@@ -2363,6 +2671,9 @@ h1{margin-right:auto}
           if (refs.category && refs.category.value) p.category = refs.category.value;
           if (refs.person && refs.person.value.trim()) p.person = refs.person.value.trim();
           if (refs.due && refs.due.value) p.due = refs.due.value;
+          if (refs.kind && refs.kind.value) p.kind = refs.kind.value;
+          if (refs.minutes && refs.minutes.value !== '') p.minutes = Number(refs.minutes.value);
+          if (refs.effort && refs.effort.value) p.effort = Number(refs.effort.value);
           if (refs.notes.value.trim()) p.notes = refs.notes.value.trim();
           var en = L.metrics.validateEntry(p);
           en.id = en.id || L.store.newId();
@@ -2379,11 +2690,14 @@ h1{margin-right:auto}
     var tl = {}; d.types.forEach(function (t) { tl[t.id] = t.label; });
     var rows = list.slice(0, shown).map(function (en) {
       var meta = [tl[en.type] || en.type];
-      if (en.value !== undefined) meta.push(String(en.value));
+      if (en.value !== undefined) meta.push(en.type === 'weight' ? fmt1(en.value) : String(en.value));
       if (en.category) meta.push(en.category);
       if (en.status) meta.push(en.status);
       if (en.person) meta.push(en.person);
       if (en.due) meta.push('due ' + en.due);
+      if (en.kind) meta.push(en.kind);
+      if (en.minutes !== undefined) meta.push(en.minutes + ' min');
+      if (en.effort !== undefined) meta.push('effort ' + en.effort);
       return h('div', { class: 'entry' },
         h('div', null, h('div', { class: 'entry-t', text: en.title }),
           h('div', { class: 'mut small', text: en.date + ' | ' + meta.join(' | ') }),
@@ -2966,6 +3280,16 @@ h1{margin-right:auto}
     var p = (s.projects || []).filter(function (x) { return x.id === id; })[0];
     return p ? p.name : '';
   }
+  // Delete a project after an in-page confirm. Linked outcomes are kept and unlinked.
+  function askDeleteProject(s, p) {
+    var n = L.metrics.linkedOutcomeCount(s, p.id);
+    openDialog({
+      title: 'Delete this project?', yes: 'Delete project', danger: true,
+      body: [h('p', { class: 'mut', text: p.name }),
+        h('p', { class: 'small', id: 'pj-del-info', text: n + (n === 1 ? ' linked outcome is' : ' linked outcomes are') + ' kept and unlinked from this project. The project itself is removed.' })],
+      onYes: function () { return commit(function (x) { L.metrics.deleteProject(x, p.id); }, 'project delete').then(function () { setNotice('ok', 'Project deleted.'); render(); }); }
+    });
+  }
   function carryCard(s, wk, afterRender) {
     var cands = L.metrics.carryOverCandidates(s, wk);
     if (!cands.length) return null;
@@ -3049,7 +3373,7 @@ h1{margin-right:auto}
         act(function () {
           var name = pName.value.trim();
           if (!name) throw new Error('Enter a project name.');
-          if (projects.length >= 200) throw new Error('You have reached the 200 project limit. Archive or delete some.');
+          if (live.length >= 200 || projects.length >= 2000) throw new Error('You have reached the 200 project limit. Archive or delete some.');
           var p = { id: L.store.newId(), name: name, kind: pKind.value, status: 'active', nextAction: pNext.value.trim(), archived: false };
           if (pDate.value) p.nextDate = pDate.value;
           return commit(function (x) { x.projects.push(p); }, 'project add').then(function () { setNotice('ok', 'Project added.'); render(); });
@@ -3081,11 +3405,23 @@ h1{margin-right:auto}
           }, 'sm', { 'aria-label': 'Update next action for ' + p.name }),
           p.status === 'active' ? btn('Pause', function () { setProj(p, function (z) { z.status = 'paused'; }, 'project pause'); }, 'sm', { 'aria-label': 'Pause ' + p.name }) : btn('Resume', function () { setProj(p, function (z) { z.status = 'active'; }, 'project resume'); }, 'sm', { 'aria-label': 'Resume ' + p.name }),
           p.status !== 'done' ? btn('Done', function () { setProj(p, function (z) { z.status = 'done'; }, 'project done'); }, 'sm', { 'aria-label': 'Finish ' + p.name }) : null,
-          btn('Archive', function () { setProj(p, function (z) { z.archived = true; }, 'project archive'); }, 'sm', { 'aria-label': 'Archive ' + p.name })));
+          btn('Archive', function () { setProj(p, function (z) { z.archived = true; }, 'project archive'); }, 'sm', { 'aria-label': 'Archive ' + p.name }),
+          btn('Delete', function () { askDeleteProject(s, p); }, 'sm bad', { 'aria-label': 'Delete ' + p.name })));
+    });
+    var archived = projects.filter(function (p) { return p.archived; });
+    var aList = archived.map(function (p) {
+      return h('div', { class: 'item aproj' }, h('div', null, h('div', { class: 'entry-t', text: p.name }), h('div', { class: 'mut small' }, h('span', { class: 'chip', text: p.kind }))),
+        h('div', { class: 'row' },
+          btn('Restore', function () {
+            if (live.length >= 200) { setNotice('err', 'You have reached the 200 project limit. Archive or delete some first.'); return; }
+            setProj(p, function (z) { z.archived = false; }, 'project restore');
+          }, 'sm', { 'aria-label': 'Restore ' + p.name }),
+          btn('Delete', function () { askDeleteProject(s, p); }, 'sm bad', { 'aria-label': 'Delete archived ' + p.name })));
     });
     var pCard = h('div', { class: 'card', id: 'projects' }, h('h2', { text: 'Projects (' + live.length + ')' }),
       pList.length ? pList : h('p', { class: 'mut', text: 'No projects yet.' }),
-      details('pj-new', 'Add a project', pForm, !pList.length));
+      details('pj-new', 'Add a project', pForm, !pList.length),
+      archived.length ? details('pj-archived', 'Archived projects (' + archived.length + ')', aList) : null);
 
     // pipeline
     var lTitle = h('input', { type: 'text', id: 'pl-title', maxlength: '200', autocomplete: 'off' });
@@ -3154,6 +3490,274 @@ h1{margin-right:auto}
           btn('Export pipeline CSV', function () { download('lifeos-pipeline.csv', L.csv.exportPipeline(pipeline), 'text/csv'); }, 'sm', { id: 'exp-pipeline' }),
           btn('Export projects CSV', function () { download('lifeos-projects.csv', L.csv.exportProjects(projects), 'text/csv'); }, 'sm', { id: 'exp-projects' })),
         domainScreen(s, { embed: true, noForm: true })]));
+  }
+
+  // ---------- health (v0.5.0) ----------
+  function fmt1(n) { return String(Math.round(n * 10) / 10); }
+  function signed(n) { return (n > 0 ? '+' : '') + fmt1(n); }
+  function numOrNull(v) {
+    v = String(v == null ? '' : v).trim();
+    if (v === '') return null;
+    var n = Number(v);
+    if (!isFinite(n)) throw new Error('Enter a number.');
+    return n;
+  }
+  function intIn(v, lo, hi, label) {
+    var n = parseInt(v, 10);
+    if (!(n >= lo && n <= hi)) throw new Error(label + ' must be ' + lo + ' to ' + hi + '.');
+    return n;
+  }
+  function entryFor(p) {
+    var en = L.metrics.validateEntry(p);
+    en.id = en.id || L.store.newId();
+    en.createdAt = en.createdAt || new Date().toISOString();
+    return en;
+  }
+  function lineChart(id, label, pts, target) {
+    var W = 320, H = 130, P = 14, rows = pts.slice(-60);
+    var vals = rows.map(function (r) { return r.value; }).concat(rows.map(function (r) { return r.avg; }));
+    if (target != null) vals.push(target);
+    var min = Math.min.apply(null, vals), max = Math.max.apply(null, vals), rng = max - min || 1;
+    function X(i) { return rows.length < 2 ? W / 2 : P + i * (W - 2 * P) / (rows.length - 1); }
+    function Y(v) { return H - P - (v - min) / rng * (H - 2 * P); }
+    function pts2(key) { return rows.map(function (r, i) { return X(i).toFixed(1) + ',' + Y(r[key]).toFixed(1); }).join(' '); }
+    var g = [h('line', { class: 'axis', x1: '0', y1: String(H - P + 4), x2: String(W), y2: String(H - P + 4) })];
+    if (target != null) g.push(h('line', { class: 'ln-target', x1: String(P), y1: Y(target).toFixed(1), x2: String(W - P), y2: Y(target).toFixed(1) }));
+    g.push(h('polyline', { class: 'ln-raw', points: pts2('value') }));
+    rows.forEach(function (r, i) { g.push(h('circle', { class: 'dot-raw', cx: X(i).toFixed(1), cy: Y(r.value).toFixed(1), r: '2' })); });
+    g.push(h('polyline', { class: 'ln-avg', points: pts2('avg') }));
+    g.push(h('text', { class: 'tick', x: '2', y: '10', 'text-anchor': 'start' }, fmt1(max)));
+    g.push(h('text', { class: 'tick', x: '2', y: String(H - 2), 'text-anchor': 'start' }, fmt1(min)));
+    return h('svg', { class: 'chart', id: id, viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': label }, g);
+  }
+  function sleepChart(series) {
+    var W = 320, H = 110, B = 16, max = Math.max.apply(null, series.map(function (r) { return r.value || 0; }).concat([8]));
+    var bw = W / series.length, g = [h('line', { class: 'axis', x1: '0', y1: String(H - B), x2: String(W), y2: String(H - B) })];
+    series.forEach(function (r, i) {
+      if (r.value !== null) {
+        var ht = Math.round(r.value / max * (H - B - 12));
+        g.push(h('rect', { class: 'k1', x: String(i * bw + 3), y: String(H - B - ht), width: String(bw - 6), height: String(ht) }));
+      }
+      if (i % 2 === 0) g.push(h('text', { class: 'tick', x: String(i * bw + bw / 2), y: String(H - 3), 'text-anchor': 'middle' }, r.date.slice(8)));
+    });
+    return h('svg', { class: 'chart', id: 'hl-sleep-chart', viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': 'Hours slept per night, last 14 nights' }, g);
+  }
+  function mixRows(mix, sessions) {
+    return mix.map(function (m) {
+      return h('div', { class: 'catrow', 'data-kind': m.kind },
+        h('div', { class: 'row sp small' }, h('span', { text: m.kind }), h('span', { class: 'mut', text: m.count + (m.count === 1 ? ' session' : ' sessions') + (m.minutes ? ', ' + m.minutes + ' min' : '') })),
+        h('svg', { class: 'bar', viewBox: '0 0 100 8', preserveAspectRatio: 'none', 'aria-hidden': 'true', focusable: 'false' },
+          h('rect', { class: 'bar-bg', x: '0', y: '0', width: '100', height: '8' }),
+          h('rect', { class: 'bar-fill', x: '0', y: '0', width: String(Math.round(m.count / Math.max(1, sessions) * 100)), height: '8' })));
+    });
+  }
+  function bodyBlock(m, label, idp, unitLabel) {
+    var none = !m.count;
+    return h('div', { class: 'sub' },
+      h('h3', { text: label }),
+      h('div', { class: 'stats' },
+        stat('Latest', none ? 'No entries' : fmt1(m.latest) + ' ' + unitLabel, idp + '-latest'),
+        stat('7-entry average', none ? 'n/a' : fmt1(m.avg) + ' ' + unitLabel, idp + '-avg'),
+        stat('Change per week (4 weeks)', m.weeklyRate === null ? 'n/a' : signed(m.weeklyRate) + ' ' + unitLabel, idp + '-rate'),
+        stat('Progress to target', m.target === null ? 'No target set' : (m.progressPct === null ? 'n/a' : fmt1(m.progressPct) + '%'), idp + '-progress')),
+      m.target !== null && !none ? h('p', { class: 'mut small', id: idp + '-togo', text: (m.toTarget === 0 ? 'At target ' : fmt1(Math.abs(m.toTarget)) + ' ' + unitLabel + (m.toTarget < 0 ? ' above' : ' below') + ' target ') + fmt1(m.target) + ' ' + unitLabel + '.' }) : null,
+      none ? h('p', { class: 'mut', text: 'Log an entry to see the trend.' }) : lineChart(idp + '-chart', label + ' trend with 7-entry average', m.series, m.target));
+  }
+  function healthScreen(s) {
+    var t = today(), wk = L.metrics.weekStart(t), M = L.metrics, hs = s.settings.health || { units: 'lb' }, unit = hs.units;
+    var cyc = s.cycle ? M.trainingCycle(s.cycle, t) : null, ww = M.workoutWeek(s, wk);
+    var wm = M.bodyMetrics(s, 'weight', t), bf = M.bodyMetrics(s, 'bodyfat', t), sl = M.sleepSummary(s, t);
+    var habits = s.habits || [], kinds = s.kinds || [];
+    function done(msg) { return function () { setNotice('ok', msg); render(); }; }
+
+    // today card
+    var cycTxt = !cyc ? 'No training cycle set. Add one under Targets, cycle and workout types.'
+      : M.cycleLabel(cyc) + (cyc.phase === 'sprint' && cyc.daysToRest !== null ? '. Rest starts in ' + cyc.daysToRest + (cyc.daysToRest === 1 ? ' day' : ' days') + '.' : (cyc.phase === 'rest' ? '. Training resumes in ' + cyc.daysToTraining + (cyc.daysToTraining === 1 ? ' day' : ' days') + '.' : '.'));
+    var chips = habits.length ? h('div', { class: 'chips', id: 'hl-habits', role: 'group', 'aria-label': 'Daily checks for today' }, habits.map(function (hb) {
+      var on = M.habitStats(s, hb.id, t).doneToday;
+      return h('button', { type: 'button', class: 'chipbtn', 'data-habit': hb.name, 'aria-pressed': on ? 'true' : 'false', text: hb.name, onclick: function () {
+        act(function () { return commit(function (x) { M.toggleHabit(x, hb.id, t); }, 'daily check').then(function () { render(); }); });
+      } });
+    })) : h('p', { class: 'mut small', text: 'No daily checks yet. Add up to 8 under Daily checks below.' });
+
+    var qwKind = sel('qw-kind', [{ v: '', t: '(none)' }].concat(kinds.map(function (k) { return { v: k, t: k }; })), '');
+    var qwMin = h('input', { type: 'number', id: 'qw-min', min: '0', max: '1440', step: '1', inputmode: 'numeric' });
+    var qwEff = sel('qw-effort', [{ v: '', t: '(none)' }].concat([1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(function (n) { return { v: String(n), t: String(n) }; })), '');
+    var qwDate = h('input', { type: 'date', id: 'qw-date', value: t, required: true });
+    var qwNote = h('input', { type: 'text', id: 'qw-note', maxlength: '200', autocomplete: 'off' });
+    var fWork = h('form', {
+      onsubmit: function (e) {
+        e.preventDefault();
+        act(function () {
+          var p = { domain: 'health', type: 'workout', date: qwDate.value, title: qwKind.value || 'Workout' };
+          if (qwKind.value) p.kind = qwKind.value;
+          if (qwMin.value !== '') p.minutes = Number(qwMin.value);
+          if (qwEff.value) p.effort = Number(qwEff.value);
+          if (qwNote.value.trim()) p.notes = qwNote.value.trim();
+          var en = entryFor(p);
+          return commit(function (x) { x.entries.push(en); }, 'entry add').then(done('Workout logged.'));
+        });
+      }
+    }, field('Type', qwKind), field('Minutes', qwMin), field('Effort 1 to 10 (optional)', qwEff), field('Date', qwDate), field('Notes (optional)', qwNote),
+      h('button', { type: 'submit', class: 'btn pri', id: 'qw-add', text: 'Log workout' }));
+
+    var qbW = h('input', { type: 'text', id: 'qb-weight', inputmode: 'decimal', autocomplete: 'off', maxlength: '8' });
+    var qbF = h('input', { type: 'text', id: 'qb-fat', inputmode: 'decimal', autocomplete: 'off', maxlength: '6' });
+    var qbDate = h('input', { type: 'date', id: 'qb-date', value: t, required: true });
+    var fBody = h('form', {
+      onsubmit: function (e) {
+        e.preventDefault();
+        act(function () {
+          var w = qbW.value.trim(), f = qbF.value.trim(), list = [];
+          if (!w && !f) throw new Error('Enter a weight or a body fat percentage.');
+          if (w) list.push(entryFor({ domain: 'health', type: 'weight', date: qbDate.value, title: 'Weight', value: w }));
+          if (f) list.push(entryFor({ domain: 'health', type: 'bodyfat', date: qbDate.value, title: 'Body fat', value: f }));
+          return commit(function (x) { list.forEach(function (en) { x.entries.push(en); }); }, 'entry add').then(done('Body metrics logged.'));
+        });
+      }
+    }, field('Weight (' + unit + ')', qbW), field('Body fat % (optional)', qbF), field('Date', qbDate),
+      h('button', { type: 'submit', class: 'btn pri', id: 'qb-add', text: 'Log weight' }));
+
+    var qsH = h('input', { type: 'text', id: 'qs-hours', inputmode: 'decimal', autocomplete: 'off', maxlength: '5' });
+    var qsDate = h('input', { type: 'date', id: 'qs-date', value: t, required: true });
+    var fSleep = h('form', {
+      onsubmit: function (e) {
+        e.preventDefault();
+        act(function () {
+          var en = entryFor({ domain: 'health', type: 'sleep', date: qsDate.value, title: 'Sleep', value: qsH.value.trim() });
+          return commit(function (x) { x.entries.push(en); }, 'entry add').then(done('Sleep logged.'));
+        });
+      }
+    }, field('Hours slept', qsH), field('Date (the morning you woke)', qsDate), h('button', { type: 'submit', class: 'btn pri', id: 'qs-add', text: 'Log sleep' }));
+
+    var todayCard = h('div', { class: 'card', id: 'hl-today' }, h('h2', { text: 'Today' }),
+      h('p', { id: 'hl-cycle', text: cycTxt }), chips,
+      details('hl-q-workout', 'Log a workout', fWork, false), details('hl-q-body', 'Log weight or body fat', fBody, false), details('hl-q-sleep', 'Log sleep', fSleep, false));
+
+    // week card
+    var wkCard = h('div', { class: 'card', id: 'hl-week' }, h('h2', { text: 'This week' }),
+      h('div', { class: 'stats' },
+        stat('Sessions', ww.sessions + ' of ' + ww.target, 'hl-sessions'),
+        stat('Minutes', String(ww.minutes), 'hl-minutes'),
+        stat('Week number', String(ww.isoWeek), 'hl-weeknum'),
+        stat('Cycle week', ww.cycleWeek === null ? 'n/a' : (ww.cycleWeek === 0 ? 'Not started' : String(ww.cycleWeek)), 'hl-cycleweek')),
+      ww.mix.length ? mixRows(ww.mix, ww.sessions) : h('p', { class: 'mut', text: 'No workouts logged this week.' }));
+
+    // body
+    var bodyCard = h('div', { class: 'card', id: 'hl-body' }, h('h2', { text: 'Body' }),
+      bodyBlock(wm, 'Weight', 'hl-weight', unit), bf.count ? bodyBlock(bf, 'Body fat', 'hl-fat', '%') : null);
+
+    // sleep
+    var sleepCard = h('div', { class: 'card', id: 'hl-sleep' }, h('h2', { text: 'Sleep' }),
+      h('div', { class: 'stats' },
+        stat('7-day average', sl.avg7 === null ? 'n/a' : fmt1(sl.avg7) + ' h', 'hl-sleep-avg'),
+        stat('Nights logged (7 days)', String(sl.nights7), 'hl-sleep-n'),
+        stat('Change from previous 7 days', sl.delta === null ? 'n/a' : signed(sl.delta) + ' h', 'hl-sleep-delta')),
+      sleepChart(sl.series));
+
+    // daily checks
+    var hName = h('input', { type: 'text', id: 'hb-name', maxlength: '60', autocomplete: 'off' });
+    var hRows = habits.map(function (hb) {
+      var st2 = M.habitStats(s, hb.id, t);
+      return h('div', { class: 'item habit', 'data-habit-row': hb.name },
+        h('div', null, h('div', { class: 'entry-t', text: hb.name }),
+          h('div', { class: 'mut small' }, h('span', { class: 'hb-rate', text: st2.checks7 + ' of 7 days (' + fmt1(st2.rate7) + '%)' }), ' | ', h('span', { class: 'hb-streak', text: st2.streak + '-day streak' }))),
+        btn('Delete', function () {
+          openDialog({ title: 'Delete this daily check?', yes: 'Delete', danger: true, body: h('p', { class: 'mut', text: hb.name + ' and its history will be removed.' }),
+            onYes: function () { return commit(function (x) { M.deleteHabit(x, hb.id); }, 'daily check delete').then(function () { render(); }); } });
+        }, 'sm bad', { 'aria-label': 'Delete daily check ' + hb.name }));
+    });
+    var overall = habits.length ? M.habitRate(s, L.metrics.addDays(t, -6), t) : null;
+    var habitCard = h('div', { class: 'card', id: 'hl-habit-card' }, h('h2', { text: 'Daily checks (' + habits.length + ' of 8)' }),
+      overall === null ? null : h('p', { class: 'small', id: 'hl-habit-rate', text: '7-day completion: ' + fmt1(overall) + '%' }),
+      hRows.length ? hRows : h('p', { class: 'mut', text: 'Yes or no habits you tick once a day, for example protein target hit or mobility done.' }),
+      h('form', {
+        class: 'row',
+        onsubmit: function (e) {
+          e.preventDefault();
+          act(function () {
+            var n = hName.value.trim();
+            if (!n) throw new Error('Enter a name for the daily check.');
+            if (habits.length >= 8) throw new Error('You can keep up to 8 daily checks.');
+            return commit(function (x) { M.addHabit(x, n); }, 'daily check add').then(done('Daily check added.'));
+          });
+        }
+      }, field('New daily check', hName), h('button', { type: 'submit', class: 'btn', id: 'hb-add', text: 'Add daily check', disabled: habits.length >= 8 })));
+
+    // targets, cycle, kinds
+    var hsUnits = sel('hs-units', [{ v: 'lb', t: 'Pounds (lb)' }, { v: 'kg', t: 'Kilograms (kg)' }], unit);
+    // Inputs show stored values to 0.1; an input left as shown keeps the stored value, so a save never rounds it.
+    var inum = function (id, v) { var shown = v === undefined ? '' : fmt1(v); var el = h('input', { type: 'text', id: id, inputmode: 'decimal', autocomplete: 'off', maxlength: '8', value: shown }); el.dataset.shown = shown; return el; };
+    var hsWs = inum('hs-wstart', hs.weightStart), hsWt = inum('hs-wtarget', hs.weightTarget), hsFs = inum('hs-fstart', hs.bodyFatStart), hsFt = inum('hs-ftarget', hs.bodyFatTarget);
+    var hsWpw = h('input', { type: 'number', id: 'hs-wpw', min: '0', max: '21', step: '1', value: s.settings.targets.workoutsPerWeek });
+    var fTargets = h('form', {
+      onsubmit: function (e) {
+        e.preventDefault();
+        act(function () {
+          var ins = { weightStart: hsWs, weightTarget: hsWt, bodyFatStart: hsFs, bodyFatTarget: hsFt }, vals = {};
+          Object.keys(ins).forEach(function (k) { if (ins[k].value.trim() !== ins[k].dataset.shown) vals[k] = numOrNull(ins[k].value); });
+          var wpw = intIn(hsWpw.value, 0, 21, 'Workouts per week'), u = hsUnits.value;
+          return commit(function (x) {
+            // Values are typed in the units shown on the form, so store them first, then convert everything to the new units.
+            Object.keys(vals).forEach(function (k) { if (vals[k] === null) delete x.settings.health[k]; else x.settings.health[k] = vals[k]; });
+            M.setWeightUnits(x, u);
+            x.settings.targets.workoutsPerWeek = wpw;
+          }, 'health settings').then(done('Targets saved.'));
+        });
+      }
+    }, h('h3', { text: 'Body targets' }), field('Weight units', hsUnits), field('Start weight (' + unit + ', optional)', hsWs), field('Target weight (' + unit + ')', hsWt),
+      field('Start body fat % (optional)', hsFs), field('Target body fat %', hsFt), field('Workouts per week target', hsWpw),
+      h('button', { type: 'submit', class: 'btn pri', id: 'hs-save', text: 'Save targets' }));
+
+    var cy = s.cycle;
+    var cyStart = h('input', { type: 'date', id: 'cy-start', value: cy ? cy.startDate : t });
+    var cySprint = h('input', { type: 'number', id: 'cy-sprint', min: '1', max: '365', step: '1', value: cy ? cy.sprintDays : 28 });
+    var cyCount = h('input', { type: 'number', id: 'cy-count', min: '1', max: '52', step: '1', value: cy ? cy.sprintsPerCycle : 3 });
+    var cyRest = h('input', { type: 'number', id: 'cy-rest', min: '0', max: '90', step: '1', value: cy ? cy.restDays : 7 });
+    var cyAlt = h('input', { type: 'checkbox', id: 'cy-alt', checked: cy ? cy.alternateHeavyLight : true });
+    var cyFirst = sel('cy-first', [{ v: 'heavy', t: 'Heavy' }, { v: 'light', t: 'Light' }], cy ? cy.firstWeek : 'heavy');
+    var fCycle = h('form', {
+      onsubmit: function (e) {
+        e.preventDefault();
+        act(function () {
+          if (!cyStart.value) throw new Error('Choose a start date.');
+          var c = { startDate: cyStart.value, sprintDays: intIn(cySprint.value, 1, 365, 'Sprint days'), sprintsPerCycle: intIn(cyCount.value, 1, 52, 'Sprints per cycle'), restDays: intIn(cyRest.value, 0, 90, 'Rest days'), alternateHeavyLight: cyAlt.checked, firstWeek: cyFirst.value };
+          return commit(function (x) { x.cycle = c; }, 'cycle set').then(done('Training cycle saved.'));
+        });
+      }
+    }, h('h3', { text: 'Training cycle (optional)' }), field('Start date', cyStart), field('Days per sprint', cySprint), field('Sprints per cycle', cyCount), field('Rest days after the last sprint', cyRest),
+      h('label', { class: 'field check' }, cyAlt, h('span', { text: 'Alternate heavy and light weeks' })), field('First week is', cyFirst),
+      h('div', { class: 'row' }, h('button', { type: 'submit', class: 'btn pri', id: 'cy-save', text: 'Save cycle' }),
+        cy ? btn('Clear cycle', function () { act(function () { return commit(function (x) { x.cycle = null; }, 'cycle clear').then(done('Training cycle cleared.')); }); }, '', { id: 'cy-clear' }) : null));
+
+    var kName = h('input', { type: 'text', id: 'kd-name', maxlength: '40', autocomplete: 'off' });
+    var fKinds = h('div', null, h('h3', { text: 'Workout types' }),
+      h('div', { class: 'chips', id: 'kd-list' }, kinds.map(function (k) {
+        return h('span', { class: 'chip' }, k, h('button', { type: 'button', class: 'x', 'aria-label': 'Remove type ' + k, text: 'x', onclick: function () {
+          act(function () { return commit(function (x) { x.kinds = x.kinds.filter(function (z) { return z !== k; }); }, 'workout types').then(done('Type removed.')); });
+        } }));
+      })),
+      h('form', {
+        class: 'row',
+        onsubmit: function (e) {
+          e.preventDefault();
+          act(function () {
+            var n = kName.value.trim();
+            if (!n) throw new Error('Enter a workout type.');
+            if (n.length > 40) throw new Error('A workout type is up to 40 characters.');
+            if (kinds.length >= 30) throw new Error('You can keep up to 30 workout types.');
+            if (kinds.some(function (k) { return k.toLowerCase() === n.toLowerCase(); })) throw new Error('That workout type already exists.');
+            return commit(function (x) { x.kinds.push(n); }, 'workout types').then(done('Type added.'));
+          });
+        }
+      }, field('New type', kName), h('button', { type: 'submit', class: 'btn', id: 'kd-add', text: 'Add type' })));
+    var setup = details('hl-setup', 'Targets, cycle and workout types', [fTargets, h('hr'), fCycle, h('hr'), fKinds], false);
+
+    return h('div', null, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Health' }),
+      h('p', { class: 'mut small', text: 'A tracker for your own numbers. It gives no medical advice.' }),
+      todayCard, wkCard, bodyCard, sleepCard, habitCard, setup,
+      h('h2', { text: 'All health entries' }),
+      domainScreen(s, { embed: true }));
   }
 
   // ---------- memory ----------
@@ -3300,13 +3904,14 @@ h1{margin-right:auto}
                     h('li', { text: 'Entries: ' + state.entries.length }),
                     h('li', { text: 'Accounts: ' + (state.accounts || []).length }),
                     h('li', { text: 'Projects: ' + (state.projects || []).length + ', pipeline items: ' + (state.pipeline || []).length }),
+                    h('li', { text: 'Daily checks: ' + (state.habits || []).length + ', training cycle: ' + (state.cycle ? 'set' : 'not set') }),
                     h('li', { text: 'Approved insights: ' + nAppr }),
                     h('li', { text: 'Lessons: ' + state.memory.lessons.length }),
                     h('li', { text: 'Provider settings: ' + (pv2.kind === 'none' ? 'none' : 'included (' + pv2.kind + ')') }),
                     h('li', { text: 'API key: ' + (pv2.apiKey ? 'included' : 'not included') })),
                   h('label', { class: 'row small' }, rr, h('span', { text: 'Re-review insights (restore every approved insight as proposed)' })),
-                  older ? h('p', { class: 'small', id: 'bk-older', text: 'This backup is from an older LifeOS version. Restoring it removes your ' + cur.projects.length + ' projects and ' + cur.pipeline.length + ' pipeline items.' }) : null,
-                  older ? h('label', { class: 'row small' }, ack, h('span', { text: 'I understand. Remove my projects and pipeline.' })) : null,
+                  older ? h('p', { class: 'small', id: 'bk-older', text: 'This backup is from an older LifeOS version. Restoring it removes your ' + L.store.lossText(cur, state) + '.' }) : null,
+                  older ? h('label', { class: 'row small' }, ack, h('span', { text: 'I understand. Remove this data.' })) : null,
                   h('p', { class: 'mut', text: 'This replaces everything in this vault with the backup. It cannot be undone.' })],
                 onYes: function () {
                   var next = rr.checked ? L.memory.demoteApproved(state) : state;
@@ -3319,7 +3924,7 @@ h1{margin-right:auto}
       }, field('Restore from a backup file (64 MB max)', bf), field('Backup passphrase', ip),
         h('button', { type: 'submit', class: 'btn', text: 'Import backup' }))));
 
-    out.push(h('p', { class: 'mut small', id: 'app-version', text: 'LifeOS v0.4.0' }));
+    out.push(h('p', { class: 'mut small', id: 'app-version', text: 'LifeOS v0.5.0' }));
 
     if (L.syncUI) out.push(L.syncUI.section(syncCtx()));
 
@@ -3371,7 +3976,7 @@ h1{margin-right:auto}
   function sumList(c, label, s) {
     return c.h('div', { class: 'small' },
       c.h('strong', { text: label }),
-      c.h('div', { class: 'mut', text: 'Revision ' + s.rev + ', saved ' + when(s.updatedAt) + ', ' + s.entries + ' entries, ' + (s.schema < 3 ? 'older version (no projects or pipeline)' : s.projects + ' projects, ' + s.pipeline + ' pipeline items') }));
+      c.h('div', { class: 'mut', text: 'Revision ' + s.rev + ', saved ' + when(s.updatedAt) + ', ' + s.entries + ' entries, ' + (s.schema < 3 ? 'older version (no projects, pipeline or health data)' : s.projects + ' projects, ' + s.pipeline + ' pipeline items' + (s.schema < 4 ? ', older version (no cycle, daily checks or workout types)' : ', ' + (s.habits || 0) + ' daily checks, ' + (s.cycle ? 'training cycle set' : 'no training cycle'))) }));
   }
 
   // c is the context app.js passes in: { h, field, btn, openDialog, commit, download, setNotice, render }
@@ -3427,8 +4032,8 @@ h1{margin-right:auto}
           h('p', { class: 'mut', text: conflict ? 'Nothing is merged. Pick the copy to keep. The other copy is saved to a file first.' : 'This device has no changes since the last sync.' }),
           d.passphraseDiffers ? h('p', { class: 'small', id: 'sync-passdiff', text: 'The Drive copy uses a different passphrase from this device. Using the Drive copy switches this device to that passphrase. Keeping this device uploads it under this device\'s passphrase.' }) : null,
           sumList(c, 'This device', d.local), sumList(c, 'Google Drive', d.remote), c.field('Choice', pick),
-          ack ? h('p', { class: 'small', id: 'sync-olderformat', text: 'The Drive copy is from an older LifeOS version. Using it removes this device\'s ' + d.local.projects + ' projects and ' + d.local.pipeline + ' pipeline items.' }) : null,
-          ack ? h('label', { class: 'row small' }, ack, h('span', { text: 'I understand. Remove my projects and pipeline if I use the Drive copy.' })) : null],
+          ack ? h('p', { class: 'small', id: 'sync-olderformat', text: 'The Drive copy is from an older LifeOS version. Using it removes this device\'s ' + L.store.lossText(L.store.getState(), { sourceSchema: d.remote.schema }) + '.' }) : null,
+          ack ? h('label', { class: 'row small' }, ack, h('span', { text: 'I understand. Remove this data if I use the Drive copy.' })) : null],
         onYes: function () {
           return L.sync.apply(d, pick.value, {
             allowWorkLoss: !!(ack && ack.checked),

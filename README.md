@@ -20,6 +20,14 @@ Build, then open `dist/lifeos.html` in a browser (double-click works, it needs n
 - Work view: projects with next actions and overdue dates, this week's outcomes with one-tap done, a job, deal and partner pipeline by stage with a 14-day stale flag, and an 8-week trend. Carry-over of unfinished outcomes is only offered, never automatic.
 - Vault schema 3, migrated from schema 1 and 2 with no data loss. Older versions refuse a schema 3 vault, and an older-format backup or Drive copy cannot remove projects and pipeline without an explicit tick.
 
+## v0.5.0: Health
+
+- Health view: today card (training cycle status, one-tap daily checks, quick log of workout, weight and sleep), week view with sessions, minutes and mix by workout type, weight and body fat trends with a 7-entry average, weekly rate and progress to target (lb or kg), sleep average, and up to 8 yes/no daily checks with a 7-day rate and streak. A tracker only: no medical advice.
+- Vault schema 4, migrated from schema 1 to 3 with no data loss. Older-format backups and Drive copies cannot remove your cycle, daily checks, workout types or body targets without an explicit tick.
+- Projects can now be deleted (linked outcomes are kept), and archived projects no longer count toward the 200 cap.
+- `node test/smoke-health.mjs` runs the Health and project delete flow at desktop and 390x844 sizes.
+- Audited: body metrics never go to the AI provider, unit switches keep targets and do not drift, and dates use the local day everywhere. See the v0.5.0 audit in docs/SECURITY.md.
+
 ## Security model
 
 - All data lives in one AES-GCM encrypted envelope in IndexedDB; the key comes from your passphrase via PBKDF2 (600,000 iterations) and is never stored.

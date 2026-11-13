@@ -55,9 +55,20 @@
       }
       if (text) out.push({ domain: d.id, text: text.slice(0, MAX_TEXT) });
     }
+    // Health: numeric facts only, never advice.
+    const hd = dg.health, ph = L.metrics.healthDigest(state, L.metrics.addDays(dg.week, -7));
+    if (hd) {
+      const unit = state.settings.health ? state.settings.health.units : 'lb';
+      if (hd.avgSleep > 0) out.push({ domain: 'health', text: ('Average sleep this week was ' + hd.avgSleep + ' hours' + (ph.avgSleep > 0 ? ' (last week ' + ph.avgSleep + ').' : '.')).slice(0, MAX_TEXT) });
+      if (hd.weightChange !== 0) out.push({ domain: 'health', text: ('Weight moved ' + (hd.weightChange < 0 ? 'down ' : 'up ') + Math.abs(hd.weightChange) + ' ' + unit + ' this week.').slice(0, MAX_TEXT) });
+      if ((state.habits || []).length && (hd.habitRate > 0 || ph.habitRate > 0)) out.push({ domain: 'health', text: ('Daily checks completed: ' + hd.habitRate + '% this week (last week ' + ph.habitRate + '%).').slice(0, MAX_TEXT) });
+    }
     return out;
   }
 
+  // The rules insight that states a weight change. It stays in the vault and is never part of a prompt.
+  const BODY_TEXT = /^Weight moved (up|down) /;
+  const isBodyInsight = (i) => i.domain === 'health' && i.source === 'rules' && BODY_TEXT.test(i.text);
   function buildPrompt(state, level, period) {
     checkLevel(level);
     const p = checkPeriod(period);
@@ -77,11 +88,14 @@
         lines.push('- work detail: outcomes done ' + w.done + ' of ' + w.planned + ', active projects ' + w.activeProjects + ', overdue next actions ' + w.overdueNext + ', moved this week ' + w.moved + ', pipeline ' +
           Object.keys(w.pipeline).map((k) => k + ' ' + w.pipeline[k]).join(', '));
       }
-      ctx = approvedAll.slice(-CTX_MAX);
+      const hh = dg.health;
+      // Body metrics (weight change) stay in the vault: they are never sent to a provider.
+      if (hh) lines.push('- health detail: sessions ' + hh.sessions + ', minutes ' + hh.minutes + ', average sleep ' + hh.avgSleep + ' hours, daily checks completed ' + hh.habitRate + '%');
+      ctx = approvedAll.filter((i) => !isBodyInsight(i)).slice(-CTX_MAX);
       lines.push('Approved insights so far:');
     } else {
       const from = level - 1;
-      ctx = approvedAll.filter((i) => i.level === from && i.period.from >= p.from && i.period.to <= p.to).slice(-CTX_MAX);
+      ctx = approvedAll.filter((i) => !isBodyInsight(i) && i.level === from && i.period.from >= p.from && i.period.to <= p.to).slice(-CTX_MAX);
       lines.push('Level ' + level + (level === 2 ? ' monthly' : ' quarterly') + ' consolidation for ' + p.from + ' to ' + p.to + '.',
         'Approved level ' + from + ' insights to consolidate:');
     }

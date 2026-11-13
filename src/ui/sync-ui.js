@@ -6,7 +6,7 @@
   function sumList(c, label, s) {
     return c.h('div', { class: 'small' },
       c.h('strong', { text: label }),
-      c.h('div', { class: 'mut', text: 'Revision ' + s.rev + ', saved ' + when(s.updatedAt) + ', ' + s.entries + ' entries, ' + (s.schema < 3 ? 'older version (no projects or pipeline)' : s.projects + ' projects, ' + s.pipeline + ' pipeline items') }));
+      c.h('div', { class: 'mut', text: 'Revision ' + s.rev + ', saved ' + when(s.updatedAt) + ', ' + s.entries + ' entries, ' + (s.schema < 3 ? 'older version (no projects, pipeline or health data)' : s.projects + ' projects, ' + s.pipeline + ' pipeline items' + (s.schema < 4 ? ', older version (no cycle, daily checks or workout types)' : ', ' + (s.habits || 0) + ' daily checks, ' + (s.cycle ? 'training cycle set' : 'no training cycle'))) }));
   }
 
   // c is the context app.js passes in: { h, field, btn, openDialog, commit, download, setNotice, render }
@@ -62,8 +62,8 @@
           h('p', { class: 'mut', text: conflict ? 'Nothing is merged. Pick the copy to keep. The other copy is saved to a file first.' : 'This device has no changes since the last sync.' }),
           d.passphraseDiffers ? h('p', { class: 'small', id: 'sync-passdiff', text: 'The Drive copy uses a different passphrase from this device. Using the Drive copy switches this device to that passphrase. Keeping this device uploads it under this device\'s passphrase.' }) : null,
           sumList(c, 'This device', d.local), sumList(c, 'Google Drive', d.remote), c.field('Choice', pick),
-          ack ? h('p', { class: 'small', id: 'sync-olderformat', text: 'The Drive copy is from an older LifeOS version. Using it removes this device\'s ' + d.local.projects + ' projects and ' + d.local.pipeline + ' pipeline items.' }) : null,
-          ack ? h('label', { class: 'row small' }, ack, h('span', { text: 'I understand. Remove my projects and pipeline if I use the Drive copy.' })) : null],
+          ack ? h('p', { class: 'small', id: 'sync-olderformat', text: 'The Drive copy is from an older LifeOS version. Using it removes this device\'s ' + L.store.lossText(L.store.getState(), { sourceSchema: d.remote.schema }) + '.' }) : null,
+          ack ? h('label', { class: 'row small' }, ack, h('span', { text: 'I understand. Remove this data if I use the Drive copy.' })) : null],
         onYes: function () {
           return L.sync.apply(d, pick.value, {
             allowWorkLoss: !!(ack && ack.checked),

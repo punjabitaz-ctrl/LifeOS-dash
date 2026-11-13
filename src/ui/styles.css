@@ -124,3 +124,10 @@ h1{margin-right:auto}
 .pitem .row{margin-top:6px}
 .nav button{overflow:hidden;text-overflow:ellipsis;min-width:0}
 @media (max-width:520px){.nav button{font-size:.74rem}}
+.ln-raw{fill:none;stroke:var(--mut);stroke-width:1;stroke-linejoin:round}
+.ln-avg{fill:none;stroke:var(--acc);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round}
+.ln-target{stroke:var(--ok);stroke-width:1.2;stroke-dasharray:4 3}
+.dot-raw{fill:var(--mut)}
+.sub{border-top:1px solid var(--line);margin-top:10px;padding-top:6px}
+h3{font-size:.95rem;margin:.6rem 0 .4rem}
+@media (max-width:520px){.nav button{flex:1 1 auto;font-size:.7rem;padding:12px 1px}}

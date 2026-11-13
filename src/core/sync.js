@@ -207,7 +207,7 @@
     return Array.from(new Uint8Array(d), (x) => x.toString(16).padStart(2, '0')).join('');
   }
   const count = (a) => (Array.isArray(a) ? a.length : 0);
-  const summary = (meta, state, schema) => ({ rev: meta.rev, updatedAt: meta.updatedAt, entries: count(state.entries), projects: count(state.projects), pipeline: count(state.pipeline), schema });
+  const summary = (meta, state, schema) => ({ rev: meta.rev, updatedAt: meta.updatedAt, entries: count(state.entries), projects: count(state.projects), pipeline: count(state.pipeline), habits: count(state.habits), cycle: !!state.cycle, schema });
 
   async function inspect(text, passphrase) {
     let envObj;
@@ -268,12 +268,12 @@
       return { kind: 'uploaded', rev: env.rev };
     }
     const lm = S.getMeta();
-    // An older-format Drive copy (schema 1 or 2) has no projects or pipeline: using it would drop this device's work data.
-    const dropsWork = S.dropsWork(cur, { sourceSchema: info.sourceSchema });
+    // An older-format Drive copy has no projects, pipeline (before schema 3) or cycle, daily checks, workout types, body targets (before schema 4): using it would drop this device's data.
+    const dropped = S.droppedData(cur, { sourceSchema: info.sourceSchema }), dropsWork = dropped.length > 0;
     return hide({
       kind: localChanged ? 'conflict' : 'download-offer',
-      local: summary(lm, cur, cur.schema), remote: summary(info.meta, info.state, info.sourceSchema), passphraseDiffers: keyDiffers, dropsWork,
-    }, { file, dl, info, clientId, fp, dropsWork });
+      local: summary(lm, cur, cur.schema), remote: summary(info.meta, info.state, info.sourceSchema), passphraseDiffers: keyDiffers, dropsWork, dropped,
+    }, { file, dl, info, clientId, fp, dropsWork, dropped });
   }
 
   // choice: 'download' (offer), or 'remote' | 'local' | 'cancel' (conflict). Conflict resolutions first save the losing copy via saveBackup(text, name).
@@ -282,13 +282,13 @@
     const ctx = decision && decision._ctx;
     if (!ctx) throw err('BAD_DECISION', 'Nothing to apply.');
     const S = L.store;
-    const stamp = new Date().toISOString().slice(0, 10);
+    const stamp = L.metrics.todayISO();
     if (choice === 'cancel' || choice === 'skip') return { kind: 'cancelled' };
     const wantsRemote = (decision.kind === 'download-offer' && choice === 'download') || (decision.kind === 'conflict' && choice === 'remote');
     const wantsLocal = decision.kind === 'conflict' && choice === 'local';
     if (!wantsRemote && !wantsLocal) throw err('BAD_CHOICE', 'Unknown choice.');
     if (wantsRemote && ctx.dropsWork && opts.allowWorkLoss !== true) {
-      throw err('OLDER_FORMAT', 'The Drive copy is from an older version and has no projects or pipeline. Nothing was replaced.');
+      throw err('OLDER_FORMAT', 'The Drive copy is from an older version and has no ' + S.nameList(ctx.dropped || []) + '. Nothing was replaced.');
     }
     // The offer was made because this device had no changes. If it changed since, do not replace it.
     if (decision.kind === 'download-offer' && (await fingerprint(S.getState())) !== ctx.fp) {

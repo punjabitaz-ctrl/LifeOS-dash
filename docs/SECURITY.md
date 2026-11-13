@@ -152,7 +152,7 @@ The uncommitted v0.4.0 delta (`git diff HEAD`): schema 3 (projects, pipeline, `p
 | SEC-28 | Medium | `app.js` backup import, `store.replaceState` | Restoring a v0.3.0 (schema 2) backup removed every project and pipeline item. The summary listed entries and accounts but not work data, and unlike a sync conflict no copy is saved first. | Fixed: `validateState` marks its output with a non-enumerable `sourceSchema` (never stored; `demoteApproved` keeps it). `replaceState` refuses an older-format state when the vault has work data unless `allowWorkLoss: true`. The summary lists projects and pipeline items, and an older backup shows a warning and an unticked box. Test SEC-28 and smoke-work. |
 | SEC-29 | Info | `metrics.js` carryOver | Repeating an id in the list created the same outcome more than once. The UI cannot send repeats. | Hardened: ids are de-duplicated. Test SEC-29. |
 | SEC-30 | Info | `metrics.js` carryOverCandidates, `app.js` carryCard | The carry-over list has no limit. At the entry cap a synthetic vault produced 4,667 candidates (computed in about 40 ms), all rendered as checkboxes. Only reachable with thousands of unfinished outcomes, for example from CSV import. | Accepted; UI render time at that size was not measured. |
-| SEC-31 | Info | `app.js` workScreen | The 200 project cap counts archived projects and there is no project delete, so a user at the cap cannot add projects, although the message says to archive or delete some. Functional, not security. | Open (needs a product decision). |
+| SEC-31 | Info | `app.js` workScreen | The 200 project cap counts archived projects and there is no project delete, so a user at the cap cannot add projects, although the message says to archive or delete some. Functional, not security. | Fixed in v0.5.0: projects can be deleted after an in-page confirm (linked outcomes are kept and unlinked), archived projects have a Restore and Delete list, and archived projects no longer count toward the 200 cap (a 2,000 total cap bounds the list). Tests in `test/health.test.mjs`. |
 
 ## Residual risks
 - At the caps, the state can be larger than the 64 MB backup and sync limit (each text field can hold 200 or 2,000 characters, and control characters expand six-fold in JSON; 1,000 pipeline items with 2,000-character notes of control characters alone produce 12 MB of JSON). Export and sync refuse rather than truncate (SEC-03, SEC-22), so the risk is being unable to back up, not silent loss. This predates v0.4.0.
@@ -165,3 +165,55 @@ The uncommitted v0.4.0 delta (`git diff HEAD`): schema 3 (projects, pipeline, `p
 - v0.3.0 sync against a schema 3 Drive copy was read, not run. Older versions were checked only through their core files in Node, not their built UI.
 - Rendering and responsiveness of the Work view and the review screen at 1,000 pipeline items or thousands of carry-over candidates; only the maths was timed.
 - Real Google Drive, other browsers and mobile Safari (as in earlier audits).
+
+## v0.5.0 delta (Health, project delete)
+- Schema 4 adds `settings.health`, `cycle`, `kinds`, `habits` and `habitLog`, each rebuilt from whitelists with caps in `validateState` (8 habits, 30 workout types, 30,000 ticks, 2,000 projects of which 200 live). Malformed values are rejected; dangling or repeated ticks are dropped; health keys inside an older-format copy are ignored. Schema 5 and above are still refused by unlock, backup import and sync.
+- SEC-27/28 extended: `store.droppedData` names what an older-format (schema 1 to 3) backup or Drive copy would remove (projects, pipeline items, training cycle, daily checks, workout types, body targets and units). `replaceState` and `sync.apply` refuse without the explicit tick and the warnings list the collections by name and count only, never values.
+- Privacy: the digest `health` block is five numbers (sessions, minutes, average sleep, weight change, habit completion rate). Habit names, workout kinds, titles and notes never reach the digest, rules insights or any prompt; rules insights are numeric facts. Body metrics are not written to the audit log (actions only) and validation errors never echo values.
+- Tests: `test/health.test.mjs` and `test/smoke-health.mjs`.
+- Not tested: real devices, a v0.4.0 build run against a schema 4 vault (its refusal is by the unsupported-schema check, as for earlier versions), layout beyond 390 px and 1280 px.
+
+# v0.5.0 audit
+
+Independent audit of the uncommitted v0.5.0 delta (`git diff HEAD`), done without the engineer's report.
+
+## Scope
+Schema 4 (`settings.health`, `cycle`, `kinds`, `habits`, `habitLog`, workout `kind`/`minutes`/`effort`, `bodyfat` entries), migrations from schema 1 to 3, the SEC-27/28 downgrade guards in sync conflict, sync download and backup restore, `validateState`, project delete (SEC-31), the Health view and its SVG charts, digest, rules insights and prompts, CSV export, date and unit maths, performance at the caps, the build CSP and `_headers`. Regression check of SEC-01 to SEC-31 through the existing suite plus spot checks.
+
+## Method
+Read SPEC.md (hard rules and the v0.5.0 addendum), the full diff and the touched modules. Proved each finding with a test that fails on the pre-fix code and passes after (`test/v050-audit.test.mjs`; SEC-33 also with a new smoke step, run against a build of the pre-fix form, where it failed with "92 kg below target 180 kg"). Ran `node --test test/` in the default zone, `TZ=America/New_York` and `TZ=Pacific/Auckland`, `node build.mjs`, and all five smoke scripts with Playwright and system Chrome.
+
+## Verified without a finding
+- Edited tests: the diff of `money`, `store`, `v030`, `v040`, `work` tests and `smoke.mjs` changes only schema numbers (3 to 4, "newer" 4 to 5) and the version string. No assertion was removed or loosened.
+- Addendum coverage: every item is implemented (project delete with linked count and unlink, archived projects outside the cap, weight and body fat with targets, starts, lb/kg, 7-entry average, 4-week weekly rate and progress; workout type, minutes, effort, week view and mix; cycle function shown on the Health view and the dashboard tile; sleep average and trend; up to 8 daily checks with rate and streak; numeric digest; no advice wording). The weekly rate window is 29 days inclusive (today minus 28).
+- Migrations 1, 2 and 3 to 4 keep entries, money and work data and old health entries; schema 5 is refused by unlock, backup import and sync.
+- `droppedData` names projects, pipeline items, training cycle, daily checks, workout types and body targets in sync download, conflict and backup restore; the explicit tick is still required (`allowWorkLoss === true` only).
+- `validateState` rebuilds every new field from a whitelist with caps (8 habits, 30,000 ticks, 30 types, 200 live of 2,000 projects); `__proto__`, `constructor` and `prototype` keys are refused anywhere by `scan`; errors name fields, never values.
+- `deleteProject` removes only the named project and only the `projectId` links to it.
+- Audit log entries are fixed action names; body values never reach it, notices or the console (no `console` calls in the app).
+- DOM: Health text goes through `textContent`; user strings reach only `data-*`/`aria-label` via `setAttribute`; SVG gets numbers and date digits only; no inline styles, so the CSP holds. `_headers` and `dist/_headers` carry the same hashes as the built meta CSP.
+- CSV export quotes and neutralises the new `kind`, `minutes`, `effort` columns.
+- Performance at the caps (50,000 health entries, 8 habits, 30,000 ticks): validateState about 0.2 s; body metrics, sleep, week, daily checks, rules insights and all headlines each under 0.05 s.
+
+## Findings
+
+| ID | Severity | Location | Issue | Status |
+|---|---|---|---|---|
+| SEC-32 | Medium | `memory.js` buildPrompt | The weekly weight change, a body metric, was sent to the AI provider in the level 1 prompt, and an approved "Weight moved ..." rules insight was sent as context at levels 1 to 3. SPEC: body metrics must not appear outside the vault. | Fixed: the prompt health line drops weight change and those rules insights are filtered from prompt context. They stay in the digest and Memory inside the vault. Test SEC-32. |
+| SEC-33 | Medium | `app.js` health targets form | Switching units in the form converted the targets, then overwrote them with the old-unit numbers still in the inputs: a 180 lb target became 180 kg. | Fixed: typed values are stored in the units shown, then converted; inputs left as shown are not rewritten. Test SEC-33 and smoke-health "unit switch round trip". |
+| SEC-34 | Low | `metrics.js` setWeightUnits, `store.js` cleanHealthSettings | Conversions and validation rounded to 0.1, so each lb/kg round trip could drift entries and targets (180 became 179.9). | Fixed: stored values keep 6 decimals; screens round to 0.1. Two health.test expectations changed to the exact values (99.790321, 90.718474, 90.04). Test SEC-34. |
+| SEC-35 | Low | `metrics.js` todayISO, `app.js` dashboard, `sync.js` | The default "today" was the UTC date. Dashboard sparklines (called without a date) and the conflict backup file name used it, so late Sunday evening in New York showed next week. | Fixed: `todayISO` uses the local date and the dashboard passes it. Test SEC-35. |
+| SEC-36 | Low | `store.js` cleanEntryText | Workout `kind` on entries kept bidi and zero-width characters that every other entry text field loses. | Fixed. Test SEC-36. |
+| SEC-37 | Info | `csv.js` toEntries | CSV import cannot map `kind`, `minutes` or `effort`, so exported workouts lose them on re-import. | Accepted (adding it is a feature). |
+| SEC-38 | Info | `store.js` habit log cap | At 30,000 ticks (about 10 years of 8 daily checks) every save fails validation; nothing prunes old ticks. | Open. |
+| SEC-39 | Info | test suite | One run in eleven under `TZ=America/New_York` failed `vault.test.mjs` "backup round trip"; not reproduced in ten further runs. All files share one process and `v020.test.mjs` swaps the `LifeOS` modules, a known order sensitivity. | Open. |
+
+## Residual risks
+- Weight values still leave the vault when the user exports CSV or an encrypted backup, by design.
+- AI replies are model text: the prompt forbids medical advice, but a reply could contain it; it stays a proposal until the user approves it.
+- Health data adds to the state size limit described above (SEC-03, SEC-22).
+
+## Not tested
+- Real devices, Safari and other browsers; Health view render time at the caps (only the maths was timed).
+- DST is covered only through date-string maths and the two time zones above, not with a page clock set across a transition.
+- A v0.4.0 build run against a schema 4 vault (refusal is by the unsupported-schema check).
