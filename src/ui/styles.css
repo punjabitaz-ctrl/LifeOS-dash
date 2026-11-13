@@ -131,3 +131,7 @@ h1{margin-right:auto}
 .sub{border-top:1px solid var(--line);margin-top:10px;padding-top:6px}
 h3{font-size:.95rem;margin:.6rem 0 .4rem}
 @media (max-width:520px){.nav button{flex:1 1 auto;font-size:.7rem;padding:12px 1px}}
+.goal{border:1px solid var(--line);border-radius:10px;padding:10px;margin:0 0 8px;min-width:0;overflow-wrap:anywhere}
+.gkids{margin-left:6px;padding-left:6px;border-left:2px solid var(--line)}
+.goal select{width:auto;max-width:100%;min-height:36px;padding:4px 8px}
+.goal .g-manual{flex:1 1 120px;width:auto;min-width:0}

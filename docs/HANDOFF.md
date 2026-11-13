@@ -20,8 +20,9 @@ LifeOS (Living Independent and Free Everyday Operating System): one offline-capa
 | 0.3.0 | Money and Assets deep, Google Drive sync, Cloudflare headers, licence | pushed |
 | 0.4.0 | Work: projects, weekly outcomes, pipeline | pushed |
 | 0.5.0 | Health: body metrics, workouts, training cycle, sleep, daily checks; project delete | pushed |
+| 0.6.0 | Goals: linked metrics, pace, ladder, review step, tile; CSV workout fields; 100,000 tick cap | audited, not yet committed |
 
-Schema: 4 as of v0.5.0. Every schema change needs a tested migration and the downgrade guards (SEC-27/28) extended to the new collections.
+Schema: 5 as of v0.6.0. Every schema change needs a tested migration and the downgrade guards (SEC-27/28) extended to the new collections.
 
 ## How each build cycle runs
 1. Owner picks the next domain and answers scope questions.
@@ -55,8 +56,8 @@ Haiku is used for short, capped research only. Keep prompts lean and cap reply l
 5. Have a lawyer review LICENSE before charging anyone.
 
 ## Roadmap
-1. Goals deep (next).
-2. Home deep.
+1. Goals deep (done in v0.6.0).
+2. Home deep (next).
 3. Admin deep (Home/Admin is one thin domain today; splitting it needs a migration).
 4. Still thin after that: Activities, Social, Learning, Wellbeing.
 5. NAS sync to replace Google Drive once the NAS is rebuilt.
@@ -68,4 +69,4 @@ Haiku is used for short, capped research only. Keep prompts lean and cap reply l
 - Local model (Ollama) may be unreachable from the hosted HTTPS copy in some browsers; untested.
 
 ## Current step
-v0.5.0 is audited (SEC-32 to SEC-36 fixed) and pushed. Goals (v0.6.0) is next: goals linked to other domains' numbers with automatic progress, horizons weekly, monthly, quarterly, annual, 3, 5 and 10 years. The v0.6.0 build also clears the v0.5.0 Info items: CSV import dropping workout type, minutes and effort; the 30,000 daily-tick save limit; one flaky vault test (about 1 run in 11).
+v0.6.0 Goals is audited (SEC-40 to SEC-43 fixed, SEC-37 to SEC-39 closed); the orchestrator re-runs tests and smokes, commits and pushes. Next is Home (deep).

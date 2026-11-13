@@ -91,6 +91,9 @@
       const hh = dg.health;
       // Body metrics (weight change) stay in the vault: they are never sent to a provider.
       if (hh) lines.push('- health detail: sessions ' + hh.sessions + ', minutes ' + hh.minutes + ', average sleep ' + hh.avgSleep + ' hours, daily checks completed ' + hh.habitRate + '%');
+      // Goals: counts only, never titles, notes or values; weight and body fat goals are not counted at all (SEC-32).
+      const gc = dg.goals;
+      if (gc && (gc.active > 0 || gc.achieved > 0)) lines.push('- goals detail: active ' + gc.active + ', ahead ' + gc.ahead + ', on track ' + gc.onTrack + ', behind ' + gc.behind + ', achieved this week ' + gc.achieved);
       ctx = approvedAll.filter((i) => !isBodyInsight(i)).slice(-CTX_MAX);
       lines.push('Approved insights so far:');
     } else {

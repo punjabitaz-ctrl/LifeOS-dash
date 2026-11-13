@@ -28,6 +28,12 @@ Build, then open `dist/lifeos.html` in a browser (double-click works, it needs n
 - `node test/smoke-health.mjs` runs the Health and project delete flow at desktop and 390x844 sizes.
 - Audited: body metrics never go to the AI provider, unit switches keep targets and do not drift, and dates use the local day everywhere. See the v0.5.0 audit in docs/SECURITY.md.
 
+## v0.6.0: Goals
+
+- Goals view: goals on horizons from weekly to 10 years, a ladder of parents and children, progress computed live from your own numbers (net worth, savings rate, spending, weight, body fat, workouts, sleep, daily checks, outcomes, pipeline wins, or a typed value) and an arithmetic pace (ahead, on track, behind). Achieving, dropping and rolling over are always your tap. The weekly review gains a Goals step and the dashboard a Goals tile.
+- Vault schema 5, migrated from schema 1 to 4 with no data loss (old goal entries become goals and keep their full history). CSV import now maps workout type, minutes and effort; daily checks hold up to 100,000 ticks.
+- `node test/smoke-goals.mjs` runs the Goals flow. Audited: goal titles, notes and body-metric goals never reach the AI provider. See the v0.6.0 audit in docs/SECURITY.md.
+
 ## Security model
 
 - All data lives in one AES-GCM encrypted envelope in IndexedDB; the key comes from your passphrase via PBKDF2 (600,000 iterations) and is never stored.

@@ -156,7 +156,17 @@ try {
     await A.page.waitForFunction(() => !document.querySelector('.dialog'), null, T);
     if (!drive.file || drive.writes !== 1) throw new Error('first upload did not happen');
     const env = JSON.parse(drive.file);
-    if (typeof env.rev !== 'number' || !env.ct || /Run A1|Checking|Visa|Gym|Groceries/.test(JSON.stringify(env))) throw new Error('uploaded envelope looks wrong');
+    // Root cause of a rare failure here: the old check ran the name regex over the whole envelope, including ct,
+    // which is base64 of random-looking bytes, so a short word such as 'Gym' turned up by chance (about 1 run in 50).
+    // Now: the base64 fields must hold only base64 characters (so no plaintext with spaces or punctuation can hide there),
+    // the other fields must not name any data, and ct must decrypt to this device's data.
+    const B64 = /^[A-Za-z0-9+/]+=*$/, MARKS = /Run A1|Checking|Visa|Gym|Groceries/;
+    const outer = JSON.parse(drive.file); delete outer.ct; delete outer.iv; if (outer.kdf) delete outer.kdf.salt;
+    if (typeof env.rev !== 'number' || !env.ct || !B64.test(env.ct) || !B64.test(env.iv) || !B64.test(env.kdf.salt) || MARKS.test(JSON.stringify(outer))) throw new Error('uploaded envelope looks wrong');
+    if (MARKS.test(JSON.stringify(env))) console.log('NOTE: a data name occurs by chance inside the base64 ciphertext (the old check failed here)');
+    const { L } = await import('./_load.mjs');
+    const back = await L.vault.importBackup(PASS, drive.file);
+    if (!back.entries.some((e) => e.title === 'Run A1') || !back.accounts.some((a) => a.name === 'Visa')) throw new Error('uploaded envelope does not decrypt to this device data');
   });
   await step('B', 'download with same passphrase', async () => {
     await create(B.page);

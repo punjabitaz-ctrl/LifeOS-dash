@@ -243,7 +243,7 @@
     var s = st();
     var body;
     try {
-      body = view.name === 'domain' ? (view.domain === 'money' ? moneyScreen(s) : view.domain === 'assets' ? assetsScreen(s) : view.domain === 'work' ? workScreen(s) : view.domain === 'health' ? healthScreen(s) : domainScreen(s))
+      body = view.name === 'domain' ? (view.domain === 'money' ? moneyScreen(s) : view.domain === 'assets' ? assetsScreen(s) : view.domain === 'work' ? workScreen(s) : view.domain === 'health' ? healthScreen(s) : view.domain === 'goals' ? goalsScreen(s) : domainScreen(s))
         : view.name === 'review' ? reviewScreen(s)
         : view.name === 'memory' ? memoryScreen(s)
         : view.name === 'settings' ? settingsScreen(s)
@@ -468,8 +468,9 @@
         title: sel('m-title', opts, guess(/title|name|desc|memo|payee/i)),
         notes: sel('m-notes', opts, guess(/note/i))
       };
-      var extra = { value: [/value|amount|total|hours/i, 'Value column'], person: [/person|contact|who/i, 'Person column'], due: [/due/i, 'Due date column'], status: [/status|state/i, 'Status column'] };
-      var extraOrder = ['value', 'person', 'due', 'status'].filter(function (k) { return names.indexOf(k) >= 0; });
+      var extra = { value: [/value|amount|total|hours/i, 'Value column'], person: [/person|contact|who/i, 'Person column'], due: [/due/i, 'Due date column'], status: [/status|state/i, 'Status column'],
+        kind: [/kind|type|exercise|activity/i, 'Workout type column'], minutes: [/minute|min|duration/i, 'Minutes column'], effort: [/effort|rpe|intensity/i, 'Effort column'] };
+      var extraOrder = ['value', 'person', 'due', 'status', 'kind', 'minutes', 'effort'].filter(function (k) { return names.indexOf(k) >= 0; });
       extraOrder.forEach(function (k) { m[k] = sel('m-' + k, opts, guess(extra[k][0])); });
       card.appendChild(h('p', { class: 'mut small', text: hd.length + ' columns, ' + csvPending.parsed.rows.length + ' rows.' }));
       if (d.types.length > 1) card.appendChild(field('Import as', sel('m-type', d.types.map(function (t) { return { v: t.id, t: t.label }; }), tid, function (e) { csvPending.type = e.target.value; render(); })));
@@ -972,7 +973,9 @@
       aiPanel(1, period, 'Suggest with AI'),
       mine.length ? mine.map(function (i) { return insightCard(i, true); }) : h('p', { class: 'mut', text: 'No insights yet this week.' }),
       carryCard(s, wk, render),
-      h('h2', { text: '3. Your three priorities' }),
+      h('h2', { text: '3. Goals' }),
+      reviewGoalsCard(s, wk, t),
+      h('h2', { text: '4. Your three priorities' }),
       h('form', {
         class: 'card',
         onsubmit: function (e) {
@@ -1479,6 +1482,189 @@
       domainScreen(s, { embed: true }));
   }
 
+  // ---------- goals (v0.6.0) ----------
+  var STATUS_CHIP = { ahead: 'ok', 'on-track': 'ok', behind: 'bad', 'no-data': '' };
+  var goalMemo = new Map(); // linked values for one render pass; reset at the start of each goals screen and review step
+  function goalTitle(s, id) {
+    var g = (s.goals || []).filter(function (x) { return x.id === id; })[0];
+    return g ? g.title : '';
+  }
+  function paceText(s, g, ev) {
+    if (ev.progress === null) return 'No data yet';
+    return L.goals.PACE_LABEL[ev.pace] + ': ' + L.goals.pct(ev.progress) + ' done, ' + L.goals.pct(ev.elapsed) + ' of the time elapsed';
+  }
+  function parentOptions(s, horizon, selfId, cur) {
+    var rank = L.goals.HORIZONS.indexOf(horizon);
+    var list = (s.goals || []).filter(function (g) { return g.state !== 'dropped' && g.id !== selfId && L.goals.HORIZONS.indexOf(g.horizon) > rank; });
+    return [{ v: '', t: '(no parent)' }].concat(list.map(function (g) { return { v: g.id, t: g.title + ' (' + L.goals.HORIZON_LABEL[g.horizon] + ')' }; }));
+  }
+  function askDeleteGoal(s, g) {
+    var n = L.goals.childrenOf(s, g.id).length;
+    openDialog({
+      title: 'Delete this goal?', yes: 'Delete goal', danger: true,
+      body: [h('p', { class: 'mut', text: g.title }),
+        h('p', { class: 'small', id: 'goal-del-info', text: n + (n === 1 ? ' child goal is' : ' child goals are') + ' kept and unlinked from this goal. The goal itself is removed.' })],
+      onYes: function () { return commit(function (x) { L.goals.deleteGoal(x, g.id); }, 'goal delete').then(function () { setNotice('ok', 'Goal deleted.'); render(); }); }
+    });
+  }
+  function editGoalDialog(s, g) {
+    var title = h('input', { type: 'text', id: 'ge-title', maxlength: '200', value: g.title });
+    var target = h('input', { type: 'text', id: 'ge-target', inputmode: 'decimal', maxlength: '20', value: String(g.targetValue) });
+    var due = h('input', { type: 'date', id: 'ge-due', value: g.dueDate });
+    var parent = sel('ge-parent', parentOptions(s, g.horizon, g.id), g.parentId || '');
+    var notes = h('textarea', { id: 'ge-notes', maxlength: '2000', value: g.notes || '' });
+    openDialog({
+      title: 'Edit goal', yes: 'Save',
+      body: [field('Title', title), field('Target', target), field('Due date', due), field('Parent goal (a longer horizon)', parent), field('Notes (optional)', notes)],
+      onYes: function () {
+        return commit(function (x) { L.goals.updateGoal(x, g.id, { title: title.value, targetValue: target.value, dueDate: due.value, parentId: parent.value || null, notes: notes.value }); }, 'goal edit').then(function () { setNotice('ok', 'Goal saved.'); render(); });
+      }
+    });
+  }
+  function goalItem(s, g, t, opts) {
+    opts = opts || {};
+    var ev = L.goals.evaluate(s, g, t, goalMemo), active = g.state === 'active';
+    var chips = [h('span', { class: 'chip', text: L.goals.HORIZON_LABEL[g.horizon] }), h('span', { class: 'chip', text: (L.goals.metricDef(g.metric) || {}).label || g.metric })];
+    if (active) chips.push(h('span', { class: 'chip g-status ' + STATUS_CHIP[ev.status], text: L.goals.PACE_LABEL[ev.status] + (ev.overridden ? ' (set by you)' : '') }));
+    else chips.push(h('span', { class: 'chip ' + (g.state === 'achieved' ? 'ok' : 'bad'), text: g.state }));
+    var kids = [
+      h('div', { class: 'row sp' }, h('strong', { class: 'entry-t', text: g.title }), h('span', null, chips)),
+      h('p', { class: 'small g-now', text: 'Start ' + L.goals.fmtValue(s, g, g.startValue) + ', now ' + L.goals.fmtValue(s, g, ev.current) + ', target ' + L.goals.fmtValue(s, g, g.targetValue) + '. ' + g.startDate + ' to ' + g.dueDate + '.' })
+    ];
+    if (active) {
+      kids.push(h('p', { class: 'small g-progress', text: ev.progress === null ? 'No data yet' : Math.round(ev.progress * 1000) / 10 + '%' }));
+      kids.push(svgBar(ev.progress === null ? 0 : Math.round(ev.progress * 100), ev.status === 'behind' ? 'bar-over' : 'bar-fill'));
+      kids.push(h('p', { class: 'small mut g-pace', text: paceText(s, g, ev) }));
+      if (ev.reached) kids.push(h('p', { class: 'small g-reached', text: 'Target reached. Mark this goal achieved when you are ready.' }));
+      if (g.metric === 'manual') {
+        var cur = h('input', { type: 'text', class: 'g-manual', inputmode: 'decimal', maxlength: '20', 'aria-label': 'Current value for ' + g.title, value: g.manualValue === undefined ? '' : String(g.manualValue) });
+        kids.push(h('div', { class: 'row' }, cur, btn('Update value', function () {
+          act(function () { return commit(function (x) { L.goals.setManualValue(x, g.id, cur.value); }, 'goal value').then(function () { setNotice('ok', 'Value updated.'); render(); }); });
+        }, 'sm g-setval')));
+      }
+      var ov = sel(null, [{ v: '', t: 'Pace from the numbers' }, { v: 'ahead', t: 'Mark ahead' }, { v: 'on-track', t: 'Mark on track' }, { v: 'behind', t: 'Mark behind' }], g.statusOverride || '', function (e) {
+        var v = e.target.value;
+        act(function () { return commit(function (x) { L.goals.setOverride(x, g.id, v || null); }, 'goal status').then(function () { render(); }); });
+      });
+      ov.setAttribute('aria-label', 'Status for ' + g.title);
+      ov.setAttribute('class', 'g-override');
+      kids.push(h('div', { class: 'row' }, ov));
+      var acts = [
+        btn('Mark achieved', function () { act(function () { return commit(function (x) { L.goals.achieveGoal(x, g.id, t); }, 'goal achieved').then(function () { setNotice('ok', 'Goal marked achieved.'); render(); }); }); }, 'sm g-achieve' + (ev.reached ? ' pri' : '')),
+        btn('Edit', function () { editGoalDialog(s, g); }, 'sm g-edit'),
+        btn('Drop', function () { act(function () { return commit(function (x) { L.goals.dropGoal(x, g.id, t); }, 'goal dropped').then(function () { setNotice('ok', 'Goal dropped.'); render(); }); }); }, 'sm g-drop')
+      ];
+      if ((g.horizon === 'weekly' || g.horizon === 'monthly') && g.dueDate < t) acts.push(btn('Roll into next period', function () { rollGoal(g, t); }, 'sm g-roll'));
+      acts.push(btn('Delete', function () { askDeleteGoal(s, g); }, 'sm bad g-delete'));
+      kids.push(h('div', { class: 'row' }, acts));
+    } else {
+      kids.push(h('div', { class: 'row' },
+        btn('Reopen', function () { act(function () { return commit(function (x) { L.goals.reopenGoal(x, g.id); }, 'goal reopened').then(function () { render(); }); }); }, 'sm g-reopen'),
+        btn('Delete', function () { askDeleteGoal(s, g); }, 'sm bad g-delete')));
+    }
+    return h('div', { class: 'goal' + (opts.depth ? ' goal-child' : ''), 'data-goal': g.title, 'data-state': g.state }, kids);
+  }
+  function rollGoal(g, t) {
+    act(function () { return commit(function (x) { L.goals.rollOver(x, g.id, t); }, 'goal rolled over').then(function () { setNotice('ok', 'Goal moved into its next period.'); render(); }); });
+  }
+  function goalTree(s, node, t, depth) {
+    return h('div', { class: 'gnode' }, goalItem(s, node.goal, t, { depth: depth }),
+      node.children.length ? h('div', { class: 'gkids' }, node.children.map(function (c) { return goalTree(s, c, t, depth + 1); })) : null);
+  }
+  function goalForm(s, t) {
+    var title = h('input', { type: 'text', id: 'g-title', maxlength: '200', autocomplete: 'off', required: true });
+    var horizon = sel('g-horizon', L.goals.HORIZONS.map(function (x) { return { v: x, t: L.goals.HORIZON_LABEL[x] }; }), 'quarterly');
+    var metric = sel('g-metric', L.goals.METRICS.map(function (m) { return { v: m.id, t: m.label }; }), 'manual');
+    var dir = sel('g-dir', [{ v: 'up', t: 'Goes up' }, { v: 'down', t: 'Goes down' }], 'up');
+    var start = h('input', { type: 'text', id: 'g-start', inputmode: 'decimal', maxlength: '20', autocomplete: 'off' });
+    var target = h('input', { type: 'text', id: 'g-target', inputmode: 'decimal', maxlength: '20', autocomplete: 'off', required: true });
+    var sdate = h('input', { type: 'date', id: 'g-sdate', value: t, required: true });
+    var due = h('input', { type: 'date', id: 'g-due' });
+    var parent = sel('g-parent', parentOptions(s, 'quarterly'), '');
+    var domain = sel('g-domain', L.DOMAINS.map(function (d) { return { v: d.id, t: d.label }; }), 'goals');
+    var curIn = h('input', { type: 'text', id: 'g-cur', inputmode: 'decimal', maxlength: '20', autocomplete: 'off' });
+    var notes = h('textarea', { id: 'g-notes', maxlength: '2000' });
+    var manualBox = h('div', { id: 'g-manual-box' }, field('Area (manual goals only)', domain), field('Current value (optional)', curIn));
+    function sync() {
+      var man = metric.value === 'manual';
+      manualBox.setAttribute('class', man ? '' : 'hidden');
+      parent.replaceChildren.apply(parent, parentOptions(s, horizon.value).map(function (o) { return h('option', { value: o.v, text: o.t }); }));
+    }
+    horizon.addEventListener('change', sync);
+    metric.addEventListener('change', sync);
+    return h('form', {
+      id: 'goal-form',
+      onsubmit: function (e) {
+        e.preventDefault();
+        act(function () {
+          var p = { title: title.value, horizon: horizon.value, metric: metric.value, direction: dir.value, startValue: start.value, targetValue: target.value, startDate: sdate.value, dueDate: due.value || undefined, parentId: parent.value || undefined, notes: notes.value };
+          if (metric.value === 'manual') { p.domain = domain.value; p.manualValue = curIn.value; }
+          return commit(function (x) { L.goals.addGoal(x, p, t); }, 'goal add').then(function () { setNotice('ok', 'Goal added.'); render(); });
+        });
+      }
+    }, field('Title', title), field('Horizon', horizon), field('What it measures', metric), field('Direction', dir),
+      field('Start value', start, 'Leave blank to start from the current value of a linked metric.'), field('Target', target),
+      field('Start date', sdate), field('Due date (blank: end of the period)', due), field('Parent goal (a longer horizon, optional)', parent),
+      manualBox, field('Notes (optional)', notes),
+      h('button', { type: 'submit', class: 'btn pri', id: 'g-add', text: 'Add goal' }));
+  }
+  function goalsScreen(s) {
+    goalMemo = new Map();
+    var t = today(), G = L.goals, sum = G.summary(s, t), lad = G.ladder(s);
+    var closed = (s.goals || []).filter(function (g) { return g.state !== 'active'; });
+    var stats = h('div', { class: 'stats' },
+      stat('Active goals', String(sum.active), 'gl-active'),
+      stat('On track or ahead', sum.share === null ? 'n/a' : Math.round(sum.share * 100) + '%', 'gl-share'),
+      stat('Behind', String(sum.behind), 'gl-behind', sum.behind ? 'bad-t' : ''),
+      stat('Next due', sum.nextDue || 'none', 'gl-next'));
+    var ladderCard = h('div', { class: 'card', id: 'goal-ladder' }, h('h2', { text: 'Ladder' }),
+      lad.roots.length ? lad.roots.map(function (n) { return goalTree(s, n, t, 0); }) : h('p', { class: 'mut', text: 'No goals are linked yet. Pick a parent on a longer horizon when you add or edit a goal.' }));
+    var unl = h('div', { class: 'card', id: 'goal-unlinked' }, h('h2', { text: 'Not linked (' + lad.unlinked.length + ')' }),
+      lad.unlinked.length ? lad.unlinked.map(function (g) { return goalItem(s, g, t); }) : h('p', { class: 'mut', text: 'Nothing here.' }));
+    return h('div', null, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Goals' }),
+      h('p', { class: 'mut small', text: 'Progress comes from your own numbers and pace is arithmetic. Nothing is marked achieved, dropped or rolled over unless you tap it.' }),
+      stats, ladderCard, unl,
+      details('goal-add', 'Add a goal', goalForm(s, t), !(s.goals || []).length),
+      closed.length ? details('goal-closed', 'Achieved and dropped (' + closed.length + ')', closed.map(function (g) { return goalItem(s, g, t); }), false) : null,
+      legacyGoalEntries(s));
+  }
+  // Goal entries from before v0.6.0 that the upgrade kept (a history too long for one goal's notes, or titles beyond the cap). Read only.
+  function legacyGoalEntries(s) {
+    var old = s.entries.filter(function (e) { return e.domain === 'goals' && e.type === 'goal'; })
+      .sort(function (a, b) { return b.date.localeCompare(a.date); });
+    if (!old.length) return null;
+    var shown = old.slice(0, 200);
+    return details('goal-legacy', 'Older goal entries (' + old.length + (old.length > shown.length ? ', newest ' + shown.length + ' shown' : '') + ')', shown.map(function (e) {
+      return h('div', { class: 'item g-legacy' }, h('div', null, h('span', { class: 'entry-t', text: e.title }),
+        h('span', { class: 'mut small', text: ' ' + e.date + ', ' + (e.status || '') }), e.notes ? h('p', { class: 'small mut', text: e.notes }) : null));
+    }), false);
+  }
+  // Weekly review step: goals due this week, pace changes since last week, and roll-over offers (never automatic).
+  function reviewGoalsCard(s, wk, t) {
+    goalMemo = new Map();
+    var G = L.goals, r = G.reviewGoals(s, wk, t);
+    if (!(s.goals || []).some(function (g) { return g.state === 'active'; })) return h('p', { class: 'mut', id: 'rv-goals-none', text: 'No active goals. Add some under Goals.' });
+    var line = function (g, extra) { return h('div', { class: 'item rv-goal', 'data-goal': g.title }, h('div', null, h('span', { class: 'entry-t', text: g.title }), h('span', { class: 'mut small', text: ' ' + extra }))); };
+    var kids = [];
+    kids.push(h('p', { class: 'small', id: 'rv-goals-due-h', text: 'Due this week (' + r.due.length + ')' }));
+    r.due.forEach(function (g) { kids.push(line(g, 'due ' + g.dueDate + '. ' + paceText(s, g, G.evaluate(s, g, t, goalMemo)))); });
+    if (r.overdue.length) {
+      kids.push(h('p', { class: 'small', id: 'rv-goals-overdue-h', text: 'Past due and still active (' + r.overdue.length + ')' }));
+      r.overdue.forEach(function (g) { kids.push(line(g, 'was due ' + g.dueDate)); });
+    }
+    kids.push(h('p', { class: 'small', id: 'rv-goals-changes-h', text: 'Pace changes since last week (' + r.changes.length + ')' }));
+    r.changes.forEach(function (c) { kids.push(h('div', { class: 'item rv-change', 'data-goal': c.title }, h('div', null, h('span', { class: 'entry-t', text: c.title }), h('span', { class: 'mut small', text: ' ' + G.PACE_LABEL[c.from] + ' to ' + G.PACE_LABEL[c.to] })))); });
+    if (r.roll.length) {
+      kids.push(h('p', { class: 'small', id: 'rv-goals-roll-h', text: 'Unfinished weekly and monthly goals (' + r.roll.length + ')' }));
+      kids.push(h('p', { class: 'mut small', text: 'Nothing is rolled over until you tap it.' }));
+      r.roll.forEach(function (g) {
+        kids.push(h('div', { class: 'item rv-roll', 'data-goal': g.title }, h('div', null, h('span', { class: 'entry-t', text: g.title }), h('span', { class: 'mut small', text: ' ' + G.HORIZON_LABEL[g.horizon] + ', due ' + g.dueDate })),
+          btn('Roll into next period', function () { rollGoal(g, t); }, 'sm rv-roll-btn')));
+      });
+    }
+    return h('div', { class: 'card', id: 'rv-goals' }, kids);
+  }
+
   // ---------- memory ----------
   function memoryScreen(s) {
     var t = today(), mp = monthPeriod(t), qp = quarterPeriod(t);
@@ -1623,6 +1809,7 @@
                     h('li', { text: 'Entries: ' + state.entries.length }),
                     h('li', { text: 'Accounts: ' + (state.accounts || []).length }),
                     h('li', { text: 'Projects: ' + (state.projects || []).length + ', pipeline items: ' + (state.pipeline || []).length }),
+                    h('li', { text: 'Goals: ' + (state.goals || []).length }),
                     h('li', { text: 'Daily checks: ' + (state.habits || []).length + ', training cycle: ' + (state.cycle ? 'set' : 'not set') }),
                     h('li', { text: 'Approved insights: ' + nAppr }),
                     h('li', { text: 'Lessons: ' + state.memory.lessons.length }),
@@ -1643,7 +1830,7 @@
       }, field('Restore from a backup file (64 MB max)', bf), field('Backup passphrase', ip),
         h('button', { type: 'submit', class: 'btn', text: 'Import backup' }))));
 
-    out.push(h('p', { class: 'mut small', id: 'app-version', text: 'LifeOS v0.5.0' }));
+    out.push(h('p', { class: 'mut small', id: 'app-version', text: 'LifeOS v0.6.0' }));
 
     if (L.syncUI) out.push(L.syncUI.section(syncCtx()));
 

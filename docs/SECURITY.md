@@ -217,3 +217,46 @@ Read SPEC.md (hard rules and the v0.5.0 addendum), the full diff and the touched
 - Real devices, Safari and other browsers; Health view render time at the caps (only the maths was timed).
 - DST is covered only through date-string maths and the two time zones above, not with a page clock set across a transition.
 - A v0.4.0 build run against a schema 4 vault (refusal is by the unsupported-schema check).
+
+# v0.6.0 audit
+
+Independent audit of the uncommitted v0.6.0 delta (`git diff HEAD`), done without the engineer's report. Date: 2026-11-13.
+
+## Scope
+New `src/core/goals.js`; schema 5 in `store.js` (goals whitelist, caps, referential rules, migration of `goals/goal` entries from schema 1 to 4); the downgrade guards for goals in sync conflict, sync download and backup restore; the goals digest, prompt line and rules insights in `metrics.js` and `memory.js`; the Goals view, dashboard tile and weekly review Goals step in `app.js`; CSV import of workout kind, minutes and effort; the habit tick cap raised to 100,000; the edited existing tests; the build CSP and `_headers`. Regression check of SEC-01 to SEC-36 through the existing suite plus spot checks. Added at the orchestrator's request: the intermittent `test/smoke-sync.mjs` failure.
+
+## Method
+Read SPEC.md (hard rules and the v0.6.0 addendum), the full diff and the touched modules; probed crafted states in Node (self, two-goal and shorter-horizon parent loops, NaN and Infinity values, extra keys, adversarial titles against errors, digest and prompts). Each finding has a test in `test/v060-audit.test.mjs` that fails on the pre-fix code (checked in a scratch copy with the fixes reverted: 4 of 4 failed) and passes after. Timed the maths in Node and the UI in Chrome (Playwright, 390x844) on a synthetic vault at the caps. Ran `node --test test/` in the default zone, `TZ=America/New_York` and `TZ=Pacific/Auckland`, `node build.mjs`, and all six smoke scripts; `test/vault.test.mjs` 60 times under `TZ=America/New_York` (60 passed) and `test/smoke-sync.mjs` 46 times after its fix (46 passed).
+
+## Verified without a finding
+- Edited tests: the diffs of `health`, `money`, `store`, `v030`, `v040`, `work` tests and `smoke.mjs` change only schema numbers (4 to 5, "newer" 5 to 6), the version string and the tick cap value (30,001 to 100,001 in the over-cap case). No assertion was removed or loosened. The `vault.test.mjs` change swaps the marker 'Run' for 'Plain text: run, 5 km!'; spaces, comma, colon and '!' are outside the base64 alphabet, so the check still proves the title is not in the backup text and can no longer match by chance (SEC-39 root cause confirmed by the same reasoning; see SEC-43 for the measured rate of the same bug).
+- Addendum: every item is implemented (goal shape and cap 300; eleven linked metrics plus manual, computed live; "no data yet" as null for every metric; direction-aware clamped progress; pace with a 10 point tolerance and user override; achieve, drop and roll-over only from click handlers, with "Target reached" offered; ladder 10y to weekly with unlinked goals apart; parent delete keeps and unlinks children with the count in the confirm; review Goals step with due, pace changes and roll-over offers; dashboard tile; digest counts only; body goals excluded). The three v0.5.0 leftovers (SEC-37, SEC-38, SEC-39) are closed.
+- Migrations 1 to 4 into 5 keep all other data; schema 6 is refused by unlock, backup import and sync. `droppedData` names goals with a count for an older-format backup, Drive download and conflict, and the explicit tick is still required.
+- `validateState` rebuilds goals from whitelisted fields (enums, 200/2,000 text limits, finite numbers within 1e12, real dates, due not before start, target on the right side, duplicate ids refused, cap 300); `__proto__`, `constructor` and `prototype` keys are refused by `scan`. A dangling parent is dropped; a parent on an equal or shorter horizon (which covers self-parents and every loop) refuses the whole state, and a bounded walk refuses any loop as well, so a crafted backup or Drive copy cannot reach the ladder. Errors name fields, never values.
+- No NaN or Infinity: every division is guarded (progress span, elapsed window, shares); a reached zero-width range is 1. Pace uses calendar-day counts on date strings and the local `today`, so results match in all three zones; the start day is 0% elapsed and the due day 100%.
+- Privacy: titles and notes (prompt-injection, markup, formula and number-like strings) never reach the digest, rules insights, level 1 to 3 prompts, the audit log or error text. Weight and body fat goals are left out of the digest counts and share, so no pace or progress number about them leaves the vault.
+- DOM and CSP: goal text goes through `textContent`; titles reach only `data-goal` and `aria-label` via `setAttribute`; no inline styles; the smoke reports no CSP errors. `_headers`, `dist/_headers` and the meta CSP carry the same hashes; one `<script>`.
+- CSV import: `kind` (trimmed text up to 40, bidi stripped), `minutes` (0 to 1,440) and `effort` (integer 1 to 10) go through the strict number pattern and `validateEntry`; bad rows are counted.
+
+## Findings
+
+| ID | Severity | Location | Issue | Status |
+|---|---|---|---|---|
+| SEC-40 | Medium | `store.js` goalsFromEntries | The schema 5 migration merged all entries with the same goal title into one goal, kept only the latest entry's notes, then deleted every entry: earlier notes, earlier statuses, their dates and the typed title casing were lost. SPEC requires no data loss. | Fixed: the goal's notes hold the full history (date, title as typed, status, notes per entry, in date order). Entries are removed only when that history fits in 2,000 characters; otherwise they are kept, and the Goals view lists kept older goal entries read only (newest 200). Test SEC-40. |
+| SEC-41 | Low | `goals.js` tally, reviewGoals; `app.js` Goals view | Every goal recomputed its linked metric with a full scan of the entries. At the caps (300 goals, 50,000 entries) the dashboard goals sparkline took 2.2 s and the tile, digest, rules insights and review step about 0.4 to 0.8 s each, freezing the UI. | Fixed: linked values are shared per metric and date within one pass (`evaluate(..., memo)`); sparkline 0.09 s, tile 0.03 s, digest 0.06 s, review 0.03 s. Same results with and without the memo. Test SEC-41. |
+| SEC-42 | Info | `goals.js` rollTarget | Rolling a goal more than 1,000 periods overdue stopped stepping after 1,000 periods and left it still in the past. | Fixed: jumps straight to the period containing today. Test SEC-42. |
+| SEC-43 | Info | `test/smoke-sync.mjs` | The intermittent "A connect: uploaded envelope looks wrong" failure is a test bug, not an app race: the check ran a name regex ('Gym', 'Visa' ...) over the whole envelope, including base64 ciphertext, where a short name appears by chance (about 0.5% of encryptions of an empty state, more as it grows). The failure message can only come from that check; a missing upload has its own message, and rev is always written. | Fixed in the test: names are checked outside the base64 fields, `ct`, `iv` and salt must be pure base64, and the upload must decrypt to this device's data. Test SEC-43. |
+
+## Performance at the caps (measured)
+Synthetic vault: 50,000 entries, 300 goals (all metrics, half linked to parents), 8 daily checks with 100,000 ticks, 200 accounts, 200 projects, 1,000 pipeline items. State 16.3 MB of JSON, envelope 21.8 MB (the tick log is 6.8 MB of it), under the 64 MB backup and sync limit. In Node: validateState 0.4 to 0.5 s. In Chrome at 390x844 after the fixes: unlock to dashboard 2.0 s including PBKDF2, Goals view 0.24 s (300 goals rendered), Health view 0.6 s, weekly review 0.12 s, one daily check tick or untick (save and re-render) about 1.0 s. No console or CSP errors.
+
+## Residual risks
+- The 64 MB limit can still be reached at the caps with long text fields (earlier residual risk); 100,000 ticks with 100-character habit ids add about 17 MB of envelope. Export and sync refuse rather than truncate.
+- Goal titles and notes leave the vault in encrypted backups and Drive copies only; plaintext goal fields have no CSV export.
+- Pace changes in the review compare today with the end of last week using today's manual value, because manual values keep no history.
+- Earlier residual risks still apply.
+
+## Not tested
+- The kept older goal entries list in a browser (unit test and code reading only); the Goals view and review step render at the caps was timed in Chrome only, not on a phone.
+- Real devices, Safari, real Google Drive and real AI providers (as before). DST covered only through date-string maths and the three zones above.
+- A v0.5.0 build run against a schema 5 vault (refusal is by the unsupported-schema check, as for earlier versions).

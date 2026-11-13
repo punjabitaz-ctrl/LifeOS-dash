@@ -45,7 +45,7 @@ test('schema 1, 2 and 3 migrate to 4 with no data loss and sensible health defau
     const src = asSchema(n, base);
     if (n === 1) src.entries = src.entries.filter((e) => e.type !== 'outcome');   // schema 1 has no project links
     const m = S.validateState(clone(src));
-    assert.equal(m.schema, 4);
+    assert.equal(m.schema, 5);
     assert.deepEqual(m.entries.map((e) => e.title), src.entries.map((e) => e.title));
     assert.equal(m.entries.find((e) => e.title === 'w').value, 190);
     assert.deepEqual(m.memory, src.memory);
@@ -67,10 +67,10 @@ test('migration is persisted on unlock of stored schema 1, 2 and 3 vaults', asyn
     const src = asSchema(n, legacyBase()); if (n === 1) src.entries = src.entries.filter((e) => e.domain !== 'work');
     ad._m.set('envelope', await V.makeEnvelope(key, salt, src));
     const st = await S.unlock(PASS);
-    assert.equal(st.schema, 4); assert.equal(st.entries.length, 4);
+    assert.equal(st.schema, 5); assert.equal(st.entries.length, 4);
     await S.commit((x) => { M.addHabit(x, 'Mobility'); });
     const raw = await V.decrypt(key, ad._m.get('envelope'));
-    assert.equal(raw.schema, 4); assert.equal(raw.habits.length, 1); assert.equal(raw.entries.length, 4);
+    assert.equal(raw.schema, 5); assert.equal(raw.habits.length, 1); assert.equal(raw.entries.length, 4);
     S.lock();
   }
 });
@@ -78,7 +78,7 @@ test('a v0.4.0 (schema 3) backup imports cleanly and carries work data', async (
   const s = asSchema(3, build((x) => { x.projects.push(proj({ id: 'p1', name: 'Alpha' })); x.entries.push(E({ domain: 'health', type: 'weight', value: 180 })); }));
   const salt = V.newSalt(), key = await V.deriveKey(PASS, salt);
   const got = await V.importBackup(PASS, JSON.stringify(await V.makeEnvelope(key, salt, s)));
-  assert.equal(got.schema, 4); assert.equal(got.sourceSchema, 3); assert.equal(got.projects[0].name, 'Alpha'); assert.equal(got.entries.length, 1);
+  assert.equal(got.schema, 5); assert.equal(got.sourceSchema, 3); assert.equal(got.projects[0].name, 'Alpha'); assert.equal(got.entries.length, 1);
   assert.deepEqual(got.habits, []); assert.ok(!JSON.stringify(got).includes('sourceSchema'));
   // A schema 4 backup round trips the new collections.
   const s4 = build((x) => { M.addHabit(x, 'H1'); x.cycle = { startDate: '2026-01-05', sprintDays: 14, sprintsPerCycle: 2, restDays: 7, alternateHeavyLight: true, firstWeek: 'light' }; x.kinds.push('sled'); x.settings.health = { units: 'kg', weightTarget: 80 }; });
@@ -139,7 +139,7 @@ test('schema 4 data is protected from older-format backups on restore, and every
     await assert.rejects(S.replaceState(bk, { allowWorkLoss: 'yes' }), (e) => e.code === 'OLDER_FORMAT');
     assert.equal(JSON.stringify(ad._m.get('envelope')), before, 'stored vault untouched');
     await S.replaceState(bk, { allowWorkLoss: true });
-    assert.equal(S.getState().schema, 4); assert.equal(S.getState().cycle, null); assert.deepEqual(S.getState().habits, []); assert.deepEqual(S.getState().kinds, M.DEFAULT_KINDS);
+    assert.equal(S.getState().schema, 5); assert.equal(S.getState().cycle, null); assert.deepEqual(S.getState().habits, []); assert.deepEqual(S.getState().kinds, M.DEFAULT_KINDS);
   }
   // Nothing to lose, nothing flagged: defaults, an older backup into an empty vault, and a schema 4 backup over health data.
   const { } = await fresh();
@@ -166,14 +166,14 @@ test('schema 4 data is protected from an older (schema 3) Drive copy in a downlo
   const dec = await L.sync.run();
   assert.equal(dec.kind, 'download-offer'); assert.equal(dec.dropsWork, true);
   assert.deepEqual(dec.dropped, ['training cycle', 'daily checks'].sort((a, b) => ['training cycle', 'daily checks'].indexOf(a) - ['training cycle', 'daily checks'].indexOf(b)));
-  assert.deepEqual([dec.remote.schema, dec.local.schema, dec.local.habits, dec.local.cycle], [3, 4, 1, true]);
+  assert.deepEqual([dec.remote.schema, dec.local.schema, dec.local.habits, dec.local.cycle], [3, 5, 1, true]);
   const before = JSON.stringify(ad._m.get('envelope')), w = d.writes;
   await assert.rejects(L.sync.apply(dec, 'download'), (e) => e.code === 'OLDER_FORMAT' && /daily checks/.test(e.message) && /training cycle/.test(e.message) && /Nothing was replaced/.test(e.message));
   await assert.rejects(L.sync.apply(dec, 'download', { allowWorkLoss: 1 }), (e) => e.code === 'OLDER_FORMAT');
   assert.equal(JSON.stringify(ad._m.get('envelope')), before); assert.equal(d.writes, w);
   assert.equal(S.getState().habits.length, 1);
   await L.sync.apply(dec, 'download', { allowWorkLoss: true });
-  assert.equal(S.getState().habits.length, 0); assert.equal(S.getState().schema, 4);
+  assert.equal(S.getState().habits.length, 0); assert.equal(S.getState().schema, 5);
   // Conflict: keeping this device is never blocked; choosing the older copy is, and a copy is saved first.
   const f = await fresh();
   await L.sync.run();
@@ -197,13 +197,13 @@ test('a newer schema 5 is refused by unlock, backup import and sync, and nothing
   const { ad, d } = await fresh();
   await S.commit(CASES['daily checks']);
   await L.sync.run();
-  await putRemote(d, Object.assign(clone(S.getState()), { schema: 5 }), 1);
+  await putRemote(d, Object.assign(clone(S.getState()), { schema: 6 }), 1);
   const remote = d.file.text, w = d.writes, before = JSON.stringify(ad._m.get('envelope'));
   await assert.rejects(L.sync.run(), (e) => e.code === 'REMOTE_INVALID');
   assert.equal(d.file.text, remote); assert.equal(d.writes, w); assert.equal(JSON.stringify(ad._m.get('envelope')), before);
   const salt = V.newSalt(), key = await V.deriveKey(PASS, salt);
-  await assert.rejects(V.importBackup(PASS, JSON.stringify(await V.makeEnvelope(key, salt, Object.assign(clone(S.getState()), { schema: 5 })))), /schema/);
-  assert.throws(() => S.validateState(Object.assign(S.defaultState(), { schema: 5 })), /schema/);
+  await assert.rejects(V.importBackup(PASS, JSON.stringify(await V.makeEnvelope(key, salt, Object.assign(clone(S.getState()), { schema: 6 })))), /schema/);
+  assert.throws(() => S.validateState(Object.assign(S.defaultState(), { schema: 6 })), /schema/);
 });
 
 // ---- project delete (SEC-31) ----
@@ -456,7 +456,7 @@ test('validateState rejects malformed cycle, habits, kinds, habit log and health
   const withLog = (log) => bad((s) => { s.habits = [{ id: 'h1', name: 'x' }]; s.habitLog = log; });
   for (const v of ['x', {}, 5]) bad((s) => { s.habitLog = v; }, /habit log/);
   for (const x of [null, 'x', { habitId: 'h1' }, { habitId: 'h1', date: '2026-02-30' }, { habitId: 5, date: TODAY }, { date: TODAY }]) withLog([x]);
-  withLog(new Array(30001).fill({ habitId: 'h1', date: TODAY }));
+  withLog(new Array(100001).fill({ habitId: 'h1', date: TODAY }));
   const lg = base4(); lg.habits = [{ id: 'h1', name: 'x' }]; lg.habitLog = [{ habitId: 'h1', date: TODAY }, { habitId: 'h1', date: TODAY }, { habitId: 'gone', date: TODAY }, { habitId: 'h1', date: '2026-11-11', extra: 1 }];
   assert.deepEqual(S.validateState(lg).habitLog, [{ habitId: 'h1', date: TODAY }, { habitId: 'h1', date: '2026-11-11' }], 'duplicates collapse and dangling ticks drop');
 
@@ -558,18 +558,18 @@ test('sync round trip with schema 4 data: ciphertext only, restores on another d
   assert.equal((await L.sync.run()).kind, 'uploaded');
   for (const secret of ['SyncHabit', 'SyncKind', 'SyncNotes', 'SyncWorkout', 'SyncSleep', 'SyncFat', '90.5']) assert.ok(!d.file.text.includes(secret), 'no plaintext on Drive: ' + secret);
   const up = await V.importBackup(PASS, d.file.text);
-  assert.equal(up.schema, 4); assert.equal(healthShape(up), want);
+  assert.equal(up.schema, 5); assert.equal(healthShape(up), want);
   const ad2 = memAdapter(); S._setAdapter(ad2); S.lock(); await S.init(PASS);
   const dec = await L.sync.run({ passphrase: PASS });
   assert.equal(dec.kind, 'download-offer'); assert.equal(dec.dropsWork, false);
   await L.sync.apply(dec, 'download');
   assert.equal(healthShape(S.getState()), want);
   S.lock(); await S.unlock(PASS);
-  assert.equal(healthShape(S.getState()), want); assert.equal(S.getState().schema, 4);
+  assert.equal(healthShape(S.getState()), want); assert.equal(S.getState().schema, 5);
   assert.equal((await L.sync.run()).kind, 'in-sync');
   // A schema 3 device downloading this copy migrates up and keeps everything it had.
   const ad3 = memAdapter(); S._setAdapter(ad3); S.lock();
   const salt = V.newSalt(), key = await V.deriveKey(PASS, salt);
   ad3._m.set('envelope', await V.makeEnvelope(key, salt, asSchema(3, S.defaultState())));
-  assert.equal((await S.unlock(PASS)).schema, 4);
+  assert.equal((await S.unlock(PASS)).schema, 5);
 });

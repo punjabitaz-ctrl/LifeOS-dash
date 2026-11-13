@@ -53,7 +53,8 @@
     if (t.length > 40 || !/^[+-]?(\d+(\.\d*)?|\.\d+)$/.test(t)) return NaN;
     return Number(t);
   }
-  const EXTRA = ['status', 'person', 'due'];
+  const EXTRA = ['status', 'person', 'due', 'kind'];
+  const NUMERIC = ['value', 'minutes', 'effort'];
 
   function toEntries(parsed, opts) {
     if (!parsed || !Array.isArray(parsed.headers) || !Array.isArray(parsed.rows)) throw new Error('Nothing to import');
@@ -63,14 +64,14 @@
     if (!map || typeof map !== 'object') throw new Error('Column mapping required');
     const tfields = dom.types.find((t) => t.id === type).fields;
     // Only fields the selected type has may be mapped; its required fields must be mapped.
-    for (const k of ['value'].concat(EXTRA)) {
+    for (const k of NUMERIC.concat(EXTRA)) {
       const given = !(map[k] === undefined || map[k] === null || map[k] === '');
       const f = tfields.find((x) => x.id === k);
       if (given && !f) throw new Error('This type has no ' + k + ' field');
       if (!given && f && f.required) throw new Error(f.label + ' column is required');
     }
     const idx = {};
-    for (const k of ['date', 'title', 'value', 'notes'].concat(EXTRA)) {
+    for (const k of ['date', 'title', 'notes'].concat(NUMERIC, EXTRA)) {
       const m = map[k];
       if (m === undefined || m === null || m === '') continue;
       const i = typeof m === 'number' ? m : parsed.headers.indexOf(m);
@@ -85,14 +86,15 @@
       const cell = (k) => (idx[k] === undefined ? '' : unneutralise(String(r[idx[k]])));
       try {
         const p = { domain, type, date: normDate(cell('date')), title: cell('title') };
-        if (idx.value !== undefined && cell('value').trim() !== '') {
-          p.value = normNum(cell('value'));
-          if (Number.isNaN(p.value)) throw new Error('bad number');
+        for (const k of NUMERIC) {
+          if (idx[k] === undefined || cell(k).trim() === '') continue;
+          p[k] = normNum(cell(k));
+          if (Number.isNaN(p[k])) throw new Error('bad number');
         }
         if (idx.notes !== undefined) p.notes = cell('notes');
         for (const k of EXTRA) {
           if (idx[k] === undefined) continue;
-          p[k] = k === 'status' ? cell(k).trim().toLowerCase() : cell(k);
+          p[k] = k === 'status' ? cell(k).trim().toLowerCase() : k === 'kind' ? cell(k).trim() : cell(k);
         }
         entries.push(L.metrics.validateEntry(p));
       } catch (e) { rejected++; }

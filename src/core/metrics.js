@@ -370,7 +370,7 @@
   // ---- health: body metrics, workouts, cycle, sleep, habits (schema 4) ----
   const LB_PER_KG = 2.20462262185;
   const DEFAULT_KINDS = ['strength', 'kettlebell', 'mace and clubs', 'bodyweight', 'cardio', 'HIIT', 'mobility', 'carries'];
-  const HABIT_CAP = 8;
+  const HABIT_CAP = 8, HABIT_LOG_CAP = 100000;
   const healthSettings = (state) => (state.settings && state.settings.health) || { units: 'lb' };
   const hEntries = (state, type) => state.entries.filter((e) => e.domain === 'health' && e.type === type)
     .sort((a, b) => a.date.localeCompare(b.date) || String(a.createdAt).localeCompare(String(b.createdAt)));
@@ -512,6 +512,8 @@
     const n = state.habitLog.length;
     state.habitLog = state.habitLog.filter((x) => !(x.habitId === id && x.date === d));
     if (state.habitLog.length < n) return false;
+    // The store caps the log at 100000 ticks (34 years of 8 daily checks); say so plainly instead of failing the save.
+    if (n >= HABIT_LOG_CAP) throw new Error('The daily check history is full (' + HABIT_LOG_CAP + ' ticks). Delete a daily check you no longer use.');
     state.habitLog.push({ habitId: id, date: d });
     return true;
   }
@@ -534,6 +536,8 @@
     const conv = (v) => Math.round((from === 'lb' ? v / LB_PER_KG : v * LB_PER_KG) * 1e6) / 1e6;
     for (const e of state.entries) if (e.domain === 'health' && e.type === 'weight') e.value = conv(e.value);
     for (const k of ['weightStart', 'weightTarget']) if (hs[k] !== undefined) hs[k] = conv(hs[k]);
+    // Weight goals hold numbers in the same units, so they convert too.
+    for (const g of state.goals || []) if (g.metric === 'weight') for (const k of ['startValue', 'targetValue', 'manualValue']) if (typeof g[k] === 'number') g[k] = conv(g[k]);
     hs.units = units;
   }
   const linkedOutcomeCount = (state, id) => outcomes(state).filter((e) => e.projectId === id).length;
@@ -559,7 +563,11 @@
       case 'social': return overdue(ents, we, tg.contactDays).n;
       case 'learning': return count(ents, ws, we, (e) => e.type === 'item' && e.status === 'done');
       case 'home': return dueSoon(ents, we, 30).soon;
-      case 'goals': { const g = goals(ents, we); return g.share === null ? 0 : g.share * 100; }
+      case 'goals': {
+        // Schema 5 goals when there are any (weight and body fat goals left out); the old goal entries otherwise.
+        if ((state.goals || []).length) return L.goals.weekShare(state, we);
+        const g = goals(ents, we); return g.share === null ? 0 : g.share * 100;
+      }
       case 'wellbeing': { const m = avgMood(ents, ws, we); return m.avg === null ? 0 : m.avg; }
     }
     throw new Error('Unknown domain');
@@ -577,7 +585,7 @@
     const we = addDays(ws, 6), wm = sumMoney(byDomain(state, 'money'), ws, we), nw = netWorthDetail(state, we);
     const mv = monthView(state, monthOf(we));
     const money = { income: dollars(wm.incC), spend: dollars(wm.expC), budgetUsedPct: mv.budgetCents > 0 ? r1(mv.budgetedSpentCents * 100 / mv.budgetCents) : 0, netWorth: nw.total, liabilities: nw.liabilities };
-    return { week: ws, domains, money, work: workDigest(state, ws), health: healthDigest(state, ws) };
+    return { week: ws, domains, money, work: workDigest(state, ws), health: healthDigest(state, ws), goals: L.goals.digestCounts(state, ws) };
   }
   function series(state, domainId, n, today) {
     if (!DOMAINS.some((d) => d.id === domainId)) throw new Error('Unknown domain');
@@ -643,6 +651,11 @@
         return R('Due within 30 days', String(d.soon), d.soon, d.late ? d.late + ' overdue' : 'Nothing overdue');
       }
       case 'goals': {
+        if ((state.goals || []).length || !ents.length) { // legacy goal entries only show while there are no goals and some entries
+          const g = L.goals.summary(state, today), v = g.share === null ? 0 : Math.round(g.share * 100);
+          const sub = g.active ? g.behind + ' behind, ' + (g.nextDue ? 'next due ' + g.nextDue : 'nothing due') : 'No active goals';
+          return R('Goals on track', g.share === null ? 'n/a' : v + '%', v, sub);
+        }
         const g = goals(ents, today);
         const v = g.share === null ? 0 : Math.round(g.share * 100);
         return R('Goals on track', g.share === null ? 'n/a' : v + '%', v, g.on + ' of ' + g.active + ' active goals');

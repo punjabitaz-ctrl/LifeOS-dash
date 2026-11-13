@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const CORE = ['vault', 'store', 'csv', 'metrics', 'memory', 'ai'].map((n) => `src/core/${n}.js`);
+const CORE = ['vault', 'store', 'csv', 'metrics', 'goals', 'memory', 'ai'].map((n) => `src/core/${n}.js`);
 
 function read(root, rel) {
   try { return readFileSync(join(root, rel), 'utf8'); }

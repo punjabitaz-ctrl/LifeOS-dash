@@ -2,8 +2,8 @@
   'use strict';
   const L = (globalThis.LifeOS = globalThis.LifeOS || {});
   const KEY = 'envelope';
-  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 4, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
-  const HABIT_CAP = 8, HABIT_LOG_CAP = 30000, KIND_CAP = 30;
+  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 5, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
+  const HABIT_CAP = 8, HABIT_LOG_CAP = 100000, KIND_CAP = 30;
   const ENTRY_CAP = 50000, INSIGHT_CAP = 5000, REVIEW_CAP = 1000, LESSON_CAP = 30, AUDIT_CAP = 200;
   const BLOCKED = new Set(['__proto__', 'constructor', 'prototype']);
   // Same rule as ai.isLocalUrl (ai.js loads after this file, so call it lazily).
@@ -278,6 +278,11 @@
         weightChange: num(x.weightChange, -1e4, 1e4, 'digest health'), habitRate: num(x.habitRate, 0, 100, 'digest health'),
       };
     }
+    if (d.goals !== undefined) {
+      if (!isObj(d.goals)) fail('digest goals');
+      out.goals = {};
+      for (const k of ['active', 'ahead', 'onTrack', 'behind', 'achieved']) out.goals[k] = num(d.goals[k], 0, 1e9, 'digest goals', true);
+    }
     return out;
   }
   function cleanMemory(m) {
@@ -404,10 +409,96 @@
     }
     return accounts;
   }
+
+  // ---- schema 5: goals ----
+  const gtext = (v, max, name, empty) => { if (v === undefined) v = ''; if (typeof v !== 'string') fail(name + ' must be text'); return str(strip(v).trim(), max, name, empty); };
+  function cleanGoal(x, seen) {
+    if (!isObj(x)) fail('goal');
+    const G = L.goals;
+    const id = str(x.id, 100, 'goal id');
+    if (seen.has(id)) fail('duplicate goal id');
+    seen.add(id);
+    const metric = oneOf(x.metric, G.METRICS.map((m) => m.id), 'goal metric');
+    const mdom = G.METRICS.find((m) => m.id === metric).domain;
+    const o = {
+      id, title: gtext(x.title, 200, 'goal title'),
+      horizon: oneOf(x.horizon, G.HORIZONS, 'goal horizon'),
+      domain: mdom || oneOf(x.domain, domainIds(), 'goal domain'),
+      metric, direction: oneOf(x.direction, ['up', 'down'], 'goal direction'),
+      startValue: num(x.startValue, -1e12, 1e12, 'goal start value'), targetValue: num(x.targetValue, -1e12, 1e12, 'goal target value'),
+      startDate: date(x.startDate, 'goal start date'), dueDate: date(x.dueDate, 'goal due date'),
+    };
+    if (o.dueDate < o.startDate) fail('goal due date is before its start date');
+    if (o.direction === 'up' ? o.targetValue < o.startValue : o.targetValue > o.startValue) fail('goal target is on the wrong side of its start value');
+    if (x.parentId !== undefined && x.parentId !== null && x.parentId !== '') o.parentId = str(x.parentId, 100, 'goal parent');
+    if (x.manualValue !== undefined && x.manualValue !== null) o.manualValue = num(x.manualValue, -1e12, 1e12, 'goal current value');
+    if (x.statusOverride !== undefined && x.statusOverride !== null) o.statusOverride = oneOf(x.statusOverride, ['ahead', 'on-track', 'behind'], 'goal status');
+    o.state = oneOf(x.state, ['active', 'achieved', 'dropped'], 'goal state');
+    if (x.closedAt !== undefined && x.closedAt !== null) o.closedAt = date(x.closedAt, 'goal closed date');
+    o.notes = gtext(x.notes, 2000, 'goal notes', true);
+    o.createdAt = ts(x.createdAt, 'goal createdAt');
+    return o;
+  }
+  function cleanGoals(list) {
+    if (list === undefined) return [];
+    const seen = new Set();
+    const out = arr(list, GOAL_CAP, 'goals').map((x) => cleanGoal(x, seen));
+    const byId = new Map(out.map((g) => [g.id, g])), rank = (g) => L.goals.HORIZONS.indexOf(g.horizon);
+    for (const g of out) {
+      if (g.parentId === undefined) continue;
+      const p = byId.get(g.parentId);
+      if (!p) { delete g.parentId; continue; } // a dangling link is dropped, the goal is kept
+      if (rank(p) <= rank(g)) fail('a goal parent must be on a longer horizon');
+    }
+    for (const g of out) { // belt and braces: strictly longer parents cannot loop, but never trust a loop-free claim
+      let c = g, n = 0;
+      while (c && c.parentId !== undefined) { c = byId.get(c.parentId); if (++n > out.length) fail('goals form a cycle'); }
+    }
+    return out;
+  }
+  // Schema 1 to 4 to 5: every distinct goal title in the old goals/goal entries becomes one goal (latest status wins).
+  // The goal's notes carry the whole history of that title (each entry's date, title as typed, status and notes), so the
+  // converted entries can be removed without losing anything. A title whose history does not fit in 2,000 characters, and
+  // titles beyond the cap, keep their entries (listed under Goals as older goal entries).
+  function quarterEnd(d) {
+    const y = +d.slice(0, 4), q = Math.floor((+d.slice(5, 7) - 1) / 3), last = new Date(Date.UTC(y, q * 3 + 3, 0)).getUTCDate();
+    return String(y).padStart(4, '0') + '-' + String(q * 3 + 3).padStart(2, '0') + '-' + String(last).padStart(2, '0');
+  }
+  const NOTES_MAX = 2000;
+  function goalsFromEntries(entries) {
+    const groups = new Map(), order = [];
+    for (const e of entries) {
+      if (e.domain !== 'goals' || e.type !== 'goal') continue;
+      const k = e.title.trim().toLowerCase();
+      let g = groups.get(k);
+      if (!g) { g = { first: e, latest: e, list: [] }; groups.set(k, g); order.push(g); }
+      g.list.push(e);
+      if (e.date < g.first.date) g.first = e;
+      if (e.date >= g.latest.date) g.latest = e;
+    }
+    const goals = [], gone = new Set();
+    for (const g of order.slice(0, GOAL_CAP)) {
+      const e = g.latest, st = e.status || 'on-track';
+      const hist = g.list.slice().sort((a, b) => a.date.localeCompare(b.date) || String(a.createdAt).localeCompare(String(b.createdAt)))
+        .map((x) => 'Imported ' + x.date + ' "' + x.title + '": ' + (x.status || 'on-track') + '.' + (x.notes ? ' ' + x.notes : ''));
+      let notes = hist.join('\n');
+      const fits = notes.length <= NOTES_MAX;
+      if (!fits) notes = ('Imported status: ' + st + ' (' + e.date + '). The full history is kept in the older goal entries.').slice(0, NOTES_MAX);
+      const o = {
+        id: newId(), title: e.title, horizon: 'quarterly', domain: 'goals', metric: 'manual', direction: 'up', startValue: 0, targetValue: 100,
+        startDate: g.first.date, dueDate: quarterEnd(g.first.date), state: st === 'done' ? 'achieved' : 'active', notes, createdAt: g.first.createdAt,
+      };
+      if (st === 'done') { o.manualValue = 100; o.closedAt = e.date; }
+      else o.statusOverride = st === 'on-track' ? 'on-track' : 'behind';
+      goals.push(o);
+      if (fits) for (const x of g.list) gone.add(x.id);
+    }
+    return { goals, entries: entries.filter((e) => !gone.has(e.id)) };
+  }
   function validateState(o) {
     if (!isObj(o)) fail('state must be an object');
     scan(o, 0, { n: 4e6 });
-    if (![1, 2, 3, SCHEMA].includes(o.schema)) fail('unsupported schema');
+    if (![1, 2, 3, 4, SCHEMA].includes(o.schema)) fail('unsupported schema');
     if (!L.metrics) fail('metrics module missing');
     const settings = cleanSettings(o.settings, o.schema), entries = cleanEntries(o.entries);
     const out = { schema: SCHEMA, settings, entries };
@@ -424,6 +515,9 @@
     // An outcome may only point at a project that exists; a dangling link is dropped, the outcome is kept.
     const pids = new Set(out.projects.map((p) => p.id));
     for (const e of entries) if (e.projectId !== undefined && !pids.has(e.projectId)) delete e.projectId;
+    // Schema 5 adds goals; older formats turn their goals/goal entries into goals (nothing is lost).
+    if (o.schema >= 5) out.goals = cleanGoals(o.goals);
+    else { const m = goalsFromEntries(entries); out.goals = cleanGoals(m.goals); out.entries = m.entries; }
     out.memory = cleanMemory(o.memory);
     out.audit = cleanAudit(o.audit);
     // The schema the input was written in, so callers can tell an older-format copy (no work data) from a schema 3 one.
@@ -432,13 +526,14 @@
     return out;
   }
   // Data the live state holds that an older-format copy (`next`, marked by validateState) cannot carry.
-  // Schema 3 added projects and pipeline; schema 4 added the training cycle, daily checks, workout types and body targets.
+  // Schema 3 added projects and pipeline; schema 4 added the training cycle, daily checks, workout types and body targets; schema 5 added goals.
   const sameJson = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   function droppedData(cur, next) {
     const src = next && next.sourceSchema;
     if (!cur || typeof src !== 'number') return [];
     const out = [];
     if (src < 3) { if ((cur.projects || []).length) out.push('projects'); if ((cur.pipeline || []).length) out.push('pipeline items'); }
+    if (src < 5 && (cur.goals || []).length) out.push('goals');
     if (src < 4) {
       if (cur.cycle) out.push('training cycle');
       if ((cur.habits || []).length) out.push('daily checks');
@@ -452,7 +547,7 @@
   const andList = (l) => (l.length > 1 ? l.slice(0, -1).join(', ') + ' and ' + l[l.length - 1] : l.join(''));
   // Plain-language list for warnings, with counts: "3 projects and 4 pipeline items". Names only, never values.
   function lossText(cur, next) {
-    return andList(droppedData(cur, next).map((n) => (n === 'projects' ? cur.projects.length + ' projects' : n === 'pipeline items' ? cur.pipeline.length + ' pipeline items' : n === 'daily checks' ? cur.habits.length + ' daily checks' : 'your ' + n)));
+    return andList(droppedData(cur, next).map((n) => (n === 'projects' ? cur.projects.length + ' projects' : n === 'pipeline items' ? cur.pipeline.length + ' pipeline items' : n === 'daily checks' ? cur.habits.length + ' daily checks' : n === 'goals' ? cur.goals.length + ' goals' : 'your ' + n)));
   }
   const nameList = (l) => (l.length > 1 ? l.slice(0, -1).join(', ') + ' or ' + l[l.length - 1] : l.join(''));
 
@@ -468,7 +563,7 @@
       },
       entries: [],
       accounts: [], recurring: [], budgets: [], categories: defaultCategories(),
-      projects: [], pipeline: [],
+      projects: [], pipeline: [], goals: [],
       cycle: null, kinds: L.metrics.DEFAULT_KINDS.slice(), habits: [], habitLog: [],
       memory: { insights: [], lessons: [], reviews: [] },
       audit: [],
@@ -651,5 +746,5 @@
     lock();
   }
 
-  L.store = { _setAdapter, exists, init, unlock, lock, isUnlocked, getState, commit, changePassphrase, replaceState, wipe, validateState, newId, defaultState, getMeta, saltId, exportEnvelope, inspectEnvelope, adoptEnvelope, dropsWork, droppedData, nameList, lossText };
+  L.store = { _setAdapter, exists, init, unlock, lock, isUnlocked, getState, commit, changePassphrase, replaceState, wipe, validateState, newId, defaultState, getMeta, saltId, exportEnvelope, inspectEnvelope, adoptEnvelope, dropsWork, droppedData, nameList, lossText, validateGoals: cleanGoals };
 })();

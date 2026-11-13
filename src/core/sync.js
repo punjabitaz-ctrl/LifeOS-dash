@@ -207,7 +207,7 @@
     return Array.from(new Uint8Array(d), (x) => x.toString(16).padStart(2, '0')).join('');
   }
   const count = (a) => (Array.isArray(a) ? a.length : 0);
-  const summary = (meta, state, schema) => ({ rev: meta.rev, updatedAt: meta.updatedAt, entries: count(state.entries), projects: count(state.projects), pipeline: count(state.pipeline), habits: count(state.habits), cycle: !!state.cycle, schema });
+  const summary = (meta, state, schema) => ({ rev: meta.rev, updatedAt: meta.updatedAt, entries: count(state.entries), projects: count(state.projects), pipeline: count(state.pipeline), goals: count(state.goals), habits: count(state.habits), cycle: !!state.cycle, schema });
 
   async function inspect(text, passphrase) {
     let envObj;
@@ -268,7 +268,7 @@
       return { kind: 'uploaded', rev: env.rev };
     }
     const lm = S.getMeta();
-    // An older-format Drive copy has no projects, pipeline (before schema 3) or cycle, daily checks, workout types, body targets (before schema 4): using it would drop this device's data.
+    // An older-format Drive copy has no projects, pipeline (before schema 3), cycle, daily checks, workout types, body targets (before schema 4) or goals (before schema 5): using it would drop this device's data.
     const dropped = S.droppedData(cur, { sourceSchema: info.sourceSchema }), dropsWork = dropped.length > 0;
     return hide({
       kind: localChanged ? 'conflict' : 'download-offer',

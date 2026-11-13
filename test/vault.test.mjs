@@ -37,11 +37,15 @@ test('tampered ciphertext fails', async () => {
 });
 test('backup round trip, fresh salt per export, wrong passphrase fails', async () => {
   const st = L.store.defaultState();
-  st.entries.push(L.metrics.validateEntry({ domain: 'health', type: 'workout', date: '2026-11-10', title: 'Run' }));
+  // Flake root cause: this used to look for the title 'Run' in the backup text. The text is base64 of random
+  // ciphertext, so any three letters turn up by chance (about 0.5% of runs, seen as a rare failure). The marker
+  // below contains spaces and punctuation, which are outside the base64 alphabet and so can never appear by chance.
+  const MARK = 'Plain text: run, 5 km!';
+  st.entries.push(L.metrics.validateEntry({ domain: 'health', type: 'workout', date: '2026-11-10', title: MARK }));
   const a = await L.vault.exportBackup(PASS, st), b = await L.vault.exportBackup(PASS, st);
   assert.notEqual(JSON.parse(a).kdf.salt, JSON.parse(b).kdf.salt);
   assert.equal(JSON.parse(a).kdf.iter, 600000);
-  assert.ok(!a.includes('Run'));
+  assert.ok(!a.includes(MARK) && !a.includes('Plain text'));
   assert.deepEqual(await L.vault.importBackup(PASS, a), st);
   await assert.rejects(L.vault.importBackup('wrong passphrase!!', a), { message: 'BAD_PASSPHRASE_OR_DATA' });
   await assert.rejects(L.vault.importBackup(PASS, 'not json'));
