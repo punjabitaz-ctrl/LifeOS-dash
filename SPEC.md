@@ -137,3 +137,13 @@ Manual entry first; the user will type everything. Schema 2 with a tested migrat
 - Remote data is untrusted: size cap 64 MB, parseEnvelope + validateState before it replaces anything.
 - CSP connect-src adds `https://www.googleapis.com` only. fetch with credentials omit, redirect error, 30 s timeout.
 - Sync worker may make only small additive edits to app.js (a Settings section hook and a post-unlock hook), store.js (rev fields) and build.mjs (include files, connect-src); coordinate by keeping edits minimal and re-reading the file before each edit because the Money worker edits the same files.
+
+## v0.4.0 addendum: Work
+Manual entry, phone first. Schema 3 with a tested migration from 1 and 2 (no data loss; existing `work/outcome` entries keep working).
+- `projects:[{id,name,kind:'job'|'venture'|'client'|'personal',status:'active'|'paused'|'done',nextAction,nextDate?,archived}]`. Cap 200.
+- Weekly outcomes: existing `work/outcome` entries gain optional `projectId`; the Work view shows this week's top 3 with one-tap done, carry-over of unfinished outcomes offered (never automatic) at weekly review.
+- `pipeline:[{id,title,org,kind:'job'|'deal'|'partner',stage:'lead'|'contacted'|'applied'|'interview'|'offer'|'won'|'lost',source,nextStep,nextDate?,updatedAt,notes}]`. Cap 1000. Board grouped by stage (list on phones), stage change in one tap, stale flag when no update for 14 days.
+- Work view: projects with next action and overdue next dates, this week's outcomes, pipeline counts by stage, 8-week outcomes-completed trend (inline SVG).
+- Dashboard Work tile: outcomes done x of y, with sub line showing overdue next actions and open pipeline count.
+- weeklyDigest gains numeric work fields only (outcomes done/planned, active projects, overdue next actions, pipeline counts by stage, moved this week). Never project names, org names, titles or notes.
+- validateState whitelists and caps every new field; sync, backup import and CSV export must handle schema 3; a schema 2 device meeting a schema 3 remote must migrate, and a schema 3 vault must never be downgraded.

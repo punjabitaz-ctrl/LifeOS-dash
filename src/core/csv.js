@@ -100,17 +100,19 @@
     return { entries, rejected };
   }
 
-  function exportEntries(entries) {
-    const cols = ['id', 'domain', 'type', 'date', 'title', 'value', 'status', 'person', 'due', 'notes', 'createdAt'];
+  function toCsv(cols, rows) {
     const q = (v) => {
       let s = v === undefined || v === null ? '' : String(v);
       if (DANGER.test(s)) s = "'" + s;
       return '"' + s.replace(/"/g, '""') + '"';
     };
     const lines = [cols.map(q).join(',')];
-    for (const e of entries || []) lines.push(cols.map((c) => q(e[c])).join(','));
+    for (const e of rows || []) lines.push(cols.map((c) => q(e[c])).join(','));
     return lines.join('\r\n') + '\r\n';
   }
+  const exportEntries = (entries) => toCsv(['id', 'domain', 'type', 'date', 'title', 'value', 'status', 'person', 'due', 'notes', 'createdAt', 'projectId'], entries);
+  const exportPipeline = (items) => toCsv(['id', 'title', 'org', 'kind', 'stage', 'source', 'nextStep', 'nextDate', 'updatedAt', 'notes'], items);
+  const exportProjects = (items) => toCsv(['id', 'name', 'kind', 'status', 'nextAction', 'nextDate', 'archived'], items);
 
-  L.csv = { parse, toEntries, exportEntries };
+  L.csv = { parse, toEntries, exportEntries, exportPipeline, exportProjects };
 })();

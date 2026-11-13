@@ -12,7 +12,13 @@ Build, then open `dist/lifeos.html` in a browser (double-click works, it needs n
 - `node build.mjs` writes `dist/lifeos.html`.
 - `node test/smoke.mjs` runs a headless browser flow at desktop and 390x844 mobile sizes. It needs Playwright (`npm i --no-save playwright`) and Chrome, and skips itself if they are missing.
 - `node test/smoke-money.mjs` runs the Money and Assets flow (accounts, quick add, budget, recurring, lock) at desktop and 390x844 sizes.
+- `node test/smoke-sync.mjs` runs Google Drive sync against a mocked Drive; `node test/smoke-work.mjs` runs the Work flow (projects, outcomes, pipeline, older backup restore) at desktop and 390x844 sizes.
 - `node build.mjs` also writes `_headers` (Cloudflare Pages) with the same CSP plus frame-ancestors.
+
+## v0.4.0: Work
+
+- Work view: projects with next actions and overdue dates, this week's outcomes with one-tap done, a job, deal and partner pipeline by stage with a 14-day stale flag, and an 8-week trend. Carry-over of unfinished outcomes is only offered, never automatic.
+- Vault schema 3, migrated from schema 1 and 2 with no data loss. Older versions refuse a schema 3 vault, and an older-format backup or Drive copy cannot remove projects and pipeline without an explicit tick.
 
 ## Security model
 

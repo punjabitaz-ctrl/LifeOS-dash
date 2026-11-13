@@ -2,7 +2,7 @@
   'use strict';
   const L = (globalThis.LifeOS = globalThis.LifeOS || {});
   const KEY = 'envelope';
-  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 2;
+  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 3, PROJECT_CAP = 200, PIPELINE_CAP = 1000;
   const ENTRY_CAP = 50000, INSIGHT_CAP = 5000, REVIEW_CAP = 1000, LESSON_CAP = 30, AUDIT_CAP = 200;
   const BLOCKED = new Set(['__proto__', 'constructor', 'prototype']);
   // Same rule as ai.isLocalUrl (ai.js loads after this file, so call it lazily).
@@ -144,6 +144,48 @@
     }
     return out;
   }
+  const STAGES = ['lead', 'contacted', 'applied', 'interview', 'offer', 'won', 'lost'];
+  const PROJECT_KINDS = ['job', 'venture', 'client', 'personal'];
+  const PIPELINE_KINDS = ['job', 'deal', 'partner'];
+  function cleanProjects(list) {
+    if (list === undefined) return [];
+    const seen = new Set();
+    return arr(list, PROJECT_CAP, 'projects').map((x) => {
+      if (!isObj(x)) fail('project');
+      const id = str(x.id, 100, 'project id');
+      if (seen.has(id)) fail('duplicate project id');
+      seen.add(id);
+      const o = {
+        id, name: str(strip(x.name).trim(), 200, 'project name'),
+        kind: oneOf(x.kind, PROJECT_KINDS, 'project kind'),
+        status: oneOf(x.status, ['active', 'paused', 'done'], 'project status'),
+        nextAction: str(strip(x.nextAction === undefined ? '' : x.nextAction).trim(), 200, 'next action', true),
+      };
+      if (x.nextDate !== undefined && x.nextDate !== '') o.nextDate = date(x.nextDate, 'nextDate');
+      o.archived = bool(x.archived, 'archived', false);
+      return o;
+    });
+  }
+  function cleanPipeline(list) {
+    if (list === undefined) return [];
+    const seen = new Set();
+    return arr(list, PIPELINE_CAP, 'pipeline').map((x) => {
+      if (!isObj(x)) fail('pipeline item');
+      const id = str(x.id, 100, 'pipeline id');
+      if (seen.has(id)) fail('duplicate pipeline id');
+      seen.add(id);
+      const t = (v, max, name, empty) => str(strip(v === undefined ? '' : v).trim(), max, name, empty);
+      const o = {
+        id, title: t(x.title, 200, 'pipeline title'), org: t(x.org, 200, 'org', true),
+        kind: oneOf(x.kind, PIPELINE_KINDS, 'pipeline kind'), stage: oneOf(x.stage, STAGES, 'stage'),
+        source: t(x.source, 200, 'source', true), nextStep: t(x.nextStep, 200, 'next step', true),
+      };
+      if (x.nextDate !== undefined && x.nextDate !== '') o.nextDate = date(x.nextDate, 'nextDate');
+      o.updatedAt = date(x.updatedAt, 'updatedAt');
+      o.notes = t(x.notes, 2000, 'notes', true);
+      return o;
+    });
+  }
   function cleanDigest(d) {
     if (!isObj(d) || !isObj(d.domains)) fail('digest');
     const domains = {};
@@ -158,6 +200,14 @@
       if (!isObj(d.money)) fail('digest money');
       out.money = {};
       for (const k of ['income', 'spend', 'budgetUsedPct', 'netWorth', 'liabilities']) out.money[k] = num(d.money[k], -1e15, 1e15, 'digest money');
+    }
+    if (d.work !== undefined) {
+      if (!isObj(d.work) || !isObj(d.work.pipeline)) fail('digest work');
+      const w = {};
+      for (const k of ['done', 'planned', 'activeProjects', 'overdueNext', 'moved']) w[k] = num(d.work[k], 0, 1e9, 'digest work', true);
+      w.pipeline = {};
+      for (const k of STAGES) w.pipeline[k] = num(d.work.pipeline[k], 0, 1e9, 'digest work', true);
+      out.work = w;
     }
     return out;
   }
@@ -288,16 +338,28 @@
   function validateState(o) {
     if (!isObj(o)) fail('state must be an object');
     scan(o, 0, { n: 4e6 });
-    if (o.schema !== 1 && o.schema !== SCHEMA) fail('unsupported schema');
+    if (o.schema !== 1 && o.schema !== 2 && o.schema !== SCHEMA) fail('unsupported schema');
     if (!L.metrics) fail('metrics module missing');
     const settings = cleanSettings(o.settings), entries = cleanEntries(o.entries);
     const out = { schema: SCHEMA, settings, entries };
     if (o.schema === 1) Object.assign(out, { accounts: deriveAccounts(entries), recurring: [], budgets: [], categories: defaultCategories() });
     else Object.assign(out, { accounts: cleanAccounts(o.accounts), recurring: cleanRecurring(o.recurring), budgets: cleanBudgets(o.budgets), categories: cleanCategories(o.categories) });
+    // Schema 1 and 2 carry no work data; schema 3 data is whitelisted and capped like everything else.
+    out.projects = o.schema === 3 ? cleanProjects(o.projects) : [];
+    out.pipeline = o.schema === 3 ? cleanPipeline(o.pipeline) : [];
+    // An outcome may only point at a project that exists; a dangling link is dropped, the outcome is kept.
+    const pids = new Set(out.projects.map((p) => p.id));
+    for (const e of entries) if (e.projectId !== undefined && !pids.has(e.projectId)) delete e.projectId;
     out.memory = cleanMemory(o.memory);
     out.audit = cleanAudit(o.audit);
+    // The schema the input was written in, so callers can tell an older-format copy (no work data) from a schema 3 one.
+    // Not enumerable: it never reaches the stored state, a backup or the fingerprint.
+    Object.defineProperty(out, 'sourceSchema', { value: o.schema, enumerable: false });
     return out;
   }
+  // True when replacing the live state with `next` would silently drop work data because `next` is an older format.
+  const hasWork = (s) => !!s && ((s.projects || []).length > 0 || (s.pipeline || []).length > 0);
+  const dropsWork = (cur, next) => hasWork(cur) && !!next && typeof next.sourceSchema === 'number' && next.sourceSchema < SCHEMA;
 
   function defaultState() {
     return {
@@ -310,6 +372,7 @@
       },
       entries: [],
       accounts: [], recurring: [], budgets: [], categories: defaultCategories(),
+      projects: [], pipeline: [],
       memory: { insights: [], lessons: [], reviews: [] },
       audit: [],
     };
@@ -416,10 +479,13 @@
       key = nk; salt = nsl; meta = sealed.m;
     });
   }
-  function replaceState(next) {
+  function replaceState(next, opts) {
     return serial(async () => {
       requireUnlocked();
       const st = state;
+      if (dropsWork(st, next) && !(opts && opts.allowWorkLoss === true)) {
+        const e = new Error('This backup is from an older version and has no projects or pipeline. Nothing was replaced.'); e.code = 'OLDER_FORMAT'; throw e;
+      }
       const clean = validateState(next);
       // A restored backup never brings its own sync bookkeeping: an older remoteRev would weaken the rollback
       // check, and a different OAuth client ID would be swapped in without the user seeing it.
@@ -467,7 +533,7 @@
     try { raw = await V().decrypt(k, env); }
     catch (e) { const x = new Error('The Drive copy uses a different passphrase.'); x.code = 'WRONG_PASSPHRASE'; throw x; }
     const m = readMeta(env, raw);
-    return { meta: m, state: validateState(raw), key: k, salt: sl, env, sameKey: k === key };
+    return { meta: m, state: validateState(raw), sourceSchema: raw && raw.schema, key: k, salt: sl, env, sameKey: k === key };
   }
   // Replace the local vault with an inspected remote one (same passphrase).
   function adoptEnvelope(info) {
@@ -488,5 +554,5 @@
     lock();
   }
 
-  L.store = { _setAdapter, exists, init, unlock, lock, isUnlocked, getState, commit, changePassphrase, replaceState, wipe, validateState, newId, defaultState, getMeta, saltId, exportEnvelope, inspectEnvelope, adoptEnvelope };
+  L.store = { _setAdapter, exists, init, unlock, lock, isUnlocked, getState, commit, changePassphrase, replaceState, wipe, validateState, newId, defaultState, getMeta, saltId, exportEnvelope, inspectEnvelope, adoptEnvelope, dropsWork };
 })();

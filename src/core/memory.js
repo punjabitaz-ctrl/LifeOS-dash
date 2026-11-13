@@ -72,6 +72,11 @@
         const x = dg.domains[d.id];
         lines.push('- ' + d.id + ': now ' + x.now + ' ' + x.unit + ', previous ' + x.prev + ' ' + x.unit);
       }
+      const w = dg.work;
+      if (w) {
+        lines.push('- work detail: outcomes done ' + w.done + ' of ' + w.planned + ', active projects ' + w.activeProjects + ', overdue next actions ' + w.overdueNext + ', moved this week ' + w.moved + ', pipeline ' +
+          Object.keys(w.pipeline).map((k) => k + ' ' + w.pipeline[k]).join(', '));
+      }
       ctx = approvedAll.slice(-CTX_MAX);
       lines.push('Approved insights so far:');
     } else {
@@ -154,6 +159,8 @@
   function demoteApproved(state) {
     const out = JSON.parse(JSON.stringify(state));
     for (const i of out.memory.insights) if (i.status === 'approved') { i.status = 'proposed'; delete i.decidedAt; }
+    // Keep the format marker from store.validateState so an older-format backup is still recognised after re-queueing.
+    if (state && typeof state.sourceSchema === 'number') Object.defineProperty(out, 'sourceSchema', { value: state.sourceSchema, enumerable: false });
     return out;
   }
 

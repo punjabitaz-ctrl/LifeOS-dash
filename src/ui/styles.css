@@ -113,3 +113,14 @@ input[type=checkbox]{width:auto;min-height:0;flex:none}
 .field.check{flex-direction:row;align-items:center;gap:8px}
 .qa-btn{min-width:120px}
 h1{margin-right:auto}
+.done-t{text-decoration:line-through;color:var(--mut)}
+.stagecounts{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 10px}
+.stagecounts .chip{margin:0}
+.board{display:grid;grid-template-columns:minmax(0,1fr);gap:10px}
+@media (min-width:820px){.board{grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}}
+.stage h3{font-size:.9rem;margin:.4rem 0;color:var(--mut);text-transform:uppercase;letter-spacing:.05em}
+.pitem{border:1px solid var(--line);border-radius:10px;padding:10px;margin:0 0 8px;min-width:0;overflow-wrap:anywhere}
+.pitem select{width:auto;min-height:36px;padding:4px 8px}
+.pitem .row{margin-top:6px}
+.nav button{overflow:hidden;text-overflow:ellipsis;min-width:0}
+@media (max-width:520px){.nav button{font-size:.74rem}}

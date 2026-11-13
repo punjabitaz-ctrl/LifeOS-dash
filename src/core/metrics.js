@@ -97,6 +97,10 @@
       if (typeof p.accountId !== 'string' || !p.accountId || p.accountId.length > 100) throw new Error('Invalid account');
       out.accountId = p.accountId;
     }
+    if (ty.id === 'outcome' && !isEmpty(p.projectId)) {
+      if (typeof p.projectId !== 'string' || !p.projectId || p.projectId.length > 100) throw new Error('Invalid project');
+      out.projectId = p.projectId;
+    }
     const ca = p.createdAt;
     out.createdAt = (typeof ca === 'string' && ca.length <= 40 && ca) || (typeof ca === 'number' && isFinite(ca) && ca) || new Date().toISOString();
     return out;
@@ -281,6 +285,82 @@
     return s.size;
   }
 
+
+  // ---- work: projects, outcomes, pipeline (schema 3) ----
+  const STAGES = ['lead', 'contacted', 'applied', 'interview', 'offer', 'won', 'lost'];
+  const OPEN_STAGES = ['lead', 'contacted', 'applied', 'interview', 'offer'];
+  const STALE_DAYS = 14, CARRY_DAYS = 28;
+  const outcomes = (state) => state.entries.filter((e) => e.domain === 'work' && e.type === 'outcome');
+  const liveProjects = (state) => (state.projects || []).filter((p) => !p.archived);
+  const isOverdue = (p, asOf) => p.status === 'active' && !p.archived && !!p.nextDate && p.nextDate < asOf;
+  function overdueProjects(state, asOf) {
+    if (!isDate(asOf)) throw new Error('today must be YYYY-MM-DD');
+    return (state.projects || []).filter((p) => isOverdue(p, asOf)).sort((a, b) => a.nextDate.localeCompare(b.nextDate) || a.name.localeCompare(b.name));
+  }
+  function isStale(item, asOf) {
+    if (!item || !OPEN_STAGES.includes(item.stage)) return false;
+    return daysBetween(asOf, item.updatedAt) >= STALE_DAYS;
+  }
+  function pipelineCounts(state) {
+    const c = {};
+    for (const k of STAGES) c[k] = 0;
+    for (const x of state.pipeline || []) c[x.stage]++;
+    return c;
+  }
+  const openPipeline = (state) => (state.pipeline || []).filter((x) => OPEN_STAGES.includes(x.stage));
+  function weekOutcomes(state, ws) {
+    const we = addDays(ws, 6);
+    return outcomes(state).filter((e) => inR(e, ws, we)).sort((a, b) => (a.status === b.status ? 0 : a.status === 'todo' ? -1 : 1) || a.date.localeCompare(b.date) || String(a.createdAt).localeCompare(String(b.createdAt)));
+  }
+  const ckey = (e) => e.title.trim().toLowerCase() + '|' + (e.projectId || '');
+  // Unfinished outcomes from earlier weeks that this week does not yet have. Offered to the user; nothing is created here.
+  function carryOverCandidates(state, weekStartISO) {
+    const ws = weekStart(weekStartISO), from = addDays(ws, -CARRY_DAYS), we = addDays(ws, 6);
+    const latest = new Map(), have = new Set();
+    for (const e of outcomes(state)) {
+      if (inR(e, ws, we)) have.add(ckey(e));
+      if (e.date >= ws) continue;
+      const k = ckey(e), cur = latest.get(k);
+      if (!cur || e.date >= cur.date) latest.set(k, e);
+    }
+    return [...latest.values()].filter((e) => e.status === 'todo' && e.date >= from && !have.has(ckey(e)))
+      .sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title));
+  }
+  // Mutator: copies the chosen candidates into the new week as todo. Only called after an explicit user choice.
+  function carryOver(state, ids, weekStartISO) {
+    const ws = weekStart(weekStartISO);
+    if (!Array.isArray(ids)) throw new Error('Choose outcomes to carry over');
+    const cands = carryOverCandidates(state, ws), made = [];
+    for (const id of new Set(ids)) {
+      const c = cands.find((x) => x.id === id);
+      if (!c) throw new Error('That outcome cannot be carried over');
+      const p = { domain: 'work', type: 'outcome', date: ws, title: c.title, status: 'todo', notes: c.notes };
+      if (c.projectId) p.projectId = c.projectId;
+      const e = validateEntry(p);
+      state.entries.push(e); made.push(e);
+    }
+    return made;
+  }
+  function workSummary(state, today) {
+    if (!isDate(today)) throw new Error('today must be YYYY-MM-DD');
+    const ws = weekStart(today), wk = weekOutcomes(state, ws);
+    const done = wk.filter((e) => e.status === 'done').length;
+    const open = openPipeline(state);
+    return {
+      done, total: wk.length, overdue: overdueProjects(state, today).length, activeProjects: liveProjects(state).filter((p) => p.status === 'active').length,
+      openPipeline: open.length, stale: open.filter((x) => isStale(x, today)).length, counts: pipelineCounts(state),
+    };
+  }
+  function workDigest(state, ws) {
+    const we = addDays(ws, 6), wk = weekOutcomes(state, ws);
+    return {
+      done: wk.filter((e) => e.status === 'done').length, planned: wk.length,
+      activeProjects: liveProjects(state).filter((p) => p.status === 'active').length,
+      overdueNext: overdueProjects(state, we).length, pipeline: pipelineCounts(state),
+      moved: (state.pipeline || []).filter((x) => inR({ date: x.updatedAt }, ws, we)).length,
+    };
+  }
+
   const UNITS = { money: '%', work: 'outcomes', health: 'workouts', activities: 'days', social: 'people', learning: 'items', home: 'items', goals: '%', wellbeing: 'score' };
   function weekMetric(state, id, ws, ents) {
     const we = addDays(ws, 6);
@@ -312,7 +392,7 @@
     const we = addDays(ws, 6), wm = sumMoney(byDomain(state, 'money'), ws, we), nw = netWorthDetail(state, we);
     const mv = monthView(state, monthOf(we));
     const money = { income: dollars(wm.incC), spend: dollars(wm.expC), budgetUsedPct: mv.budgetCents > 0 ? r1(mv.budgetedSpentCents * 100 / mv.budgetCents) : 0, netWorth: nw.total, liabilities: nw.liabilities };
-    return { week: ws, domains, money };
+    return { week: ws, domains, money, work: workDigest(state, ws) };
   }
   function series(state, domainId, n, today) {
     if (!DOMAINS.some((d) => d.id === domainId)) throw new Error('Unknown domain');
@@ -350,7 +430,8 @@
       case 'work': {
         const total = count(ents, ws, we, (e) => e.type === 'outcome');
         const done = count(ents, ws, we, (e) => e.type === 'outcome' && e.status === 'done');
-        return R('Outcomes done this week', done + ' of ' + total, done, total ? Math.round(done / total * 100) + '% complete' : 'No outcomes set this week');
+        const w = workSummary(state, today);
+        return R('Outcomes done this week', done + ' of ' + total, done, w.overdue + ' overdue next ' + (w.overdue === 1 ? 'action' : 'actions') + ', ' + w.openPipeline + ' open in pipeline');
       }
       case 'health': {
         const n = count(ents, ws, we, (e) => e.type === 'workout');
@@ -387,6 +468,6 @@
     }
   }
 
-  L.metrics = { DOMAINS, isDate, addDays, validateEntry, headline, weekStart, weeklyDigest, series, fmtMoney, cents, ACCOUNT_KINDS, LIAB_KINDS, DEFAULT_CATEGORIES, UNCAT, addMonths, monthEnd, advanceDate, netWorthDetail, netWorthHistory, monthView, cashflow, dueRecurring, confirmRecurring, skipRecurring };
+  L.metrics = { STAGES, OPEN_STAGES, STALE_DAYS, overdueProjects, isStale, pipelineCounts, openPipeline, weekOutcomes, carryOverCandidates, carryOver, workSummary, DOMAINS, isDate, addDays, validateEntry, headline, weekStart, weeklyDigest, series, fmtMoney, cents, ACCOUNT_KINDS, LIAB_KINDS, DEFAULT_CATEGORIES, UNCAT, addMonths, monthEnd, advanceDate, netWorthDetail, netWorthHistory, monthView, cashflow, dueRecurring, confirmRecurring, skipRecurring };
   L.DOMAINS = DOMAINS;
 })();

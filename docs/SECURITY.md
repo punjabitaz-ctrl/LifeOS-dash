@@ -118,3 +118,50 @@ Other change made during the audit (hardening, not a finding): an upload when Dr
 - Browsers other than Chrome (headless, via Playwright); mobile Safari's handling of the fragment and sessionStorage across the redirect.
 - Rendering of the new money and assets charts was not checked for visual correctness beyond what smoke-money asserts.
 - Very large vaults near the 64 MB sync cap through the browser (the cap was only exercised in unit tests).
+
+# v0.4.0 audit
+
+Date: 2026-11-13. Auditor: independent review (did not write the code).
+
+## Scope
+The uncommitted v0.4.0 delta (`git diff HEAD`): schema 3 (projects, pipeline, `projectId` on outcomes) in `store.js` validateState and the 1/2 to 3 migration, work metrics, carry-over and the work digest in `metrics.js` and `memory.js`, the Work view and trend SVG in `app.js`, the projects and pipeline CSV exports in `csv.js`, and sync, backup and conflict behaviour across schemas. Also re-checked that SEC-01 to SEC-26 have not regressed and that `_headers` matches the built file.
+
+## Method
+- Read the delta line by line against SPEC.md and its v0.4.0 addendum.
+- Proved findings with tests that fail on the unfixed code: with the two fixes neutralised in a scratch copy, the SEC-27, SEC-28 and SEC-29 tests in `test/v040.test.mjs` and the two tightened tests in `test/work.test.mjs` failed (5 tests); all pass on the fixed code.
+- Older app meeting schema 3: the v0.3.0 core files from `git show HEAD` were loaded in a separate Node `vm` context (scratch script, not kept). v0.3.0 `validateState`, `store.unlock` and `vault.importBackup` all refuse a schema 3 vault with "unsupported schema", and the stored envelope was unchanged afterwards. v0.3.0 `sync.run` opens the Drive copy before any upload, so it stops on the same error (read, not run).
+- New tests: `test/v040.test.mjs` (8 tests: SEC-27, SEC-28, SEC-29, newer schema refused by sync, backup and unlock, prototype keys and whitelists on work fields, adversarial strings against the digest and level 1 to 3 prompts, CSV formula neutralising in every projects and pipeline column, timing at the caps). `test/smoke-work.mjs` now enters hostile markup as a project and pipeline item and checks that no element or handler reaches the DOM and that there are no CSP errors, and restores an older-format backup through the UI (refused without the tick, restored with it).
+- Re-checked: one `<script>`; the script and style hashes in the meta tag, `_headers` and `dist/_headers` match the built file; no `innerHTML`-like sinks, `eval`, `localStorage` or `console` in `src/`; no em dashes in source, tests, docs, `dist/` or `_headers`.
+- Final results: `node --test test/` passes 147 of 147. `node build.mjs` succeeds. `test/smoke.mjs` (SMOKE PASSED), `test/smoke-money.mjs` (SMOKE-MONEY PASSED), `test/smoke-sync.mjs` (smoke-sync OK) and `test/smoke-work.mjs` (SMOKE-WORK PASSED) all pass with Playwright and system Chrome.
+
+## Verified without a finding
+- Schema handling: schema 1 and 2 migrate to 3 on unlock, backup import and sync (existing tests). Schema 4 or any other value is refused by unlock, backup import and sync, and nothing local or on Drive is written (new test).
+- validateState rebuilds projects and pipeline items from whitelisted fields only, with enums for kind, status and stage, text limits (200, notes 2000), real dates, duplicate id checks, caps 200 and 1000, bidi stripping, and `__proto__`/`constructor`/`prototype` keys rejected (new test). The stored work digest accepts only numeric fields under fixed keys.
+- Dangling `projectId`: validateState drops a link to a project that does not exist and keeps the outcome. No code path removes a project (the UI only archives, and archived projects keep their links), and sync, backup and conflict always replace projects and entries together, so no reachable path loses a link. Left as is.
+- Carry-over is never automatic: `carryOver` is called only from the "Carry over selected" click handler and needs ticked ids (grep, existing and new tests, smoke).
+- DOM: all Work view text goes through `textContent` or text nodes. Data reaches attributes only as values of fixed names (`data-*`, `aria-label`, `value`) via `setAttribute`. The trend SVG uses numbers and date labels only.
+- CSV: the projects and pipeline exports quote every field and prefix `= + - @`, tab, CR and LF in every column (new test).
+- AI digest: the work block is numbers only. Project names, next actions, titles, orgs, sources, next steps, notes and ids, including prompt-injection, markup, number-like and formula strings, reach neither the digest, rules insights nor level 1, 2 or 3 prompts (new test).
+- Performance at the caps (200 projects, 1000 pipeline items, 50,000 outcomes): validateState about 0.3 s; work summary, digest, 8-week series, headline and carry-over candidates together well under the 1.5 s test bound (about 0.1 s measured).
+
+## Findings
+
+| ID | Severity | Location | Issue | Status |
+|---|---|---|---|---|
+| SEC-27 | Medium | `sync.js` run/apply, `sync-ui.js` | A Drive copy written by an older version (schema 1 or 2) is migrated on open, so it looks like a normal copy with no projects or pipeline. Choosing it in a conflict, or accepting a download offer, replaced this device's projects and pipeline. The dialog showed only revision, date and entry count, so the user could not see that work data would go. | Fixed: the decision reports schema and project and pipeline counts for both copies and a `dropsWork` flag. `apply` refuses to use such a copy unless `allowWorkLoss: true` is passed, and the dialog shows a warning and an unticked "I understand" box that sets it. Keeping this device is unaffected. Test SEC-27; the sync dialog change itself was verified by reading only. |
+| SEC-28 | Medium | `app.js` backup import, `store.replaceState` | Restoring a v0.3.0 (schema 2) backup removed every project and pipeline item. The summary listed entries and accounts but not work data, and unlike a sync conflict no copy is saved first. | Fixed: `validateState` marks its output with a non-enumerable `sourceSchema` (never stored; `demoteApproved` keeps it). `replaceState` refuses an older-format state when the vault has work data unless `allowWorkLoss: true`. The summary lists projects and pipeline items, and an older backup shows a warning and an unticked box. Test SEC-28 and smoke-work. |
+| SEC-29 | Info | `metrics.js` carryOver | Repeating an id in the list created the same outcome more than once. The UI cannot send repeats. | Hardened: ids are de-duplicated. Test SEC-29. |
+| SEC-30 | Info | `metrics.js` carryOverCandidates, `app.js` carryCard | The carry-over list has no limit. At the entry cap a synthetic vault produced 4,667 candidates (computed in about 40 ms), all rendered as checkboxes. Only reachable with thousands of unfinished outcomes, for example from CSV import. | Accepted; UI render time at that size was not measured. |
+| SEC-31 | Info | `app.js` workScreen | The 200 project cap counts archived projects and there is no project delete, so a user at the cap cannot add projects, although the message says to archive or delete some. Functional, not security. | Open (needs a product decision). |
+
+## Residual risks
+- At the caps, the state can be larger than the 64 MB backup and sync limit (each text field can hold 200 or 2,000 characters, and control characters expand six-fold in JSON; 1,000 pipeline items with 2,000-character notes of control characters alone produce 12 MB of JSON). Export and sync refuse rather than truncate (SEC-03, SEC-22), so the risk is being unable to back up, not silent loss. This predates v0.4.0.
+- Once any device writes a schema 3 copy to Drive, v0.3.0 devices refuse it and cannot sync until updated. That is the intended refusal, but the v0.3.0 message only says the Drive file is not a valid vault.
+- The conflict losing copy and the older-backup warning rely on the user reading the dialog; a deliberate tick can still remove work data (by design).
+- Earlier residual risks (compromised device or extension, hosting compromise, implicit OAuth flow, PBKDF2, no secure erase) still apply.
+
+## Not tested
+- The new sync dialog warning and tick box in a browser (smoke-sync does not create an older-format Drive copy); covered by unit tests on `sync.apply` and code reading.
+- v0.3.0 sync against a schema 3 Drive copy was read, not run. Older versions were checked only through their core files in Node, not their built UI.
+- Rendering and responsiveness of the Work view and the review screen at 1,000 pipeline items or thousands of carry-over candidates; only the maths was timed.
+- Real Google Drive, other browsers and mobile Safari (as in earlier audits).

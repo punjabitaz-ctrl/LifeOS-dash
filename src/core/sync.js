@@ -206,7 +206,8 @@
     const d = await L._webcrypto.subtle.digest('SHA-256', new TextEncoder().encode(stable(s)));
     return Array.from(new Uint8Array(d), (x) => x.toString(16).padStart(2, '0')).join('');
   }
-  const summary = (meta, state) => ({ rev: meta.rev, updatedAt: meta.updatedAt, entries: Array.isArray(state.entries) ? state.entries.length : 0 });
+  const count = (a) => (Array.isArray(a) ? a.length : 0);
+  const summary = (meta, state, schema) => ({ rev: meta.rev, updatedAt: meta.updatedAt, entries: count(state.entries), projects: count(state.projects), pipeline: count(state.pipeline), schema });
 
   async function inspect(text, passphrase) {
     let envObj;
@@ -267,10 +268,12 @@
       return { kind: 'uploaded', rev: env.rev };
     }
     const lm = S.getMeta();
+    // An older-format Drive copy (schema 1 or 2) has no projects or pipeline: using it would drop this device's work data.
+    const dropsWork = S.dropsWork(cur, { sourceSchema: info.sourceSchema });
     return hide({
       kind: localChanged ? 'conflict' : 'download-offer',
-      local: summary(lm, cur), remote: summary(info.meta, info.state), passphraseDiffers: keyDiffers,
-    }, { file, dl, info, clientId, fp });
+      local: summary(lm, cur, cur.schema), remote: summary(info.meta, info.state, info.sourceSchema), passphraseDiffers: keyDiffers, dropsWork,
+    }, { file, dl, info, clientId, fp, dropsWork });
   }
 
   // choice: 'download' (offer), or 'remote' | 'local' | 'cancel' (conflict). Conflict resolutions first save the losing copy via saveBackup(text, name).
@@ -284,6 +287,9 @@
     const wantsRemote = (decision.kind === 'download-offer' && choice === 'download') || (decision.kind === 'conflict' && choice === 'remote');
     const wantsLocal = decision.kind === 'conflict' && choice === 'local';
     if (!wantsRemote && !wantsLocal) throw err('BAD_CHOICE', 'Unknown choice.');
+    if (wantsRemote && ctx.dropsWork && opts.allowWorkLoss !== true) {
+      throw err('OLDER_FORMAT', 'The Drive copy is from an older version and has no projects or pipeline. Nothing was replaced.');
+    }
     // The offer was made because this device had no changes. If it changed since, do not replace it.
     if (decision.kind === 'download-offer' && (await fingerprint(S.getState())) !== ctx.fp) {
       throw err('LOCAL_CHANGED', 'This device changed after the Drive copy was checked. Nothing was replaced. Run sync again.');

@@ -243,15 +243,15 @@
     var s = st();
     var body;
     try {
-      body = view.name === 'domain' ? (view.domain === 'money' ? moneyScreen(s) : view.domain === 'assets' ? assetsScreen(s) : domainScreen(s))
+      body = view.name === 'domain' ? (view.domain === 'money' ? moneyScreen(s) : view.domain === 'assets' ? assetsScreen(s) : view.domain === 'work' ? workScreen(s) : domainScreen(s))
         : view.name === 'review' ? reviewScreen(s)
         : view.name === 'memory' ? memoryScreen(s)
         : view.name === 'settings' ? settingsScreen(s)
         : dashScreen(s);
     } catch (e) { body = h('p', { text: friendly(e) }); }
-    var cur = view.name === 'domain' ? (view.domain === 'money' || view.domain === 'assets' ? view.domain : 'dashboard') : view.name;
-    var nav = h('nav', { class: 'nav', 'aria-label': 'Main' }, [['dashboard', 'Home'], ['money', 'Money'], ['assets', 'Assets'], ['review', 'Review'], ['memory', 'Memory'], ['settings', 'Settings']].map(function (n) {
-      return h('button', { type: 'button', text: n[1], 'aria-current': n[0] === cur ? 'page' : null, onclick: function () { if (n[0] === 'money' || n[0] === 'assets') go('domain', { domain: n[0] }); else go(n[0]); } });
+    var cur = view.name === 'domain' ? (view.domain === 'money' || view.domain === 'assets' || view.domain === 'work' ? view.domain : 'dashboard') : view.name;
+    var nav = h('nav', { class: 'nav', 'aria-label': 'Main' }, [['dashboard', 'Home'], ['money', 'Money'], ['assets', 'Assets'], ['work', 'Work'], ['review', 'Review'], ['memory', 'Memory'], ['settings', 'Settings']].map(function (n) {
+      return h('button', { type: 'button', text: n[1], 'aria-current': n[0] === cur ? 'page' : null, onclick: function () { if (n[0] === 'money' || n[0] === 'assets' || n[0] === 'work') go('domain', { domain: n[0] }); else go(n[0]); } });
     }));
     root.appendChild(h('div', { class: 'app' },
       h('header', { class: 'top' }, h('span', { class: 'brand', text: 'LifeOS' }), btn('Lock', function () { lockNow(); }, 'sm lockbtn')),
@@ -962,6 +962,7 @@
         }, 'pri sm', { id: 'rules-run', disabled: haveRules })),
       aiPanel(1, period, 'Suggest with AI'),
       mine.length ? mine.map(function (i) { return insightCard(i, true); }) : h('p', { class: 'mut', text: 'No insights yet this week.' }),
+      carryCard(s, wk, render),
       h('h2', { text: '3. Your three priorities' }),
       h('form', {
         class: 'card',
@@ -979,6 +980,204 @@
         }
       }, pri.map(function (p, n) { return field('Priority ' + (n + 1), p); }),
         h('button', { type: 'submit', class: 'btn pri', id: 'finish-review', text: 'Finish review' })));
+  }
+
+  // ---------- work (v0.4.0) ----------
+  var STAGE_LABEL = { lead: 'Lead', contacted: 'Contacted', applied: 'Applied', interview: 'Interview', offer: 'Offer', won: 'Won', lost: 'Lost' };
+  var PKIND = [['job', 'Job'], ['venture', 'Venture'], ['client', 'Client'], ['personal', 'Personal']];
+  var PLKIND = [['job', 'Job'], ['deal', 'Deal'], ['partner', 'Partner']];
+  function projName(s, id) {
+    var p = (s.projects || []).filter(function (x) { return x.id === id; })[0];
+    return p ? p.name : '';
+  }
+  function carryCard(s, wk, afterRender) {
+    var cands = L.metrics.carryOverCandidates(s, wk);
+    if (!cands.length) return null;
+    var boxes = cands.map(function (c) {
+      var cb = h('input', { type: 'checkbox', 'data-carry': c.id });
+      return h('label', { class: 'field check' }, cb, h('span', { text: c.title + (c.projectId && projName(s, c.projectId) ? ' (' + projName(s, c.projectId) + ')' : '') + ' | from ' + c.date }));
+    });
+    return h('div', { class: 'card', id: 'carry-card' },
+      h('h2', { text: 'Unfinished from earlier weeks (' + cands.length + ')' }),
+      h('p', { class: 'mut small', text: 'Nothing is carried over until you choose it.' }),
+      boxes,
+      btn('Carry over selected', function () {
+        act(function () {
+          var ids = [];
+          boxes.forEach(function (b) { var i = b.querySelector('input'); if (i.checked) ids.push(i.getAttribute('data-carry')); });
+          if (!ids.length) throw new Error('Tick at least one outcome to carry over.');
+          return commit(function (x) { L.metrics.carryOver(x, ids, wk); }, 'outcomes carried over').then(function () { setNotice('ok', 'Carried over ' + ids.length + (ids.length === 1 ? ' outcome.' : ' outcomes.')); afterRender(); });
+        });
+      }, 'sm pri', { id: 'carry-go' }));
+  }
+  function trendChart(rows) {
+    var W = 320, H = 110, B = 18, max = Math.max.apply(null, rows.map(function (r) { return r.value; }).concat([1]));
+    var bw = W / rows.length;
+    var g = [h('line', { class: 'axis', x1: '0', y1: String(H - B), x2: String(W), y2: String(H - B) })];
+    rows.forEach(function (r, i) {
+      var ht = Math.round((r.value / max) * (H - B - 14));
+      g.push(h('rect', { class: 'k0', x: String(i * bw + 6), y: String(H - B - ht), width: String(bw - 12), height: String(ht) }));
+      g.push(h('text', { class: 'tick', x: String(i * bw + bw / 2), y: String(H - B - ht - 3), 'text-anchor': 'middle' }, String(r.value)));
+      g.push(h('text', { class: 'tick', x: String(i * bw + bw / 2), y: String(H - 4), 'text-anchor': 'middle' }, r.label.slice(5)));
+    });
+    return h('svg', { class: 'chart', id: 'work-trend', viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': 'Outcomes completed per week, last 8 weeks' }, g);
+  }
+  function workScreen(s) {
+    var t = today(), wk = L.metrics.weekStart(t), sum = L.metrics.workSummary(s, t);
+    var projects = s.projects || [], pipeline = s.pipeline || [];
+    var live = projects.filter(function (p) { return !p.archived; });
+    var stats = h('div', { class: 'stats' },
+      stat('Outcomes done', sum.done + ' of ' + sum.total, 'wk-done'),
+      stat('Overdue next actions', String(sum.overdue), 'wk-overdue', sum.overdue ? 'bad-t' : ''),
+      stat('Open in pipeline', String(sum.openPipeline), 'wk-open'),
+      stat('Stale (14 days)', String(sum.stale), 'wk-stale', sum.stale ? 'bad-t' : ''));
+
+    // outcomes
+    var oTitle = h('input', { type: 'text', id: 'oc-title', maxlength: '200', autocomplete: 'off' });
+    var oProj = sel('oc-proj', [{ v: '', t: '(no project)' }].concat(live.map(function (p) { return { v: p.id, t: p.name }; })), '');
+    var oForm = h('form', {
+      onsubmit: function (e) {
+        e.preventDefault();
+        act(function () {
+          var p = { domain: 'work', type: 'outcome', date: t, title: oTitle.value.trim(), status: 'todo' };
+          if (oProj.value) p.projectId = oProj.value;
+          return addEntry(p).then(function () { setNotice('ok', 'Outcome added.'); render(); });
+        });
+      }
+    }, field('Outcome for this week', oTitle), field('Project (optional)', oProj),
+      h('button', { type: 'submit', class: 'btn pri', id: 'oc-add', text: 'Add outcome' }));
+    var wkList = L.metrics.weekOutcomes(s, wk);
+    var oList = wkList.map(function (en) {
+      var done = en.status === 'done', pn = en.projectId ? projName(s, en.projectId) : '';
+      return h('div', { class: 'item outcome', 'data-outcome': en.title, 'data-status': en.status },
+        h('div', null, h('div', { class: 'entry-t' + (done ? ' done-t' : ''), text: en.title }),
+          pn ? h('div', { class: 'mut small' }, h('span', { class: 'chip', text: pn })) : null),
+        btn(done ? 'Reopen' : 'Mark done', function () {
+          act(function () {
+            return commit(function (x) { x.entries.forEach(function (z) { if (z.id === en.id) z.status = done ? 'todo' : 'done'; }); }, 'outcome ' + (done ? 'reopen' : 'done')).then(function () { render(); });
+          });
+        }, 'sm' + (done ? '' : ' pri'), { 'aria-label': (done ? 'Reopen ' : 'Mark done ') + en.title }));
+    });
+    var oCard = h('div', { class: 'card', id: 'outcomes' }, h('h2', { text: 'This week\'s outcomes' }),
+      h('p', { class: 'mut small', text: 'Pick the three that matter most.' }),
+      oList.length ? oList : h('p', { class: 'mut', text: 'No outcomes yet this week.' }), oForm);
+
+    // projects
+    var pName = h('input', { type: 'text', id: 'pj-name', maxlength: '200', autocomplete: 'off' });
+    var pKind = sel('pj-kind', PKIND.map(function (k) { return { v: k[0], t: k[1] }; }), 'job');
+    var pNext = h('input', { type: 'text', id: 'pj-next', maxlength: '200', autocomplete: 'off' });
+    var pDate = h('input', { type: 'date', id: 'pj-date' });
+    var pForm = h('form', {
+      onsubmit: function (e) {
+        e.preventDefault();
+        act(function () {
+          var name = pName.value.trim();
+          if (!name) throw new Error('Enter a project name.');
+          if (projects.length >= 200) throw new Error('You have reached the 200 project limit. Archive or delete some.');
+          var p = { id: L.store.newId(), name: name, kind: pKind.value, status: 'active', nextAction: pNext.value.trim(), archived: false };
+          if (pDate.value) p.nextDate = pDate.value;
+          return commit(function (x) { x.projects.push(p); }, 'project add').then(function () { setNotice('ok', 'Project added.'); render(); });
+        });
+      }
+    }, field('Project name', pName), field('Kind', pKind), field('Next action', pNext), field('Next action date (optional)', pDate),
+      h('button', { type: 'submit', class: 'btn pri', id: 'pj-add', text: 'Add project' }));
+    function setProj(p, fn, action) {
+      act(function () { return commit(function (x) { x.projects.forEach(function (z) { if (z.id === p.id) fn(z); }); }, action).then(function () { render(); }); });
+    }
+    var shownP = live.slice().sort(function (a, b) { return (a.status === 'done') - (b.status === 'done') || a.name.localeCompare(b.name); });
+    var pList = shownP.map(function (p) {
+      var od = p.status === 'active' && p.nextDate && p.nextDate < t;
+      return h('div', { class: 'item proj', 'data-project': p.name },
+        h('div', null, h('div', { class: 'entry-t', text: p.name }),
+          h('div', { class: 'mut small' }, h('span', { class: 'chip', text: p.kind }), h('span', { class: 'chip', text: p.status }),
+            od ? h('span', { class: 'chip bad', text: 'Overdue' }) : null),
+          h('div', { class: 'small', text: p.nextAction ? 'Next: ' + p.nextAction + (p.nextDate ? ' (' + p.nextDate + ')' : '') : (p.nextDate ? 'Next date ' + p.nextDate : 'No next action set') })),
+        h('div', { class: 'row' },
+          btn('Update next', function () {
+            var a = h('input', { type: 'text', id: 'ed-next', maxlength: '200', value: p.nextAction || '' });
+            var d = h('input', { type: 'date', id: 'ed-date', value: p.nextDate || '' });
+            openDialog({
+              title: 'Next action', yes: 'Save', body: h('div', null, field('Next action', a), field('Date (optional)', d)),
+              onYes: function () {
+                return commit(function (x) { x.projects.forEach(function (z) { if (z.id === p.id) { z.nextAction = a.value.trim(); if (d.value) z.nextDate = d.value; else delete z.nextDate; } }); }, 'project next').then(function () { render(); });
+              }
+            });
+          }, 'sm', { 'aria-label': 'Update next action for ' + p.name }),
+          p.status === 'active' ? btn('Pause', function () { setProj(p, function (z) { z.status = 'paused'; }, 'project pause'); }, 'sm', { 'aria-label': 'Pause ' + p.name }) : btn('Resume', function () { setProj(p, function (z) { z.status = 'active'; }, 'project resume'); }, 'sm', { 'aria-label': 'Resume ' + p.name }),
+          p.status !== 'done' ? btn('Done', function () { setProj(p, function (z) { z.status = 'done'; }, 'project done'); }, 'sm', { 'aria-label': 'Finish ' + p.name }) : null,
+          btn('Archive', function () { setProj(p, function (z) { z.archived = true; }, 'project archive'); }, 'sm', { 'aria-label': 'Archive ' + p.name })));
+    });
+    var pCard = h('div', { class: 'card', id: 'projects' }, h('h2', { text: 'Projects (' + live.length + ')' }),
+      pList.length ? pList : h('p', { class: 'mut', text: 'No projects yet.' }),
+      details('pj-new', 'Add a project', pForm, !pList.length));
+
+    // pipeline
+    var lTitle = h('input', { type: 'text', id: 'pl-title', maxlength: '200', autocomplete: 'off' });
+    var lOrg = h('input', { type: 'text', id: 'pl-org', maxlength: '200', autocomplete: 'off' });
+    var lKind = sel('pl-kind', PLKIND.map(function (k) { return { v: k[0], t: k[1] }; }), 'job');
+    var lStage = sel('pl-stage', L.metrics.STAGES.map(function (k) { return { v: k, t: STAGE_LABEL[k] }; }), 'lead');
+    var lSource = h('input', { type: 'text', id: 'pl-source', maxlength: '200', autocomplete: 'off' });
+    var lNext = h('input', { type: 'text', id: 'pl-next', maxlength: '200', autocomplete: 'off' });
+    var lDate = h('input', { type: 'date', id: 'pl-date' });
+    var lNotes = h('textarea', { id: 'pl-notes', maxlength: '2000' });
+    var lForm = h('form', {
+      onsubmit: function (e) {
+        e.preventDefault();
+        act(function () {
+          var title = lTitle.value.trim();
+          if (!title) throw new Error('Enter a title.');
+          if (pipeline.length >= 1000) throw new Error('You have reached the 1000 item limit. Delete some.');
+          var it = { id: L.store.newId(), title: title, org: lOrg.value.trim(), kind: lKind.value, stage: lStage.value, source: lSource.value.trim(), nextStep: lNext.value.trim(), updatedAt: t, notes: lNotes.value.trim() };
+          if (lDate.value) it.nextDate = lDate.value;
+          return commit(function (x) { x.pipeline.push(it); }, 'pipeline add').then(function () { setNotice('ok', 'Pipeline item added.'); render(); });
+        });
+      }
+    }, field('Title (role, deal or partner)', lTitle), field('Organisation', lOrg), field('Kind', lKind), field('Stage', lStage),
+      field('Source', lSource), field('Next step', lNext), field('Next step date (optional)', lDate), field('Notes (optional)', lNotes),
+      h('button', { type: 'submit', class: 'btn pri', id: 'pl-add', text: 'Add to pipeline' }));
+    function setItem(it, fn, action) {
+      act(function () { return commit(function (x) { x.pipeline.forEach(function (z) { if (z.id === it.id) { fn(z); z.updatedAt = t; } }); }, action).then(function () { render(); }); });
+    }
+    var counts = L.metrics.pipelineCounts(s);
+    var strip = h('div', { class: 'stagecounts' }, L.metrics.STAGES.map(function (k) {
+      return h('span', { class: 'chip', 'data-count': k, text: STAGE_LABEL[k] + ' ' + counts[k] });
+    }));
+    var order = L.metrics.STAGES;
+    var board = h('div', { class: 'board', id: 'board' }, order.filter(function (k) { return counts[k] > 0; }).map(function (k) {
+      return h('div', { class: 'stage', 'data-stage': k },
+        h('h3', { text: STAGE_LABEL[k] + ' (' + counts[k] + ')' }),
+        pipeline.filter(function (x) { return x.stage === k; }).sort(function (a, b) { return a.updatedAt.localeCompare(b.updatedAt); }).map(function (it) {
+          var stale = L.metrics.isStale(it, t), idx = order.indexOf(it.stage), nxt = idx < 4 ? order[idx + 1] : (idx === 4 ? 'won' : null);
+          return h('div', { class: 'pitem', 'data-item': it.title, 'data-stage': it.stage },
+            h('div', { class: 'entry-t', text: it.title }),
+            h('div', { class: 'mut small' }, (it.org ? it.org + ' | ' : '') + it.kind + (it.source ? ' | ' + it.source : '')),
+            it.nextStep ? h('div', { class: 'small', text: 'Next: ' + it.nextStep + (it.nextDate ? ' (' + it.nextDate + ')' : '') }) : null,
+            h('div', { class: 'small' }, stale ? h('span', { class: 'chip bad', text: 'Stale' }) : null, h('span', { class: 'mut', text: 'Updated ' + it.updatedAt })),
+            h('div', { class: 'row' },
+              nxt ? btn('To ' + STAGE_LABEL[nxt], function () { setItem(it, function (z) { z.stage = nxt; }, 'pipeline stage'); }, 'sm pri', { 'aria-label': 'Move ' + it.title + ' to ' + STAGE_LABEL[nxt] }) : null,
+              sel(null, order.map(function (k) { return { v: k, t: STAGE_LABEL[k] }; }), it.stage, function (e) {
+                var v = e.target.value; if (v !== it.stage) setItem(it, function (z) { z.stage = v; }, 'pipeline stage');
+              }),
+              stale ? btn('Touched today', function () { setItem(it, function () {}, 'pipeline touch'); }, 'sm', { 'aria-label': 'Mark ' + it.title + ' updated today' }) : null,
+              btn('Delete', function () {
+                openDialog({ title: 'Delete this item?', yes: 'Delete', danger: true, body: h('p', { class: 'mut', text: it.title }),
+                  onYes: function () { return commit(function (x) { x.pipeline = x.pipeline.filter(function (z) { return z.id !== it.id; }); }, 'pipeline delete').then(function () { render(); }); } });
+              }, 'sm bad', { 'aria-label': 'Delete ' + it.title })));
+        }));
+    }));
+    var lCard = h('div', { class: 'card', id: 'pipeline' }, h('h2', { text: 'Pipeline (' + pipeline.length + ')' }), strip,
+      pipeline.length ? board : h('p', { class: 'mut', text: 'Nothing in the pipeline yet.' }),
+      details('pl-new', 'Add to pipeline', lForm, !pipeline.length));
+
+    var trend = h('div', { class: 'card' }, h('h2', { text: 'Outcomes completed, last 8 weeks' }), trendChart(L.metrics.series(s, 'work', 8, t)));
+    var cc = carryCard(s, wk, render);
+    return h('div', null, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Work' }), stats,
+      oCard, cc, pCard, lCard, trend,
+      details('work-data', 'Entries and CSV', [
+        h('div', { class: 'row' },
+          btn('Export pipeline CSV', function () { download('lifeos-pipeline.csv', L.csv.exportPipeline(pipeline), 'text/csv'); }, 'sm', { id: 'exp-pipeline' }),
+          btn('Export projects CSV', function () { download('lifeos-projects.csv', L.csv.exportProjects(projects), 'text/csv'); }, 'sm', { id: 'exp-projects' })),
+        domainScreen(s, { embed: true, noForm: true })]));
   }
 
   // ---------- memory ----------
@@ -1116,21 +1315,26 @@
               var ins = state.memory.insights, pv2 = state.settings.provider;
               var nAppr = ins.filter(function (i) { return i.status === 'approved'; }).length;
               var rr = h('input', { type: 'checkbox', id: 'bk-rereview', checked: true });
+              var cur = st(), older = L.store.dropsWork(cur, state);
+              var ack = older ? h('input', { type: 'checkbox', id: 'bk-workloss' }) : null;
               openDialog({
                 title: 'Replace all data with this backup?', yes: 'Replace', danger: true,
                 body: [
                   h('ul', { class: 'small', id: 'bk-summary' },
                     h('li', { text: 'Entries: ' + state.entries.length }),
                     h('li', { text: 'Accounts: ' + (state.accounts || []).length }),
+                    h('li', { text: 'Projects: ' + (state.projects || []).length + ', pipeline items: ' + (state.pipeline || []).length }),
                     h('li', { text: 'Approved insights: ' + nAppr }),
                     h('li', { text: 'Lessons: ' + state.memory.lessons.length }),
                     h('li', { text: 'Provider settings: ' + (pv2.kind === 'none' ? 'none' : 'included (' + pv2.kind + ')') }),
                     h('li', { text: 'API key: ' + (pv2.apiKey ? 'included' : 'not included') })),
                   h('label', { class: 'row small' }, rr, h('span', { text: 'Re-review insights (restore every approved insight as proposed)' })),
+                  older ? h('p', { class: 'small', id: 'bk-older', text: 'This backup is from an older LifeOS version. Restoring it removes your ' + cur.projects.length + ' projects and ' + cur.pipeline.length + ' pipeline items.' }) : null,
+                  older ? h('label', { class: 'row small' }, ack, h('span', { text: 'I understand. Remove my projects and pipeline.' })) : null,
                   h('p', { class: 'mut', text: 'This replaces everything in this vault with the backup. It cannot be undone.' })],
                 onYes: function () {
                   var next = rr.checked ? L.memory.demoteApproved(state) : state;
-                  return L.store.replaceState(next).then(function () { return commit(null, 'import'); }).then(function () { setNotice('ok', 'Backup restored.'); render(); });
+                  return L.store.replaceState(next, { allowWorkLoss: !!(ack && ack.checked) }).then(function () { return commit(null, 'import'); }).then(function () { setNotice('ok', 'Backup restored.'); render(); });
                 }
               });
             });
@@ -1139,7 +1343,7 @@
       }, field('Restore from a backup file (64 MB max)', bf), field('Backup passphrase', ip),
         h('button', { type: 'submit', class: 'btn', text: 'Import backup' }))));
 
-    out.push(h('p', { class: 'mut small', id: 'app-version', text: 'LifeOS v0.3.0' }));
+    out.push(h('p', { class: 'mut small', id: 'app-version', text: 'LifeOS v0.4.0' }));
 
     if (L.syncUI) out.push(L.syncUI.section(syncCtx()));
 
