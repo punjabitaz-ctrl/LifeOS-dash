@@ -86,13 +86,23 @@ try {
     await page.waitForSelector('.chip.ok');
   });
   const bodyText = () => page.evaluate(() => document.body.innerText);
+  // Everything the page renders or holds in the DOM: text nodes and attribute values of every element in the whole
+  // document (head included), except the source text of <script>/<style>, which is the app's own code and
+  // legitimately contains strings such as default category names. Form control values are checked separately.
+  const domSecrets = (secrets) => page.evaluate((secrets) => {
+    const skip = (n) => { for (let p = n.parentNode; p; p = p.parentNode) if (p.nodeName === 'SCRIPT' || p.nodeName === 'STYLE') return true; return false; };
+    const parts = [];
+    const w = document.createTreeWalker(document.documentElement, NodeFilter.SHOW_TEXT);
+    for (let n = w.nextNode(); n; n = w.nextNode()) if (!skip(n)) parts.push(n.nodeValue);
+    for (const el of document.querySelectorAll('*')) for (const a of el.attributes) parts.push(a.value);
+    parts.push(document.title);
+    const t = parts.join('\n');
+    const vals = [...document.querySelectorAll('input,textarea,select')].map((x) => x.value).filter(Boolean);
+    return { hit: secrets.filter((x) => t.includes(x)), vals, tiles: document.querySelectorAll('.tile,.entry,.dialog,.overlay').length, extra: document.body.children.length };
+  }, secrets);
   const assertLockedClean = async (secrets) => {
     await page.waitForSelector('#pass');
-    const leak = await page.evaluate((secrets) => {
-      const t = document.body.textContent;
-      const vals = [...document.querySelectorAll('input,textarea,select')].map((x) => x.value).filter(Boolean);
-      return { hit: secrets.filter((x) => t.includes(x)), vals, tiles: document.querySelectorAll('.tile,.entry,.dialog,.overlay').length, extra: document.body.children.length };
-    }, secrets);
+    const leak = await domSecrets(secrets);
     if (leak.hit.length || leak.vals.length || leak.tiles) throw new Error('DOM not cleared on lock: ' + JSON.stringify(leak));
   };
   await step('csv-import', async () => {
@@ -118,7 +128,7 @@ try {
   await step('backup-export', async () => {
     await page.click('.nav button:has-text("Settings")');
     await layout('settings');
-    if (!/v0\.2\.0/.test(await page.textContent('#app-version'))) throw new Error('version missing');
+    if (!/v0\.3\.0/.test(await page.textContent('#app-version'))) throw new Error('version missing');
     await page.selectOption('#p-kind', 'local');
     await page.fill('#p-base', 'http://localhost:11434/v1');
     if (!/sent to: http:\/\/localhost:11434\/v1\/chat\/completions/.test(await page.textContent('#p-url'))) throw new Error('url preview wrong');
@@ -171,6 +181,14 @@ try {
     await layout('social csv');
   });
   await step('lock-clears-dom', async () => {
+    // Positive control: the same scan must see the data while unlocked, so a clean result after lock means something.
+    await page.click('.nav button:has-text("Home")');
+    await page.click('.tile[data-domain="money"]');
+    await page.waitForSelector('.entry:has-text("Groceries")');
+    const before = await domSecrets(['Groceries']);
+    if (!before.hit.length || !before.tiles) throw new Error('scan cannot see unlocked data: ' + JSON.stringify(before));
+    // And the app code itself carries the default category, so excluding <script> is what the check must do.
+    if (!(await page.evaluate(() => [...document.scripts].some((x) => x.text.includes('Groceries'))))) throw new Error('expected Groceries in the app script');
     await page.click('.top button:has-text("Lock")');
     await assertLockedClean(['Groceries', 'Rent', 'HYPERLINK', 'One', 'Two']);
   });

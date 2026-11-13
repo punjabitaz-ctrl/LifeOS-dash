@@ -4,6 +4,7 @@ import '../src/core/csv.js';
 import '../src/core/metrics.js';
 import '../src/core/memory.js';
 import '../src/core/ai.js';
+import '../src/core/sync.js';
 export const L = globalThis.LifeOS;
 export function memAdapter() {
   const m = new Map();

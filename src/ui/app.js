@@ -3,7 +3,7 @@
   var L = globalThis.LifeOS;
   var MAX_FILE = 5 * 1024 * 1024;
   var SVGNS = 'http://www.w3.org/2000/svg';
-  var SVGTAGS = { svg: 1, polyline: 1, circle: 1, line: 1, path: 1 };
+  var SVGTAGS = { svg: 1, polyline: 1, circle: 1, line: 1, path: 1, rect: 1, text: 1, g: 1 };
   var PROPS = { checked: 1, disabled: 1, readOnly: 1, selected: 1 };
   var STATUS = {
     'work:outcome': ['todo', 'done'],
@@ -213,6 +213,8 @@
   function lockNow() {
     if (locking) return locking;
     clearTimeout(idleTimer);
+    // The Google token lives only in memory and must not outlive the unlocked session.
+    if (L.sync) L.sync.disconnect();
     // Record the lock in the audit log, but never let a slow or stuck write delay the lock itself.
     var p = L.store.isUnlocked() ? Promise.race([commit(null, 'lock').catch(function () {}), new Promise(function (r) { setTimeout(r, 1000); })]) : Promise.resolve();
     locking = p.then(function () {
@@ -241,15 +243,15 @@
     var s = st();
     var body;
     try {
-      body = view.name === 'domain' ? domainScreen(s)
+      body = view.name === 'domain' ? (view.domain === 'money' ? moneyScreen(s) : view.domain === 'assets' ? assetsScreen(s) : domainScreen(s))
         : view.name === 'review' ? reviewScreen(s)
         : view.name === 'memory' ? memoryScreen(s)
         : view.name === 'settings' ? settingsScreen(s)
         : dashScreen(s);
     } catch (e) { body = h('p', { text: friendly(e) }); }
-    var cur = view.name === 'domain' ? 'dashboard' : view.name;
-    var nav = h('nav', { class: 'nav', 'aria-label': 'Main' }, [['dashboard', 'Home'], ['review', 'Review'], ['memory', 'Memory'], ['settings', 'Settings']].map(function (n) {
-      return h('button', { type: 'button', text: n[1], 'aria-current': n[0] === cur ? 'page' : null, onclick: function () { go(n[0]); } });
+    var cur = view.name === 'domain' ? (view.domain === 'money' || view.domain === 'assets' ? view.domain : 'dashboard') : view.name;
+    var nav = h('nav', { class: 'nav', 'aria-label': 'Main' }, [['dashboard', 'Home'], ['money', 'Money'], ['assets', 'Assets'], ['review', 'Review'], ['memory', 'Memory'], ['settings', 'Settings']].map(function (n) {
+      return h('button', { type: 'button', text: n[1], 'aria-current': n[0] === cur ? 'page' : null, onclick: function () { if (n[0] === 'money' || n[0] === 'assets') go('domain', { domain: n[0] }); else go(n[0]); } });
     }));
     root.appendChild(h('div', { class: 'app' },
       h('header', { class: 'top' }, h('span', { class: 'brand', text: 'LifeOS' }), btn('Lock', function () { lockNow(); }, 'sm lockbtn')),
@@ -286,11 +288,15 @@
       h('p', { class: 'mut', text: create ? 'Your private life dashboard. Everything stays on this device, encrypted.' : 'Unlock your vault.' }),
       noticeEl, form);
   }
+  function syncCtx() {
+    return { h: h, field: field, btn: btn, openDialog: openDialog, commit: commit, download: download, setNotice: setNotice, render: render };
+  }
   function afterUnlock() {
     notice = null; csvPending = null; ai = null;
     resetIdle();
     view = { name: 'dashboard' };
     render();
+    if (L.syncUI) L.syncUI.afterUnlock(syncCtx());
   }
 
   // ---------- dashboard ----------
@@ -330,14 +336,18 @@
       if (rv.weekOf !== wk) pr.appendChild(h('p', { class: 'mut small', text: 'From the week of ' + rv.weekOf + '.' }));
     } else pr.appendChild(h('p', { class: 'mut', text: 'No priorities yet. Run your weekly review to set three.' }));
     if (!rv || rv.weekOf !== wk) pr.appendChild(btn('Start weekly review', function () { go('review'); }, 'pri'));
-    return h('div', null, h('h1', { text: 'Dashboard' }), pr, h('div', { class: 'grid' }, tiles));
+    var due = L.metrics.dueRecurring(s, t).length;
+    return h('div', null, h('div', { class: 'row sp' }, h('h1', { text: 'Dashboard' }), btn('Quick add', quickAdd, 'pri qa-btn', { id: 'quick-add' })),
+      due ? h('div', { class: 'warn' }, due + (due === 1 ? ' recurring item is' : ' recurring items are') + ' due. ', btn('Review', function () { go('domain', { domain: 'money' }); }, 'sm', { id: 'due-review' })) : null,
+      pr, h('div', { class: 'grid' }, tiles));
   }
 
   // ---------- domain ----------
   function fieldNames(t) {
     return (t.fields || []).map(function (f) { return typeof f === 'string' ? f : (f.id || f.name || f.key); });
   }
-  function domainScreen(s) {
+  function domainScreen(s, opts) {
+    opts = opts || {};
     var d = L.DOMAINS.find(function (x) { return x.id === view.domain; });
     if (!d) return h('p', { text: 'Unknown area.' });
     var tid = view.type && d.types.some(function (t) { return t.id === view.type; }) ? view.type : d.types[0].id;
@@ -353,6 +363,10 @@
       if (d.id === 'wellbeing') refs.value = sel('f-value', [1, 2, 3, 4, 5].map(function (n) { return { v: String(n), t: String(n) }; }), '3');
       else refs.value = h('input', { type: 'number', id: 'f-value', step: 'any', inputmode: 'decimal' });
       fs.push(field('Value', refs.value));
+    }
+    if (d.id === 'money') {
+      refs.category = h('select', { id: 'f-cat' }, [h('option', { value: '', text: '(none)' })].concat(catList(s, tid).map(function (c) { return h('option', { value: c, text: c }); })));
+      fs.push(field('Category (optional)', refs.category));
     }
     if (STATUS[skey] || names.indexOf('status') >= 0) {
       var so = STATUS[skey] || ['open', 'done'];
@@ -370,6 +384,7 @@
           var p = { domain: d.id, type: type.id, date: refs.date.value, title: refs.title.value.trim() };
           if (refs.value && refs.value.value !== '') p.value = Number(refs.value.value);
           if (refs.status) p.status = refs.status.value;
+          if (refs.category && refs.category.value) p.category = refs.category.value;
           if (refs.person && refs.person.value.trim()) p.person = refs.person.value.trim();
           if (refs.due && refs.due.value) p.due = refs.due.value;
           if (refs.notes.value.trim()) p.notes = refs.notes.value.trim();
@@ -389,6 +404,7 @@
     var rows = list.slice(0, shown).map(function (en) {
       var meta = [tl[en.type] || en.type];
       if (en.value !== undefined) meta.push(String(en.value));
+      if (en.category) meta.push(en.category);
       if (en.status) meta.push(en.status);
       if (en.person) meta.push(en.person);
       if (en.due) meta.push('due ' + en.due);
@@ -405,9 +421,9 @@
         }, 'sm bad', { 'aria-label': 'Delete ' + en.title }));
     });
     var out = h('div', null,
-      btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'),
-      h('h1', { text: d.label }),
-      h('div', { class: 'card' }, h('h2', { text: 'Add entry' }), form),
+      opts.embed ? null : btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'),
+      opts.embed ? null : h('h1', { text: d.label }),
+      opts.noForm ? null : h('div', { class: 'card' }, h('h2', { text: 'Add entry' }), form),
       h('h2', { text: 'Entries (' + list.length + ')' }),
       h('div', { class: 'card' }, rows.length ? rows : h('p', { class: 'mut', text: 'Nothing here yet.' })),
       list.length > shown ? btn('Show more', function () { view.shown = shown + 50; render(); }) : null,
@@ -480,6 +496,362 @@
       }, 'CSV exported.');
     })));
     return card;
+  }
+
+  // ---------- money and assets ----------
+  var KIND_LABEL = { cash: 'Cash', investment: 'Investment', retirement: 'Retirement', property: 'Property', vehicle: 'Vehicle', other: 'Other', credit: 'Credit card', loan: 'Loan', mortgage: 'Mortgage' };
+  function moneyFmt(c, cur) {
+    try { return new Intl.NumberFormat('en-US', { style: 'currency', currency: cur || 'USD' }).format(c / 100); }
+    catch (e) { return (c / 100).toFixed(2); }
+  }
+  function pctFmt(r) { return r === null ? 'n/a' : (Math.round(r * 1000) / 10) + '%'; }
+  function parseAmount(v, o) {
+    o = o || {};
+    var t = String(v == null ? '' : v).trim().replace(/^\$/, '');
+    if (!(o.neg ? /^-?\d{1,10}(\.\d{1,2})?$/ : /^\d{1,10}(\.\d{1,2})?$/).test(t)) throw new Error('Enter an amount like 12.50.');
+    var n = Number(t);
+    if (!o.zero && n <= 0) throw new Error('The amount must be more than zero.');
+    return n;
+  }
+  function monthLabel(m) {
+    var names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return names[Number(m.slice(5, 7)) - 1] + ' ' + m.slice(0, 4);
+  }
+  function catList(s, type) { return (s.categories && s.categories[type]) || L.metrics.DEFAULT_CATEGORIES[type]; }
+  function stat(label, text, id, cls) {
+    return h('div', { class: 'stat' }, h('span', { class: 'lbl', text: label }), h('span', { class: 'stat-v' + (cls ? ' ' + cls : ''), id: id, text: text }));
+  }
+  function addEntry(p) {
+    var en = L.metrics.validateEntry(p);
+    en.id = en.id || L.store.newId();
+    en.createdAt = en.createdAt || new Date().toISOString();
+    return commit(function (x) { x.entries.push(en); }, 'entry add');
+  }
+
+  // Quick add: amount, category chips, date, on a single screen opened from the dashboard.
+  function quickAdd() {
+    var s = st(), type = 'expense', cat = '';
+    var amount = h('input', { type: 'text', id: 'qa-amount', inputmode: 'decimal', autocomplete: 'off', placeholder: '0.00', maxlength: '14', 'aria-label': 'Amount' });
+    var dateIn = h('input', { type: 'date', id: 'qa-date', value: today(), required: true, 'aria-label': 'Date' });
+    var note = h('input', { type: 'text', id: 'qa-note', maxlength: '200', autocomplete: 'off', 'aria-label': 'Note (optional)' });
+    var chips = h('div', { class: 'chips', id: 'qa-chips', role: 'group', 'aria-label': 'Category' });
+    var tEx = btn('Expense', function () { setType('expense'); }, 'seg', { id: 'qa-expense' });
+    var tIn = btn('Income', function () { setType('income'); }, 'seg', { id: 'qa-income' });
+    function paint() {
+      tEx.setAttribute('aria-pressed', type === 'expense' ? 'true' : 'false');
+      tIn.setAttribute('aria-pressed', type === 'income' ? 'true' : 'false');
+      chips.replaceChildren.apply(chips, catList(s, type).map(function (c) {
+        return h('button', { type: 'button', class: 'chipbtn', 'aria-pressed': c === cat ? 'true' : 'false', text: c, onclick: function () { cat = cat === c ? '' : c; paint(); } });
+      }));
+    }
+    function setType(t) { type = t; cat = ''; paint(); }
+    paint();
+    openDialog({
+      title: 'Quick add', yes: 'Save',
+      body: [h('div', { class: 'row' }, tEx, tIn), field('Amount', amount), h('span', { class: 'lbl', text: 'Category' }), chips, field('Date', dateIn), field('Note (optional)', note)],
+      onYes: function () {
+        var v = parseAmount(amount.value);
+        var title = note.value.trim() || cat || (type === 'income' ? 'Income' : 'Expense');
+        var p = { domain: 'money', type: type, date: dateIn.value, title: title, value: v };
+        if (cat) p.category = cat;
+        return addEntry(p).then(function () { setNotice('ok', (type === 'income' ? 'Income' : 'Expense') + ' saved.'); render(); });
+      }
+    });
+  }
+
+  function svgBar(pct, cls) {
+    return h('svg', { class: 'bar', viewBox: '0 0 100 6', preserveAspectRatio: 'none', 'aria-hidden': 'true', focusable: 'false' },
+      h('rect', { class: 'bar-bg', x: '0', y: '0', width: '100', height: '6', rx: '3' }),
+      h('rect', { class: cls, x: '0', y: '0', width: String(Math.max(0, Math.min(100, pct))), height: '6', rx: '3' }));
+  }
+  function cashflowChart(rows, cur) {
+    var W = 360, H = 150, base = 118, top = 12, max = 1;
+    rows.forEach(function (r) { max = Math.max(max, r.incomeCents, r.spendCents); });
+    var step = (W - 20) / rows.length, bw = Math.min(22, step / 2 - 3);
+    var kids = [h('line', { class: 'axis', x1: '8', y1: String(base), x2: String(W - 8), y2: String(base) })];
+    rows.forEach(function (r, i) {
+      var x = 10 + i * step + step / 2 - bw - 1;
+      var hi = Math.round((r.incomeCents / max) * (base - top)), hs = Math.round((r.spendCents / max) * (base - top));
+      kids.push(h('rect', { class: 'bar-in', x: String(x), y: String(base - hi), width: String(bw), height: String(hi) }));
+      kids.push(h('rect', { class: 'bar-out', x: String(x + bw + 2), y: String(base - hs), width: String(bw), height: String(hs) }));
+      kids.push(h('text', { class: 'tick', x: String(x + bw + 1), y: '136', 'text-anchor': 'middle', text: monthLabel(r.month).slice(0, 3) }));
+    });
+    return h('svg', { class: 'chart', viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': 'Income and spending for the last ' + rows.length + ' months' }, kids);
+  }
+  function netWorthChart(hist) {
+    var W = 360, H = 150, L0 = 8, R0 = 8, T0 = 14, B0 = 122;
+    var min = 0, max = 1;
+    hist.forEach(function (p) { min = Math.min(min, p.totalCents, p.assetsCents); max = Math.max(max, p.totalCents, p.assetsCents, p.liabilitiesCents); });
+    var rng = max - min || 1;
+    var X = function (i) { return L0 + (hist.length < 2 ? 0 : (i * (W - L0 - R0)) / (hist.length - 1)); };
+    var Y = function (c) { return T0 + (1 - (c - min) / rng) * (B0 - T0); };
+    var line = function (key, cls) {
+      return h('polyline', { class: cls, points: hist.map(function (p, i) { return X(i).toFixed(1) + ',' + Y(p[key]).toFixed(1); }).join(' ') });
+    };
+    var last = hist[hist.length - 1];
+    return h('svg', { class: 'chart', viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': 'Net worth, assets and liabilities by month' },
+      h('line', { class: 'axis', x1: String(L0), y1: String(Y(0).toFixed(1)), x2: String(W - R0), y2: String(Y(0).toFixed(1)) }),
+      line('assetsCents', 'ln-assets'), line('liabilitiesCents', 'ln-liab'), line('totalCents', 'ln-net'),
+      h('circle', { class: 'dot-net', cx: String(X(hist.length - 1).toFixed(1)), cy: String(Y(last.totalCents).toFixed(1)), r: '3.5' }),
+      h('text', { class: 'tick', x: String(L0), y: '142', 'text-anchor': 'start', text: monthLabel(hist[0].month) }),
+      h('text', { class: 'tick', x: String(W - R0), y: '142', 'text-anchor': 'end', text: monthLabel(last.month) }));
+  }
+  function details(id, title, kids, open) {
+    return h('details', { class: 'card fold', id: id, open: open || null }, h('summary', { text: title }), kids);
+  }
+
+  function dueCard(s, afterRender) {
+    var due = L.metrics.dueRecurring(s, today());
+    if (!due.length) return null;
+    var cur = s.settings.currency;
+    return h('div', { class: 'card due', id: 'due-card' },
+      h('h2', { text: 'Recurring items due (' + due.length + ')' }),
+      h('p', { class: 'mut small', text: 'Nothing is posted until you confirm it.' }),
+      due.map(function (d) {
+        return h('div', { class: 'item' },
+          h('div', null, h('div', { class: 'entry-t', text: d.title }),
+            h('div', { class: 'mut small', text: d.date + ' | ' + (d.type === 'income' ? 'Income ' : 'Expense ') + moneyFmt(L.metrics.cents(d.value), cur) + (d.category ? ' | ' + d.category : '') })),
+          h('div', { class: 'row' },
+            btn('Confirm', function () {
+              act(function () { return commit(function (x) { L.metrics.confirmRecurring(x, d.id, today()); }, 'recurring confirm').then(function () { setNotice('ok', 'Posted ' + d.title + '.'); render(); }); });
+            }, 'pri sm', { 'aria-label': 'Confirm ' + d.title }),
+            btn('Skip', function () {
+              act(function () { return commit(function (x) { L.metrics.skipRecurring(x, d.id, today()); }, 'recurring skip').then(function () { render(); }); });
+            }, 'sm', { 'aria-label': 'Skip ' + d.title })));
+      }));
+  }
+
+  function moneyScreen(s) {
+    var cur = s.settings.currency, t = today();
+    var month = view.month || t.slice(0, 7);
+    var v = L.metrics.monthView(s, month);
+    var target = s.settings.targets.savingsRate;
+    var rows = v.categories.map(function (c) {
+      var pct = c.budgetCents ? (c.spentCents * 100) / c.budgetCents : 0;
+      return h('div', { class: 'catrow' },
+        h('div', { class: 'row sp' }, h('span', { text: c.category }),
+          h('span', { class: c.over ? 'bad-t' : 'mut', text: moneyFmt(c.spentCents, cur) + (c.budgetCents === null ? '' : ' of ' + moneyFmt(c.budgetCents, cur)) })),
+        c.budgetCents ? svgBar(pct, c.over ? 'bar-over' : 'bar-fill') : null,
+        c.over ? h('div', { class: 'small bad-t', text: 'Over budget by ' + moneyFmt(-c.remainingCents, cur) }) : null);
+    });
+    var cf = L.metrics.cashflow(s, 6, t);
+
+    // budgets
+    var bCat = sel('bud-cat', catList(s, 'expense').map(function (c) { return { v: c, t: c }; }), catList(s, 'expense')[0]);
+    var bAmt = h('input', { type: 'text', id: 'bud-amount', inputmode: 'decimal', autocomplete: 'off', maxlength: '14' });
+    var budgets = details('budgets', 'Monthly budgets (' + s.budgets.length + ')', [
+      s.budgets.map(function (b) {
+        return h('div', { class: 'item' }, h('span', { text: b.category + ': ' + moneyFmt(L.metrics.cents(b.value), cur) }),
+          btn('Remove', function () { act(function () { return commit(function (x) { x.budgets = x.budgets.filter(function (z) { return z.category !== b.category; }); }, 'budget remove').then(render); }); }, 'sm', { 'aria-label': 'Remove budget for ' + b.category }));
+      }),
+      h('form', {
+        onsubmit: function (e) {
+          e.preventDefault();
+          act(function () {
+            var val = parseAmount(bAmt.value, { zero: true }), c = bCat.value;
+            return commit(function (x) {
+              x.budgets = x.budgets.filter(function (z) { return z.category !== c; });
+              if (val > 0) x.budgets.push({ category: c, value: val });
+            }, 'budget set').then(function () { view.open = 'budgets'; setNotice('ok', val > 0 ? 'Budget saved.' : 'Budget removed.'); render(); });
+          });
+        }
+      }, field('Category', bCat), field('Monthly budget (0 removes it)', bAmt), h('button', { type: 'submit', class: 'btn pri', text: 'Save budget' })),
+    ], view.open === 'budgets');
+
+    // recurring
+    var rT = h('input', { type: 'text', id: 'rc-title', maxlength: '200', autocomplete: 'off' });
+    var rA = h('input', { type: 'text', id: 'rc-amount', inputmode: 'decimal', autocomplete: 'off', maxlength: '14' });
+    var rType = sel('rc-type', [{ v: 'expense', t: 'Expense' }, { v: 'income', t: 'Income' }], 'expense', function () { fillCats(); });
+    var rCat = h('select', { id: 'rc-cat' });
+    function fillCats() {
+      rCat.replaceChildren.apply(rCat, [h('option', { value: '', text: '(none)' })].concat(catList(s, rType.value).map(function (c) { return h('option', { value: c, text: c }); })));
+    }
+    fillCats();
+    var rCad = sel('rc-cadence', [{ v: 'weekly', t: 'Weekly' }, { v: 'monthly', t: 'Monthly' }, { v: 'yearly', t: 'Yearly' }], 'monthly');
+    var rNext = h('input', { type: 'date', id: 'rc-next', value: t, required: true });
+    var recurring = details('recurring', 'Recurring items (' + s.recurring.length + ')', [
+      h('p', { class: 'mut small', text: 'These only create a proposal on the due date. You confirm each one.' }),
+      s.recurring.map(function (r) {
+        return h('div', { class: 'item' },
+          h('div', null, h('div', { class: 'entry-t', text: r.title }),
+            h('div', { class: 'mut small', text: (r.type === 'income' ? 'Income ' : 'Expense ') + moneyFmt(L.metrics.cents(r.value), cur) + ' | ' + r.cadence + ' | next ' + r.nextDate + (r.active ? '' : ' | paused') })),
+          h('div', { class: 'row' },
+            btn(r.active ? 'Pause' : 'Resume', function () { act(function () { return commit(function (x) { x.recurring.forEach(function (z) { if (z.id === r.id) z.active = !z.active; }); }, 'recurring toggle').then(function () { view.open = 'recurring'; render(); }); }); }, 'sm', { 'aria-label': (r.active ? 'Pause ' : 'Resume ') + r.title }),
+            btn('Delete', function () { act(function () { return commit(function (x) { x.recurring = x.recurring.filter(function (z) { return z.id !== r.id; }); }, 'recurring delete').then(function () { view.open = 'recurring'; render(); }); }); }, 'sm bad', { 'aria-label': 'Delete ' + r.title })));
+      }),
+      h('form', {
+        onsubmit: function (e) {
+          e.preventDefault();
+          act(function () {
+            var item = { id: L.store.newId(), title: rT.value.trim(), value: parseAmount(rA.value), category: rCat.value, type: rType.value, cadence: rCad.value, nextDate: rNext.value, active: true };
+            if (!item.title) throw new Error('Enter a title.');
+            return commit(function (x) { x.recurring.push(item); }, 'recurring add').then(function () { view.open = 'recurring'; setNotice('ok', 'Recurring item added.'); render(); });
+          });
+        }
+      }, field('Title', rT), field('Amount', rA), field('Type', rType), field('Category', rCat), field('Repeats', rCad), field('Next date', rNext), h('button', { type: 'submit', class: 'btn pri', text: 'Add recurring' })),
+    ], view.open === 'recurring');
+
+    // categories
+    var cName = h('input', { type: 'text', id: 'cat-name', maxlength: '40', autocomplete: 'off' });
+    var cType = sel('cat-type', [{ v: 'expense', t: 'Expense' }, { v: 'income', t: 'Income' }], 'expense');
+    var cats = details('categories', 'Categories', [
+      ['expense', 'income'].map(function (ty) {
+        return h('div', null, h('span', { class: 'lbl', text: (ty === 'expense' ? 'Expense' : 'Income') + ' categories' }),
+          h('div', { class: 'chips' }, catList(s, ty).map(function (c) {
+            return h('span', { class: 'chip' }, c, ' ', h('button', { type: 'button', class: 'x', text: 'x', 'aria-label': 'Remove category ' + c, onclick: function () {
+              act(function () { return commit(function (z) { z.categories[ty] = z.categories[ty].filter(function (q) { return q !== c; }); }, 'category remove').then(function () { view.open = 'categories'; render(); }); });
+            } }));
+          })));
+      }),
+      h('form', {
+        onsubmit: function (e) {
+          e.preventDefault();
+          act(function () {
+            var name = cName.value.trim(), ty = cType.value;
+            if (!name || name.length > 40) throw new Error('Category names are 1 to 40 characters.');
+            if (catList(s, ty).some(function (q) { return q.toLowerCase() === name.toLowerCase(); })) throw new Error('That category already exists.');
+            return commit(function (x) { x.categories[ty].push(name); }, 'category add').then(function () { view.open = 'categories'; render(); });
+          });
+        }
+      }, field('New category', cName), field('For', cType), h('button', { type: 'submit', class: 'btn', text: 'Add category' })),
+    ], view.open === 'categories');
+
+    var navMonth = function (k) { return btn(k < 0 ? 'Previous month' : 'Next month', function () { view.month = L.metrics.addMonths(month, k); render(); }, 'sm', { id: k < 0 ? 'mv-prev' : 'mv-next' }); };
+    return h('div', null,
+      btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'),
+      h('div', { class: 'row sp' }, h('h1', { text: 'Money' }), btn('Quick add', quickAdd, 'pri', { id: 'quick-add-money' })),
+      h('div', { class: 'row sp' }, navMonth(-1), h('strong', { id: 'mv-month', text: monthLabel(month) }), navMonth(1)),
+      h('div', { class: 'stats' },
+        stat('Income', moneyFmt(v.incomeCents, cur), 'mv-income'),
+        stat('Spend', moneyFmt(v.spendCents, cur), 'mv-spend'),
+        stat('Net', moneyFmt(v.netCents, cur), 'mv-net'),
+        stat('Savings rate', pctFmt(v.savingsRate), 'mv-rate')),
+      h('p', { class: 'mut small', text: 'Savings rate target: ' + Math.round(target * 100) + '%' }),
+      dueCard(s),
+      h('div', { class: 'card' }, h('h2', { text: 'Spending by category' }),
+        rows.length ? rows : h('p', { class: 'mut', text: 'No spending this month.' })),
+      h('div', { class: 'card' }, h('h2', { text: 'Cash flow, 6 months' }), cashflowChart(cf, cur),
+        h('div', { class: 'legend small' }, h('span', { class: 'sw sw-in' }), ' Income ', h('span', { class: 'sw sw-out' }), ' Spend'),
+        h('div', { class: 'tablewrap' }, h('table', null,
+          h('thead', null, h('tr', null, ['Month', 'Income', 'Spend', 'Net'].map(function (x) { return h('th', { text: x }); }))),
+          h('tbody', null, cf.map(function (r) {
+            return h('tr', null, h('td', { text: monthLabel(r.month) }), h('td', { text: moneyFmt(r.incomeCents, cur) }), h('td', { text: moneyFmt(r.spendCents, cur) }), h('td', { text: moneyFmt(r.netCents, cur) }));
+          }))))),
+      budgets, recurring, cats,
+      h('h2', { text: 'All entries' }),
+      domainScreen(s, { embed: true }));
+  }
+
+  function assetsScreen(s) {
+    var cur = s.settings.currency, t = today();
+    var nw = L.metrics.netWorthDetail(s, t), hist = L.metrics.netWorthHistory(s, 12, t);
+    var accts = s.accounts;
+    var active = accts.filter(function (a) { return !a.archived; }), archived = accts.filter(function (a) { return a.archived; });
+    var latest = {};
+    nw.rows.forEach(function (r) { if (r.id) latest[r.id] = r; });
+    var bAcct = sel('bal-acct', active.map(function (a) { return { v: a.id, t: a.name }; }), view.acct || (active[0] && active[0].id));
+    var bVal = h('input', { type: 'text', id: 'bal-value', inputmode: 'decimal', autocomplete: 'off', maxlength: '16' });
+    var bDate = h('input', { type: 'date', id: 'bal-date', value: t, required: true });
+    var balForm = h('form', {
+      class: 'card',
+      onsubmit: function (e) {
+        e.preventDefault();
+        act(function () {
+          var a = accts.filter(function (z) { return z.id === bAcct.value; })[0];
+          if (!a) throw new Error('Add an account first.');
+          var v = parseAmount(bVal.value, { neg: !a.liability, zero: true });
+          return addEntry({ domain: 'assets', type: 'balance', date: bDate.value, title: a.name, value: v, accountId: a.id }).then(function () { setNotice('ok', 'Balance saved.'); render(); });
+        });
+      }
+    }, h('h2', { text: 'Update a balance' }), active.length ? [field('Account', bAcct), field('Balance (the amount owed, for a liability)', bVal), field('As of', bDate), h('button', { type: 'submit', class: 'btn pri', id: 'bal-save', text: 'Save balance' })] : h('p', { class: 'mut', text: 'Add an account below first.' }));
+
+    function acctRow(a) {
+      var r = latest[a.id];
+      return h('div', { class: 'item acct', 'data-account': a.name },
+        h('div', null, h('div', { class: 'entry-t', text: a.name }),
+          h('div', { class: 'mut small' }, h('span', { class: 'chip' + (a.liability ? ' bad' : ''), text: KIND_LABEL[a.kind] + (a.liability ? ' (owed)' : '') }),
+            r ? moneyFmt(Math.abs(r.cents), cur) + ' as of ' + r.date : 'No balance yet')),
+        h('div', { class: 'row' },
+          a.archived ? null : btn('Update', function () { view.acct = a.id; render(); var i = document.getElementById('bal-value'); if (i) i.focus(); }, 'sm', { 'aria-label': 'Update balance for ' + a.name }),
+          btn('Rename', function () { renameDialog(a); }, 'sm', { 'aria-label': 'Rename ' + a.name }),
+          btn(a.archived ? 'Restore' : 'Archive', function () {
+            act(function () { return commit(function (x) { x.accounts.forEach(function (z) { if (z.id === a.id) z.archived = !z.archived; }); }, 'account archive').then(render); });
+          }, 'sm', { 'aria-label': (a.archived ? 'Restore ' : 'Archive ') + a.name })));
+    }
+    function renameDialog(a) {
+      var inp = h('input', { type: 'text', id: 'ac-rename', maxlength: '200', value: a.name, autocomplete: 'off' });
+      openDialog({
+        title: 'Rename account', yes: 'Save', body: field('Name', inp),
+        onYes: function () {
+          var n = inp.value.trim();
+          if (!n) throw new Error('Enter a name.');
+          if (accts.some(function (z) { return z.id !== a.id && z.name.toLowerCase() === n.toLowerCase(); })) throw new Error('You already have an account with that name.');
+          return commit(function (x) { x.accounts.forEach(function (z) { if (z.id === a.id) z.name = n; }); }, 'account rename').then(function () { render(); });
+        }
+      });
+    }
+
+    var aName = h('input', { type: 'text', id: 'ac-name', maxlength: '200', autocomplete: 'off' });
+    var aKind = sel('ac-kind', L.metrics.ACCOUNT_KINDS.map(function (k) { return { v: k, t: KIND_LABEL[k] }; }), 'cash');
+    var aLiab = h('input', { type: 'checkbox', id: 'ac-liab' });
+    var aBal = h('input', { type: 'text', id: 'ac-bal', inputmode: 'decimal', autocomplete: 'off', maxlength: '16' });
+    var aDate = h('input', { type: 'date', id: 'ac-date', value: t, required: true });
+    var addForm = h('form', {
+      class: 'card',
+      onsubmit: function (e) {
+        e.preventDefault();
+        act(function () {
+          var name = aName.value.trim(), kind = aKind.value;
+          if (!name) throw new Error('Enter an account name.');
+          if (accts.some(function (z) { return z.name.toLowerCase() === name.toLowerCase(); })) throw new Error('You already have an account with that name.');
+          var liab = L.metrics.LIAB_KINDS.indexOf(kind) >= 0 || aLiab.checked;
+          var opening = aBal.value.trim() === '' ? null : parseAmount(aBal.value, { neg: !liab, zero: true });
+          var acct = { id: L.store.newId(), name: name, kind: kind, liability: liab, archived: false };
+          var en = opening === null ? null : L.metrics.validateEntry({ domain: 'assets', type: 'balance', date: aDate.value, title: name, value: opening, accountId: acct.id });
+          if (en) { en.id = en.id || L.store.newId(); en.createdAt = en.createdAt || new Date().toISOString(); }
+          return commit(function (x) { x.accounts.push(acct); if (en) x.entries.push(en); }, 'account add').then(function () { setNotice('ok', 'Account added.'); render(); });
+        });
+      }
+    }, h('h2', { text: 'Add an account' }), field('Name', aName), field('Kind', aKind),
+      h('label', { class: 'field check' }, aLiab, h('span', { text: 'Treat as a liability (credit cards, loans and mortgages always are)' })),
+      field('Current balance (the amount owed, for a liability)', aBal), field('As of', aDate),
+      h('button', { type: 'submit', class: 'btn pri', id: 'ac-add', text: 'Add account' }));
+
+    var alloc = nw.byKind.length ? h('div', null,
+      h('svg', { class: 'alloc', viewBox: '0 0 100 10', preserveAspectRatio: 'none', role: 'img', 'aria-label': 'Asset allocation by kind' },
+        (function () {
+          var x = 0;
+          return nw.byKind.map(function (k, i) {
+            var w = k.share * 100, r = h('rect', { class: 'k' + (i % 9), x: String(x), y: '0', width: String(w), height: '10' });
+            x += w; return r;
+          });
+        })()),
+      h('div', { class: 'legend' }, nw.byKind.map(function (k, i) {
+        return h('div', { class: 'row sp alloc-row' }, h('span', null, h('span', { class: 'sw k' + (i % 9) }), ' ' + KIND_LABEL[k.kind]),
+          h('span', { text: Math.round(k.share * 1000) / 10 + '% | ' + moneyFmt(k.cents, cur) }));
+      }))) : h('p', { class: 'mut', text: 'No assets yet.' });
+
+    return h('div', null,
+      btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'),
+      h('h1', { text: 'Assets' }),
+      h('div', { class: 'stats' },
+        stat('Net worth', moneyFmt(nw.totalCents, cur), 'aw-net'),
+        stat('Assets', moneyFmt(nw.assetsCents, cur), 'aw-assets'),
+        stat('Liabilities', moneyFmt(nw.liabilitiesCents, cur), 'aw-liab')),
+      h('div', { class: 'card' }, h('h2', { text: 'Net worth, 12 months' }), netWorthChart(hist),
+        h('div', { class: 'legend small' }, h('span', { class: 'sw sw-net' }), ' Net worth ', h('span', { class: 'sw sw-assets' }), ' Assets ', h('span', { class: 'sw sw-liab' }), ' Liabilities'),
+        h('div', { class: 'tablewrap' }, h('table', null,
+          h('thead', null, h('tr', null, ['Month', 'Assets', 'Liabilities', 'Net worth'].map(function (x) { return h('th', { text: x }); }))),
+          h('tbody', null, hist.slice(-6).map(function (r) {
+            return h('tr', null, h('td', { text: monthLabel(r.month) }), h('td', { text: moneyFmt(r.assetsCents, cur) }), h('td', { text: moneyFmt(r.liabilitiesCents, cur) }), h('td', { text: moneyFmt(r.totalCents, cur) }));
+          }))))),
+      h('div', { class: 'card' }, h('h2', { text: 'Allocation' }), alloc),
+      h('h2', { text: 'Accounts (' + active.length + ')' }),
+      h('div', { class: 'card' }, active.length ? active.map(acctRow) : h('p', { class: 'mut', text: 'No accounts yet.' })),
+      balForm, addForm,
+      archived.length ? details('archived', 'Archived accounts (' + archived.length + ')', archived.map(acctRow), view.open === 'archived') : null,
+      h('h2', { text: 'Balance history' }),
+      domainScreen(s, { embed: true, noForm: true }));
   }
 
   // ---------- insights and AI ----------
@@ -749,6 +1121,7 @@
                 body: [
                   h('ul', { class: 'small', id: 'bk-summary' },
                     h('li', { text: 'Entries: ' + state.entries.length }),
+                    h('li', { text: 'Accounts: ' + (state.accounts || []).length }),
                     h('li', { text: 'Approved insights: ' + nAppr }),
                     h('li', { text: 'Lessons: ' + state.memory.lessons.length }),
                     h('li', { text: 'Provider settings: ' + (pv2.kind === 'none' ? 'none' : 'included (' + pv2.kind + ')') }),
@@ -766,7 +1139,9 @@
       }, field('Restore from a backup file (64 MB max)', bf), field('Backup passphrase', ip),
         h('button', { type: 'submit', class: 'btn', text: 'Import backup' }))));
 
-    out.push(h('p', { class: 'mut small', id: 'app-version', text: 'LifeOS v0.2.0' }));
+    out.push(h('p', { class: 'mut small', id: 'app-version', text: 'LifeOS v0.3.0' }));
+
+    if (L.syncUI) out.push(L.syncUI.section(syncCtx()));
 
     // session
     var typed = h('input', { type: 'text', id: 'wipe-confirm', autocomplete: 'off' });
@@ -779,6 +1154,7 @@
             body: [h('p', { class: 'mut', text: 'This permanently deletes the vault from this device. Type WIPE to confirm.' }), field('Confirmation', typed)],
             onYes: function () {
               if (typed.value !== 'WIPE') throw new Error('Type WIPE exactly to continue.');
+              if (L.sync) L.sync.disconnect();
               return commit(null, 'wipe').catch(function () {}).then(function () { return L.store.wipe(); }).then(function () {
                 try { L.store.lock(); } catch (e) { /* already locked */ }
                 clearTimeout(idleTimer);

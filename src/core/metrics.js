@@ -89,6 +89,14 @@
       if (n.length > 2000) throw new Error('Notes must be 2000 characters or fewer');
       if (n) out.notes = n;
     }
+    if (dom.id === 'money' && !isEmpty(p.category)) {
+      if (typeof p.category !== 'string' || !p.category.trim() || p.category.trim().length > 40) throw new Error('Category must be 1 to 40 characters');
+      out.category = p.category.trim();
+    }
+    if (ty.id === 'balance' && !isEmpty(p.accountId)) {
+      if (typeof p.accountId !== 'string' || !p.accountId || p.accountId.length > 100) throw new Error('Invalid account');
+      out.accountId = p.accountId;
+    }
     const ca = p.createdAt;
     out.createdAt = (typeof ca === 'string' && ca.length <= 40 && ca) || (typeof ca === 'number' && isFinite(ca) && ca) || new Date().toISOString();
     return out;
@@ -98,21 +106,137 @@
   const r1 = (x) => Math.round(x * 10) / 10;
   const r2 = (x) => Math.round(x * 100) / 100;
   const inR = (e, a, b) => e.date >= a && e.date <= b;
-  function savings(ents, a, b) {
+  // ---- money maths: integer cents only ----
+  const cents = (v) => Math.round(Number(v) * 100);
+  const dollars = (c) => c / 100;
+  const LIAB_KINDS = ['credit', 'loan', 'mortgage'];
+  const ACCOUNT_KINDS = ['cash', 'investment', 'retirement', 'property', 'vehicle', 'other', 'credit', 'loan', 'mortgage'];
+  const DEFAULT_CATEGORIES = {
+    expense: ['Housing', 'Groceries', 'Dining', 'Transport', 'Utilities', 'Health', 'Shopping', 'Travel', 'Subscriptions', 'Other'],
+    income: ['Salary', 'Business', 'Interest', 'Gift', 'Other']
+  };
+  const UNCAT = 'Uncategorised';
+  const monthOf = (d) => d.slice(0, 7);
+  const monthEnd = (m) => { const y = +m.slice(0, 4), mo = +m.slice(5, 7); return m + '-' + String(new Date(Date.UTC(y, mo, 0)).getUTCDate()).padStart(2, '0'); };
+  const addMonths = (m, k) => { const t = (+m.slice(0, 4)) * 12 + (+m.slice(5, 7) - 1) + k; return String(Math.floor(t / 12)).padStart(4, '0') + '-' + String(t % 12 + 1).padStart(2, '0'); };
+  function sumMoney(ents, a, b) {
     let inc = 0, exp = 0;
-    for (const e of ents) if (inR(e, a, b)) { if (e.type === 'income') inc += e.value; else if (e.type === 'expense') exp += e.value; }
-    return { inc, exp, rate: inc > 0 ? (inc - exp) / inc : null };
+    for (const e of ents) if (inR(e, a, b)) { if (e.type === 'income') inc += cents(e.value); else if (e.type === 'expense') exp += cents(e.value); }
+    return { incC: inc, expC: exp };
   }
-  function netWorth(ents, asOf) {
-    const m = new Map();
-    for (const e of ents) {
+  function savings(ents, a, b) {
+    const m = sumMoney(ents, a, b);
+    return { inc: dollars(m.incC), exp: dollars(m.expC), rate: m.incC > 0 ? (m.incC - m.expC) / m.incC : null };
+  }
+
+  // Latest balance per account (non-archived), liabilities subtracted. Balance entries without a usable accountId
+  // fall back to the account with the same name, then to an implicit account keyed by title (schema 1 behaviour).
+  function netWorthDetail(state, asOf) {
+    const accts = state.accounts || [];
+    const byId = new Map(accts.map((x) => [x.id, x]));
+    const byName = new Map();
+    for (const x of accts) { const k = x.name.trim().toLowerCase(); if (!byName.has(k)) byName.set(k, x); }
+    const latest = new Map();
+    for (const e of state.entries) {
       if (e.type !== 'balance' || e.date > asOf) continue;
-      const k = e.title.trim().toLowerCase(), cur = m.get(k);
-      if (!cur || e.date >= cur.date) m.set(k, e);
+      let a = e.accountId ? byId.get(e.accountId) : null;
+      if (!a) a = byName.get(e.title.trim().toLowerCase()) || null;
+      const k = a ? 'a:' + a.id : 't:' + e.title.trim().toLowerCase();
+      const cur = latest.get(k);
+      if (!cur || e.date >= cur.e.date) latest.set(k, { e, a });
     }
-    let total = 0;
-    for (const e of m.values()) total += e.value;
-    return { total, count: m.size };
+    let assetsC = 0, liabC = 0, count = 0;
+    const kinds = new Map(), rows = [];
+    for (const { e, a } of latest.values()) {
+      if (a && a.archived) continue;
+      const v = cents(e.value);
+      const liab = a ? a.liability : v < 0;
+      const signed = a ? (a.liability ? -Math.abs(v) : v) : v;
+      const kind = a ? a.kind : (v < 0 ? 'credit' : 'other');
+      count++;
+      if (liab) liabC += Math.abs(signed); else { assetsC += signed; if (signed > 0) kinds.set(kind, (kinds.get(kind) || 0) + signed); }
+      rows.push({ id: a ? a.id : null, name: a ? a.name : e.title, kind, liability: liab, cents: signed, date: e.date });
+    }
+    const pos = [...kinds.values()].reduce((x, y) => x + y, 0);
+    const byKind = [...kinds.entries()].map(([kind, c]) => ({ kind, cents: c, share: pos ? c / pos : 0 })).sort((x, y) => y.cents - x.cents);
+    const totalC = assetsC - liabC;
+    return { totalCents: totalC, assetsCents: assetsC, liabilitiesCents: liabC, total: dollars(totalC), assets: dollars(assetsC), liabilities: dollars(liabC), count, byKind, rows };
+  }
+  function netWorthHistory(state, n, today) {
+    n = Math.max(1, Math.min(120, Math.floor(Number(n)) || 12));
+    const t = isDate(today) ? today : todayISO(), cur = monthOf(t), out = [];
+    for (let i = n - 1; i >= 0; i--) {
+      const m = addMonths(cur, -i), asOf = i === 0 ? t : monthEnd(m);
+      const d = netWorthDetail(state, asOf);
+      out.push({ month: m, total: d.total, assets: d.assets, liabilities: d.liabilities, totalCents: d.totalCents, assetsCents: d.assetsCents, liabilitiesCents: d.liabilitiesCents });
+    }
+    return out;
+  }
+  function monthView(state, month) {
+    if (typeof month !== 'string' || !/^\d{4}-\d{2}$/.test(month) || !isDate(month + '-01')) throw new Error('Month must be YYYY-MM');
+    const ents = byDomain(state, 'money').filter((e) => monthOf(e.date) === month);
+    let inc = 0, exp = 0;
+    const spent = new Map();
+    for (const e of ents) {
+      const c = cents(e.value);
+      if (e.type === 'income') inc += c;
+      else if (e.type === 'expense') { exp += c; const k = e.category || UNCAT; spent.set(k, (spent.get(k) || 0) + c); }
+    }
+    const budgets = new Map((state.budgets || []).map((x) => [x.category, cents(x.value)]));
+    const names = new Set([...spent.keys(), ...budgets.keys()]);
+    let budgetC = 0, budgetedSpentC = 0;
+    const rows = [...names].map((category) => {
+      const sp = spent.get(category) || 0, bd = budgets.has(category) ? budgets.get(category) : null;
+      if (bd !== null) { budgetC += bd; budgetedSpentC += sp; }
+      return { category, spentCents: sp, budgetCents: bd, remainingCents: bd === null ? null : bd - sp, over: bd !== null && sp > bd };
+    }).sort((x, y) => y.spentCents - x.spentCents || x.category.localeCompare(y.category));
+    return {
+      month, incomeCents: inc, spendCents: exp, netCents: inc - exp, income: dollars(inc), spend: dollars(exp), net: dollars(inc - exp),
+      savingsRate: inc > 0 ? (inc - exp) / inc : null, categories: rows, budgetCents: budgetC, budgetedSpentCents: budgetedSpentC
+    };
+  }
+  function cashflow(state, n, today) {
+    n = Math.max(1, Math.min(60, Math.floor(Number(n)) || 6));
+    const cur = monthOf(isDate(today) ? today : todayISO()), out = [];
+    for (let i = n - 1; i >= 0; i--) {
+      const v = monthView(state, addMonths(cur, -i));
+      out.push({ month: v.month, incomeCents: v.incomeCents, spendCents: v.spendCents, netCents: v.netCents });
+    }
+    return out;
+  }
+
+  // ---- recurring: proposes only; the user confirms each item ----
+  function advanceDate(d, cadence) {
+    if (!isDate(d)) throw new Error('Invalid date');
+    if (cadence === 'weekly') return addDays(d, 7);
+    const y = +d.slice(0, 4), m = +d.slice(5, 7) - 1, day = +d.slice(8, 10);
+    const t = y * 12 + m + (cadence === 'yearly' ? 12 : 1);
+    const ny = Math.floor(t / 12), nm = t % 12;
+    const last = new Date(Date.UTC(ny, nm + 1, 0)).getUTCDate();
+    return String(ny).padStart(4, '0') + '-' + String(nm + 1).padStart(2, '0') + '-' + String(Math.min(day, last)).padStart(2, '0');
+  }
+  function dueRecurring(state, today) {
+    if (!isDate(today)) throw new Error('today must be YYYY-MM-DD');
+    return (state.recurring || []).filter((r) => r.active && r.nextDate <= today)
+      .map((r) => ({ id: r.id, title: r.title, value: r.value, category: r.category, type: r.type, date: r.nextDate }))
+      .sort((x, y) => x.date.localeCompare(y.date) || x.title.localeCompare(y.title));
+  }
+  function findDue(state, id, today) {
+    const r = (state.recurring || []).find((x) => x.id === id);
+    if (!r) throw new Error('Recurring item not found');
+    if (!r.active || r.nextDate > today) throw new Error('That item is not due yet');
+    return r;
+  }
+  function confirmRecurring(state, id, today) {
+    const r = findDue(state, id, today);
+    const e = validateEntry({ domain: 'money', type: r.type, date: r.nextDate, title: r.title, value: r.value, category: r.category || undefined, notes: 'Recurring' });
+    state.entries.push(e);
+    r.nextDate = advanceDate(r.nextDate, r.cadence);
+    return e;
+  }
+  function skipRecurring(state, id, today) {
+    const r = findDue(state, id, today);
+    r.nextDate = advanceDate(r.nextDate, r.cadence);
   }
   function overdue(ents, asOf, days) {
     const last = new Map();
@@ -163,7 +287,7 @@
     const tg = state.settings.targets;
     switch (id) {
       case 'money': { const s = savings(ents, ws, we); return s.rate === null ? 0 : s.rate * 100; }
-      case 'assets': return netWorth(ents, we).total;
+      case 'assets': return netWorthDetail(state, we).total;
       case 'work': return count(ents, ws, we, (e) => e.type === 'outcome' && e.status === 'done');
       case 'health': return count(ents, ws, we, (e) => e.type === 'workout');
       case 'activities': return activeDays(ents, ws, we);
@@ -185,7 +309,10 @@
       const ents = byDomain(state, d.id);
       domains[d.id] = { now: r2(weekMetric(state, d.id, ws, ents)), prev: r2(weekMetric(state, d.id, pw, ents)), unit: unitOf(state, d.id) };
     }
-    return { week: ws, domains };
+    const we = addDays(ws, 6), wm = sumMoney(byDomain(state, 'money'), ws, we), nw = netWorthDetail(state, we);
+    const mv = monthView(state, monthOf(we));
+    const money = { income: dollars(wm.incC), spend: dollars(wm.expC), budgetUsedPct: mv.budgetCents > 0 ? r1(mv.budgetedSpentCents * 100 / mv.budgetCents) : 0, netWorth: nw.total, liabilities: nw.liabilities };
+    return { week: ws, domains, money };
   }
   function series(state, domainId, n, today) {
     if (!DOMAINS.some((d) => d.id === domainId)) throw new Error('Unknown domain');
@@ -217,7 +344,7 @@
           fmtMoney(s.inc, st.currency) + ' in, ' + fmtMoney(s.exp, st.currency) + ' out. Target ' + Math.round(tg.savingsRate * 100) + '%');
       }
       case 'assets': {
-        const w = netWorth(ents, today);
+        const w = netWorthDetail(state, today);
         return R('Net worth', fmtMoney(w.total, st.currency), w.total, w.count + (w.count === 1 ? ' account' : ' accounts'));
       }
       case 'work': {
@@ -260,6 +387,6 @@
     }
   }
 
-  L.metrics = { DOMAINS, isDate, addDays, validateEntry, headline, weekStart, weeklyDigest, series, fmtMoney };
+  L.metrics = { DOMAINS, isDate, addDays, validateEntry, headline, weekStart, weeklyDigest, series, fmtMoney, cents, ACCOUNT_KINDS, LIAB_KINDS, DEFAULT_CATEGORIES, UNCAT, addMonths, monthEnd, advanceDate, netWorthDetail, netWorthHistory, monthView, cashflow, dueRecurring, confirmRecurring, skipRecurring };
   L.DOMAINS = DOMAINS;
 })();

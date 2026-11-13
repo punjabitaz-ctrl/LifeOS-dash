@@ -2,12 +2,15 @@
   'use strict';
   const L = (globalThis.LifeOS = globalThis.LifeOS || {});
   const KEY = 'envelope';
+  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 2;
   const ENTRY_CAP = 50000, INSIGHT_CAP = 5000, REVIEW_CAP = 1000, LESSON_CAP = 30, AUDIT_CAP = 200;
   const BLOCKED = new Set(['__proto__', 'constructor', 'prototype']);
   // Same rule as ai.isLocalUrl (ai.js loads after this file, so call it lazily).
   const BIDI = /[\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF]/g;
   const strip = (v) => (typeof v === 'string' ? v.replace(BIDI, '') : v);
   let adapter = null, key = null, salt = null, state = null, queue = Promise.resolve();
+  // Sync metadata (rev etc.) travels outside AND inside the ciphertext; a mismatch means tampering. Missing = rev 0.
+  let meta = { rev: 0, updatedAt: '', deviceId: '' }, deviceId = '';
 
   function idbAdapter() {
     const open = () => new Promise((res, rej) => {
@@ -107,12 +110,26 @@
         savingsRate: num(t.savingsRate, 0, 1, 'savingsRate'),
       },
       provider,
+      sync: cleanSync(s.sync),
     };
+  }
+  function cleanSync(x) {
+    const d = { clientId: '', remoteRev: -1, fp: '', fileId: '', keySalt: '' };
+    if (x === undefined) return d;
+    if (!isObj(x)) fail('sync');
+    const cid = str(x.clientId, 200, 'clientId', true);
+    if (cid && !/^[A-Za-z0-9._-]+\.apps\.googleusercontent\.com$/.test(cid)) fail('clientId');
+    const fp = str(x.fp, 64, 'fp', true), fid = str(x.fileId, 200, 'fileId', true);
+    if (fp && !/^[0-9a-f]{64}$/.test(fp)) fail('fp');
+    if (fid && !/^[A-Za-z0-9_-]{5,200}$/.test(fid)) fail('fileId');
+    const ks = x.keySalt === undefined ? '' : str(x.keySalt, 24, 'keySalt', true);
+    if (ks && !/^[A-Za-z0-9+/]{22}==$/.test(ks)) fail('keySalt');
+    return { clientId: cid, remoteRev: num(x.remoteRev === undefined ? -1 : x.remoteRev, -1, 1e9, 'remoteRev', true), fp, fileId: fid, keySalt: ks };
   }
   function cleanEntryText(e) {
     if (!isObj(e)) return e;
     const o = Object.assign({}, e);
-    for (const k of ['title', 'notes', 'person', 'status']) if (typeof o[k] === 'string') o[k] = strip(o[k]);
+    for (const k of ['title', 'notes', 'person', 'status', 'category']) if (typeof o[k] === 'string') o[k] = strip(o[k]);
     return o;
   }
   function cleanEntries(list) {
@@ -136,7 +153,13 @@
       if (!isObj(x)) fail('digest domain');
       domains[id] = { now: num(x.now, -1e15, 1e15, 'digest'), prev: num(x.prev, -1e15, 1e15, 'digest'), unit: str(x.unit, 20, 'unit', true) };
     }
-    return { week: date(d.week, 'digest week'), domains };
+    const out = { week: date(d.week, 'digest week'), domains };
+    if (d.money !== undefined) {
+      if (!isObj(d.money)) fail('digest money');
+      out.money = {};
+      for (const k of ['income', 'spend', 'budgetUsedPct', 'netWorth', 'liabilities']) out.money[k] = num(d.money[k], -1e15, 1e15, 'digest money');
+    }
+    return out;
   }
   function cleanMemory(m) {
     if (!isObj(m)) fail('memory');
@@ -180,23 +203,113 @@
       return { ts: ts(x.ts, 'ts'), action: str(x.action, 100, 'action', true) };
     });
   }
+  // ---- schema 2: accounts, recurring, budgets, categories ----
+  const ACCOUNT_KINDS = ['cash', 'investment', 'retirement', 'property', 'vehicle', 'other', 'credit', 'loan', 'mortgage'];
+  const LIAB_KINDS = ['credit', 'loan', 'mortgage'];
+  const bool = (v, name, dflt) => { if (v === undefined && dflt !== undefined) return dflt; if (typeof v !== 'boolean') fail(name + ' must be true or false'); return v; };
+  const money2 = (v, min, max, name) => Math.round(num(v, min, max, name) * 100) / 100;
+  function cleanAccounts(list) {
+    if (list === undefined) return [];
+    const seen = new Set();
+    return arr(list, ACCOUNT_CAP, 'accounts').map((x) => {
+      if (!isObj(x)) fail('account');
+      const id = str(x.id, 100, 'account id');
+      if (seen.has(id)) fail('duplicate account id');
+      seen.add(id);
+      const kind = oneOf(x.kind, ACCOUNT_KINDS, 'account kind');
+      const name = str(strip(x.name).trim(), 200, 'account name');
+      return { id, name, kind, liability: LIAB_KINDS.includes(kind) ? true : bool(x.liability, 'liability'), archived: bool(x.archived, 'archived', false) };
+    });
+  }
+  function cleanRecurring(list) {
+    if (list === undefined) return [];
+    const seen = new Set();
+    return arr(list, RECURRING_CAP, 'recurring').map((x) => {
+      if (!isObj(x)) fail('recurring item');
+      const id = str(x.id, 100, 'recurring id');
+      if (seen.has(id)) fail('duplicate recurring id');
+      seen.add(id);
+      return {
+        id, title: str(strip(x.title).trim(), 200, 'recurring title'), value: money2(x.value, 0.01, 1e9, 'recurring value'),
+        category: str(strip(x.category).trim(), 40, 'recurring category', true), type: oneOf(x.type, ['income', 'expense'], 'recurring type'),
+        cadence: oneOf(x.cadence, ['weekly', 'monthly', 'yearly'], 'cadence'), nextDate: date(x.nextDate, 'nextDate'), active: bool(x.active, 'active')
+      };
+    });
+  }
+  function cleanBudgets(list) {
+    if (list === undefined) return [];
+    const seen = new Set();
+    return arr(list, BUDGET_CAP, 'budgets').map((x) => {
+      if (!isObj(x)) fail('budget');
+      const category = str(strip(x.category).trim(), 40, 'budget category');
+      if (seen.has(category)) fail('duplicate budget category');
+      seen.add(category);
+      return { category, value: money2(x.value, 0, 1e9, 'budget value') };
+    });
+  }
+  function cleanCategories(c) {
+    if (c === undefined) return defaultCategories();
+    if (!isObj(c)) fail('categories');
+    const one = (list, name) => {
+      const seen = new Set();
+      return arr(list, CATEGORY_CAP, name).map((x) => {
+        const v = str(strip(x).trim(), 40, name);
+        if (seen.has(v.toLowerCase())) fail('duplicate category');
+        seen.add(v.toLowerCase());
+        return v;
+      });
+    };
+    return { expense: one(c.expense, 'expense categories'), income: one(c.income, 'income categories') };
+  }
+  function defaultCategories() {
+    const d = L.metrics.DEFAULT_CATEGORIES;
+    return { expense: d.expense.slice(), income: d.income.slice() };
+  }
+  // Schema 1 to 2: each distinct balance title becomes an account, and its entries point at it. Nothing is dropped.
+  function deriveAccounts(entries) {
+    const byTitle = new Map(), order = [];
+    for (const e of entries) {
+      if (e.type !== 'balance') continue;
+      const k = e.title.trim().toLowerCase();
+      let g = byTitle.get(k);
+      if (!g) { g = { name: e.title.trim(), latest: e, list: [] }; byTitle.set(k, g); order.push(g); }
+      g.list.push(e);
+      if (e.date >= g.latest.date) g.latest = e;
+    }
+    const accounts = [];
+    for (const g of order.slice(0, ACCOUNT_CAP)) {
+      const liability = g.latest.value < 0;
+      const a = { id: newId(), name: g.name, kind: liability ? 'credit' : 'other', liability, archived: false };
+      accounts.push(a);
+      for (const e of g.list) e.accountId = a.id;
+    }
+    return accounts;
+  }
   function validateState(o) {
     if (!isObj(o)) fail('state must be an object');
     scan(o, 0, { n: 4e6 });
-    if (o.schema !== 1) fail('unsupported schema');
+    if (o.schema !== 1 && o.schema !== SCHEMA) fail('unsupported schema');
     if (!L.metrics) fail('metrics module missing');
-    return { schema: 1, settings: cleanSettings(o.settings), entries: cleanEntries(o.entries), memory: cleanMemory(o.memory), audit: cleanAudit(o.audit) };
+    const settings = cleanSettings(o.settings), entries = cleanEntries(o.entries);
+    const out = { schema: SCHEMA, settings, entries };
+    if (o.schema === 1) Object.assign(out, { accounts: deriveAccounts(entries), recurring: [], budgets: [], categories: defaultCategories() });
+    else Object.assign(out, { accounts: cleanAccounts(o.accounts), recurring: cleanRecurring(o.recurring), budgets: cleanBudgets(o.budgets), categories: cleanCategories(o.categories) });
+    out.memory = cleanMemory(o.memory);
+    out.audit = cleanAudit(o.audit);
+    return out;
   }
 
   function defaultState() {
     return {
-      schema: 1,
+      schema: SCHEMA,
       settings: {
         currency: 'USD', autoLockMin: 15,
         targets: { workoutsPerWeek: 4, contactDays: 30, savingsRate: 0.2 },
         provider: { kind: 'none', baseUrl: '', model: '', apiKey: '' },
+        sync: { clientId: '', remoteRev: -1, fp: '', fileId: '', keySalt: '' },
       },
       entries: [],
+      accounts: [], recurring: [], budgets: [], categories: defaultCategories(),
       memory: { insights: [], lessons: [], reviews: [] },
       audit: [],
     };
@@ -205,6 +318,23 @@
     const c = L._webcrypto;
     if (!c || !c.randomUUID) throw new Error('WEBCRYPTO_UNAVAILABLE');
     return c.randomUUID();
+  }
+
+  // ---- revision metadata (used by sync.js) ----
+  const tamper = () => new Error('Vault revision check failed. The data may have been altered.');
+  function readMeta(env, raw) {
+    const inner = raw && raw._meta;
+    if (env.rev === undefined && inner === undefined) return { rev: 0, updatedAt: '', deviceId: '' };
+    if (!isObj(inner) || env.rev !== inner.rev || env.updatedAt !== inner.updatedAt || env.deviceId !== inner.deviceId) throw tamper();
+    if (!Number.isInteger(env.rev) || env.rev < 0 || env.rev > 1e9 || typeof env.updatedAt !== 'string' || env.updatedAt.length > 40 ||
+      typeof env.deviceId !== 'string' || env.deviceId.length > 64) throw tamper();
+    return { rev: env.rev, updatedAt: env.updatedAt, deviceId: env.deviceId };
+  }
+  async function seal(k, sl, clean, rev) {
+    if (!deviceId) deviceId = newId();
+    const m = { rev, updatedAt: new Date().toISOString(), deviceId };
+    const env = await V().makeEnvelope(k, sl, Object.assign({}, clean, { _meta: m }));
+    return { env: Object.assign(env, m), m };
   }
 
   // ---- lifecycle ----
@@ -224,8 +354,9 @@
     const sl = V().newSalt();
     const k = await V().deriveKey(passphrase, sl);
     const st = defaultState();
-    await a.set(KEY, await V().makeEnvelope(k, sl, st));
-    key = k; salt = sl; state = st;
+    const sealed = await seal(k, sl, st, 0);
+    await a.set(KEY, sealed.env);
+    key = k; salt = sl; state = st; meta = sealed.m;
     return st;
   }
   async function unlock(passphrase) {
@@ -233,19 +364,21 @@
     if (!env) throw new Error('NO_VAULT');
     const { salt: sl } = V().parseEnvelope(env);
     const k = await V().deriveKey(passphrase, sl);
-    const st = validateState(await V().decrypt(k, env));
+    const raw = await V().decrypt(k, env);
+    const st = validateState(raw);
+    meta = readMeta(env, raw); deviceId = meta.deviceId || deviceId;
     key = k; salt = sl; state = st;
     return st;
   }
   function lock() {
     // Empty the live state object too, so any reference still held elsewhere no longer reaches plaintext.
     if (state) { try { replaceContents(state, {}); } catch (e) { /* ignore */ } }
-    key = null; salt = null; state = null;
+    key = null; salt = null; state = null; meta = { rev: 0, updatedAt: '', deviceId: '' };
   }
   const isUnlocked = () => !!(state && key);
   function getState() { requireUnlocked(); return state; }
 
-  function commit(fn) {
+  function commit(fn, opts) {
     return serial(async () => {
       requireUnlocked();
       const st = state, k = key, sl = salt;
@@ -253,10 +386,11 @@
       try {
         await fn(st);
         const clean = validateState(st);
-        const env = await V().makeEnvelope(k, sl, clean);
+        const sealed = await seal(k, sl, clean, opts && opts.quiet ? meta.rev : meta.rev + 1);
         if (key !== k) throw new Error('LOCKED');
-        await getAdapter().set(KEY, env);
+        await getAdapter().set(KEY, sealed.env);
         if (state !== st) throw new Error('LOCKED');
+        meta = sealed.m;
         replaceContents(st, clean);
       } catch (e) {
         if (state === st) replaceContents(st, snapshot);
@@ -275,11 +409,11 @@
       await V().decrypt(await V().deriveKey(oldP, sl), env);
       const nsl = V().newSalt();
       const nk = await V().deriveKey(newP, nsl);
-      const env2 = await V().makeEnvelope(nk, nsl, validateState(st));
+      const sealed = await seal(nk, nsl, validateState(st), meta.rev + 1);
       if (state !== st) throw new Error('LOCKED');
-      await a.set(KEY, env2);
+      await a.set(KEY, sealed.env);
       if (state !== st) throw new Error('LOCKED');
-      key = nk; salt = nsl;
+      key = nk; salt = nsl; meta = sealed.m;
     });
   }
   function replaceState(next) {
@@ -287,11 +421,66 @@
       requireUnlocked();
       const st = state;
       const clean = validateState(next);
-      const env = await V().makeEnvelope(key, salt, clean);
+      // A restored backup never brings its own sync bookkeeping: an older remoteRev would weaken the rollback
+      // check, and a different OAuth client ID would be swapped in without the user seeing it.
+      clean.settings.sync = Object.assign({}, st.settings.sync);
+      const sealed = await seal(key, salt, clean, meta.rev + 1);
       if (state !== st) throw new Error('LOCKED');
+      await getAdapter().set(KEY, sealed.env);
+      if (state !== st) throw new Error('LOCKED');
+      meta = sealed.m;
+      replaceContents(st, clean);
+    });
+  }
+  // ---- sync support (additive) ----
+  const getMeta = () => { requireUnlocked(); return Object.assign({}, meta); };
+  // Public identifier of the live key: its salt in base64 (the salt is not secret; it is in every envelope).
+  const saltId = () => { requireUnlocked(); return btoa(String.fromCharCode.apply(null, salt)); };
+  // Current stored envelope, re-sealed first if it has no rev yet or must reach at least minRev.
+  function exportEnvelope(minRev) {
+    return serial(async () => {
+      requireUnlocked();
+      const a = getAdapter(), st = state, k = key, sl = salt;
+      let env = await a.get(KEY);
+      const want = Math.max(meta.rev, Number.isInteger(minRev) ? minRev : 0);
+      if (!env) throw new Error('NO_VAULT');
+      if (env.rev === undefined || env.rev < want) {
+        const sealed = await seal(k, sl, validateState(st), want);
+        if (state !== st || key !== k) throw new Error('LOCKED');
+        await a.set(KEY, sealed.env);
+        meta = sealed.m; env = sealed.env;
+      }
+      return env;
+    });
+  }
+  // Open an untrusted remote envelope. Uses the live key when the salt matches, else needs the passphrase.
+  async function inspectEnvelope(env, passphrase) {
+    requireUnlocked();
+    const { salt: sl } = V().parseEnvelope(env);
+    let k;
+    if (sl.length === salt.length && sl.every((b, i) => b === salt[i])) k = key;
+    else {
+      if (typeof passphrase !== 'string' || !passphrase) { const e = new Error('Enter the passphrase of the Drive copy.'); e.code = 'NEED_PASSPHRASE'; throw e; }
+      k = await V().deriveKey(passphrase, sl);
+    }
+    let raw;
+    try { raw = await V().decrypt(k, env); }
+    catch (e) { const x = new Error('The Drive copy uses a different passphrase.'); x.code = 'WRONG_PASSPHRASE'; throw x; }
+    const m = readMeta(env, raw);
+    return { meta: m, state: validateState(raw), key: k, salt: sl, env, sameKey: k === key };
+  }
+  // Replace the local vault with an inspected remote one (same passphrase).
+  function adoptEnvelope(info) {
+    return serial(async () => {
+      requireUnlocked();
+      const st = state, e = info.env;
+      // Persist only the known envelope fields, never whatever else the remote JSON carried.
+      const env = { v: e.v, kdf: { name: e.kdf.name, hash: e.kdf.hash, iter: e.kdf.iter, salt: e.kdf.salt }, iv: e.iv, ct: e.ct };
+      if (e.rev !== undefined) Object.assign(env, { rev: e.rev, updatedAt: e.updatedAt, deviceId: e.deviceId });
       await getAdapter().set(KEY, env);
       if (state !== st) throw new Error('LOCKED');
-      replaceContents(st, clean);
+      key = info.key; salt = info.salt; meta = Object.assign({}, info.meta);
+      replaceContents(st, info.state);
     });
   }
   async function wipe() {
@@ -299,5 +488,5 @@
     lock();
   }
 
-  L.store = { _setAdapter, exists, init, unlock, lock, isUnlocked, getState, commit, changePassphrase, replaceState, wipe, validateState, newId, defaultState };
+  L.store = { _setAdapter, exists, init, unlock, lock, isUnlocked, getState, commit, changePassphrase, replaceState, wipe, validateState, newId, defaultState, getMeta, saltId, exportEnvelope, inspectEnvelope, adoptEnvelope };
 })();

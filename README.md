@@ -11,6 +11,8 @@ Build, then open `dist/lifeos.html` in a browser (double-click works, it needs n
 - `node --test test/` runs the unit and security tests.
 - `node build.mjs` writes `dist/lifeos.html`.
 - `node test/smoke.mjs` runs a headless browser flow at desktop and 390x844 mobile sizes. It needs Playwright (`npm i --no-save playwright`) and Chrome, and skips itself if they are missing.
+- `node test/smoke-money.mjs` runs the Money and Assets flow (accounts, quick add, budget, recurring, lock) at desktop and 390x844 sizes.
+- `node build.mjs` also writes `_headers` (Cloudflare Pages) with the same CSP plus frame-ancestors.
 
 ## Security model
 

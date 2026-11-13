@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-wNBQfYxOhDZGF2X5gS5QbzFtyzgZoSJn9ut2qR5B6wk='; style-src 'sha256-/LNsdIVgIYiKO5FU2mFsTwSic5mAzsQMdKyJRemFWoI='; connect-src https://api.anthropic.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-JSsRoGLKOSpl/1w64X2zcefZJOuZN7j6thmszSVAc8s='; style-src 'sha256-mWN8+OkKEU/mWe5RfbiZ96R7Zp5aaU8zymXRCVNLrzg='; connect-src https://api.anthropic.com https://www.googleapis.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>LifeOS</title>
 <style>:root{color-scheme:light dark;--bg:#f4f5f7;--card:#fff;--fg:#14171c;--mut:#5b6573;--line:#dde1e7;--acc:#2255d4;--acc-fg:#fff;--ok:#1c7a46;--warn:#9a5b00;--bad:#b42318;--r:14px;--sh:0 1px 2px rgba(0,0,0,.06);--font:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
@@ -73,6 +73,53 @@ th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);font-s
 .dialog h2{margin-top:0}
 .back{margin-bottom:8px}
 input[type=checkbox]{width:auto;min-height:0;flex:none}
+:root{--k0:#2255d4;--k1:#1c7a46;--k2:#9a5b00;--k3:#7a3fb8;--k4:#0e7c86;--k5:#b42318;--k6:#5b6573;--k7:#c2410c;--k8:#4d7c0f}
+@media (prefers-color-scheme:dark){:root{--k0:#6b93ff;--k1:#4ac283;--k2:#e2a03f;--k3:#b794f4;--k4:#4fd1c5;--k5:#f2766b;--k6:#9aa4b2;--k7:#fb923c;--k8:#a3e635}}
+.nav button{font-size:.82rem;padding:12px 2px}
+@media (min-width:820px){.nav button{font-size:1rem}}
+.dialog{max-height:calc(100vh - 32px);overflow:auto}
+.stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0 0 12px}
+@media (min-width:820px){.stats{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.stat{display:flex;flex-direction:column;gap:2px;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:12px;box-shadow:var(--sh);min-width:0}
+.stat-v{font-size:1.3rem;font-weight:700;overflow-wrap:anywhere}
+.item{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px;padding:10px 0;border-bottom:1px solid var(--line)}
+.item:last-child{border-bottom:0}
+.item>div:first-child{min-width:0;flex:1 1 180px;overflow-wrap:anywhere}
+.catrow{padding:8px 0;border-bottom:1px solid var(--line)}
+.catrow:last-child{border-bottom:0}
+.bad-t{color:var(--bad)}
+.bar{display:block;width:100%;height:8px;margin-top:4px}
+.bar-bg{fill:var(--line)}
+.bar-fill{fill:var(--acc)}
+.bar-over{fill:var(--bad)}
+.chart{display:block;width:100%;height:auto;max-height:240px}
+.chart .axis{stroke:var(--line);stroke-width:1}
+.chart .tick{fill:var(--mut);font-size:10px}
+.bar-in{fill:var(--ok)}
+.bar-out{fill:var(--bad)}
+.ln-net,.ln-assets,.ln-liab{fill:none;stroke-linejoin:round;stroke-linecap:round}
+.ln-net{stroke:var(--acc);stroke-width:2.5}
+.ln-assets{stroke:var(--ok);stroke-width:1.5}
+.ln-liab{stroke:var(--bad);stroke-width:1.5;stroke-dasharray:4 3}
+.dot-net{fill:var(--acc)}
+.alloc{display:block;width:100%;height:18px;border-radius:6px;margin:0 0 8px}
+.sw{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:baseline;background:var(--mut)}
+.sw-in,.sw-assets{background:var(--ok)}.sw-out,.sw-liab{background:var(--bad)}.sw-net{background:var(--acc)}
+.k0{fill:var(--k0);background:var(--k0)}.k1{fill:var(--k1);background:var(--k1)}.k2{fill:var(--k2);background:var(--k2)}.k3{fill:var(--k3);background:var(--k3)}.k4{fill:var(--k4);background:var(--k4)}.k5{fill:var(--k5);background:var(--k5)}.k6{fill:var(--k6);background:var(--k6)}.k7{fill:var(--k7);background:var(--k7)}.k8{fill:var(--k8);background:var(--k8)}
+.legend{margin-top:6px}
+.alloc-row{padding:2px 0}
+.tablewrap{overflow-x:auto;margin-top:8px}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:4px 0 12px}
+.chipbtn,.seg{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:999px;padding:8px 14px;min-height:44px;cursor:pointer}
+.seg{flex:1}
+.chipbtn[aria-pressed=true],.seg[aria-pressed=true]{background:var(--acc);color:var(--acc-fg);border-color:var(--acc);font-weight:600}
+.chip .x{font:inherit;background:none;border:0;color:var(--mut);cursor:pointer;padding:6px 8px;min-height:32px;min-width:32px}
+.chips .chip{display:inline-flex;align-items:center;margin:0}
+.fold summary{cursor:pointer;font-weight:600;min-height:32px}
+.fold[open] summary{margin-bottom:10px}
+.field.check{flex-direction:row;align-items:center;gap:8px}
+.qa-btn{min-width:120px}
+h1{margin-right:auto}
 </style>
 </head>
 <body>
@@ -164,12 +211,15 @@ input[type=checkbox]{width:auto;min-height:0;flex:none}
   'use strict';
   const L = (globalThis.LifeOS = globalThis.LifeOS || {});
   const KEY = 'envelope';
+  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 2;
   const ENTRY_CAP = 50000, INSIGHT_CAP = 5000, REVIEW_CAP = 1000, LESSON_CAP = 30, AUDIT_CAP = 200;
   const BLOCKED = new Set(['__proto__', 'constructor', 'prototype']);
   // Same rule as ai.isLocalUrl (ai.js loads after this file, so call it lazily).
   const BIDI = /[\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF]/g;
   const strip = (v) => (typeof v === 'string' ? v.replace(BIDI, '') : v);
   let adapter = null, key = null, salt = null, state = null, queue = Promise.resolve();
+  // Sync metadata (rev etc.) travels outside AND inside the ciphertext; a mismatch means tampering. Missing = rev 0.
+  let meta = { rev: 0, updatedAt: '', deviceId: '' }, deviceId = '';
 
   function idbAdapter() {
     const open = () => new Promise((res, rej) => {
@@ -269,12 +319,26 @@ input[type=checkbox]{width:auto;min-height:0;flex:none}
         savingsRate: num(t.savingsRate, 0, 1, 'savingsRate'),
       },
       provider,
+      sync: cleanSync(s.sync),
     };
+  }
+  function cleanSync(x) {
+    const d = { clientId: '', remoteRev: -1, fp: '', fileId: '', keySalt: '' };
+    if (x === undefined) return d;
+    if (!isObj(x)) fail('sync');
+    const cid = str(x.clientId, 200, 'clientId', true);
+    if (cid && !/^[A-Za-z0-9._-]+\.apps\.googleusercontent\.com$/.test(cid)) fail('clientId');
+    const fp = str(x.fp, 64, 'fp', true), fid = str(x.fileId, 200, 'fileId', true);
+    if (fp && !/^[0-9a-f]{64}$/.test(fp)) fail('fp');
+    if (fid && !/^[A-Za-z0-9_-]{5,200}$/.test(fid)) fail('fileId');
+    const ks = x.keySalt === undefined ? '' : str(x.keySalt, 24, 'keySalt', true);
+    if (ks && !/^[A-Za-z0-9+/]{22}==$/.test(ks)) fail('keySalt');
+    return { clientId: cid, remoteRev: num(x.remoteRev === undefined ? -1 : x.remoteRev, -1, 1e9, 'remoteRev', true), fp, fileId: fid, keySalt: ks };
   }
   function cleanEntryText(e) {
     if (!isObj(e)) return e;
     const o = Object.assign({}, e);
-    for (const k of ['title', 'notes', 'person', 'status']) if (typeof o[k] === 'string') o[k] = strip(o[k]);
+    for (const k of ['title', 'notes', 'person', 'status', 'category']) if (typeof o[k] === 'string') o[k] = strip(o[k]);
     return o;
   }
   function cleanEntries(list) {
@@ -298,7 +362,13 @@ input[type=checkbox]{width:auto;min-height:0;flex:none}
       if (!isObj(x)) fail('digest domain');
       domains[id] = { now: num(x.now, -1e15, 1e15, 'digest'), prev: num(x.prev, -1e15, 1e15, 'digest'), unit: str(x.unit, 20, 'unit', true) };
     }
-    return { week: date(d.week, 'digest week'), domains };
+    const out = { week: date(d.week, 'digest week'), domains };
+    if (d.money !== undefined) {
+      if (!isObj(d.money)) fail('digest money');
+      out.money = {};
+      for (const k of ['income', 'spend', 'budgetUsedPct', 'netWorth', 'liabilities']) out.money[k] = num(d.money[k], -1e15, 1e15, 'digest money');
+    }
+    return out;
   }
   function cleanMemory(m) {
     if (!isObj(m)) fail('memory');
@@ -342,23 +412,113 @@ input[type=checkbox]{width:auto;min-height:0;flex:none}
       return { ts: ts(x.ts, 'ts'), action: str(x.action, 100, 'action', true) };
     });
   }
+  // ---- schema 2: accounts, recurring, budgets, categories ----
+  const ACCOUNT_KINDS = ['cash', 'investment', 'retirement', 'property', 'vehicle', 'other', 'credit', 'loan', 'mortgage'];
+  const LIAB_KINDS = ['credit', 'loan', 'mortgage'];
+  const bool = (v, name, dflt) => { if (v === undefined && dflt !== undefined) return dflt; if (typeof v !== 'boolean') fail(name + ' must be true or false'); return v; };
+  const money2 = (v, min, max, name) => Math.round(num(v, min, max, name) * 100) / 100;
+  function cleanAccounts(list) {
+    if (list === undefined) return [];
+    const seen = new Set();
+    return arr(list, ACCOUNT_CAP, 'accounts').map((x) => {
+      if (!isObj(x)) fail('account');
+      const id = str(x.id, 100, 'account id');
+      if (seen.has(id)) fail('duplicate account id');
+      seen.add(id);
+      const kind = oneOf(x.kind, ACCOUNT_KINDS, 'account kind');
+      const name = str(strip(x.name).trim(), 200, 'account name');
+      return { id, name, kind, liability: LIAB_KINDS.includes(kind) ? true : bool(x.liability, 'liability'), archived: bool(x.archived, 'archived', false) };
+    });
+  }
+  function cleanRecurring(list) {
+    if (list === undefined) return [];
+    const seen = new Set();
+    return arr(list, RECURRING_CAP, 'recurring').map((x) => {
+      if (!isObj(x)) fail('recurring item');
+      const id = str(x.id, 100, 'recurring id');
+      if (seen.has(id)) fail('duplicate recurring id');
+      seen.add(id);
+      return {
+        id, title: str(strip(x.title).trim(), 200, 'recurring title'), value: money2(x.value, 0.01, 1e9, 'recurring value'),
+        category: str(strip(x.category).trim(), 40, 'recurring category', true), type: oneOf(x.type, ['income', 'expense'], 'recurring type'),
+        cadence: oneOf(x.cadence, ['weekly', 'monthly', 'yearly'], 'cadence'), nextDate: date(x.nextDate, 'nextDate'), active: bool(x.active, 'active')
+      };
+    });
+  }
+  function cleanBudgets(list) {
+    if (list === undefined) return [];
+    const seen = new Set();
+    return arr(list, BUDGET_CAP, 'budgets').map((x) => {
+      if (!isObj(x)) fail('budget');
+      const category = str(strip(x.category).trim(), 40, 'budget category');
+      if (seen.has(category)) fail('duplicate budget category');
+      seen.add(category);
+      return { category, value: money2(x.value, 0, 1e9, 'budget value') };
+    });
+  }
+  function cleanCategories(c) {
+    if (c === undefined) return defaultCategories();
+    if (!isObj(c)) fail('categories');
+    const one = (list, name) => {
+      const seen = new Set();
+      return arr(list, CATEGORY_CAP, name).map((x) => {
+        const v = str(strip(x).trim(), 40, name);
+        if (seen.has(v.toLowerCase())) fail('duplicate category');
+        seen.add(v.toLowerCase());
+        return v;
+      });
+    };
+    return { expense: one(c.expense, 'expense categories'), income: one(c.income, 'income categories') };
+  }
+  function defaultCategories() {
+    const d = L.metrics.DEFAULT_CATEGORIES;
+    return { expense: d.expense.slice(), income: d.income.slice() };
+  }
+  // Schema 1 to 2: each distinct balance title becomes an account, and its entries point at it. Nothing is dropped.
+  function deriveAccounts(entries) {
+    const byTitle = new Map(), order = [];
+    for (const e of entries) {
+      if (e.type !== 'balance') continue;
+      const k = e.title.trim().toLowerCase();
+      let g = byTitle.get(k);
+      if (!g) { g = { name: e.title.trim(), latest: e, list: [] }; byTitle.set(k, g); order.push(g); }
+      g.list.push(e);
+      if (e.date >= g.latest.date) g.latest = e;
+    }
+    const accounts = [];
+    for (const g of order.slice(0, ACCOUNT_CAP)) {
+      const liability = g.latest.value < 0;
+      const a = { id: newId(), name: g.name, kind: liability ? 'credit' : 'other', liability, archived: false };
+      accounts.push(a);
+      for (const e of g.list) e.accountId = a.id;
+    }
+    return accounts;
+  }
   function validateState(o) {
     if (!isObj(o)) fail('state must be an object');
     scan(o, 0, { n: 4e6 });
-    if (o.schema !== 1) fail('unsupported schema');
+    if (o.schema !== 1 && o.schema !== SCHEMA) fail('unsupported schema');
     if (!L.metrics) fail('metrics module missing');
-    return { schema: 1, settings: cleanSettings(o.settings), entries: cleanEntries(o.entries), memory: cleanMemory(o.memory), audit: cleanAudit(o.audit) };
+    const settings = cleanSettings(o.settings), entries = cleanEntries(o.entries);
+    const out = { schema: SCHEMA, settings, entries };
+    if (o.schema === 1) Object.assign(out, { accounts: deriveAccounts(entries), recurring: [], budgets: [], categories: defaultCategories() });
+    else Object.assign(out, { accounts: cleanAccounts(o.accounts), recurring: cleanRecurring(o.recurring), budgets: cleanBudgets(o.budgets), categories: cleanCategories(o.categories) });
+    out.memory = cleanMemory(o.memory);
+    out.audit = cleanAudit(o.audit);
+    return out;
   }
 
   function defaultState() {
     return {
-      schema: 1,
+      schema: SCHEMA,
       settings: {
         currency: 'USD', autoLockMin: 15,
         targets: { workoutsPerWeek: 4, contactDays: 30, savingsRate: 0.2 },
         provider: { kind: 'none', baseUrl: '', model: '', apiKey: '' },
+        sync: { clientId: '', remoteRev: -1, fp: '', fileId: '', keySalt: '' },
       },
       entries: [],
+      accounts: [], recurring: [], budgets: [], categories: defaultCategories(),
       memory: { insights: [], lessons: [], reviews: [] },
       audit: [],
     };
@@ -367,6 +527,23 @@ input[type=checkbox]{width:auto;min-height:0;flex:none}
     const c = L._webcrypto;
     if (!c || !c.randomUUID) throw new Error('WEBCRYPTO_UNAVAILABLE');
     return c.randomUUID();
+  }
+
+  // ---- revision metadata (used by sync.js) ----
+  const tamper = () => new Error('Vault revision check failed. The data may have been altered.');
+  function readMeta(env, raw) {
+    const inner = raw && raw._meta;
+    if (env.rev === undefined && inner === undefined) return { rev: 0, updatedAt: '', deviceId: '' };
+    if (!isObj(inner) || env.rev !== inner.rev || env.updatedAt !== inner.updatedAt || env.deviceId !== inner.deviceId) throw tamper();
+    if (!Number.isInteger(env.rev) || env.rev < 0 || env.rev > 1e9 || typeof env.updatedAt !== 'string' || env.updatedAt.length > 40 ||
+      typeof env.deviceId !== 'string' || env.deviceId.length > 64) throw tamper();
+    return { rev: env.rev, updatedAt: env.updatedAt, deviceId: env.deviceId };
+  }
+  async function seal(k, sl, clean, rev) {
+    if (!deviceId) deviceId = newId();
+    const m = { rev, updatedAt: new Date().toISOString(), deviceId };
+    const env = await V().makeEnvelope(k, sl, Object.assign({}, clean, { _meta: m }));
+    return { env: Object.assign(env, m), m };
   }
 
   // ---- lifecycle ----
@@ -386,8 +563,9 @@ input[type=checkbox]{width:auto;min-height:0;flex:none}
     const sl = V().newSalt();
     const k = await V().deriveKey(passphrase, sl);
     const st = defaultState();
-    await a.set(KEY, await V().makeEnvelope(k, sl, st));
-    key = k; salt = sl; state = st;
+    const sealed = await seal(k, sl, st, 0);
+    await a.set(KEY, sealed.env);
+    key = k; salt = sl; state = st; meta = sealed.m;
     return st;
   }
   async function unlock(passphrase) {
@@ -395,19 +573,21 @@ input[type=checkbox]{width:auto;min-height:0;flex:none}
     if (!env) throw new Error('NO_VAULT');
     const { salt: sl } = V().parseEnvelope(env);
     const k = await V().deriveKey(passphrase, sl);
-    const st = validateState(await V().decrypt(k, env));
+    const raw = await V().decrypt(k, env);
+    const st = validateState(raw);
+    meta = readMeta(env, raw); deviceId = meta.deviceId || deviceId;
     key = k; salt = sl; state = st;
     return st;
   }
   function lock() {
     // Empty the live state object too, so any reference still held elsewhere no longer reaches plaintext.
     if (state) { try { replaceContents(state, {}); } catch (e) { /* ignore */ } }
-    key = null; salt = null; state = null;
+    key = null; salt = null; state = null; meta = { rev: 0, updatedAt: '', deviceId: '' };
   }
   const isUnlocked = () => !!(state && key);
   function getState() { requireUnlocked(); return state; }
 
-  function commit(fn) {
+  function commit(fn, opts) {
     return serial(async () => {
       requireUnlocked();
       const st = state, k = key, sl = salt;
@@ -415,10 +595,11 @@ input[type=checkbox]{width:auto;min-height:0;flex:none}
       try {
         await fn(st);
         const clean = validateState(st);
-        const env = await V().makeEnvelope(k, sl, clean);
+        const sealed = await seal(k, sl, clean, opts && opts.quiet ? meta.rev : meta.rev + 1);
         if (key !== k) throw new Error('LOCKED');
-        await getAdapter().set(KEY, env);
+        await getAdapter().set(KEY, sealed.env);
         if (state !== st) throw new Error('LOCKED');
+        meta = sealed.m;
         replaceContents(st, clean);
       } catch (e) {
         if (state === st) replaceContents(st, snapshot);
@@ -437,11 +618,11 @@ input[type=checkbox]{width:auto;min-height:0;flex:none}
       await V().decrypt(await V().deriveKey(oldP, sl), env);
       const nsl = V().newSalt();
       const nk = await V().deriveKey(newP, nsl);
-      const env2 = await V().makeEnvelope(nk, nsl, validateState(st));
+      const sealed = await seal(nk, nsl, validateState(st), meta.rev + 1);
       if (state !== st) throw new Error('LOCKED');
-      await a.set(KEY, env2);
+      await a.set(KEY, sealed.env);
       if (state !== st) throw new Error('LOCKED');
-      key = nk; salt = nsl;
+      key = nk; salt = nsl; meta = sealed.m;
     });
   }
   function replaceState(next) {
@@ -449,11 +630,66 @@ input[type=checkbox]{width:auto;min-height:0;flex:none}
       requireUnlocked();
       const st = state;
       const clean = validateState(next);
-      const env = await V().makeEnvelope(key, salt, clean);
+      // A restored backup never brings its own sync bookkeeping: an older remoteRev would weaken the rollback
+      // check, and a different OAuth client ID would be swapped in without the user seeing it.
+      clean.settings.sync = Object.assign({}, st.settings.sync);
+      const sealed = await seal(key, salt, clean, meta.rev + 1);
       if (state !== st) throw new Error('LOCKED');
+      await getAdapter().set(KEY, sealed.env);
+      if (state !== st) throw new Error('LOCKED');
+      meta = sealed.m;
+      replaceContents(st, clean);
+    });
+  }
+  // ---- sync support (additive) ----
+  const getMeta = () => { requireUnlocked(); return Object.assign({}, meta); };
+  // Public identifier of the live key: its salt in base64 (the salt is not secret; it is in every envelope).
+  const saltId = () => { requireUnlocked(); return btoa(String.fromCharCode.apply(null, salt)); };
+  // Current stored envelope, re-sealed first if it has no rev yet or must reach at least minRev.
+  function exportEnvelope(minRev) {
+    return serial(async () => {
+      requireUnlocked();
+      const a = getAdapter(), st = state, k = key, sl = salt;
+      let env = await a.get(KEY);
+      const want = Math.max(meta.rev, Number.isInteger(minRev) ? minRev : 0);
+      if (!env) throw new Error('NO_VAULT');
+      if (env.rev === undefined || env.rev < want) {
+        const sealed = await seal(k, sl, validateState(st), want);
+        if (state !== st || key !== k) throw new Error('LOCKED');
+        await a.set(KEY, sealed.env);
+        meta = sealed.m; env = sealed.env;
+      }
+      return env;
+    });
+  }
+  // Open an untrusted remote envelope. Uses the live key when the salt matches, else needs the passphrase.
+  async function inspectEnvelope(env, passphrase) {
+    requireUnlocked();
+    const { salt: sl } = V().parseEnvelope(env);
+    let k;
+    if (sl.length === salt.length && sl.every((b, i) => b === salt[i])) k = key;
+    else {
+      if (typeof passphrase !== 'string' || !passphrase) { const e = new Error('Enter the passphrase of the Drive copy.'); e.code = 'NEED_PASSPHRASE'; throw e; }
+      k = await V().deriveKey(passphrase, sl);
+    }
+    let raw;
+    try { raw = await V().decrypt(k, env); }
+    catch (e) { const x = new Error('The Drive copy uses a different passphrase.'); x.code = 'WRONG_PASSPHRASE'; throw x; }
+    const m = readMeta(env, raw);
+    return { meta: m, state: validateState(raw), key: k, salt: sl, env, sameKey: k === key };
+  }
+  // Replace the local vault with an inspected remote one (same passphrase).
+  function adoptEnvelope(info) {
+    return serial(async () => {
+      requireUnlocked();
+      const st = state, e = info.env;
+      // Persist only the known envelope fields, never whatever else the remote JSON carried.
+      const env = { v: e.v, kdf: { name: e.kdf.name, hash: e.kdf.hash, iter: e.kdf.iter, salt: e.kdf.salt }, iv: e.iv, ct: e.ct };
+      if (e.rev !== undefined) Object.assign(env, { rev: e.rev, updatedAt: e.updatedAt, deviceId: e.deviceId });
       await getAdapter().set(KEY, env);
       if (state !== st) throw new Error('LOCKED');
-      replaceContents(st, clean);
+      key = info.key; salt = info.salt; meta = Object.assign({}, info.meta);
+      replaceContents(st, info.state);
     });
   }
   async function wipe() {
@@ -461,7 +697,7 @@ input[type=checkbox]{width:auto;min-height:0;flex:none}
     lock();
   }
 
-  L.store = { _setAdapter, exists, init, unlock, lock, isUnlocked, getState, commit, changePassphrase, replaceState, wipe, validateState, newId, defaultState };
+  L.store = { _setAdapter, exists, init, unlock, lock, isUnlocked, getState, commit, changePassphrase, replaceState, wipe, validateState, newId, defaultState, getMeta, saltId, exportEnvelope, inspectEnvelope, adoptEnvelope };
 })();
 
 ;
@@ -674,6 +910,14 @@ input[type=checkbox]{width:auto;min-height:0;flex:none}
       if (n.length > 2000) throw new Error('Notes must be 2000 characters or fewer');
       if (n) out.notes = n;
     }
+    if (dom.id === 'money' && !isEmpty(p.category)) {
+      if (typeof p.category !== 'string' || !p.category.trim() || p.category.trim().length > 40) throw new Error('Category must be 1 to 40 characters');
+      out.category = p.category.trim();
+    }
+    if (ty.id === 'balance' && !isEmpty(p.accountId)) {
+      if (typeof p.accountId !== 'string' || !p.accountId || p.accountId.length > 100) throw new Error('Invalid account');
+      out.accountId = p.accountId;
+    }
     const ca = p.createdAt;
     out.createdAt = (typeof ca === 'string' && ca.length <= 40 && ca) || (typeof ca === 'number' && isFinite(ca) && ca) || new Date().toISOString();
     return out;
@@ -683,21 +927,137 @@ input[type=checkbox]{width:auto;min-height:0;flex:none}
   const r1 = (x) => Math.round(x * 10) / 10;
   const r2 = (x) => Math.round(x * 100) / 100;
   const inR = (e, a, b) => e.date >= a && e.date <= b;
-  function savings(ents, a, b) {
+  // ---- money maths: integer cents only ----
+  const cents = (v) => Math.round(Number(v) * 100);
+  const dollars = (c) => c / 100;
+  const LIAB_KINDS = ['credit', 'loan', 'mortgage'];
+  const ACCOUNT_KINDS = ['cash', 'investment', 'retirement', 'property', 'vehicle', 'other', 'credit', 'loan', 'mortgage'];
+  const DEFAULT_CATEGORIES = {
+    expense: ['Housing', 'Groceries', 'Dining', 'Transport', 'Utilities', 'Health', 'Shopping', 'Travel', 'Subscriptions', 'Other'],
+    income: ['Salary', 'Business', 'Interest', 'Gift', 'Other']
+  };
+  const UNCAT = 'Uncategorised';
+  const monthOf = (d) => d.slice(0, 7);
+  const monthEnd = (m) => { const y = +m.slice(0, 4), mo = +m.slice(5, 7); return m + '-' + String(new Date(Date.UTC(y, mo, 0)).getUTCDate()).padStart(2, '0'); };
+  const addMonths = (m, k) => { const t = (+m.slice(0, 4)) * 12 + (+m.slice(5, 7) - 1) + k; return String(Math.floor(t / 12)).padStart(4, '0') + '-' + String(t % 12 + 1).padStart(2, '0'); };
+  function sumMoney(ents, a, b) {
     let inc = 0, exp = 0;
-    for (const e of ents) if (inR(e, a, b)) { if (e.type === 'income') inc += e.value; else if (e.type === 'expense') exp += e.value; }
-    return { inc, exp, rate: inc > 0 ? (inc - exp) / inc : null };
+    for (const e of ents) if (inR(e, a, b)) { if (e.type === 'income') inc += cents(e.value); else if (e.type === 'expense') exp += cents(e.value); }
+    return { incC: inc, expC: exp };
   }
-  function netWorth(ents, asOf) {
-    const m = new Map();
-    for (const e of ents) {
+  function savings(ents, a, b) {
+    const m = sumMoney(ents, a, b);
+    return { inc: dollars(m.incC), exp: dollars(m.expC), rate: m.incC > 0 ? (m.incC - m.expC) / m.incC : null };
+  }
+
+  // Latest balance per account (non-archived), liabilities subtracted. Balance entries without a usable accountId
+  // fall back to the account with the same name, then to an implicit account keyed by title (schema 1 behaviour).
+  function netWorthDetail(state, asOf) {
+    const accts = state.accounts || [];
+    const byId = new Map(accts.map((x) => [x.id, x]));
+    const byName = new Map();
+    for (const x of accts) { const k = x.name.trim().toLowerCase(); if (!byName.has(k)) byName.set(k, x); }
+    const latest = new Map();
+    for (const e of state.entries) {
       if (e.type !== 'balance' || e.date > asOf) continue;
-      const k = e.title.trim().toLowerCase(), cur = m.get(k);
-      if (!cur || e.date >= cur.date) m.set(k, e);
+      let a = e.accountId ? byId.get(e.accountId) : null;
+      if (!a) a = byName.get(e.title.trim().toLowerCase()) || null;
+      const k = a ? 'a:' + a.id : 't:' + e.title.trim().toLowerCase();
+      const cur = latest.get(k);
+      if (!cur || e.date >= cur.e.date) latest.set(k, { e, a });
     }
-    let total = 0;
-    for (const e of m.values()) total += e.value;
-    return { total, count: m.size };
+    let assetsC = 0, liabC = 0, count = 0;
+    const kinds = new Map(), rows = [];
+    for (const { e, a } of latest.values()) {
+      if (a && a.archived) continue;
+      const v = cents(e.value);
+      const liab = a ? a.liability : v < 0;
+      const signed = a ? (a.liability ? -Math.abs(v) : v) : v;
+      const kind = a ? a.kind : (v < 0 ? 'credit' : 'other');
+      count++;
+      if (liab) liabC += Math.abs(signed); else { assetsC += signed; if (signed > 0) kinds.set(kind, (kinds.get(kind) || 0) + signed); }
+      rows.push({ id: a ? a.id : null, name: a ? a.name : e.title, kind, liability: liab, cents: signed, date: e.date });
+    }
+    const pos = [...kinds.values()].reduce((x, y) => x + y, 0);
+    const byKind = [...kinds.entries()].map(([kind, c]) => ({ kind, cents: c, share: pos ? c / pos : 0 })).sort((x, y) => y.cents - x.cents);
+    const totalC = assetsC - liabC;
+    return { totalCents: totalC, assetsCents: assetsC, liabilitiesCents: liabC, total: dollars(totalC), assets: dollars(assetsC), liabilities: dollars(liabC), count, byKind, rows };
+  }
+  function netWorthHistory(state, n, today) {
+    n = Math.max(1, Math.min(120, Math.floor(Number(n)) || 12));
+    const t = isDate(today) ? today : todayISO(), cur = monthOf(t), out = [];
+    for (let i = n - 1; i >= 0; i--) {
+      const m = addMonths(cur, -i), asOf = i === 0 ? t : monthEnd(m);
+      const d = netWorthDetail(state, asOf);
+      out.push({ month: m, total: d.total, assets: d.assets, liabilities: d.liabilities, totalCents: d.totalCents, assetsCents: d.assetsCents, liabilitiesCents: d.liabilitiesCents });
+    }
+    return out;
+  }
+  function monthView(state, month) {
+    if (typeof month !== 'string' || !/^\d{4}-\d{2}$/.test(month) || !isDate(month + '-01')) throw new Error('Month must be YYYY-MM');
+    const ents = byDomain(state, 'money').filter((e) => monthOf(e.date) === month);
+    let inc = 0, exp = 0;
+    const spent = new Map();
+    for (const e of ents) {
+      const c = cents(e.value);
+      if (e.type === 'income') inc += c;
+      else if (e.type === 'expense') { exp += c; const k = e.category || UNCAT; spent.set(k, (spent.get(k) || 0) + c); }
+    }
+    const budgets = new Map((state.budgets || []).map((x) => [x.category, cents(x.value)]));
+    const names = new Set([...spent.keys(), ...budgets.keys()]);
+    let budgetC = 0, budgetedSpentC = 0;
+    const rows = [...names].map((category) => {
+      const sp = spent.get(category) || 0, bd = budgets.has(category) ? budgets.get(category) : null;
+      if (bd !== null) { budgetC += bd; budgetedSpentC += sp; }
+      return { category, spentCents: sp, budgetCents: bd, remainingCents: bd === null ? null : bd - sp, over: bd !== null && sp > bd };
+    }).sort((x, y) => y.spentCents - x.spentCents || x.category.localeCompare(y.category));
+    return {
+      month, incomeCents: inc, spendCents: exp, netCents: inc - exp, income: dollars(inc), spend: dollars(exp), net: dollars(inc - exp),
+      savingsRate: inc > 0 ? (inc - exp) / inc : null, categories: rows, budgetCents: budgetC, budgetedSpentCents: budgetedSpentC
+    };
+  }
+  function cashflow(state, n, today) {
+    n = Math.max(1, Math.min(60, Math.floor(Number(n)) || 6));
+    const cur = monthOf(isDate(today) ? today : todayISO()), out = [];
+    for (let i = n - 1; i >= 0; i--) {
+      const v = monthView(state, addMonths(cur, -i));
+      out.push({ month: v.month, incomeCents: v.incomeCents, spendCents: v.spendCents, netCents: v.netCents });
+    }
+    return out;
+  }
+
+  // ---- recurring: proposes only; the user confirms each item ----
+  function advanceDate(d, cadence) {
+    if (!isDate(d)) throw new Error('Invalid date');
+    if (cadence === 'weekly') return addDays(d, 7);
+    const y = +d.slice(0, 4), m = +d.slice(5, 7) - 1, day = +d.slice(8, 10);
+    const t = y * 12 + m + (cadence === 'yearly' ? 12 : 1);
+    const ny = Math.floor(t / 12), nm = t % 12;
+    const last = new Date(Date.UTC(ny, nm + 1, 0)).getUTCDate();
+    return String(ny).padStart(4, '0') + '-' + String(nm + 1).padStart(2, '0') + '-' + String(Math.min(day, last)).padStart(2, '0');
+  }
+  function dueRecurring(state, today) {
+    if (!isDate(today)) throw new Error('today must be YYYY-MM-DD');
+    return (state.recurring || []).filter((r) => r.active && r.nextDate <= today)
+      .map((r) => ({ id: r.id, title: r.title, value: r.value, category: r.category, type: r.type, date: r.nextDate }))
+      .sort((x, y) => x.date.localeCompare(y.date) || x.title.localeCompare(y.title));
+  }
+  function findDue(state, id, today) {
+    const r = (state.recurring || []).find((x) => x.id === id);
+    if (!r) throw new Error('Recurring item not found');
+    if (!r.active || r.nextDate > today) throw new Error('That item is not due yet');
+    return r;
+  }
+  function confirmRecurring(state, id, today) {
+    const r = findDue(state, id, today);
+    const e = validateEntry({ domain: 'money', type: r.type, date: r.nextDate, title: r.title, value: r.value, category: r.category || undefined, notes: 'Recurring' });
+    state.entries.push(e);
+    r.nextDate = advanceDate(r.nextDate, r.cadence);
+    return e;
+  }
+  function skipRecurring(state, id, today) {
+    const r = findDue(state, id, today);
+    r.nextDate = advanceDate(r.nextDate, r.cadence);
   }
   function overdue(ents, asOf, days) {
     const last = new Map();
@@ -748,7 +1108,7 @@ input[type=checkbox]{width:auto;min-height:0;flex:none}
     const tg = state.settings.targets;
     switch (id) {
       case 'money': { const s = savings(ents, ws, we); return s.rate === null ? 0 : s.rate * 100; }
-      case 'assets': return netWorth(ents, we).total;
+      case 'assets': return netWorthDetail(state, we).total;
       case 'work': return count(ents, ws, we, (e) => e.type === 'outcome' && e.status === 'done');
       case 'health': return count(ents, ws, we, (e) => e.type === 'workout');
       case 'activities': return activeDays(ents, ws, we);
@@ -770,7 +1130,10 @@ input[type=checkbox]{width:auto;min-height:0;flex:none}
       const ents = byDomain(state, d.id);
       domains[d.id] = { now: r2(weekMetric(state, d.id, ws, ents)), prev: r2(weekMetric(state, d.id, pw, ents)), unit: unitOf(state, d.id) };
     }
-    return { week: ws, domains };
+    const we = addDays(ws, 6), wm = sumMoney(byDomain(state, 'money'), ws, we), nw = netWorthDetail(state, we);
+    const mv = monthView(state, monthOf(we));
+    const money = { income: dollars(wm.incC), spend: dollars(wm.expC), budgetUsedPct: mv.budgetCents > 0 ? r1(mv.budgetedSpentCents * 100 / mv.budgetCents) : 0, netWorth: nw.total, liabilities: nw.liabilities };
+    return { week: ws, domains, money };
   }
   function series(state, domainId, n, today) {
     if (!DOMAINS.some((d) => d.id === domainId)) throw new Error('Unknown domain');
@@ -802,7 +1165,7 @@ input[type=checkbox]{width:auto;min-height:0;flex:none}
           fmtMoney(s.inc, st.currency) + ' in, ' + fmtMoney(s.exp, st.currency) + ' out. Target ' + Math.round(tg.savingsRate * 100) + '%');
       }
       case 'assets': {
-        const w = netWorth(ents, today);
+        const w = netWorthDetail(state, today);
         return R('Net worth', fmtMoney(w.total, st.currency), w.total, w.count + (w.count === 1 ? ' account' : ' accounts'));
       }
       case 'work': {
@@ -845,7 +1208,7 @@ input[type=checkbox]{width:auto;min-height:0;flex:none}
     }
   }
 
-  L.metrics = { DOMAINS, isDate, addDays, validateEntry, headline, weekStart, weeklyDigest, series, fmtMoney };
+  L.metrics = { DOMAINS, isDate, addDays, validateEntry, headline, weekStart, weeklyDigest, series, fmtMoney, cents, ACCOUNT_KINDS, LIAB_KINDS, DEFAULT_CATEGORIES, UNCAT, addMonths, monthEnd, advanceDate, netWorthDetail, netWorthHistory, monthView, cashflow, dueRecurring, confirmRecurring, skipRecurring };
   L.DOMAINS = DOMAINS;
 })();
 
@@ -1127,10 +1490,323 @@ input[type=checkbox]{width:auto;min-height:0;flex:none}
 ;
 (function () {
   'use strict';
+  const L = (globalThis.LifeOS = globalThis.LifeOS || {});
+  const SCOPE = 'https://www.googleapis.com/auth/drive.appdata';
+  const AUTH_URL = 'https://accounts.google.com/o/oauth2/v2/auth';
+  const API = 'https://www.googleapis.com';
+  const FILE_NAME = 'lifeos-vault.json';
+  const MAX_REMOTE = 64 * 1024 * 1024, TIMEOUT_MS = 30000;
+  const NONCE_KEY = 'lifeos.oauth.state';
+  const ID_RE = /^[A-Za-z0-9_-]{5,200}$/;
+  let token = null, tokenExp = 0, fetchImpl = null, returned = null;
+
+  // Errors carry a stable code and a fixed message. Nothing from a response, URL or header is ever copied in.
+  // Only errors made here (tracked in OWN) pass through api() with their message; any other error is replaced.
+  const OWN = new WeakSet();
+  function err(code, message) { const e = new Error(message); e.code = code; OWN.add(e); return e; }
+  const getFetch = () => {
+    const f = fetchImpl || (typeof fetch === 'function' ? fetch : null);
+    if (!f) throw err('NO_FETCH', 'This browser cannot reach Google Drive.');
+    return f;
+  };
+  function _setFetch(f) { fetchImpl = typeof f === 'function' ? f : null; }
+  function _setToken(t, ttlSec) { token = t || null; tokenExp = t ? Date.now() + (ttlSec || 3600) * 1000 : 0; }
+  const isConnected = () => !!token && Date.now() < tokenExp;
+  function disconnect() { token = null; tokenExp = 0; }
+  const expiresAt = () => (isConnected() ? tokenExp : 0);
+
+  // ---- OAuth (implicit token flow, full-page redirect) ----
+  function isAvailable(loc) {
+    if (!loc) return false;
+    if (loc.protocol === 'https:') return true;
+    // Test-only exception: a local dev server on http://localhost or http://127.0.0.1.
+    return loc.protocol === 'http:' && (loc.hostname === 'localhost' || loc.hostname === '127.0.0.1');
+  }
+  function validateClientId(id) {
+    if (typeof id !== 'string' || !/^[A-Za-z0-9._-]{1,150}\.apps\.googleusercontent\.com$/.test(id.trim())) {
+      throw err('BAD_CLIENT_ID', 'That does not look like a Google OAuth client ID (it ends with .apps.googleusercontent.com).');
+    }
+    return id.trim();
+  }
+  function newNonce() {
+    const b = L._webcrypto.getRandomValues(new Uint8Array(16));
+    return Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');
+  }
+  function buildAuthUrl(clientId, redirectUri, nonce) {
+    const u = new URL(AUTH_URL);
+    u.searchParams.set('client_id', validateClientId(clientId));
+    u.searchParams.set('redirect_uri', redirectUri);
+    u.searchParams.set('response_type', 'token');
+    u.searchParams.set('scope', SCOPE);
+    u.searchParams.set('state', nonce);
+    u.searchParams.set('include_granted_scopes', 'false');
+    return u.toString();
+  }
+  function begin(clientId, env) {
+    if (!isAvailable(env.loc)) throw err('NOT_HTTPS', 'Google Drive sync needs this page to be served over https.');
+    const nonce = newNonce();
+    env.storage.setItem(NONCE_KEY, nonce);
+    return buildAuthUrl(clientId, env.loc.origin + env.loc.pathname, nonce);
+  }
+  // Returns null when the fragment is not an OAuth response. Throws a coded error when it is one but cannot be trusted.
+  function parseFragment(hash, expectedNonce) {
+    const raw = typeof hash === 'string' ? hash.replace(/^#/, '') : '';
+    if (!raw) return null;
+    const p = new URLSearchParams(raw);
+    if (!p.has('access_token') && !p.has('error')) return null;
+    const st = p.get('state');
+    if (!expectedNonce || !st || st.length !== expectedNonce.length) throw err('STATE', 'The Google sign-in response could not be verified. Try connecting again.');
+    let diff = 0;
+    for (let i = 0; i < st.length; i++) diff |= st.charCodeAt(i) ^ expectedNonce.charCodeAt(i);
+    if (diff) throw err('STATE', 'The Google sign-in response could not be verified. Try connecting again.');
+    if (p.has('error')) throw err('DENIED', 'Google sign-in was cancelled or refused.');
+    const t = p.get('access_token') || '';
+    if (!/^[A-Za-z0-9._~+/=-]{20,2048}$/.test(t) || String(p.get('token_type') || '').toLowerCase() !== 'bearer') {
+      throw err('BAD_TOKEN', 'Google returned an unexpected sign-in response.');
+    }
+    const sc = p.get('scope');
+    if (sc && sc.split(/\s+/).indexOf(SCOPE) < 0) throw err('BAD_SCOPE', 'Google did not grant the Drive app-data permission.');
+    const ttl = Math.min(86400, Math.max(60, parseInt(p.get('expires_in'), 10) || 3600));
+    return { token: t, expiresIn: ttl };
+  }
+  // Runs at load, before anything else: take the token, then strip the fragment from the address bar.
+  function consumeReturn(loc, storage, hist) {
+    const hash = loc && loc.hash;
+    if (!hash || !/(^#|&)(access_token|error)=/.test(hash)) return;
+    let nonce = null;
+    try { hist.replaceState(null, '', loc.pathname + loc.search); } catch (e) { /* ignore */ }
+    try { if (storage) { nonce = storage.getItem(NONCE_KEY); storage.removeItem(NONCE_KEY); } } catch (e) { /* ignore */ }
+    try {
+      const r = parseFragment(hash, nonce);
+      if (r) { _setToken(r.token, r.expiresIn); returned = { connected: true }; }
+    } catch (e) { returned = { error: e.message }; }
+  }
+  function takeReturn() { const r = returned; returned = null; return r; }
+  if (typeof location !== 'undefined' && typeof history !== 'undefined') {
+    let ss = null;
+    try { ss = sessionStorage; } catch (e) { /* unavailable */ }
+    // Always run, even without sessionStorage, so a token fragment is stripped (and then rejected for lack of a nonce).
+    consumeReturn(location, ss, history);
+  }
+
+  // ---- Drive REST ----
+  // Read the body with a hard cap, even when Content-Length is missing (chunked); abort beyond it.
+  async function readCapped(res, ctl) {
+    if (!res.body || typeof res.body.getReader !== 'function') {
+      const t = await res.text();
+      if (t.length > MAX_REMOTE) throw err('TOO_LARGE', 'The Drive copy is larger than 64 MB, so it was rejected.');
+      return t;
+    }
+    const rd = res.body.getReader(), parts = [];
+    let n = 0;
+    for (;;) {
+      const { done, value } = await rd.read();
+      if (done) break;
+      n += value.byteLength;
+      if (n > MAX_REMOTE) { try { ctl.abort(); rd.cancel(); } catch (e) { /* ignore */ } throw err('TOO_LARGE', 'The Drive copy is larger than 64 MB, so it was rejected.'); }
+      parts.push(value);
+    }
+    const all = new Uint8Array(n);
+    let o = 0;
+    for (const p of parts) { all.set(p, o); o += p.byteLength; }
+    return new TextDecoder().decode(all);
+  }
+  async function api(url, o) {
+    o = o || {};
+    if (!isConnected()) { token = null; throw err('RECONNECT', 'Google sign-in has expired. Reconnect to continue.'); }
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), TIMEOUT_MS);
+    let res, text = '';
+    try {
+      res = await getFetch()(url, {
+        method: o.method || 'GET', body: o.body, signal: ctl.signal,
+        headers: Object.assign({ Authorization: 'Bearer ' + token }, o.headers || {}),
+        credentials: 'omit', redirect: 'error', cache: 'no-store', referrerPolicy: 'no-referrer',
+      });
+      const len = res.headers && res.headers.get && Number(res.headers.get('content-length'));
+      if (len > MAX_REMOTE) throw err('TOO_LARGE', 'The Drive copy is larger than 64 MB, so it was rejected.');
+      if (res.status !== 401 && res.status !== 412 && res.status !== 404) text = await readCapped(res, ctl);
+    } catch (e) {
+      if (OWN.has(e)) throw e;
+      throw err(ctl.signal.aborted ? 'TIMEOUT' : 'NETWORK', ctl.signal.aborted ? 'Google Drive did not answer in time.' : 'Could not reach Google Drive.');
+    } finally { clearTimeout(timer); }
+    if (text.length > MAX_REMOTE) throw err('TOO_LARGE', 'The Drive copy is larger than 64 MB, so it was rejected.');
+    if (res.status === 401) { token = null; tokenExp = 0; throw err('RECONNECT', 'Google sign-in has expired. Reconnect to continue.'); }
+    if (res.status === 412) throw err('REMOTE_CHANGED', 'The Drive copy changed while syncing. Nothing was overwritten. Run sync again.');
+    if (res.status === 404) return { status: 404, text: '', etag: '' };
+    if (!res.ok) throw err('HTTP', 'Google Drive returned an error (HTTP ' + (Number(res.status) || 0) + ').');
+    return { status: res.status, text, etag: (res.headers && res.headers.get && res.headers.get('etag')) || '' };
+  }
+  function json(text) {
+    try { const v = JSON.parse(text); if (v && typeof v === 'object') return v; } catch (e) { /* fall through */ }
+    throw err('REMOTE_INVALID', 'Google Drive sent an unexpected reply.');
+  }
+  async function findFile() {
+    const q = encodeURIComponent("name='" + FILE_NAME + "' and trashed=false");
+    const r = await api(API + '/drive/v3/files?spaces=appDataFolder&q=' + q + '&orderBy=modifiedTime%20desc&pageSize=10&fields=' + encodeURIComponent('files(id,size,version)'));
+    const files = json(r.text).files;
+    if (!Array.isArray(files) || !files.length) return null;
+    const f = files[0];
+    if (!f || typeof f.id !== 'string' || !ID_RE.test(f.id)) throw err('REMOTE_INVALID', 'Google Drive sent an unexpected reply.');
+    const size = f.size === undefined ? 0 : Number(f.size);
+    if (!isFinite(size) || size < 0) throw err('REMOTE_INVALID', 'Google Drive sent an unexpected reply.');
+    if (size > MAX_REMOTE) throw err('TOO_LARGE', 'The Drive copy is larger than 64 MB, so it was rejected.');
+    return { id: f.id, version: f.version === undefined ? '' : String(f.version).slice(0, 40) };
+  }
+  async function download(file) {
+    const r = await api(API + '/drive/v3/files/' + file.id + '?alt=media');
+    if (r.status === 404) throw err('REMOTE_CHANGED', 'The Drive copy changed while syncing. Nothing was overwritten. Run sync again.');
+    return r;
+  }
+  async function upload(file, text, etag) {
+    if (text.length > MAX_REMOTE) throw err('TOO_LARGE', 'The vault is larger than 64 MB and cannot be synced.');
+    if (!file) {
+      const b = 'lifeos' + newNonce();
+      const body = '--' + b + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' +
+        JSON.stringify({ name: FILE_NAME, parents: ['appDataFolder'] }) + '\r\n--' + b +
+        '\r\nContent-Type: application/json\r\n\r\n' + text + '\r\n--' + b + '--';
+      const r = await api(API + '/upload/drive/v3/files?uploadType=multipart&fields=id', { method: 'POST', body, headers: { 'Content-Type': 'multipart/related; boundary=' + b } });
+      const id = json(r.text).id;
+      if (typeof id !== 'string' || !ID_RE.test(id)) throw err('REMOTE_INVALID', 'Google Drive sent an unexpected reply.');
+      return id;
+    }
+    // Re-read the file version right before writing, and also send the etag when Drive gave us one.
+    const cur = await api(API + '/drive/v3/files/' + file.id + '?fields=id,version');
+    if (cur.status === 404 || String(json(cur.text).version === undefined ? '' : json(cur.text).version) !== file.version) {
+      throw err('REMOTE_CHANGED', 'The Drive copy changed while syncing. Nothing was overwritten. Run sync again.');
+    }
+    const headers = { 'Content-Type': 'application/json' };
+    if (etag) headers['If-Match'] = etag;
+    const r = await api(API + '/upload/drive/v3/files/' + file.id + '?uploadType=media&fields=id', { method: 'PATCH', body: text, headers });
+    if (r.status === 404) throw err('REMOTE_CHANGED', 'The Drive copy changed while syncing. Nothing was overwritten. Run sync again.');
+    return file.id;
+  }
+
+  // ---- change detection ----
+  function stable(v) {
+    if (Array.isArray(v)) return '[' + v.map(stable).join(',') + ']';
+    if (v && typeof v === 'object') return '{' + Object.keys(v).sort().map((k) => JSON.stringify(k) + ':' + stable(v[k])).join(',') + '}';
+    return JSON.stringify(v);
+  }
+  // Fingerprint of the content that counts as "changed": everything except the audit log and sync bookkeeping.
+  async function fingerprint(state) {
+    const s = JSON.parse(JSON.stringify(state));
+    delete s.audit;
+    if (s.settings) delete s.settings.sync;
+    const d = await L._webcrypto.subtle.digest('SHA-256', new TextEncoder().encode(stable(s)));
+    return Array.from(new Uint8Array(d), (x) => x.toString(16).padStart(2, '0')).join('');
+  }
+  const summary = (meta, state) => ({ rev: meta.rev, updatedAt: meta.updatedAt, entries: Array.isArray(state.entries) ? state.entries.length : 0 });
+
+  async function inspect(text, passphrase) {
+    let envObj;
+    try { envObj = JSON.parse(text); } catch (e) { throw err('REMOTE_INVALID', 'The Drive file is not a valid LifeOS vault.'); }
+    try { return await L.store.inspectEnvelope(envObj, passphrase); }
+    catch (e) {
+      if (e && (e.code === 'NEED_PASSPHRASE' || e.code === 'WRONG_PASSPHRASE')) throw e;
+      const m = String((e && e.message) || '');
+      if (m.indexOf('Vault revision check') === 0) throw err('TAMPER', 'The Drive copy failed its revision check (the outer and inner revision numbers disagree). It was rejected.');
+      throw err('REMOTE_INVALID', 'The Drive file is not a valid LifeOS vault.');
+    }
+  }
+
+  async function bookkeeping(clientId, remoteRev, fileId, action) {
+    const S = L.store;
+    const fp = await fingerprint(S.getState());
+    await S.commit((x) => {
+      x.settings.sync = { clientId, remoteRev, fp, fileId, keySalt: S.saltId() };
+      if (!Array.isArray(x.audit)) x.audit = [];
+      x.audit.push({ ts: new Date().toISOString(), action });
+      while (x.audit.length > 200) x.audit.shift();
+    }, { quiet: true });
+  }
+  const hide = (o, ctx) => { Object.defineProperty(o, '_ctx', { value: ctx, enumerable: false }); return o; };
+
+  // Compare local and Drive. Uploads when safe; otherwise returns a decision request and writes nothing.
+  async function run(opts) {
+    opts = opts || {};
+    const S = L.store;
+    const cur = S.getState();
+    const sy = cur.settings.sync;
+    const clientId = sy.clientId;
+    const file = await findFile();
+    const fp = await fingerprint(cur);
+    if (!file) {
+      const env = await S.exportEnvelope();
+      const id = await upload(null, JSON.stringify(env), '');
+      await bookkeeping(clientId, env.rev, id, 'sync: uploaded to Drive');
+      return { kind: 'uploaded', rev: env.rev };
+    }
+    const dl = await download(file);
+    const info = await inspect(dl.text, opts.passphrase);
+    const rr = info.meta.rev;
+    if (rr < sy.remoteRev) throw err('ROLLBACK', 'The Drive copy is older than the last sync. It was rejected as a possible rollback and nothing changed.');
+    const base = sy.fp || (await fingerprint(S.validateState(S.defaultState())));
+    // A different passphrase on Drive (salt differs) counts as a local change: after a passphrase change the Drive copy
+    // must be re-uploaded under the new key, and a newer Drive copy under the old key must never be adopted silently.
+    // keySalt records the key in use at the last sync, which tells "this device changed its passphrase" apart from
+    // "another device did". Without a record, an unchanged Drive copy under another key can only mean a local change.
+    const keyDiffers = !info.sameKey, remoteChanged = rr > sy.remoteRev;
+    const localKeyChanged = keyDiffers && (!remoteChanged || (!!sy.keySalt && sy.keySalt !== S.saltId()));
+    const localChanged = fp !== base || localKeyChanged;
+    if (!remoteChanged && !localChanged) return { kind: 'in-sync', rev: rr };
+    if (!remoteChanged) {
+      const env = await S.exportEnvelope(Math.max(rr, sy.remoteRev) + 1);
+      const id = await upload(file, JSON.stringify(env), dl.etag);
+      await bookkeeping(clientId, env.rev, id, 'sync: uploaded to Drive');
+      return { kind: 'uploaded', rev: env.rev };
+    }
+    const lm = S.getMeta();
+    return hide({
+      kind: localChanged ? 'conflict' : 'download-offer',
+      local: summary(lm, cur), remote: summary(info.meta, info.state), passphraseDiffers: keyDiffers,
+    }, { file, dl, info, clientId, fp });
+  }
+
+  // choice: 'download' (offer), or 'remote' | 'local' | 'cancel' (conflict). Conflict resolutions first save the losing copy via saveBackup(text, name).
+  async function apply(decision, choice, opts) {
+    opts = opts || {};
+    const ctx = decision && decision._ctx;
+    if (!ctx) throw err('BAD_DECISION', 'Nothing to apply.');
+    const S = L.store;
+    const stamp = new Date().toISOString().slice(0, 10);
+    if (choice === 'cancel' || choice === 'skip') return { kind: 'cancelled' };
+    const wantsRemote = (decision.kind === 'download-offer' && choice === 'download') || (decision.kind === 'conflict' && choice === 'remote');
+    const wantsLocal = decision.kind === 'conflict' && choice === 'local';
+    if (!wantsRemote && !wantsLocal) throw err('BAD_CHOICE', 'Unknown choice.');
+    // The offer was made because this device had no changes. If it changed since, do not replace it.
+    if (decision.kind === 'download-offer' && (await fingerprint(S.getState())) !== ctx.fp) {
+      throw err('LOCAL_CHANGED', 'This device changed after the Drive copy was checked. Nothing was replaced. Run sync again.');
+    }
+    if (decision.kind === 'conflict') {
+      if (typeof opts.saveBackup !== 'function') throw err('NEED_BACKUP', 'A backup of the losing copy is required first.');
+      if (wantsRemote) await opts.saveBackup(JSON.stringify(await S.exportEnvelope()), 'lifeos-local-copy-' + stamp + '.json');
+      else await opts.saveBackup(ctx.dl.text, 'lifeos-drive-copy-' + stamp + '.json');
+    }
+    if (wantsRemote) {
+      await S.adoptEnvelope(ctx.info);
+      await bookkeeping(ctx.clientId, ctx.info.meta.rev, ctx.file.id, 'sync: downloaded from Drive');
+      return { kind: 'downloaded', rev: ctx.info.meta.rev };
+    }
+    const env = await S.exportEnvelope(ctx.info.meta.rev + 1);
+    const id = await upload(ctx.file, JSON.stringify(env), ctx.dl.etag);
+    await bookkeeping(ctx.clientId, env.rev, id, 'sync: uploaded to Drive');
+    return { kind: 'uploaded', rev: env.rev };
+  }
+
+  L.sync = {
+    SCOPE, FILE_NAME, MAX_REMOTE, isAvailable, validateClientId, buildAuthUrl, begin, parseFragment, consumeReturn, takeReturn,
+    isConnected, expiresAt, disconnect, run, apply, fingerprint, _setFetch, _setToken,
+  };
+})();
+
+;
+(function () {
+  'use strict';
   var L = globalThis.LifeOS;
   var MAX_FILE = 5 * 1024 * 1024;
   var SVGNS = 'http://www.w3.org/2000/svg';
-  var SVGTAGS = { svg: 1, polyline: 1, circle: 1, line: 1, path: 1 };
+  var SVGTAGS = { svg: 1, polyline: 1, circle: 1, line: 1, path: 1, rect: 1, text: 1, g: 1 };
   var PROPS = { checked: 1, disabled: 1, readOnly: 1, selected: 1 };
   var STATUS = {
     'work:outcome': ['todo', 'done'],
@@ -1340,6 +2016,8 @@ input[type=checkbox]{width:auto;min-height:0;flex:none}
   function lockNow() {
     if (locking) return locking;
     clearTimeout(idleTimer);
+    // The Google token lives only in memory and must not outlive the unlocked session.
+    if (L.sync) L.sync.disconnect();
     // Record the lock in the audit log, but never let a slow or stuck write delay the lock itself.
     var p = L.store.isUnlocked() ? Promise.race([commit(null, 'lock').catch(function () {}), new Promise(function (r) { setTimeout(r, 1000); })]) : Promise.resolve();
     locking = p.then(function () {
@@ -1368,15 +2046,15 @@ input[type=checkbox]{width:auto;min-height:0;flex:none}
     var s = st();
     var body;
     try {
-      body = view.name === 'domain' ? domainScreen(s)
+      body = view.name === 'domain' ? (view.domain === 'money' ? moneyScreen(s) : view.domain === 'assets' ? assetsScreen(s) : domainScreen(s))
         : view.name === 'review' ? reviewScreen(s)
         : view.name === 'memory' ? memoryScreen(s)
         : view.name === 'settings' ? settingsScreen(s)
         : dashScreen(s);
     } catch (e) { body = h('p', { text: friendly(e) }); }
-    var cur = view.name === 'domain' ? 'dashboard' : view.name;
-    var nav = h('nav', { class: 'nav', 'aria-label': 'Main' }, [['dashboard', 'Home'], ['review', 'Review'], ['memory', 'Memory'], ['settings', 'Settings']].map(function (n) {
-      return h('button', { type: 'button', text: n[1], 'aria-current': n[0] === cur ? 'page' : null, onclick: function () { go(n[0]); } });
+    var cur = view.name === 'domain' ? (view.domain === 'money' || view.domain === 'assets' ? view.domain : 'dashboard') : view.name;
+    var nav = h('nav', { class: 'nav', 'aria-label': 'Main' }, [['dashboard', 'Home'], ['money', 'Money'], ['assets', 'Assets'], ['review', 'Review'], ['memory', 'Memory'], ['settings', 'Settings']].map(function (n) {
+      return h('button', { type: 'button', text: n[1], 'aria-current': n[0] === cur ? 'page' : null, onclick: function () { if (n[0] === 'money' || n[0] === 'assets') go('domain', { domain: n[0] }); else go(n[0]); } });
     }));
     root.appendChild(h('div', { class: 'app' },
       h('header', { class: 'top' }, h('span', { class: 'brand', text: 'LifeOS' }), btn('Lock', function () { lockNow(); }, 'sm lockbtn')),
@@ -1413,11 +2091,15 @@ input[type=checkbox]{width:auto;min-height:0;flex:none}
       h('p', { class: 'mut', text: create ? 'Your private life dashboard. Everything stays on this device, encrypted.' : 'Unlock your vault.' }),
       noticeEl, form);
   }
+  function syncCtx() {
+    return { h: h, field: field, btn: btn, openDialog: openDialog, commit: commit, download: download, setNotice: setNotice, render: render };
+  }
   function afterUnlock() {
     notice = null; csvPending = null; ai = null;
     resetIdle();
     view = { name: 'dashboard' };
     render();
+    if (L.syncUI) L.syncUI.afterUnlock(syncCtx());
   }
 
   // ---------- dashboard ----------
@@ -1457,14 +2139,18 @@ input[type=checkbox]{width:auto;min-height:0;flex:none}
       if (rv.weekOf !== wk) pr.appendChild(h('p', { class: 'mut small', text: 'From the week of ' + rv.weekOf + '.' }));
     } else pr.appendChild(h('p', { class: 'mut', text: 'No priorities yet. Run your weekly review to set three.' }));
     if (!rv || rv.weekOf !== wk) pr.appendChild(btn('Start weekly review', function () { go('review'); }, 'pri'));
-    return h('div', null, h('h1', { text: 'Dashboard' }), pr, h('div', { class: 'grid' }, tiles));
+    var due = L.metrics.dueRecurring(s, t).length;
+    return h('div', null, h('div', { class: 'row sp' }, h('h1', { text: 'Dashboard' }), btn('Quick add', quickAdd, 'pri qa-btn', { id: 'quick-add' })),
+      due ? h('div', { class: 'warn' }, due + (due === 1 ? ' recurring item is' : ' recurring items are') + ' due. ', btn('Review', function () { go('domain', { domain: 'money' }); }, 'sm', { id: 'due-review' })) : null,
+      pr, h('div', { class: 'grid' }, tiles));
   }
 
   // ---------- domain ----------
   function fieldNames(t) {
     return (t.fields || []).map(function (f) { return typeof f === 'string' ? f : (f.id || f.name || f.key); });
   }
-  function domainScreen(s) {
+  function domainScreen(s, opts) {
+    opts = opts || {};
     var d = L.DOMAINS.find(function (x) { return x.id === view.domain; });
     if (!d) return h('p', { text: 'Unknown area.' });
     var tid = view.type && d.types.some(function (t) { return t.id === view.type; }) ? view.type : d.types[0].id;
@@ -1480,6 +2166,10 @@ input[type=checkbox]{width:auto;min-height:0;flex:none}
       if (d.id === 'wellbeing') refs.value = sel('f-value', [1, 2, 3, 4, 5].map(function (n) { return { v: String(n), t: String(n) }; }), '3');
       else refs.value = h('input', { type: 'number', id: 'f-value', step: 'any', inputmode: 'decimal' });
       fs.push(field('Value', refs.value));
+    }
+    if (d.id === 'money') {
+      refs.category = h('select', { id: 'f-cat' }, [h('option', { value: '', text: '(none)' })].concat(catList(s, tid).map(function (c) { return h('option', { value: c, text: c }); })));
+      fs.push(field('Category (optional)', refs.category));
     }
     if (STATUS[skey] || names.indexOf('status') >= 0) {
       var so = STATUS[skey] || ['open', 'done'];
@@ -1497,6 +2187,7 @@ input[type=checkbox]{width:auto;min-height:0;flex:none}
           var p = { domain: d.id, type: type.id, date: refs.date.value, title: refs.title.value.trim() };
           if (refs.value && refs.value.value !== '') p.value = Number(refs.value.value);
           if (refs.status) p.status = refs.status.value;
+          if (refs.category && refs.category.value) p.category = refs.category.value;
           if (refs.person && refs.person.value.trim()) p.person = refs.person.value.trim();
           if (refs.due && refs.due.value) p.due = refs.due.value;
           if (refs.notes.value.trim()) p.notes = refs.notes.value.trim();
@@ -1516,6 +2207,7 @@ input[type=checkbox]{width:auto;min-height:0;flex:none}
     var rows = list.slice(0, shown).map(function (en) {
       var meta = [tl[en.type] || en.type];
       if (en.value !== undefined) meta.push(String(en.value));
+      if (en.category) meta.push(en.category);
       if (en.status) meta.push(en.status);
       if (en.person) meta.push(en.person);
       if (en.due) meta.push('due ' + en.due);
@@ -1532,9 +2224,9 @@ input[type=checkbox]{width:auto;min-height:0;flex:none}
         }, 'sm bad', { 'aria-label': 'Delete ' + en.title }));
     });
     var out = h('div', null,
-      btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'),
-      h('h1', { text: d.label }),
-      h('div', { class: 'card' }, h('h2', { text: 'Add entry' }), form),
+      opts.embed ? null : btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'),
+      opts.embed ? null : h('h1', { text: d.label }),
+      opts.noForm ? null : h('div', { class: 'card' }, h('h2', { text: 'Add entry' }), form),
       h('h2', { text: 'Entries (' + list.length + ')' }),
       h('div', { class: 'card' }, rows.length ? rows : h('p', { class: 'mut', text: 'Nothing here yet.' })),
       list.length > shown ? btn('Show more', function () { view.shown = shown + 50; render(); }) : null,
@@ -1607,6 +2299,362 @@ input[type=checkbox]{width:auto;min-height:0;flex:none}
       }, 'CSV exported.');
     })));
     return card;
+  }
+
+  // ---------- money and assets ----------
+  var KIND_LABEL = { cash: 'Cash', investment: 'Investment', retirement: 'Retirement', property: 'Property', vehicle: 'Vehicle', other: 'Other', credit: 'Credit card', loan: 'Loan', mortgage: 'Mortgage' };
+  function moneyFmt(c, cur) {
+    try { return new Intl.NumberFormat('en-US', { style: 'currency', currency: cur || 'USD' }).format(c / 100); }
+    catch (e) { return (c / 100).toFixed(2); }
+  }
+  function pctFmt(r) { return r === null ? 'n/a' : (Math.round(r * 1000) / 10) + '%'; }
+  function parseAmount(v, o) {
+    o = o || {};
+    var t = String(v == null ? '' : v).trim().replace(/^\$/, '');
+    if (!(o.neg ? /^-?\d{1,10}(\.\d{1,2})?$/ : /^\d{1,10}(\.\d{1,2})?$/).test(t)) throw new Error('Enter an amount like 12.50.');
+    var n = Number(t);
+    if (!o.zero && n <= 0) throw new Error('The amount must be more than zero.');
+    return n;
+  }
+  function monthLabel(m) {
+    var names = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return names[Number(m.slice(5, 7)) - 1] + ' ' + m.slice(0, 4);
+  }
+  function catList(s, type) { return (s.categories && s.categories[type]) || L.metrics.DEFAULT_CATEGORIES[type]; }
+  function stat(label, text, id, cls) {
+    return h('div', { class: 'stat' }, h('span', { class: 'lbl', text: label }), h('span', { class: 'stat-v' + (cls ? ' ' + cls : ''), id: id, text: text }));
+  }
+  function addEntry(p) {
+    var en = L.metrics.validateEntry(p);
+    en.id = en.id || L.store.newId();
+    en.createdAt = en.createdAt || new Date().toISOString();
+    return commit(function (x) { x.entries.push(en); }, 'entry add');
+  }
+
+  // Quick add: amount, category chips, date, on a single screen opened from the dashboard.
+  function quickAdd() {
+    var s = st(), type = 'expense', cat = '';
+    var amount = h('input', { type: 'text', id: 'qa-amount', inputmode: 'decimal', autocomplete: 'off', placeholder: '0.00', maxlength: '14', 'aria-label': 'Amount' });
+    var dateIn = h('input', { type: 'date', id: 'qa-date', value: today(), required: true, 'aria-label': 'Date' });
+    var note = h('input', { type: 'text', id: 'qa-note', maxlength: '200', autocomplete: 'off', 'aria-label': 'Note (optional)' });
+    var chips = h('div', { class: 'chips', id: 'qa-chips', role: 'group', 'aria-label': 'Category' });
+    var tEx = btn('Expense', function () { setType('expense'); }, 'seg', { id: 'qa-expense' });
+    var tIn = btn('Income', function () { setType('income'); }, 'seg', { id: 'qa-income' });
+    function paint() {
+      tEx.setAttribute('aria-pressed', type === 'expense' ? 'true' : 'false');
+      tIn.setAttribute('aria-pressed', type === 'income' ? 'true' : 'false');
+      chips.replaceChildren.apply(chips, catList(s, type).map(function (c) {
+        return h('button', { type: 'button', class: 'chipbtn', 'aria-pressed': c === cat ? 'true' : 'false', text: c, onclick: function () { cat = cat === c ? '' : c; paint(); } });
+      }));
+    }
+    function setType(t) { type = t; cat = ''; paint(); }
+    paint();
+    openDialog({
+      title: 'Quick add', yes: 'Save',
+      body: [h('div', { class: 'row' }, tEx, tIn), field('Amount', amount), h('span', { class: 'lbl', text: 'Category' }), chips, field('Date', dateIn), field('Note (optional)', note)],
+      onYes: function () {
+        var v = parseAmount(amount.value);
+        var title = note.value.trim() || cat || (type === 'income' ? 'Income' : 'Expense');
+        var p = { domain: 'money', type: type, date: dateIn.value, title: title, value: v };
+        if (cat) p.category = cat;
+        return addEntry(p).then(function () { setNotice('ok', (type === 'income' ? 'Income' : 'Expense') + ' saved.'); render(); });
+      }
+    });
+  }
+
+  function svgBar(pct, cls) {
+    return h('svg', { class: 'bar', viewBox: '0 0 100 6', preserveAspectRatio: 'none', 'aria-hidden': 'true', focusable: 'false' },
+      h('rect', { class: 'bar-bg', x: '0', y: '0', width: '100', height: '6', rx: '3' }),
+      h('rect', { class: cls, x: '0', y: '0', width: String(Math.max(0, Math.min(100, pct))), height: '6', rx: '3' }));
+  }
+  function cashflowChart(rows, cur) {
+    var W = 360, H = 150, base = 118, top = 12, max = 1;
+    rows.forEach(function (r) { max = Math.max(max, r.incomeCents, r.spendCents); });
+    var step = (W - 20) / rows.length, bw = Math.min(22, step / 2 - 3);
+    var kids = [h('line', { class: 'axis', x1: '8', y1: String(base), x2: String(W - 8), y2: String(base) })];
+    rows.forEach(function (r, i) {
+      var x = 10 + i * step + step / 2 - bw - 1;
+      var hi = Math.round((r.incomeCents / max) * (base - top)), hs = Math.round((r.spendCents / max) * (base - top));
+      kids.push(h('rect', { class: 'bar-in', x: String(x), y: String(base - hi), width: String(bw), height: String(hi) }));
+      kids.push(h('rect', { class: 'bar-out', x: String(x + bw + 2), y: String(base - hs), width: String(bw), height: String(hs) }));
+      kids.push(h('text', { class: 'tick', x: String(x + bw + 1), y: '136', 'text-anchor': 'middle', text: monthLabel(r.month).slice(0, 3) }));
+    });
+    return h('svg', { class: 'chart', viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': 'Income and spending for the last ' + rows.length + ' months' }, kids);
+  }
+  function netWorthChart(hist) {
+    var W = 360, H = 150, L0 = 8, R0 = 8, T0 = 14, B0 = 122;
+    var min = 0, max = 1;
+    hist.forEach(function (p) { min = Math.min(min, p.totalCents, p.assetsCents); max = Math.max(max, p.totalCents, p.assetsCents, p.liabilitiesCents); });
+    var rng = max - min || 1;
+    var X = function (i) { return L0 + (hist.length < 2 ? 0 : (i * (W - L0 - R0)) / (hist.length - 1)); };
+    var Y = function (c) { return T0 + (1 - (c - min) / rng) * (B0 - T0); };
+    var line = function (key, cls) {
+      return h('polyline', { class: cls, points: hist.map(function (p, i) { return X(i).toFixed(1) + ',' + Y(p[key]).toFixed(1); }).join(' ') });
+    };
+    var last = hist[hist.length - 1];
+    return h('svg', { class: 'chart', viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': 'Net worth, assets and liabilities by month' },
+      h('line', { class: 'axis', x1: String(L0), y1: String(Y(0).toFixed(1)), x2: String(W - R0), y2: String(Y(0).toFixed(1)) }),
+      line('assetsCents', 'ln-assets'), line('liabilitiesCents', 'ln-liab'), line('totalCents', 'ln-net'),
+      h('circle', { class: 'dot-net', cx: String(X(hist.length - 1).toFixed(1)), cy: String(Y(last.totalCents).toFixed(1)), r: '3.5' }),
+      h('text', { class: 'tick', x: String(L0), y: '142', 'text-anchor': 'start', text: monthLabel(hist[0].month) }),
+      h('text', { class: 'tick', x: String(W - R0), y: '142', 'text-anchor': 'end', text: monthLabel(last.month) }));
+  }
+  function details(id, title, kids, open) {
+    return h('details', { class: 'card fold', id: id, open: open || null }, h('summary', { text: title }), kids);
+  }
+
+  function dueCard(s, afterRender) {
+    var due = L.metrics.dueRecurring(s, today());
+    if (!due.length) return null;
+    var cur = s.settings.currency;
+    return h('div', { class: 'card due', id: 'due-card' },
+      h('h2', { text: 'Recurring items due (' + due.length + ')' }),
+      h('p', { class: 'mut small', text: 'Nothing is posted until you confirm it.' }),
+      due.map(function (d) {
+        return h('div', { class: 'item' },
+          h('div', null, h('div', { class: 'entry-t', text: d.title }),
+            h('div', { class: 'mut small', text: d.date + ' | ' + (d.type === 'income' ? 'Income ' : 'Expense ') + moneyFmt(L.metrics.cents(d.value), cur) + (d.category ? ' | ' + d.category : '') })),
+          h('div', { class: 'row' },
+            btn('Confirm', function () {
+              act(function () { return commit(function (x) { L.metrics.confirmRecurring(x, d.id, today()); }, 'recurring confirm').then(function () { setNotice('ok', 'Posted ' + d.title + '.'); render(); }); });
+            }, 'pri sm', { 'aria-label': 'Confirm ' + d.title }),
+            btn('Skip', function () {
+              act(function () { return commit(function (x) { L.metrics.skipRecurring(x, d.id, today()); }, 'recurring skip').then(function () { render(); }); });
+            }, 'sm', { 'aria-label': 'Skip ' + d.title })));
+      }));
+  }
+
+  function moneyScreen(s) {
+    var cur = s.settings.currency, t = today();
+    var month = view.month || t.slice(0, 7);
+    var v = L.metrics.monthView(s, month);
+    var target = s.settings.targets.savingsRate;
+    var rows = v.categories.map(function (c) {
+      var pct = c.budgetCents ? (c.spentCents * 100) / c.budgetCents : 0;
+      return h('div', { class: 'catrow' },
+        h('div', { class: 'row sp' }, h('span', { text: c.category }),
+          h('span', { class: c.over ? 'bad-t' : 'mut', text: moneyFmt(c.spentCents, cur) + (c.budgetCents === null ? '' : ' of ' + moneyFmt(c.budgetCents, cur)) })),
+        c.budgetCents ? svgBar(pct, c.over ? 'bar-over' : 'bar-fill') : null,
+        c.over ? h('div', { class: 'small bad-t', text: 'Over budget by ' + moneyFmt(-c.remainingCents, cur) }) : null);
+    });
+    var cf = L.metrics.cashflow(s, 6, t);
+
+    // budgets
+    var bCat = sel('bud-cat', catList(s, 'expense').map(function (c) { return { v: c, t: c }; }), catList(s, 'expense')[0]);
+    var bAmt = h('input', { type: 'text', id: 'bud-amount', inputmode: 'decimal', autocomplete: 'off', maxlength: '14' });
+    var budgets = details('budgets', 'Monthly budgets (' + s.budgets.length + ')', [
+      s.budgets.map(function (b) {
+        return h('div', { class: 'item' }, h('span', { text: b.category + ': ' + moneyFmt(L.metrics.cents(b.value), cur) }),
+          btn('Remove', function () { act(function () { return commit(function (x) { x.budgets = x.budgets.filter(function (z) { return z.category !== b.category; }); }, 'budget remove').then(render); }); }, 'sm', { 'aria-label': 'Remove budget for ' + b.category }));
+      }),
+      h('form', {
+        onsubmit: function (e) {
+          e.preventDefault();
+          act(function () {
+            var val = parseAmount(bAmt.value, { zero: true }), c = bCat.value;
+            return commit(function (x) {
+              x.budgets = x.budgets.filter(function (z) { return z.category !== c; });
+              if (val > 0) x.budgets.push({ category: c, value: val });
+            }, 'budget set').then(function () { view.open = 'budgets'; setNotice('ok', val > 0 ? 'Budget saved.' : 'Budget removed.'); render(); });
+          });
+        }
+      }, field('Category', bCat), field('Monthly budget (0 removes it)', bAmt), h('button', { type: 'submit', class: 'btn pri', text: 'Save budget' })),
+    ], view.open === 'budgets');
+
+    // recurring
+    var rT = h('input', { type: 'text', id: 'rc-title', maxlength: '200', autocomplete: 'off' });
+    var rA = h('input', { type: 'text', id: 'rc-amount', inputmode: 'decimal', autocomplete: 'off', maxlength: '14' });
+    var rType = sel('rc-type', [{ v: 'expense', t: 'Expense' }, { v: 'income', t: 'Income' }], 'expense', function () { fillCats(); });
+    var rCat = h('select', { id: 'rc-cat' });
+    function fillCats() {
+      rCat.replaceChildren.apply(rCat, [h('option', { value: '', text: '(none)' })].concat(catList(s, rType.value).map(function (c) { return h('option', { value: c, text: c }); })));
+    }
+    fillCats();
+    var rCad = sel('rc-cadence', [{ v: 'weekly', t: 'Weekly' }, { v: 'monthly', t: 'Monthly' }, { v: 'yearly', t: 'Yearly' }], 'monthly');
+    var rNext = h('input', { type: 'date', id: 'rc-next', value: t, required: true });
+    var recurring = details('recurring', 'Recurring items (' + s.recurring.length + ')', [
+      h('p', { class: 'mut small', text: 'These only create a proposal on the due date. You confirm each one.' }),
+      s.recurring.map(function (r) {
+        return h('div', { class: 'item' },
+          h('div', null, h('div', { class: 'entry-t', text: r.title }),
+            h('div', { class: 'mut small', text: (r.type === 'income' ? 'Income ' : 'Expense ') + moneyFmt(L.metrics.cents(r.value), cur) + ' | ' + r.cadence + ' | next ' + r.nextDate + (r.active ? '' : ' | paused') })),
+          h('div', { class: 'row' },
+            btn(r.active ? 'Pause' : 'Resume', function () { act(function () { return commit(function (x) { x.recurring.forEach(function (z) { if (z.id === r.id) z.active = !z.active; }); }, 'recurring toggle').then(function () { view.open = 'recurring'; render(); }); }); }, 'sm', { 'aria-label': (r.active ? 'Pause ' : 'Resume ') + r.title }),
+            btn('Delete', function () { act(function () { return commit(function (x) { x.recurring = x.recurring.filter(function (z) { return z.id !== r.id; }); }, 'recurring delete').then(function () { view.open = 'recurring'; render(); }); }); }, 'sm bad', { 'aria-label': 'Delete ' + r.title })));
+      }),
+      h('form', {
+        onsubmit: function (e) {
+          e.preventDefault();
+          act(function () {
+            var item = { id: L.store.newId(), title: rT.value.trim(), value: parseAmount(rA.value), category: rCat.value, type: rType.value, cadence: rCad.value, nextDate: rNext.value, active: true };
+            if (!item.title) throw new Error('Enter a title.');
+            return commit(function (x) { x.recurring.push(item); }, 'recurring add').then(function () { view.open = 'recurring'; setNotice('ok', 'Recurring item added.'); render(); });
+          });
+        }
+      }, field('Title', rT), field('Amount', rA), field('Type', rType), field('Category', rCat), field('Repeats', rCad), field('Next date', rNext), h('button', { type: 'submit', class: 'btn pri', text: 'Add recurring' })),
+    ], view.open === 'recurring');
+
+    // categories
+    var cName = h('input', { type: 'text', id: 'cat-name', maxlength: '40', autocomplete: 'off' });
+    var cType = sel('cat-type', [{ v: 'expense', t: 'Expense' }, { v: 'income', t: 'Income' }], 'expense');
+    var cats = details('categories', 'Categories', [
+      ['expense', 'income'].map(function (ty) {
+        return h('div', null, h('span', { class: 'lbl', text: (ty === 'expense' ? 'Expense' : 'Income') + ' categories' }),
+          h('div', { class: 'chips' }, catList(s, ty).map(function (c) {
+            return h('span', { class: 'chip' }, c, ' ', h('button', { type: 'button', class: 'x', text: 'x', 'aria-label': 'Remove category ' + c, onclick: function () {
+              act(function () { return commit(function (z) { z.categories[ty] = z.categories[ty].filter(function (q) { return q !== c; }); }, 'category remove').then(function () { view.open = 'categories'; render(); }); });
+            } }));
+          })));
+      }),
+      h('form', {
+        onsubmit: function (e) {
+          e.preventDefault();
+          act(function () {
+            var name = cName.value.trim(), ty = cType.value;
+            if (!name || name.length > 40) throw new Error('Category names are 1 to 40 characters.');
+            if (catList(s, ty).some(function (q) { return q.toLowerCase() === name.toLowerCase(); })) throw new Error('That category already exists.');
+            return commit(function (x) { x.categories[ty].push(name); }, 'category add').then(function () { view.open = 'categories'; render(); });
+          });
+        }
+      }, field('New category', cName), field('For', cType), h('button', { type: 'submit', class: 'btn', text: 'Add category' })),
+    ], view.open === 'categories');
+
+    var navMonth = function (k) { return btn(k < 0 ? 'Previous month' : 'Next month', function () { view.month = L.metrics.addMonths(month, k); render(); }, 'sm', { id: k < 0 ? 'mv-prev' : 'mv-next' }); };
+    return h('div', null,
+      btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'),
+      h('div', { class: 'row sp' }, h('h1', { text: 'Money' }), btn('Quick add', quickAdd, 'pri', { id: 'quick-add-money' })),
+      h('div', { class: 'row sp' }, navMonth(-1), h('strong', { id: 'mv-month', text: monthLabel(month) }), navMonth(1)),
+      h('div', { class: 'stats' },
+        stat('Income', moneyFmt(v.incomeCents, cur), 'mv-income'),
+        stat('Spend', moneyFmt(v.spendCents, cur), 'mv-spend'),
+        stat('Net', moneyFmt(v.netCents, cur), 'mv-net'),
+        stat('Savings rate', pctFmt(v.savingsRate), 'mv-rate')),
+      h('p', { class: 'mut small', text: 'Savings rate target: ' + Math.round(target * 100) + '%' }),
+      dueCard(s),
+      h('div', { class: 'card' }, h('h2', { text: 'Spending by category' }),
+        rows.length ? rows : h('p', { class: 'mut', text: 'No spending this month.' })),
+      h('div', { class: 'card' }, h('h2', { text: 'Cash flow, 6 months' }), cashflowChart(cf, cur),
+        h('div', { class: 'legend small' }, h('span', { class: 'sw sw-in' }), ' Income ', h('span', { class: 'sw sw-out' }), ' Spend'),
+        h('div', { class: 'tablewrap' }, h('table', null,
+          h('thead', null, h('tr', null, ['Month', 'Income', 'Spend', 'Net'].map(function (x) { return h('th', { text: x }); }))),
+          h('tbody', null, cf.map(function (r) {
+            return h('tr', null, h('td', { text: monthLabel(r.month) }), h('td', { text: moneyFmt(r.incomeCents, cur) }), h('td', { text: moneyFmt(r.spendCents, cur) }), h('td', { text: moneyFmt(r.netCents, cur) }));
+          }))))),
+      budgets, recurring, cats,
+      h('h2', { text: 'All entries' }),
+      domainScreen(s, { embed: true }));
+  }
+
+  function assetsScreen(s) {
+    var cur = s.settings.currency, t = today();
+    var nw = L.metrics.netWorthDetail(s, t), hist = L.metrics.netWorthHistory(s, 12, t);
+    var accts = s.accounts;
+    var active = accts.filter(function (a) { return !a.archived; }), archived = accts.filter(function (a) { return a.archived; });
+    var latest = {};
+    nw.rows.forEach(function (r) { if (r.id) latest[r.id] = r; });
+    var bAcct = sel('bal-acct', active.map(function (a) { return { v: a.id, t: a.name }; }), view.acct || (active[0] && active[0].id));
+    var bVal = h('input', { type: 'text', id: 'bal-value', inputmode: 'decimal', autocomplete: 'off', maxlength: '16' });
+    var bDate = h('input', { type: 'date', id: 'bal-date', value: t, required: true });
+    var balForm = h('form', {
+      class: 'card',
+      onsubmit: function (e) {
+        e.preventDefault();
+        act(function () {
+          var a = accts.filter(function (z) { return z.id === bAcct.value; })[0];
+          if (!a) throw new Error('Add an account first.');
+          var v = parseAmount(bVal.value, { neg: !a.liability, zero: true });
+          return addEntry({ domain: 'assets', type: 'balance', date: bDate.value, title: a.name, value: v, accountId: a.id }).then(function () { setNotice('ok', 'Balance saved.'); render(); });
+        });
+      }
+    }, h('h2', { text: 'Update a balance' }), active.length ? [field('Account', bAcct), field('Balance (the amount owed, for a liability)', bVal), field('As of', bDate), h('button', { type: 'submit', class: 'btn pri', id: 'bal-save', text: 'Save balance' })] : h('p', { class: 'mut', text: 'Add an account below first.' }));
+
+    function acctRow(a) {
+      var r = latest[a.id];
+      return h('div', { class: 'item acct', 'data-account': a.name },
+        h('div', null, h('div', { class: 'entry-t', text: a.name }),
+          h('div', { class: 'mut small' }, h('span', { class: 'chip' + (a.liability ? ' bad' : ''), text: KIND_LABEL[a.kind] + (a.liability ? ' (owed)' : '') }),
+            r ? moneyFmt(Math.abs(r.cents), cur) + ' as of ' + r.date : 'No balance yet')),
+        h('div', { class: 'row' },
+          a.archived ? null : btn('Update', function () { view.acct = a.id; render(); var i = document.getElementById('bal-value'); if (i) i.focus(); }, 'sm', { 'aria-label': 'Update balance for ' + a.name }),
+          btn('Rename', function () { renameDialog(a); }, 'sm', { 'aria-label': 'Rename ' + a.name }),
+          btn(a.archived ? 'Restore' : 'Archive', function () {
+            act(function () { return commit(function (x) { x.accounts.forEach(function (z) { if (z.id === a.id) z.archived = !z.archived; }); }, 'account archive').then(render); });
+          }, 'sm', { 'aria-label': (a.archived ? 'Restore ' : 'Archive ') + a.name })));
+    }
+    function renameDialog(a) {
+      var inp = h('input', { type: 'text', id: 'ac-rename', maxlength: '200', value: a.name, autocomplete: 'off' });
+      openDialog({
+        title: 'Rename account', yes: 'Save', body: field('Name', inp),
+        onYes: function () {
+          var n = inp.value.trim();
+          if (!n) throw new Error('Enter a name.');
+          if (accts.some(function (z) { return z.id !== a.id && z.name.toLowerCase() === n.toLowerCase(); })) throw new Error('You already have an account with that name.');
+          return commit(function (x) { x.accounts.forEach(function (z) { if (z.id === a.id) z.name = n; }); }, 'account rename').then(function () { render(); });
+        }
+      });
+    }
+
+    var aName = h('input', { type: 'text', id: 'ac-name', maxlength: '200', autocomplete: 'off' });
+    var aKind = sel('ac-kind', L.metrics.ACCOUNT_KINDS.map(function (k) { return { v: k, t: KIND_LABEL[k] }; }), 'cash');
+    var aLiab = h('input', { type: 'checkbox', id: 'ac-liab' });
+    var aBal = h('input', { type: 'text', id: 'ac-bal', inputmode: 'decimal', autocomplete: 'off', maxlength: '16' });
+    var aDate = h('input', { type: 'date', id: 'ac-date', value: t, required: true });
+    var addForm = h('form', {
+      class: 'card',
+      onsubmit: function (e) {
+        e.preventDefault();
+        act(function () {
+          var name = aName.value.trim(), kind = aKind.value;
+          if (!name) throw new Error('Enter an account name.');
+          if (accts.some(function (z) { return z.name.toLowerCase() === name.toLowerCase(); })) throw new Error('You already have an account with that name.');
+          var liab = L.metrics.LIAB_KINDS.indexOf(kind) >= 0 || aLiab.checked;
+          var opening = aBal.value.trim() === '' ? null : parseAmount(aBal.value, { neg: !liab, zero: true });
+          var acct = { id: L.store.newId(), name: name, kind: kind, liability: liab, archived: false };
+          var en = opening === null ? null : L.metrics.validateEntry({ domain: 'assets', type: 'balance', date: aDate.value, title: name, value: opening, accountId: acct.id });
+          if (en) { en.id = en.id || L.store.newId(); en.createdAt = en.createdAt || new Date().toISOString(); }
+          return commit(function (x) { x.accounts.push(acct); if (en) x.entries.push(en); }, 'account add').then(function () { setNotice('ok', 'Account added.'); render(); });
+        });
+      }
+    }, h('h2', { text: 'Add an account' }), field('Name', aName), field('Kind', aKind),
+      h('label', { class: 'field check' }, aLiab, h('span', { text: 'Treat as a liability (credit cards, loans and mortgages always are)' })),
+      field('Current balance (the amount owed, for a liability)', aBal), field('As of', aDate),
+      h('button', { type: 'submit', class: 'btn pri', id: 'ac-add', text: 'Add account' }));
+
+    var alloc = nw.byKind.length ? h('div', null,
+      h('svg', { class: 'alloc', viewBox: '0 0 100 10', preserveAspectRatio: 'none', role: 'img', 'aria-label': 'Asset allocation by kind' },
+        (function () {
+          var x = 0;
+          return nw.byKind.map(function (k, i) {
+            var w = k.share * 100, r = h('rect', { class: 'k' + (i % 9), x: String(x), y: '0', width: String(w), height: '10' });
+            x += w; return r;
+          });
+        })()),
+      h('div', { class: 'legend' }, nw.byKind.map(function (k, i) {
+        return h('div', { class: 'row sp alloc-row' }, h('span', null, h('span', { class: 'sw k' + (i % 9) }), ' ' + KIND_LABEL[k.kind]),
+          h('span', { text: Math.round(k.share * 1000) / 10 + '% | ' + moneyFmt(k.cents, cur) }));
+      }))) : h('p', { class: 'mut', text: 'No assets yet.' });
+
+    return h('div', null,
+      btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'),
+      h('h1', { text: 'Assets' }),
+      h('div', { class: 'stats' },
+        stat('Net worth', moneyFmt(nw.totalCents, cur), 'aw-net'),
+        stat('Assets', moneyFmt(nw.assetsCents, cur), 'aw-assets'),
+        stat('Liabilities', moneyFmt(nw.liabilitiesCents, cur), 'aw-liab')),
+      h('div', { class: 'card' }, h('h2', { text: 'Net worth, 12 months' }), netWorthChart(hist),
+        h('div', { class: 'legend small' }, h('span', { class: 'sw sw-net' }), ' Net worth ', h('span', { class: 'sw sw-assets' }), ' Assets ', h('span', { class: 'sw sw-liab' }), ' Liabilities'),
+        h('div', { class: 'tablewrap' }, h('table', null,
+          h('thead', null, h('tr', null, ['Month', 'Assets', 'Liabilities', 'Net worth'].map(function (x) { return h('th', { text: x }); }))),
+          h('tbody', null, hist.slice(-6).map(function (r) {
+            return h('tr', null, h('td', { text: monthLabel(r.month) }), h('td', { text: moneyFmt(r.assetsCents, cur) }), h('td', { text: moneyFmt(r.liabilitiesCents, cur) }), h('td', { text: moneyFmt(r.totalCents, cur) }));
+          }))))),
+      h('div', { class: 'card' }, h('h2', { text: 'Allocation' }), alloc),
+      h('h2', { text: 'Accounts (' + active.length + ')' }),
+      h('div', { class: 'card' }, active.length ? active.map(acctRow) : h('p', { class: 'mut', text: 'No accounts yet.' })),
+      balForm, addForm,
+      archived.length ? details('archived', 'Archived accounts (' + archived.length + ')', archived.map(acctRow), view.open === 'archived') : null,
+      h('h2', { text: 'Balance history' }),
+      domainScreen(s, { embed: true, noForm: true }));
   }
 
   // ---------- insights and AI ----------
@@ -1876,6 +2924,7 @@ input[type=checkbox]{width:auto;min-height:0;flex:none}
                 body: [
                   h('ul', { class: 'small', id: 'bk-summary' },
                     h('li', { text: 'Entries: ' + state.entries.length }),
+                    h('li', { text: 'Accounts: ' + (state.accounts || []).length }),
                     h('li', { text: 'Approved insights: ' + nAppr }),
                     h('li', { text: 'Lessons: ' + state.memory.lessons.length }),
                     h('li', { text: 'Provider settings: ' + (pv2.kind === 'none' ? 'none' : 'included (' + pv2.kind + ')') }),
@@ -1893,7 +2942,9 @@ input[type=checkbox]{width:auto;min-height:0;flex:none}
       }, field('Restore from a backup file (64 MB max)', bf), field('Backup passphrase', ip),
         h('button', { type: 'submit', class: 'btn', text: 'Import backup' }))));
 
-    out.push(h('p', { class: 'mut small', id: 'app-version', text: 'LifeOS v0.2.0' }));
+    out.push(h('p', { class: 'mut small', id: 'app-version', text: 'LifeOS v0.3.0' }));
+
+    if (L.syncUI) out.push(L.syncUI.section(syncCtx()));
 
     // session
     var typed = h('input', { type: 'text', id: 'wipe-confirm', autocomplete: 'off' });
@@ -1906,6 +2957,7 @@ input[type=checkbox]{width:auto;min-height:0;flex:none}
             body: [h('p', { class: 'mut', text: 'This permanently deletes the vault from this device. Type WIPE to confirm.' }), field('Confirmation', typed)],
             onYes: function () {
               if (typed.value !== 'WIPE') throw new Error('Type WIPE exactly to continue.');
+              if (L.sync) L.sync.disconnect();
               return commit(null, 'wipe').catch(function () {}).then(function () { return L.store.wipe(); }).then(function () {
                 try { L.store.lock(); } catch (e) { /* already locked */ }
                 clearTimeout(idleTimer);
@@ -1931,6 +2983,144 @@ input[type=checkbox]{width:auto;min-height:0;flex:none}
     p.then(function () { view = { name: 'lock' }; render(); });
   }
   boot();
+})();
+
+;
+(function () {
+  'use strict';
+  var L = globalThis.LifeOS;
+
+  function when(iso) { return iso ? String(iso).replace('T', ' ').slice(0, 16) + ' UTC' : 'unknown'; }
+  function sumList(c, label, s) {
+    return c.h('div', { class: 'small' },
+      c.h('strong', { text: label }),
+      c.h('div', { class: 'mut', text: 'Revision ' + s.rev + ', saved ' + when(s.updatedAt) + ', ' + s.entries + ' entries' }));
+  }
+
+  // c is the context app.js passes in: { h, field, btn, openDialog, commit, download, setNotice, render }
+  function section(c) {
+    var s = L.store.getState(), sy = s.settings.sync || { clientId: '', remoteRev: -1 };
+    var h = c.h;
+    var card = h('div', { class: 'card', id: 'sync-card' }, h('h2', { text: 'Google Drive sync' }));
+    if (!L.sync.isAvailable(window.location)) {
+      card.appendChild(h('p', { class: 'mut', id: 'sync-na', text: 'Sync is only offered when this page is served over https. Only the encrypted vault is ever uploaded.' }));
+      return card;
+    }
+    var status = h('p', { class: 'small', id: 'sync-status', role: 'status', text: '' });
+    var cid = h('input', { type: 'text', id: 'sync-cid', value: sy.clientId || '', autocomplete: 'off', maxlength: '200', placeholder: 'xxxx.apps.googleusercontent.com' });
+    var connState = h('p', { class: 'small mut', id: 'sync-conn' });
+    var syncBtn;
+    function paint() {
+      var on = L.sync.isConnected();
+      connState.textContent = on ? 'Connected to Google until about ' + new Date(L.sync.expiresAt()).toLocaleTimeString() + '. Reconnect each session.'
+        : 'Not connected. Sign-in lasts about an hour, so reconnect each session.';
+      if (syncBtn) syncBtn.disabled = !on;
+    }
+    function say(t) { status.textContent = t; }
+
+    function finish(r) {
+      if (r.kind === 'uploaded') say('Uploaded the encrypted vault to Drive (revision ' + r.rev + ').');
+      else if (r.kind === 'in-sync') say('Already in sync (revision ' + r.rev + ').');
+      else if (r.kind === 'downloaded') { c.setNotice('ok', 'Downloaded the Drive copy (revision ' + r.rev + ').'); c.render(); }
+      else say('Nothing changed.');
+      paint();
+    }
+    function fail(e) {
+      if (e && e.code === 'NEED_PASSPHRASE') { askPass(); return; }
+      say(e && e.message ? String(e.message).slice(0, 300) : 'Sync failed.');
+      paint();
+    }
+    function askPass() {
+      var p = h('input', { type: 'password', id: 'sync-pass', autocomplete: 'off' });
+      c.openDialog({
+        title: 'Passphrase of the Drive copy', yes: 'Continue',
+        body: [h('p', { class: 'mut', text: 'The Drive copy was made with a different key. Enter the passphrase it was created with. It is used on this device only and is never sent anywhere.' }), c.field('Passphrase', p)],
+        onYes: function () { var v = p.value; p.value = ''; return start(v).then(function (opened) { return opened ? false : undefined; }); }
+      });
+    }
+    function decide(d) {
+      var conflict = d.kind === 'conflict';
+      var pick = h('select', { id: 'sync-choice' },
+        conflict ? [h('option', { value: 'local', text: 'Keep this device and replace the Drive copy' }), h('option', { value: 'remote', text: 'Use the Drive copy and replace this device' })]
+          : [h('option', { value: 'download', text: 'Download the Drive copy' })]);
+      c.openDialog({
+        title: conflict ? 'Both copies changed' : 'A newer copy is on Drive', yes: 'Continue',
+        body: [
+          h('p', { class: 'mut', text: conflict ? 'Nothing is merged. Pick the copy to keep. The other copy is saved to a file first.' : 'This device has no changes since the last sync.' }),
+          d.passphraseDiffers ? h('p', { class: 'small', id: 'sync-passdiff', text: 'The Drive copy uses a different passphrase from this device. Using the Drive copy switches this device to that passphrase. Keeping this device uploads it under this device\'s passphrase.' }) : null,
+          sumList(c, 'This device', d.local), sumList(c, 'Google Drive', d.remote), c.field('Choice', pick)],
+        onYes: function () {
+          return L.sync.apply(d, pick.value, {
+            saveBackup: function (text, name) { c.download(name, text, 'application/json'); return Promise.resolve(); }
+          }).then(finish, function (e) { fail(e); });
+        }
+      });
+    }
+    function start(pass) {
+      say('Syncing...');
+      return L.sync.run({ passphrase: pass }).then(function (r) {
+        if (r.kind === 'conflict' || r.kind === 'download-offer') { say('Choose how to continue.'); decide(r); return true; }
+        finish(r);
+        return false;
+      }, function (e) {
+        if (e && e.code === 'WRONG_PASSPHRASE') say(e.message + ' Check the passphrase and try again.'); else fail(e);
+        paint();
+        if (e && e.code === 'WRONG_PASSPHRASE') throw e;
+      });
+    }
+
+    syncBtn = c.btn('Sync now', function () { start('').catch(function () {}); }, 'pri', { id: 'sync-now' });
+    var form = h('form', {
+      onsubmit: function (e) {
+        e.preventDefault();
+        var id;
+        try { id = L.sync.validateClientId(cid.value); } catch (x) { say(x.message); return; }
+        c.commit(function (x) { x.settings.sync = Object.assign({}, x.settings.sync, { clientId: id }); }, 'sync client id saved')
+          .then(function () { say('Client ID saved.'); }, fail);
+      }
+    }, c.field('Google OAuth client ID', cid, 'From your own Google Cloud project. See docs/SYNC-SETUP.md.'),
+      h('div', { class: 'row' }, h('button', { type: 'submit', class: 'btn', id: 'sync-save', text: 'Save client ID' })));
+    card.appendChild(form);
+    card.appendChild(connState);
+    card.appendChild(h('div', { class: 'row' },
+      c.btn('Connect Google Drive', function () {
+        var id = L.store.getState().settings.sync.clientId;
+        if (!id) { say('Save your client ID first.'); return; }
+        try { window.location.assign(L.sync.begin(id, { loc: window.location, storage: window.sessionStorage })); }
+        catch (e) { say(e.message); }
+      }, '', { id: 'sync-connect' }),
+      syncBtn,
+      c.btn('Disconnect', function () { L.sync.disconnect(); say('Disconnected.'); paint(); }, '', { id: 'sync-off' })));
+    card.appendChild(status);
+    card.appendChild(h('p', { class: 'mut small', text: 'Only the encrypted vault is uploaded, to a hidden app folder in your Drive. Google never sees your data or passphrase. Sync is manual.' }));
+    paint();
+    return card;
+  }
+
+  function afterUnlock(c) {
+    var r = L.sync.takeReturn();
+    if (r && r.error) {
+      c.openDialog({ title: 'Google sign-in', yes: 'OK', body: [c.h('p', { text: r.error })], onYes: function () {} });
+      return;
+    }
+    if (!L.sync.isConnected() || !L.sync.isAvailable(window.location)) return;
+    c.openDialog({
+      title: 'Sync with Google Drive?', yes: 'Sync now',
+      body: [c.h('p', { class: 'mut', text: 'You are connected to Google. Sync the encrypted vault now?' })],
+      onYes: function () {
+        return L.sync.run({}).then(function (x) {
+          if (x.kind === 'conflict' || x.kind === 'download-offer') c.setNotice('ok', 'Open Settings and press Sync now to choose between the copies.');
+          else if (x.kind === 'uploaded') c.setNotice('ok', 'Uploaded the encrypted vault to Drive.');
+          else c.setNotice('ok', 'Already in sync.');
+        }, function (e) {
+          if (!e || e.code !== 'NEED_PASSPHRASE') throw e;
+          c.setNotice('ok', 'The Drive copy was made by another vault. Open Settings and press Sync now to enter its passphrase.');
+        });
+      }
+    });
+  }
+
+  L.syncUI = { section: section, afterUnlock: afterUnlock };
 })();
 </script>
 </body>

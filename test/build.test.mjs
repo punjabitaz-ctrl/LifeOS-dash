@@ -27,7 +27,7 @@ test('build inlines, escapes </script and writes matching hashes', () => {
   assert.ok(js.indexOf('L.vault =') < js.indexOf('L.store =') && js.indexOf('L.store =') < js.indexOf('L.csv =') && js.indexOf('L.ai =') < js.indexOf('var x='));
   assert.ok(html.includes(`script-src '${h(js)}'`));
   assert.ok(html.includes(`style-src '${h(css)}'`));
-  assert.ok(html.includes(`default-src 'none'`) && html.includes(`connect-src https://api.anthropic.com http://localhost:* http://127.0.0.1:*`));
+  assert.ok(html.includes(`default-src 'none'`) && html.includes(`connect-src https://api.anthropic.com https://www.googleapis.com http://localhost:* http://127.0.0.1:*`));
   assert.ok(html.includes(`img-src data:; base-uri 'none'; form-action 'none'`));
   assert.ok(!html.includes('__CSP__') && !html.includes('__JS__') && !html.includes('__CSS__'));
 });

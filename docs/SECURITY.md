@@ -58,3 +58,63 @@ Date: 2026-11-13. Auditor: independent review (did not write the code).
 - Browsers other than headless Chromium; mobile browsers; behaviour when the file is served over http(s) rather than opened as file://.
 - Live calls to api.anthropic.com or a real local model (mocked fetch only).
 - Memory forensics after lock; IndexedDB behaviour under quota pressure; backups larger than about 8 MB through the UI; CSV files in encodings other than UTF-8.
+
+# v0.3.0 audit
+
+Date: 2026-11-13. Auditor: independent review (did not write the code).
+
+## Scope
+The v0.3.0 delta: `src/core/sync.js` and `src/ui/sync-ui.js` (Google Drive sync, OAuth implicit redirect), the schema 1 to 2 migration and the accounts, budgets, recurring and categories code in `store.js`, `metrics.js` and `app.js`, the new SVG charts, and `build.mjs` writing `_headers` for Cloudflare Pages. Also re-checked that SEC-01 to SEC-15 have not regressed (all earlier regression tests still pass; the hard-rule greps below were re-run).
+
+## Method
+- Read the files above line by line against SPEC.md and its v0.3.0 addendum.
+- Proved each finding with a test that fails on the unfixed code and passes on the fixed code. This was checked by re-applying the original code in a scratch copy: all nine SEC-16 to SEC-24 unit tests in `test/v030.test.mjs` failed there and pass here. SEC-16 was checked the same way in `test/smoke-sync.mjs`.
+- New tests: `test/v030.test.mjs` (14 tests: one or more per finding, plus schema 2 sync coverage). `test/smoke-sync.mjs` now enters accounts, a budget and a recurring item through the UI before the first upload, checks them on the downloading device (net worth, budget, recurring still only proposed), checks that locking drops the Google token, and adds a fourth browser context holding a schema 1 vault (written by the test straight into IndexedDB) that downloads the schema 2 remote and keeps it across lock and unlock.
+- Known item 1: the default category "Food" was restored to "Groceries". `test/smoke.mjs` no longer scans `document.body.textContent` (which includes the inline script). It now walks every text node in the whole document except those inside `<script>` and `<style>`, plus every attribute value of every element, the document title and all form control values. A positive control runs the same scan while unlocked and must find the data, and the test also asserts that the app script itself contains "Groceries", so excluding script text is required and the check is not vacuous.
+- Re-checked: one `<script>`, CSP hashes match, no `innerHTML`-like sinks, no `localStorage`, `console`, `eval` or `style=""` in shipped code; sessionStorage holds only the OAuth nonce; no em dashes in source, tests, docs, `dist/` or `_headers`.
+- Final results: `node --test test/` passes 120 of 120. `node build.mjs` succeeds. `test/smoke.mjs` (SMOKE PASSED), `test/smoke-money.mjs` (SMOKE-MONEY PASSED) and `test/smoke-sync.mjs` (smoke-sync OK) all pass with Playwright and system Chrome, with no CSP or console errors.
+
+## Verified without a finding
+- OAuth state: 128-bit nonce from `crypto.getRandomValues`, stored only in sessionStorage, read and removed on the first return (single use), compared in constant time, length checked. The fragment is removed with `history.replaceState` before it is parsed, and `sync.js` runs before `app.js` in the single inlined script. The token is checked for format, `token_type`, and scope.
+- The token is sent only in the `Authorization` header to `https://www.googleapis.com`, with `credentials:'omit'`, `redirect:'error'` and `referrerPolicy:'no-referrer'`. Unit and smoke tests found it in none of: state, IndexedDB, sessionStorage, localStorage, audit, URL or error messages.
+- No open redirect: the auth URL is a constant, `redirect_uri` is the page's own origin and path, and the client ID is checked against a strict pattern both in Settings and in `validateState` (so a backup or remote vault cannot inject query parameters).
+- A malicious remote vault cannot be forged without the key (AES-GCM). The outer `rev`/`updatedAt`/`deviceId` must equal the copies inside the ciphertext. A replayed older envelope is rejected as a rollback once this device has synced. Remote JSON is size capped, then parsed by `parseEnvelope` and `validateState` before use.
+- Conflict path: nothing is uploaded or replaced until the user chooses, and `apply` refuses without a `saveBackup` callback. The losing local copy is the encrypted envelope, and a test confirms that `importBackup` restores it (including a migrated schema 1 copy).
+- Migration: schema 1 balance titles become accounts, every entry is kept, and the migration is persisted by the unlock commit. `validateState` rebuilds accounts, recurring, budgets and categories from whitelisted fields with caps, and rejects `__proto__`/`constructor`/`prototype` keys. Money totals use integer cents. Recurring items are only proposed; `confirmRecurring` is called only from the Confirm button.
+- Charts are built with `createElementNS` and numeric attributes. Labels go through `textContent`.
+- The AI digest gains only numeric money fields. Existing tests show that account names, category names, entry titles and recurring titles reach neither the digest nor any prompt.
+- connect-src adds only `https://www.googleapis.com`. Navigation to accounts.google.com is a top-level redirect, not a fetch.
+
+## Findings
+
+| ID | Severity | Location | Issue | Status |
+|---|---|---|---|---|
+| SEC-16 | Medium | `app.js` lockNow, wipe | Locking did not drop the Google access token. It stayed in memory (up to about an hour), and after unlock the app offered to sync with it. SPEC requires a memory-only token, and the session should end at lock. | Fixed: lock and wipe call `sync.disconnect()`. Smoke-sync checks that after lock and unlock there is no prompt, Sync now is disabled and the user must reconnect. |
+| SEC-17 | Medium | `sync.js` run | Passphrase change. (a) After this device changed its passphrase, sync said "in sync" because only content was compared. The Drive copy stayed under the old (possibly compromised) passphrase indefinitely. (b) If another device then uploaded a newer copy under the old passphrase, it was offered as a plain "newer copy" download. Accepting it silently reverted this device to the old passphrase. | Fixed: the key in use at the last sync is recorded (`settings.sync.keySalt`, the public salt). A local key change counts as a local change: if Drive is unchanged, the copy is re-uploaded under the new key; if Drive also changed, the user gets the conflict path. When the Drive copy uses a different passphrase, the dialog says so and says what each choice does. Three tests. |
+| SEC-18 | Low | `build.mjs` headersFor | HSTS carried `includeSubDomains; preload` on a shared `*.pages.dev` host, where preload is not possible and the directives misstate the policy. | Fixed: `max-age=63072000` only. A test checks that the CSP equals the meta tag plus `frame-ancestors 'none'`, that HSTS has no preload or includeSubDomains, and that every header line is under 2000 characters (the CSP line is 356). |
+| SEC-19 | Low | `store.js` replaceState (backup restore) | Restoring a backup also restored its `settings.sync`. An older backup lowered `remoteRev`, which weakens the rollback check. A crafted backup could also swap in a different OAuth client ID that the import summary does not show. | Fixed: replaceState keeps this device's sync settings. Test SEC-19. |
+| SEC-20 | Low | `sync.js` apply | A download offer (made because the device had no changes) was applied without re-checking. Local edits made between the check and the user's choice were replaced without a backup. | Fixed: apply re-computes the fingerprint and refuses with "Nothing was replaced". Test SEC-20. |
+| SEC-21 | Low | `sync.js` load | If sessionStorage threw (for example, storage blocked), the return handler was skipped, so `#access_token=...` stayed in the address bar and in history. | Fixed: the handler always runs. It strips the fragment, then rejects the response because there is no nonce. The test evaluates `sync.js` with a throwing sessionStorage. |
+| SEC-22 | Low | `sync.js` api | Drive replies were read with `res.text()`. The 64 MB cap relied on Content-Length, so a chunked reply was buffered in full before the length check. | Fixed: the body is read as a stream with a hard cap, and the request is aborted beyond it. Test SEC-22. |
+| SEC-23 | Low | `sync.js` api | Any thrown error with a string `code` was passed through with its own message (shown in the UI). Only errors created by sync.js should pass. | Fixed: own errors are tracked in a WeakSet; anything else becomes a fixed NETWORK or TIMEOUT message. Test SEC-23. |
+| SEC-24 | Info | `store.js` adoptEnvelope | The remote envelope object was written to IndexedDB as-is, with any extra fields. In the normal flow the bookkeeping commit re-seals it straight away, so this only mattered if that commit failed. | Hardened: only the known envelope fields are stored. Test SEC-24. |
+| SEC-25 | Info | `metrics.js` money sums | An entry value can be up to 1e12 (1e14 cents), so about 91 such entries push a sum past 2^53 and integer-cent maths loses precision. Only absurd values can do this, and they come from the user's own vault. | Accepted: tightening the range would make existing vaults fail validation. |
+| SEC-26 | Info | `store.js` deviceId | `deviceId` is informational. After a download, the next unlock can take the other device's ID until the next commit re-seals. No sync decision reads it (verified by grep), so spoofing it has no effect. | Accepted. |
+
+Other change made during the audit (hardening, not a finding): an upload when Drive is unchanged now always carries a `rev` above both the Drive copy and the last synced rev.
+
+## Residual risks
+- Hosting: when the app is used from the hosted copy (Cloudflare Pages or GitHub Pages), anyone who compromises the hosting account, the repository or the deploy pipeline can serve altered code. That code would run with full access to the decrypted vault and the passphrase. A file:// copy that the user checked is not exposed to this.
+- The Google OAuth client is the user's own, and it is expected to be in testing mode. Google limits testing-mode clients (named test users only, and consent screens that may warn about an unverified app). Behaviour under a verified, published client was not checked.
+- Implicit flow: the access token comes back in the URL fragment. It is in the address bar and the current history entry from the redirect until the script runs `replaceState`. Any extension or script that runs before the app can read it. Google discourages the implicit flow. The token is bearer, valid for about an hour, and limited to `drive.appdata`.
+- Everything Google-side was simulated: accounts.google.com and the Drive REST API were mocked in unit tests and Playwright route handlers. Nothing was run against real Google. In particular, it is not verified whether Drive v3 honours `If-Match` on media uploads. The version re-read before writing still leaves a small race window, so two devices syncing at the same moment could lose an update.
+- A device that has never synced has no rollback floor, so it accepts any validly encrypted older Drive copy as an offer. It is still only applied after the user chooses.
+- The losing copy in a conflict is saved through a browser download. The app cannot confirm the file was actually written to disk before it replaces the other copy.
+- Two tabs of the app on the same device each hold their own state and overwrite each other's IndexedDB writes. This is not specific to sync.
+- The earlier residual risks (compromised device or extension, PBKDF2 rather than a memory-hard KDF, no secure erase) still apply. A meta CSP still cannot set `frame-ancestors`, but `_headers` now does for the hosted copy.
+
+## Not tested
+- Real Google OAuth and Drive (see above), and real Cloudflare Pages header handling: `_headers` was checked as a file only, never served.
+- Browsers other than Chrome (headless, via Playwright); mobile Safari's handling of the fragment and sessionStorage across the redirect.
+- Rendering of the new money and assets charts was not checked for visual correctness beyond what smoke-money asserts.
+- Very large vaults near the 64 MB sync cap through the browser (the cap was only exercised in unit tests).

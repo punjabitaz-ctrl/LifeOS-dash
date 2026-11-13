@@ -117,3 +117,23 @@ LifeOS.csv
 ## UI (Worker B)
 Screens: Lock (create or unlock), Dashboard (10 tiles: headline, sub line, sparkline; plus this week's 3 priorities), Domain (entries list newest first, add form generated from DOMAINS fields, delete with confirm, CSV import with column mapping, CSV export), Weekly Review (1 digest now vs last week, 2 proposed insights with Approve / Reject + reason, buttons "Suggest with AI" and manual copy/paste mode, 3 set three priorities, finish), Memory (approved insights by level, lessons, "Consolidate month" and "Consolidate quarter"), Settings (provider, targets, currency, auto-lock, change passphrase, export/import encrypted backup, lock now, wipe with typed confirmation).
 Auto-lock after `autoLockMin` idle minutes and on `visibilitychange` hidden for longer than that. Use `confirm`-free in-page dialogs. Accessible labels, keyboard usable, respects prefers-color-scheme.
+
+## v0.3.0 addendum
+Hosting: served over HTTPS (Cloudflare Pages / GitHub Pages) as well as file://. build.mjs also writes `_headers` at the repo root (Cloudflare Pages format, path `/*`) carrying the same CSP as the meta tag plus `frame-ancestors 'none'`, and HSTS, `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`, `Permissions-Policy` denying camera, microphone, geolocation, payment, `Cross-Origin-Opener-Policy: same-origin`, `Cache-Control: no-cache` for html.
+
+### Money and Assets (owner: Money worker; owns app.js, styles.css, build.mjs, metrics.js, store.js)
+Manual entry first; the user will type everything. Schema 2 with a tested migration from schema 1 (never lose data; migration runs on unlock and on backup import).
+- `accounts:[{id,name,kind:'cash'|'investment'|'retirement'|'property'|'vehicle'|'other'|'credit'|'loan'|'mortgage',liability:bool,archived}]`. Balance entries reference `accountId`. Net worth = sum of latest balance per non-archived account, liabilities subtracted. Net worth history by month, assets vs liabilities split, allocation by kind.
+- Money: categories (default list, user editable), expense/income entries carry `category`; `recurring:[{id,title,value,category,type,cadence:'weekly'|'monthly'|'yearly',nextDate,active}]` which only PROPOSES due items the user confirms with one tap (nothing auto-posted); monthly budget per category; month view with income, spend, savings rate, spend by category vs budget, cash-flow trend for 6 months.
+- Fast add: one-screen quick entry (amount, category chips, date defaulting to today) reachable in one tap from the dashboard on a phone.
+- Charts are inline SVG built with DOM APIs. Money maths in integer cents.
+- weeklyDigest gains numeric money/assets fields only (no names).
+
+### Google Drive sync (owner: Sync worker; owns src/core/sync.js, src/ui/sync-ui.js, test/sync*.mjs, test/smoke-sync.mjs)
+- No Google script is loaded. OAuth 2.0 implicit token flow by full-page redirect to accounts.google.com with the user's own OAuth client ID (entered in Settings, stored in state), scope `https://www.googleapis.com/auth/drive.appdata` only, random `state` nonce checked on return (the nonce is the only thing allowed in sessionStorage), token read from the URL fragment then the fragment removed with history.replaceState before anything else runs. Token held in memory only, never in state, storage, logs or errors. Only offered when location.protocol is https:.
+- Only the already-encrypted envelope is uploaded, to one file `lifeos-vault.json` in appDataFolder. Google never sees plaintext or the passphrase.
+- Envelope gains `rev` (integer, +1 per commit) and `updatedAt`, `deviceId` outside the ciphertext, and the same three inside the ciphertext; mismatch between outer and inner = reject (anti-rollback/tamper signal).
+- Sync is explicit ("Sync now") plus an optional prompt after unlock. Rules: remote missing -> upload. Remote rev > local and local unchanged since last sync -> offer download (needs the same passphrase; a different passphrase is reported plainly). Both changed -> never merge silently: show both summaries (rev, date, entry count) and let the user pick, keeping the losing copy as a downloadable encrypted backup first. Use Drive `If-Match`/etag or a re-read before write to avoid lost updates.
+- Remote data is untrusted: size cap 64 MB, parseEnvelope + validateState before it replaces anything.
+- CSP connect-src adds `https://www.googleapis.com` only. fetch with credentials omit, redirect error, 30 s timeout.
+- Sync worker may make only small additive edits to app.js (a Settings section hook and a post-unlock hook), store.js (rev fields) and build.mjs (include files, connect-src); coordinate by keeping edits minimal and re-reading the file before each edit because the Money worker edits the same files.

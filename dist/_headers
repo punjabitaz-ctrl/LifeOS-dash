@@ -1,0 +1,13 @@
+/*
+  Content-Security-Policy: default-src 'none'; script-src 'sha256-JSsRoGLKOSpl/1w64X2zcefZJOuZN7j6thmszSVAc8s='; style-src 'sha256-mWN8+OkKEU/mWe5RfbiZ96R7Zp5aaU8zymXRCVNLrzg='; connect-src https://api.anthropic.com https://www.googleapis.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+  Strict-Transport-Security: max-age=63072000
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: no-referrer
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
+  Cross-Origin-Opener-Policy: same-origin
+
+/
+  Cache-Control: no-cache
+
+/*.html
+  Cache-Control: no-cache
