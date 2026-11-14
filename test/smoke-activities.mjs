@@ -263,7 +263,7 @@ async function run(label, viewport) {
     await step('settings: version, and no activity text', async () => {
       await nav('Settings');
       await page.waitForSelector('#app-version', T);
-      await expectText('#app-version', 'LifeOS v0.10.0');
+      await expectText('#app-version', 'LifeOS v0.11.0');
       const t = await text('main');
       for (const secret of ['Kayak day', 'Pottery class', 'Museum visit']) if (t.includes(secret)) throw new Error('settings page shows ' + secret);
       await layout('settings');

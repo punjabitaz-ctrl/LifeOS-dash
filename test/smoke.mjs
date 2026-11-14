@@ -128,7 +128,7 @@ try {
   await step('backup-export', async () => {
     await page.click('.nav button:has-text("Settings")');
     await layout('settings');
-    if (!/v0\.10\.0/.test(await page.textContent('#app-version'))) throw new Error('version missing');
+    if (!/v0\.11\.0/.test(await page.textContent('#app-version'))) throw new Error('version missing');
     await page.selectOption('#p-kind', 'local');
     await page.fill('#p-base', 'http://localhost:11434/v1');
     if (!/sent to: http:\/\/localhost:11434\/v1\/chat\/completions/.test(await page.textContent('#p-url'))) throw new Error('url preview wrong');

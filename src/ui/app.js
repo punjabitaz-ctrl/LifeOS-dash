@@ -75,6 +75,7 @@
   function friendly(e) {
     var m = e && e.message ? String(e.message) : '';
     if (m === 'BAD_PASSPHRASE_OR_DATA') return 'That passphrase did not work, or the data is damaged.';
+    if (m === 'BAD_PRIVATE_PASSPHRASE') return 'That private passphrase did not work.';
     if (!m) return 'Something went wrong.';
     return m.slice(0, 300);
   }
@@ -149,10 +150,54 @@
     s.audit.push({ ts: new Date().toISOString(), action: action });
     while (s.audit.length > 200) s.audit.shift();
   }
-  function commit(fn, action) {
-    return L.store.commit(function (s) { if (fn) fn(s); if (action) addAudit(s, action); });
+  // Every write goes through the private vault's single routing helper: a record is saved where it lives (main state or private
+  // vault); with the vault closed it is a plain commit. New records are public unless "New items are private" is ticked.
+  var privNew = false, privFail = { n: 0, until: 0 }, privTimer = null, privPick = { coll: 'accounts', q: '' };
+  // from: [[collection, key]] the records a new record is made from (SEC-62): if any of them is private, so is the new one.
+  function commit(fn, action, from) {
+    var o = newPriv() ? { newPrivate: true } : (from && L.priv.isOpen() ? { from: from } : null);
+    return L.priv.write(function (s) { if (fn) fn(s); if (action) addAudit(s, action); }, o);
   }
-  function st() { return L.store.getState(); }
+  // The "New items are private" toggle only means anything while the vault is open; closed, it is off and ignored.
+  function newPriv() { return privNew && L.store.isUnlocked() && L.priv.isOpen(); }
+  function privNewNote() {
+    return h('p', { class: 'privnew-note small', role: 'status' }, lockIcon('Private', 'lockmark'), ' ', h('span', { class: 'chip ok', text: 'New items are private' }));
+  }
+  // Show the toggle's state on every add form (and add dialog) while it is on. Idempotent; called after each render and on toggling.
+  function markAddForms() {
+    var root = document.getElementById('app');
+    if (!root) return;
+    Array.prototype.forEach.call(root.querySelectorAll('.privnew-note'), function (n) { n.remove(); });
+    Array.prototype.forEach.call(document.querySelectorAll('.dialog.adds'), function (n) { Array.prototype.forEach.call(n.querySelectorAll('.privnew-note'), function (m) { m.remove(); }); });
+    if (!newPriv()) return;
+    Array.prototype.forEach.call(root.querySelectorAll('form'), function (f) {
+      var b = f.querySelector('button[type=submit]');
+      if (b && /^(Add (?!category|type|date|fact)|Log |Save budget|Save balance|Save cycle)/.test(b.textContent)) f.insertBefore(privNewNote(), f.firstChild);
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('.dialog.adds'), function (d) { d.insertBefore(privNewNote(), d.children[1] || null); });
+  }
+  // The main state alone: prompts, digest, insights, review records, CSV and backups use this, even while the vault is open.
+  function mainState() { return L.store.getState(); }
+  // What screens show: the main state while the vault is closed, with private records merged in while it is open.
+  function st() { var b = L.store.getState(); return L.priv.isOpen() ? L.priv.view(b) : b; }
+  var DOMAIN_COLLS = {
+    money: ['entries', 'recurring', 'budgets', 'activities'], assets: ['entries', 'accounts'], work: ['entries', 'projects', 'pipeline'],
+    health: ['entries', 'habits', 'habitLog', 'cycle', 'activities'], activities: ['activities', 'entries', 'people'],
+    social: ['people', 'contacts', 'groups', 'activities'], learning: ['learningItems', 'studySessions', 'takeaways'],
+    home: ['properties', 'vehicles', 'maintenance', 'recurring'], admin: ['renewals', 'documents', 'taxItems', 'learningItems', 'recurring'],
+    goals: null, wellbeing: ['entries', 'wellbeing']
+  };
+  // A small lock marker (no counts, no names) wherever a number or list could be affected by hidden private items.
+  function lockMark(colls) {
+    if (!L.store.isUnlocked() || L.priv.isOpen()) return null;
+    var m = L.priv.marks(mainState());
+    if (!m.length || (colls && !colls.some(function (c) { return m.indexOf(c) >= 0; }))) return null;
+    return lockIcon('Some private items are hidden', 'lockmark');
+  }
+  function lockIcon(label, cls) {
+    return h('span', { class: cls || 'lockmark', role: 'img', 'aria-label': label, title: label },
+      h('svg', { class: 'lockico', viewBox: '0 0 12 14', 'aria-hidden': 'true', focusable: 'false' }, h('rect', { x: '1', y: '6', width: '10', height: '7', rx: '1.5' }), h('path', { d: 'M3 6V4a3 3 0 0 1 6 0v2' })));
+  }
   function go(name, extra) {
     view = Object.assign({ name: name }, extra || {});
     notice = null; csvPending = null; ai = null;
@@ -177,7 +222,7 @@
         if (keep !== false) closeDialog();
       }, function (e) { err.textContent = friendly(e); });
     }, o.danger ? 'bad' : 'pri');
-    var box = h('div', { class: 'dialog', role: 'dialog', 'aria-modal': 'true', 'aria-label': o.title },
+    var box = h('div', { class: 'dialog' + (o.adds ? ' adds' : ''), role: 'dialog', 'aria-modal': 'true', 'aria-label': o.title },
       h('h2', { text: o.title }), o.body || null, err,
       h('div', { class: 'row' }, yes, btn('Cancel', closeDialog)));
     dlgEl = h('div', { class: 'overlay' }, box);
@@ -192,6 +237,7 @@
       }
     });
     document.body.appendChild(dlgEl);
+    markAddForms();
     var inp = box.querySelector('input,textarea');
     (inp || yes).focus();
   }
@@ -201,6 +247,7 @@
     try { return (st().settings.autoLockMin || 15) * 60000; } catch (e) { return 900000; }
   }
   function resetIdle() {
+    if (L.priv.isOpen()) L.priv.touch();
     clearTimeout(idleTimer);
     if (!L.store.isUnlocked() || locking) return;
     lastActive = Date.now();
@@ -208,6 +255,7 @@
   }
   // Wall-clock check: timers can pause during device sleep or background throttling.
   function checkIdle() {
+    L.priv.checkExpiry();
     if (L.store.isUnlocked() && !locking && lastActive && Date.now() - lastActive >= limitMs()) lockNow();
   }
   function lockNow() {
@@ -219,6 +267,7 @@
     var p = L.store.isUnlocked() ? Promise.race([commit(null, 'lock').catch(function () {}), new Promise(function (r) { setTimeout(r, 1000); })]) : Promise.resolve();
     locking = p.then(function () {
       L.store.lock();
+      privNew = false;
       closeDialog();
       csvPending = null; ai = null; notice = null; lastActive = 0;
       view = { name: 'lock' };
@@ -237,16 +286,18 @@
   // ---------- chrome ----------
   function render() {
     var root = document.getElementById('app');
+    clearTimeout(privTimer);
     root.replaceChildren();
     noticeEl = h('div', { class: 'notice' + (notice ? ' ' + notice.kind : ''), role: 'status', 'aria-live': 'polite', text: notice ? notice.text : '' });
     if (!L.store.isUnlocked() || view.name === 'lock') { root.appendChild(lockScreen()); return; }
     var s = st();
     var body;
     try {
-      body = view.name === 'domain' ? (view.domain === 'money' ? moneyScreen(s) : view.domain === 'assets' ? assetsScreen(s) : view.domain === 'work' ? workScreen(s) : view.domain === 'health' ? healthScreen(s) : view.domain === 'goals' ? goalsScreen(s) : view.domain === 'home' ? homeScreen(s) : view.domain === 'admin' ? adminScreen(s) : view.domain === 'learning' ? learningScreen(s) : view.domain === 'activities' ? activitiesScreen(s) : view.domain === 'social' ? socialScreen(s) : domainScreen(s))
+      body = view.name === 'domain' ? (view.domain === 'money' ? moneyScreen(s) : view.domain === 'assets' ? assetsScreen(s) : view.domain === 'work' ? workScreen(s) : view.domain === 'health' ? healthScreen(s) : view.domain === 'goals' ? goalsScreen(s) : view.domain === 'home' ? homeScreen(s) : view.domain === 'admin' ? adminScreen(s) : view.domain === 'learning' ? learningScreen(s) : view.domain === 'activities' ? activitiesScreen(s) : view.domain === 'social' ? socialScreen(s) : view.domain === 'wellbeing' ? wellbeingScreen(s) : domainScreen(s))
         : view.name === 'review' ? reviewScreen(s)
         : view.name === 'memory' ? memoryScreen(s)
         : view.name === 'settings' ? settingsScreen(s)
+        : view.name === 'private' ? privScreen(s)
         : dashScreen(s);
     } catch (e) { body = h('p', { text: friendly(e) }); }
     var cur = view.name === 'domain' ? (view.domain === 'money' || view.domain === 'assets' || view.domain === 'work' || view.domain === 'health' ? view.domain : 'dashboard') : view.name;
@@ -254,10 +305,39 @@
       return h('button', { type: 'button', text: n[1], 'aria-current': n[0] === cur ? 'page' : null, onclick: function () { if (n[0] === 'money' || n[0] === 'assets' || n[0] === 'work' || n[0] === 'health') go('domain', { domain: n[0] }); else go(n[0]); } });
     }));
     root.appendChild(h('div', { class: 'app' },
-      h('header', { class: 'top' }, h('span', { class: 'brand', text: 'LifeOS' }), btn('Lock', function () { lockNow(); }, 'sm lockbtn')),
+      h('header', { class: 'top' }, h('span', { class: 'brand', text: 'LifeOS' }),
+        h('span', { class: 'row' }, btn(L.priv.isOpen() ? 'Private (open)' : 'Private', function () { go('private'); }, 'sm', { id: 'nav-private', 'aria-current': view.name === 'private' ? 'page' : null }),
+          btn('Lock', function () { lockNow(); }, 'sm lockbtn'))),
       nav,
-      h('main', { class: 'main' }, noticeEl, body)));
+      h('main', { class: 'main' }, noticeEl, privBar(), screenMark(), body)));
+    markAddForms();
+    decorateRows();
   }
+
+  // The strip shown while the private vault is open, and the marker line shown while it is closed and something is hidden.
+  function privBar() {
+    if (!L.priv.isOpen()) return null;
+    var tick = h('input', { type: 'checkbox', id: 'priv-new', checked: privNew, onchange: function (e) { privNew = !!e.target.checked; markAddForms(); } });
+    return h('div', { class: 'privbar', id: 'priv-bar' }, h('span', { class: 'chip ok', text: 'Private vault open' }),
+      h('label', { class: 'row small' }, tick, h('span', { text: 'New items are private' })),
+      btn('Close vault', function () { L.priv.close(); }, 'sm', { id: 'priv-close' }));
+  }
+  function screenMark() {
+    var colls = null;
+    if (view.name === 'domain') { if (view.domain === 'wellbeing') return null; colls = DOMAIN_COLLS[view.domain]; }
+    else if (view.name === 'dashboard' || view.name === 'settings' || view.name === 'memory' || view.name === 'private') return null;
+    var m = lockMark(colls === undefined ? null : colls);
+    return m ? h('p', { class: 'small mut lockrow' }, m, ' Some private items are hidden.') : null;
+  }
+  // SEC-67: nothing typed or shown while open survives the close: the toggle, the private search text and any notice (a notice can
+  // name a private record, for example "Posted <title>.").
+  L.priv.onClose(function () {
+    privNew = false; privPick = { coll: 'accounts', q: '' }; notice = null;
+    if (!L.store.isUnlocked() || locking) return;
+    closeDialog(); csvPending = null; ai = null;
+    view = { name: view.name, domain: view.domain };
+    render();
+  });
 
   // ---------- lock screen ----------
   function lockScreen() {
@@ -318,11 +398,12 @@
   function dashScreen(s) {
     var t = today(), wk = L.metrics.weekStart(t);
     var tiles = L.DOMAINS.map(function (d) {
+      if (d.id === 'wellbeing') return wellbeingTile(s, d, t);
       var hl, ser;
       try { hl = L.metrics.headline(s, d.id, t); } catch (e) { hl = { label: '', display: '-', sub: '' }; }
       try { ser = L.metrics.series(s, d.id, 8, t); } catch (e) { ser = []; }
       return h('button', { type: 'button', class: 'tile', 'data-domain': d.id, onclick: function () { go('domain', { domain: d.id }); } },
-        h('span', { class: 'tile-title', text: d.label }),
+        h('span', { class: 'tile-title' }, d.label, ' ', lockMark(DOMAIN_COLLS[d.id])),
         h('span', { class: 'tile-value', text: hl.display }),
         h('span', { class: 'tile-sub', text: hl.label }),
         h('span', { class: 'tile-sub', text: hl.sub }),
@@ -417,7 +498,7 @@
       if (en.kind) meta.push(en.kind);
       if (en.minutes !== undefined) meta.push(en.minutes + ' min');
       if (en.effort !== undefined) meta.push('effort ' + en.effort);
-      return h('div', { class: 'entry' },
+      return h('div', ROW({ class: 'entry' }, 'entries', en),
         h('div', null, h('div', { class: 'entry-t', text: en.title }),
           h('div', { class: 'mut small', text: en.date + ' | ' + meta.join(' | ') }),
           en.notes ? h('div', { class: 'small', text: en.notes }) : null),
@@ -501,11 +582,13 @@
     }
     card.appendChild(h('div', { class: 'row' }, btn('Export CSV', function () {
       act(function () {
-        if (!list.length) throw new Error('No entries to export.');
-        download('lifeos-' + d.id + '.csv', L.csv.exportEntries(list), 'text/csv');
+        // Exports are computed from the main state only, even while the private vault is open.
+        var out = mainState().entries.filter(function (x) { return x.domain === d.id; });
+        if (!out.length) throw new Error('No entries to export.');
+        download('lifeos-' + d.id + '.csv', L.csv.exportEntries(out), 'text/csv');
         return commit(null, 'export');
       }, 'CSV exported.');
-    })));
+    }), lockMark(DOMAIN_COLLS[d.id])));
     return card;
   }
 
@@ -558,7 +641,7 @@
     function setType(t) { type = t; cat = ''; paint(); }
     paint();
     openDialog({
-      title: 'Quick add', yes: 'Save',
+      title: 'Quick add', yes: 'Save', adds: true,
       body: [h('div', { class: 'row' }, tEx, tIn), field('Amount', amount), h('span', { class: 'lbl', text: 'Category' }), chips, field('Date', dateIn), field('Note (optional)', note)],
       onYes: function () {
         var v = parseAmount(amount.value);
@@ -624,7 +707,7 @@
             h('div', { class: 'mut small', text: d.date + ' | ' + (d.type === 'income' ? 'Income ' : 'Expense ') + moneyFmt(L.metrics.cents(d.value), cur) + (d.category ? ' | ' + d.category : '') })),
           h('div', { class: 'row' },
             btn('Confirm', function () {
-              act(function () { return commit(function (x) { L.metrics.confirmRecurring(x, d.id, today()); }, 'recurring confirm').then(function () { setNotice('ok', 'Posted ' + d.title + '.'); render(); }); });
+              act(function () { return commit(function (x) { L.metrics.confirmRecurring(x, d.id, today()); }, 'recurring confirm', [['recurring', d.id]]).then(function () { setNotice('ok', 'Posted ' + d.title + '.'); render(); }); });
             }, 'pri sm', { 'aria-label': 'Confirm ' + d.title }),
             btn('Skip', function () {
               act(function () { return commit(function (x) { L.metrics.skipRecurring(x, d.id, today()); }, 'recurring skip').then(function () { render(); }); });
@@ -652,7 +735,7 @@
     var bAmt = h('input', { type: 'text', id: 'bud-amount', inputmode: 'decimal', autocomplete: 'off', maxlength: '14' });
     var budgets = details('budgets', 'Monthly budgets (' + s.budgets.length + ')', [
       s.budgets.map(function (b) {
-        return h('div', { class: 'item' }, h('span', { text: b.category + ': ' + moneyFmt(L.metrics.cents(b.value), cur) }),
+        return h('div', ROW({ class: 'item' }, 'budgets', b), h('span', { text: b.category + ': ' + moneyFmt(L.metrics.cents(b.value), cur) }),
           btn('Remove', function () { act(function () { return commit(function (x) { x.budgets = x.budgets.filter(function (z) { return z.category !== b.category; }); }, 'budget remove').then(render); }); }, 'sm', { 'aria-label': 'Remove budget for ' + b.category }));
       }),
       h('form', {
@@ -684,7 +767,7 @@
     var recurring = details('recurring', 'Recurring items (' + s.recurring.length + ')', [
       h('p', { class: 'mut small', text: 'These only create a proposal on the due date. You confirm each one.' }),
       s.recurring.map(function (r) {
-        return h('div', { class: 'item' },
+        return h('div', ROW({ class: 'item' }, 'recurring', r),
           h('div', null, h('div', { class: 'entry-t', text: r.title }),
             h('div', { class: 'mut small', text: (r.type === 'income' ? 'Income ' : 'Expense ') + moneyFmt(L.metrics.cents(r.value), cur) + ' | ' + r.cadence + ' | next ' + r.nextDate + (r.active ? '' : ' | paused') + (r.household ? ' | household' : '') })),
           h('div', { class: 'row' },
@@ -779,7 +862,7 @@
 
     function acctRow(a) {
       var r = latest[a.id];
-      return h('div', { class: 'item acct', 'data-account': a.name },
+      return h('div', ROW({ class: 'item acct', 'data-account': a.name }, 'accounts', a, true),
         h('div', null, h('div', { class: 'entry-t', text: a.name }),
           h('div', { class: 'mut small' }, h('span', { class: 'chip' + (a.liability ? ' bad' : ''), text: KIND_LABEL[a.kind] + (a.liability ? ' (owed)' : '') }),
             r ? moneyFmt(Math.abs(r.cents), cur) + ' as of ' + r.date : 'No balance yet')),
@@ -793,7 +876,7 @@
     function renameDialog(a) {
       var inp = h('input', { type: 'text', id: 'ac-rename', maxlength: '200', value: a.name, autocomplete: 'off' });
       openDialog({
-        title: 'Rename account', yes: 'Save', body: field('Name', inp),
+        title: 'Rename account', yes: 'Save', body: [field('Name', inp), movePrivBtn('accounts', a)],
         onYes: function () {
           var n = inp.value.trim();
           if (!n) throw new Error('Enter a name.');
@@ -901,7 +984,7 @@
   }
   function suggestAI(level, period) {
     return act(function () {
-      var s = st();
+      var s = mainState();
       var kind = s.settings.provider.kind;
       var pr = L.memory.buildPrompt(s, level, period);
       if (kind === 'none' || kind === 'manual') {
@@ -918,7 +1001,7 @@
     });
   }
   function aiPanel(level, period, label) {
-    var kind = st().settings.provider.kind;
+    var kind = mainState().settings.provider.kind;
     var box = h('div', null,
       h('div', { class: 'row' }, btn(label, function () { suggestAI(level, period); }, 'sm', { id: 'ai-suggest' })),
       h('p', { class: 'mut small', text: kind === 'anthropic' ? 'Sends only the numeric digest, approved insights and lessons to api.anthropic.com.' : kind === 'local' ? 'Sends only the numeric digest, approved insights and lessons to your local model.' : 'Manual mode: copy the prompt into your own AI chat and paste the reply here.' }));
@@ -946,8 +1029,8 @@
   function reviewScreen(s) {
     var t = today(), wk = L.metrics.weekStart(t);
     var period = { from: wk, to: addDays(wk, 6) };
-    var dg = L.metrics.weeklyDigest(s, wk);
-    var rows = L.DOMAINS.map(function (d) {
+    var dg = L.metrics.weeklyDigest(mainState(), wk);
+    var rows = L.DOMAINS.filter(function (d) { return d.id !== 'wellbeing'; }).map(function (d) {
       var x = (dg.domains && dg.domains[d.id]) || { now: 0, prev: 0, unit: '' };
       var dl = Math.round((x.now - x.prev) * 100) / 100;
       return h('tr', null, h('td', { text: d.label }), h('td', { text: String(Math.round(x.now * 100) / 100) + ' ' + x.unit }),
@@ -967,7 +1050,7 @@
       h('div', { class: 'row' },
         btn(haveRules ? 'Rules suggestions added' : 'Run rules suggestions', function () {
           act(function () {
-            var items = L.memory.rulesInsights(st(), wk);
+            var items = L.memory.rulesInsights(mainState(), wk);
             if (!items.length) throw new Error('No rule-based suggestions this week.');
             return runPropose(items, 1, period, 'rules').then(render);
           });
@@ -985,7 +1068,8 @@
       reviewActivitiesCard(s, wk, t),
       h('h2', { text: '7. Social' }),
       reviewSocialCard(s, wk, t),
-      h('h2', { text: '8. Your three priorities' }),
+      reviewWellbeingStep(t),
+      h('h2', { text: (L.priv.isOpen() ? '9' : '8') + '. Your three priorities' }),
       h('form', {
         class: 'card',
         onsubmit: function (e) {
@@ -993,7 +1077,7 @@
           act(function () {
             var ps = pri.map(function (p) { return p.value.trim(); });
             if (ps.some(function (p) { return !p; })) throw new Error('Enter all three priorities.');
-            var digest = L.metrics.weeklyDigest(st(), wk);
+            var digest = L.metrics.weeklyDigest(mainState(), wk);
             return commit(function (x) {
               x.memory.reviews = x.memory.reviews.filter(function (r) { return r.weekOf !== wk; });
               x.memory.reviews.push({ id: L.store.newId(), weekOf: wk, digest: digest, priorities: ps, completedAt: new Date().toISOString() });
@@ -1002,6 +1086,22 @@
         }
       }, pri.map(function (p, n) { return field('Priority ' + (n + 1), p); }),
         h('button', { type: 'submit', class: 'btn pri', id: 'finish-review', text: 'Finish review' })));
+  }
+
+  // A step shown only while the private vault is open. It reads the vault for the screen and stores nothing: not in the review
+  // record, the digest, an insight or the audit log.
+  function reviewWellbeingStep(t) {
+    if (!L.priv.isOpen()) return null;
+    var W = L.wellbeing, wb = L.priv.getWellbeing();
+    return h('div', { id: 'rv-wellbeing' }, h('h2', { text: '8. Wellbeing' }),
+      h('div', { class: 'card' }, h('p', { class: 'mut small', text: 'Shown only while the private vault is open. Nothing here is saved with the review.' }),
+        h('table', null, h('thead', null, h('tr', null, ['Area', 'Today', '7-day average', 'Check-ins'].map(function (x) { return h('th', { text: x }); }))),
+          h('tbody', null, W.AREAS.map(function (a) {
+            var sm = W.summary(wb, a.id, t);
+            return h('tr', { 'data-area': a.id }, h('td', { text: a.label }), h('td', { text: sm.today === null ? '-' : String(sm.today) }), h('td', { text: avgText(sm.avg7.avg) }), h('td', { text: String(sm.avg7.n) }));
+          }))),
+        h('p', { class: 'small', text: 'Check-in streak: ' + W.streak(wb, t) + '.' }),
+        btn('Open Wellbeing', function () { go('domain', { domain: 'wellbeing' }); }, 'sm', { id: 'rv-wb-open' })));
   }
 
   // ---------- work (v0.4.0) ----------
@@ -1038,7 +1138,7 @@
           var ids = [];
           boxes.forEach(function (b) { var i = b.querySelector('input'); if (i.checked) ids.push(i.getAttribute('data-carry')); });
           if (!ids.length) throw new Error('Tick at least one outcome to carry over.');
-          return commit(function (x) { L.metrics.carryOver(x, ids, wk); }, 'outcomes carried over').then(function () { setNotice('ok', 'Carried over ' + ids.length + (ids.length === 1 ? ' outcome.' : ' outcomes.')); afterRender(); });
+          return commit(function (x) { L.metrics.carryOver(x, ids, wk); }, 'outcomes carried over', ids.map(function (i) { return ['entries', i]; })).then(function () { setNotice('ok', 'Carried over ' + ids.length + (ids.length === 1 ? ' outcome.' : ' outcomes.')); afterRender(); });
         });
       }, 'sm pri', { id: 'carry-go' }));
   }
@@ -1081,7 +1181,7 @@
     var wkList = L.metrics.weekOutcomes(s, wk);
     var oList = wkList.map(function (en) {
       var done = en.status === 'done', pn = en.projectId ? projName(s, en.projectId) : '';
-      return h('div', { class: 'item outcome', 'data-outcome': en.title, 'data-status': en.status },
+      return h('div', ROW({ class: 'item outcome', 'data-outcome': en.title, 'data-status': en.status }, 'entries', en),
         h('div', null, h('div', { class: 'entry-t' + (done ? ' done-t' : ''), text: en.title }),
           pn ? h('div', { class: 'mut small' }, h('span', { class: 'chip', text: pn })) : null),
         btn(done ? 'Reopen' : 'Mark done', function () {
@@ -1119,7 +1219,7 @@
     var shownP = live.slice().sort(function (a, b) { return (a.status === 'done') - (b.status === 'done') || a.name.localeCompare(b.name); });
     var pList = shownP.map(function (p) {
       var od = p.status === 'active' && p.nextDate && p.nextDate < t;
-      return h('div', { class: 'item proj', 'data-project': p.name },
+      return h('div', ROW({ class: 'item proj', 'data-project': p.name }, 'projects', p),
         h('div', null, h('div', { class: 'entry-t', text: p.name }),
           h('div', { class: 'mut small' }, h('span', { class: 'chip', text: p.kind }), h('span', { class: 'chip', text: p.status }),
             od ? h('span', { class: 'chip bad', text: 'Overdue' }) : null),
@@ -1143,7 +1243,7 @@
     });
     var archived = projects.filter(function (p) { return p.archived; });
     var aList = archived.map(function (p) {
-      return h('div', { class: 'item aproj' }, h('div', null, h('div', { class: 'entry-t', text: p.name }), h('div', { class: 'mut small' }, h('span', { class: 'chip', text: p.kind }))),
+      return h('div', ROW({ class: 'item aproj' }, 'projects', p), h('div', null, h('div', { class: 'entry-t', text: p.name }), h('div', { class: 'mut small' }, h('span', { class: 'chip', text: p.kind }))),
         h('div', { class: 'row' },
           btn('Restore', function () {
             if (live.length >= 200) { setNotice('err', 'You have reached the 200 project limit. Archive or delete some first.'); return; }
@@ -1193,7 +1293,7 @@
         h('h3', { text: STAGE_LABEL[k] + ' (' + counts[k] + ')' }),
         pipeline.filter(function (x) { return x.stage === k; }).sort(function (a, b) { return a.updatedAt.localeCompare(b.updatedAt); }).map(function (it) {
           var stale = L.metrics.isStale(it, t), idx = order.indexOf(it.stage), nxt = idx < 4 ? order[idx + 1] : (idx === 4 ? 'won' : null);
-          return h('div', { class: 'pitem', 'data-item': it.title, 'data-stage': it.stage },
+          return h('div', ROW({ class: 'pitem', 'data-item': it.title, 'data-stage': it.stage }, 'pipeline', it),
             h('div', { class: 'entry-t', text: it.title }),
             h('div', { class: 'mut small' }, (it.org ? it.org + ' | ' : '') + it.kind + (it.source ? ' | ' + it.source : '')),
             it.nextStep ? h('div', { class: 'small', text: 'Next: ' + it.nextStep + (it.nextDate ? ' (' + it.nextDate + ')' : '') }) : null,
@@ -1221,8 +1321,8 @@
       oCard, cc, pCard, lCard, trend,
       details('work-data', 'Entries and CSV', [
         h('div', { class: 'row' },
-          btn('Export pipeline CSV', function () { download('lifeos-pipeline.csv', L.csv.exportPipeline(pipeline), 'text/csv'); }, 'sm', { id: 'exp-pipeline' }),
-          btn('Export projects CSV', function () { download('lifeos-projects.csv', L.csv.exportProjects(projects), 'text/csv'); }, 'sm', { id: 'exp-projects' })),
+          btn('Export pipeline CSV', function () { download('lifeos-pipeline.csv', L.csv.exportPipeline(mainState().pipeline || []), 'text/csv'); }, 'sm', { id: 'exp-pipeline' }),
+          btn('Export projects CSV', function () { download('lifeos-projects.csv', L.csv.exportProjects(mainState().projects || []), 'text/csv'); }, 'sm', { id: 'exp-projects' }), lockMark(['pipeline', 'projects'])),
         domainScreen(s, { embed: true, noForm: true })]));
   }
 
@@ -1394,7 +1494,7 @@
     var hName = h('input', { type: 'text', id: 'hb-name', maxlength: '60', autocomplete: 'off' });
     var hRows = habits.map(function (hb) {
       var st2 = M.habitStats(s, hb.id, t);
-      return h('div', { class: 'item habit', 'data-habit-row': hb.name },
+      return h('div', ROW({ class: 'item habit', 'data-habit-row': hb.name }, 'habits', hb),
         h('div', null, h('div', { class: 'entry-t', text: hb.name }),
           h('div', { class: 'mut small' }, h('span', { class: 'hb-rate', text: st2.checks7 + ' of 7 days (' + fmt1(st2.rate7) + '%)' }), ' | ', h('span', { class: 'hb-streak', text: st2.streak + '-day streak' }))),
         btn('Delete', function () {
@@ -1463,7 +1563,7 @@
     }, h('h3', { text: 'Training cycle (optional)' }), field('Start date', cyStart), field('Days per sprint', cySprint), field('Sprints per cycle', cyCount), field('Rest days after the last sprint', cyRest),
       h('label', { class: 'field check' }, cyAlt, h('span', { text: 'Alternate heavy and light weeks' })), field('First week is', cyFirst),
       h('div', { class: 'row' }, h('button', { type: 'submit', class: 'btn pri', id: 'cy-save', text: 'Save cycle' }),
-        cy ? btn('Clear cycle', function () { act(function () { return commit(function (x) { x.cycle = null; }, 'cycle clear').then(done('Training cycle cleared.')); }); }, '', { id: 'cy-clear' }) : null));
+        cy ? btn('Clear cycle', function () { act(function () { return commit(function (x) { x.cycle = null; }, 'cycle clear').then(done('Training cycle cleared.')); }); }, '', { id: 'cy-clear' }) : null, cy ? movePrivBtn('cycle', cy) : null, cy && isPrivRec('cycle', cy) ? lockBadge() : null));
 
     var kName = h('input', { type: 'text', id: 'kd-name', maxlength: '40', autocomplete: 'off' });
     var fKinds = h('div', null, h('h3', { text: 'Workout types' }),
@@ -1528,7 +1628,7 @@
     var notes = h('textarea', { id: 'ge-notes', maxlength: '2000', value: g.notes || '' });
     openDialog({
       title: 'Edit goal', yes: 'Save',
-      body: [field('Title', title), field('Target', target), field('Due date', due), field('Parent goal (a longer horizon)', parent), field('Notes (optional)', notes)],
+      body: [field('Title', title), field('Target', target), field('Due date', due), field('Parent goal (a longer horizon)', parent), field('Notes (optional)', notes), movePrivBtn('goals', g)],
       onYes: function () {
         return commit(function (x) { L.goals.updateGoal(x, g.id, { title: title.value, targetValue: target.value, dueDate: due.value, parentId: parent.value || null, notes: notes.value }); }, 'goal edit').then(function () { setNotice('ok', 'Goal saved.'); render(); });
       }
@@ -1575,7 +1675,7 @@
         btn('Reopen', function () { act(function () { return commit(function (x) { L.goals.reopenGoal(x, g.id); }, 'goal reopened').then(function () { render(); }); }); }, 'sm g-reopen'),
         btn('Delete', function () { askDeleteGoal(s, g); }, 'sm bad g-delete')));
     }
-    return h('div', { class: 'goal' + (opts.depth ? ' goal-child' : ''), 'data-goal': g.title, 'data-state': g.state }, kids);
+    return h('div', ROW({ class: 'goal' + (opts.depth ? ' goal-child' : ''), 'data-goal': g.title, 'data-state': g.state }, 'goals', g, active), kids);
   }
   function rollGoal(g, t) {
     act(function () { return commit(function (x) { L.goals.rollOver(x, g.id, t); }, 'goal rolled over').then(function () { setNotice('ok', 'Goal moved into its next period.'); render(); }); });
@@ -1587,7 +1687,7 @@
   function goalForm(s, t) {
     var title = h('input', { type: 'text', id: 'g-title', maxlength: '200', autocomplete: 'off', required: true });
     var horizon = sel('g-horizon', L.goals.HORIZONS.map(function (x) { return { v: x, t: L.goals.HORIZON_LABEL[x] }; }), 'quarterly');
-    var metric = sel('g-metric', L.goals.METRICS.map(function (m) { return { v: m.id, t: m.label }; }), 'manual');
+    var metric = sel('g-metric', L.goals.METRICS.filter(function (m) { return !L.goals.isWellbeingMetric(m.id) || L.priv.isOpen(); }).map(function (m) { return { v: m.id, t: m.label + (L.goals.isWellbeingMetric(m.id) ? ' (private goals only)' : '') }; }), 'manual');
     var dir = sel('g-dir', [{ v: 'up', t: 'Goes up' }, { v: 'down', t: 'Goes down' }], 'up');
     var start = h('input', { type: 'text', id: 'g-start', inputmode: 'decimal', maxlength: '20', autocomplete: 'off' });
     var target = h('input', { type: 'text', id: 'g-target', inputmode: 'decimal', maxlength: '20', autocomplete: 'off', required: true });
@@ -1612,6 +1712,7 @@
         act(function () {
           var p = { title: title.value, horizon: horizon.value, metric: metric.value, direction: dir.value, startValue: start.value, targetValue: target.value, startDate: sdate.value, dueDate: due.value || undefined, parentId: parent.value || undefined, notes: notes.value };
           if (metric.value === 'manual') { p.domain = domain.value; p.manualValue = curIn.value; }
+          if (L.goals.isWellbeingMetric(metric.value) && !newPriv()) throw new Error('A wellbeing goal metric can only be used by a private goal. Tick "New items are private" first.');
           return commit(function (x) { L.goals.addGoal(x, p, t); }, 'goal add').then(function () { setNotice('ok', 'Goal added.'); render(); });
         });
       }
@@ -1648,7 +1749,7 @@
     if (!old.length) return null;
     var shown = old.slice(0, 200);
     return details('goal-legacy', 'Older goal entries (' + old.length + (old.length > shown.length ? ', newest ' + shown.length + ' shown' : '') + ')', shown.map(function (e) {
-      return h('div', { class: 'item g-legacy' }, h('div', null, h('span', { class: 'entry-t', text: e.title }),
+      return h('div', ROW({ class: 'item g-legacy' }, 'entries', e), h('div', null, h('span', { class: 'entry-t', text: e.title }),
         h('span', { class: 'mut small', text: ' ' + e.date + ', ' + (e.status || '') }), e.notes ? h('p', { class: 'small mut', text: e.notes }) : null));
     }), false);
   }
@@ -1712,7 +1813,7 @@
     if (m.cadence !== 'once') sub.push(L.home.CADENCE_LABEL[m.cadence] + (m.everyDays ? ' ' + m.everyDays + ' days' : ''));
     if (m.area) sub.push(m.area);
     var nm = homeName(s, m); if (nm) sub.push(nm);
-    return h('div', { class: 'item mt-row' + (cls ? ' ' + cls : ''), 'data-title': m.title },
+    return h('div', ROW({ class: 'item mt-row' + (cls ? ' ' + cls : ''), 'data-title': m.title }, 'maintenance', m),
       h('div', null, h('div', { class: 'entry-t', text: m.title }), h('div', { class: 'mut small', text: sub.join(' | ') })),
       h('div', { class: 'row' },
         btn('Done', function () { markDoneDialog(s, m); }, 'sm pri mt-done', { 'aria-label': 'Mark ' + m.title + ' done' }),
@@ -1732,7 +1833,7 @@
           h('div', { class: 'row' }, due,
             btn('Confirm', function () {
               act(function () {
-                return commit(function (x) { if (isHome) L.home.confirmNext(x, p.fromId, due.value); else L.admin.confirmRenewal(x, p.fromId, due.value); }, isHome ? 'maintenance next confirmed' : 'renewal next confirmed')
+                return commit(function (x) { if (isHome) L.home.confirmNext(x, p.fromId, due.value); else L.admin.confirmRenewal(x, p.fromId, due.value); }, isHome ? 'maintenance next confirmed' : 'renewal next confirmed', [[isHome ? 'maintenance' : 'renewals', p.fromId]])
                   .then(function () { setNotice('ok', 'Created the next one.'); render(); });
               });
             }, 'sm pri prop-confirm', { 'aria-label': 'Confirm next ' + p.title }),
@@ -1809,7 +1910,7 @@
     var pKind = sel('pr-kind', CAD_OPTS(PROP_LABEL, H.PROPERTY_KINDS), 'house');
     var props = details('hm-props', 'Properties (' + (s.properties || []).length + ')', [
       (s.properties || []).map(function (p) {
-        return h('div', { class: 'item pr-row' }, h('div', null, h('span', { class: 'entry-t', text: p.name }), h('span', { class: 'mut small', text: ' ' + PROP_LABEL[p.kind] + (p.archived ? ', archived' : '') })),
+        return h('div', ROW({ class: 'item pr-row' }, 'properties', p), h('div', null, h('span', { class: 'entry-t', text: p.name }), h('span', { class: 'mut small', text: ' ' + PROP_LABEL[p.kind] + (p.archived ? ', archived' : '') })),
           h('div', { class: 'row' },
             btn(p.archived ? 'Restore' : 'Archive', function () { act(function () { return commit(function (x) { H.setArchived(x, 'properties', p.id, !p.archived); }, 'property archive').then(function () { view.open = 'hm-props'; render(); }); }); }, 'sm'),
             btn('Delete', function () {
@@ -1830,7 +1931,7 @@
     var vUnit = sel('vh-unit', [{ v: 'mi', t: 'Miles' }, { v: 'km', t: 'Kilometres' }], 'mi');
     var vehCard = details('hm-vehicles', 'Vehicles (' + (s.vehicles || []).length + ')', [
       sum.vehicles.map(function (v) {
-        return h('div', { class: 'item vh-row', 'data-name': v.name },
+        return h('div', ROW({ class: 'item vh-row', 'data-name': v.name }, 'vehicles', v),
           h('div', null, h('span', { class: 'entry-t', text: v.name + (v.year ? ' (' + v.year + ')' : '') }),
             h('div', { class: 'mut small', text: (v.odometer !== undefined ? v.odometer + ' ' + v.unit : 'no odometer reading') + ' | ' + (v.last ? 'last service ' + v.last.date + (v.last.odometer !== undefined ? ' at ' + v.last.odometer + ' ' + v.unit : '') : 'no service recorded') })),
           btn('Delete', function () {
@@ -1850,14 +1951,14 @@
     var billsCard = h('div', { class: 'card', id: 'hm-bills' }, h('h2', { text: 'Household bills' }),
       h('p', { class: 'mut small', text: 'These are your Money recurring items flagged as household. There is no second list. Weekly counts 52 a year, yearly counts once.' }),
       sum.bills.items.length ? sum.bills.items.map(function (b) {
-        return h('div', { class: 'item hb-row', 'data-title': b.title }, h('div', null, h('span', { class: 'entry-t', text: b.title }), h('span', { class: 'mut small', text: ' ' + moneyFmt(b.cents, cur) + ' ' + b.cadence + ', ' + moneyFmt(b.monthlyCents, cur) + ' per month' })),
+        return h('div', ROW({ class: 'item hb-row', 'data-title': b.title }, 'recurring', b), h('div', null, h('span', { class: 'entry-t', text: b.title }), h('span', { class: 'mut small', text: ' ' + moneyFmt(b.cents, cur) + ' ' + b.cadence + ', ' + moneyFmt(b.monthlyCents, cur) + ' per month' })),
           btn('Remove flag', function () { act(function () { return commit(function (x) { H.setHousehold(x, b.id, false); }, 'household flag off').then(render); }); }, 'sm', { 'aria-label': 'Remove ' + b.title + ' from household bills' }));
       }) : h('p', { class: 'mut', text: 'No household bills flagged yet.' }),
       pick ? h('div', { class: 'row' }, pick, btn('Flag as household', function () { act(function () { return commit(function (x) { H.setHousehold(x, pick.value, true); }, 'household flag on').then(render); }); }, 'sm pri', { id: 'hb-add' })) : h('p', { class: 'mut small', text: 'Add recurring expenses under Money to flag them here.' }));
 
     var done = (s.maintenance || []).filter(function (m) { return m.state === 'done'; }).sort(function (a, b) { return (b.lastDone || '').localeCompare(a.lastDone || ''); }).slice(0, 50);
     var hist = details('hm-history', 'Recent history (' + done.length + ')', done.length ? done.map(function (m) {
-      return h('div', { class: 'item hist-row' }, h('div', null, h('span', { class: 'entry-t', text: m.title }), h('div', { class: 'mut small', text: 'done ' + m.lastDone + (typeof m.cost === 'number' ? ' | ' + moneyFmt(m.cost, cur) : '') + (m.vendor ? ' | ' + m.vendor : '') })));
+      return h('div', ROW({ class: 'item hist-row' }, 'maintenance', m), h('div', null, h('span', { class: 'entry-t', text: m.title }), h('div', { class: 'mut small', text: 'done ' + m.lastDone + (typeof m.cost === 'number' ? ' | ' + moneyFmt(m.cost, cur) : '') + (m.vendor ? ' | ' + m.vendor : '') })));
     }) : h('p', { class: 'mut', text: 'Nothing finished yet.' }), false);
 
     return h('div', null, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Home' }),
@@ -1875,7 +1976,7 @@
     if (typeof r.amount === 'number') sub.push(moneyFmt(r.amount, cur));
     if (r.provider) sub.push(r.provider);
     if (r.autoRenews) sub.push('auto renews');
-    return h('div', { class: 'item rn-row', 'data-title': r.title },
+    return h('div', ROW({ class: 'item rn-row', 'data-title': r.title }, 'renewals', r),
       h('div', null, h('div', { class: 'entry-t', text: r.title }), h('div', { class: 'mut small', text: sub.join(' | ') })),
       h('div', { class: 'row' },
         btn('Done', function () {
@@ -1931,7 +2032,7 @@
     var subCard = h('div', { class: 'card', id: 'ad-subs' }, h('h2', { text: 'Subscriptions (' + subs.items.length + ')' }),
       h('p', { class: 'mut small', text: 'Per month and per year from the amounts you entered. A flag means no review recorded in the last 12 months.' }),
       subs.items.length ? subs.items.map(function (x) {
-        return h('div', { class: 'item sub-row', 'data-title': x.title },
+        return h('div', ROW({ class: 'item sub-row', 'data-title': x.title }, 'recurring', x),
           h('div', null, h('span', { class: 'entry-t', text: x.title }),
             h('div', { class: 'mut small', text: (x.monthlyCents === null ? 'no amount' : moneyFmt(x.monthlyCents, cur) + ' per month, ' + moneyFmt(x.annualCents, cur) + ' per year') + ' | ' + (x.reviewedOn ? 'reviewed ' + x.reviewedOn : 'never reviewed') }),
             x.stale ? h('span', { class: 'chip bad sub-stale', text: 'Not reviewed in 12 months' }) : null),
@@ -1949,7 +2050,7 @@
     var docCard = details('ad-docs', 'Document index (' + docs.length + ')', [
       h('p', { class: 'warn', id: 'doc-warning', text: 'This is an index of where documents are kept, not a place to store them. Do not enter ID numbers, account numbers or passwords.' }),
       docs.map(function (d) {
-        return h('div', { class: 'item doc-row', 'data-title': d.title },
+        return h('div', ROW({ class: 'item doc-row', 'data-title': d.title }, 'documents', d),
           h('div', null, h('div', { class: 'entry-t', text: d.title }), h('div', { class: 'mut small', text: [d.kind, d.whereKept ? 'kept: ' + d.whereKept : '', d.expires ? 'expires ' + d.expires : ''].filter(Boolean).join(' | ') })),
           btn('Delete', function () { act(function () { return commit(function (x) { A.deleteDocument(x, d.id); }, 'document delete').then(function () { view.open = 'ad-docs'; render(); }); }); }, 'sm bad', { 'aria-label': 'Delete ' + d.title }));
       }),
@@ -1974,7 +2075,7 @@
       years.map(function (y) {
         return h('div', { class: 'tx-year', 'data-year': String(y.year) }, h('h3', { text: y.year + ' (' + y.needed + ' needed, ' + y.received + ' received, ' + y.filed + ' filed)' }),
           y.items.map(function (it) {
-            return h('div', { class: 'item tx-row', 'data-title': it.title },
+            return h('div', ROW({ class: 'item tx-row', 'data-title': it.title }, 'taxItems', it),
               h('div', null, h('span', { class: 'entry-t' + (it.state === 'filed' ? ' done-t' : ''), text: it.title }), h('div', { class: 'mut small', text: it.state + (it.dueDate ? ' | due ' + it.dueDate : '') })),
               h('div', { class: 'row' },
                 sel('tx-state-' + it.id, A.TAX_STATES.map(function (v) { return { v: v, t: v }; }), it.state, function (e) { var v = e.target.value; act(function () { return commit(function (x) { A.setTaxState(x, it.id, v); }, 'tax item state').then(function () { view.open = 'ad-tax'; render(); }); }); }),
@@ -1995,7 +2096,7 @@
     // so each can be deleted after a confirm; the list shows the 200 soonest.
     var legacy = A.legacyEntries(s), legacyShown = legacy.slice(0, 200);
     var legacyCard = legacy.length ? details('ad-legacy', 'Older due items (' + legacy.length + (legacy.length > legacyShown.length ? ', soonest ' + legacyShown.length + ' shown' : '') + ')', [h('p', { class: 'mut small', text: 'Kept exactly as entered. They count in the timeline until you delete them.' }), legacyShown.map(function (e) {
-      return h('div', { class: 'item g-legacy' }, h('div', null, h('span', { class: 'entry-t', text: e.title }), h('span', { class: 'mut small', text: ' due ' + e.due + ', ' + (e.status || 'open') + ', entered ' + e.date }), e.notes ? h('p', { class: 'small mut', text: e.notes }) : null),
+      return h('div', ROW({ class: 'item g-legacy' }, 'entries', e), h('div', null, h('span', { class: 'entry-t', text: e.title }), h('span', { class: 'mut small', text: ' due ' + e.due + ', ' + (e.status || 'open') + ', entered ' + e.date }), e.notes ? h('p', { class: 'small mut', text: e.notes }) : null),
         btn('Delete', function () {
           openDialog({ title: 'Delete this older due item?', yes: 'Delete', danger: true, body: [h('p', { class: 'mut', text: e.title }), h('p', { class: 'small', text: 'Its title, dates and notes are removed from the vault.' })],
             onYes: function () { return commit(function (x) { x.entries = x.entries.filter(function (z) { return z.id !== e.id; }); }, 'older due item delete').then(function () { view.open = 'ad-legacy'; render(); }); } });
@@ -2051,7 +2152,7 @@
     custom.addEventListener('input', function () { mins = custom.value.trim(); paint(); });
     paint();
     openDialog({
-      title: 'Log study time', yes: 'Save',
+      title: 'Log study time', yes: 'Save', adds: true,
       body: [field('Item (optional)', item), h('span', { class: 'lbl', text: 'Minutes' }), chips, field('Or type minutes', custom), field('Date', dateIn), field('Note (optional)', note)],
       onYes: function () {
         return commit(function (x) { L.learning.addSession(x, { itemId: item.value, date: dateIn.value, minutes: custom.value, notes: note.value }, today()); }, 'study session add')
@@ -2082,7 +2183,7 @@
     var goal = sel('ei-goal', goalOptions(s), it.goalId || '');
     openDialog({
       title: 'Edit item', yes: 'Save',
-      body: [field('Title', title), field('Target date', tdate), field('Exam date', exam), expires ? field('Certification expires', expires) : null, field('Linked goal', goal)],
+      body: [field('Title', title), field('Target date', tdate), field('Exam date', exam), expires ? field('Certification expires', expires) : null, field('Linked goal', goal), movePrivBtn('learningItems', it)],
       onYes: function () {
         var patch = { title: title.value, targetDate: tdate.value, examDate: exam.value, goalId: goal.value };
         if (expires) patch.expiresOn = expires.value;
@@ -2121,7 +2222,7 @@
     acts.push(btn('Edit', function () { editItemDialog(s, it); }, 'sm', { 'aria-label': 'Edit ' + it.title }));
     acts.push(btn('Delete', function () { askDeleteItem(s, it); }, 'sm bad ln-delete', { 'aria-label': 'Delete ' + it.title }));
     kids.push(h('div', { class: 'row' }, acts));
-    return h('div', { class: 'goal ln-item', 'data-title': it.title, 'data-state': it.state }, kids);
+    return h('div', ROW({ class: 'goal ln-item', 'data-title': it.title, 'data-state': it.state }, 'learningItems', it, true), kids);
   }
   function learningScreen(s) {
     var t = today(), Ln = L.learning, sum = Ln.summary(s, t), w = sum.week, info = Ln.weekInfo(t);
@@ -2199,12 +2300,12 @@
     function showResults() {
       var qs = q.value.trim(), found = Ln.search(s, qs), shown = qs ? found : (s.takeaways || []).slice().sort(function (a, b) { return b.date.localeCompare(a.date); }).slice(0, 10).map(function (x) { return { takeaway: x, itemTitle: x.itemId ? ((s.learningItems || []).filter(function (i) { return i.id === x.itemId; })[0] || {}).title || '' : '' }; });
       results.replaceChildren.apply(results, shown.length ? shown.slice(0, 50).map(function (r) {
-        return h('div', { class: 'item ln-tk', 'data-title': r.takeaway.text.slice(0, 40) },
+        return h('div', ROW({ class: 'item ln-tk', 'data-title': r.takeaway.text.slice(0, 40) }, 'takeaways', r.takeaway),
           h('div', null, h('div', { class: 'entry-t', text: r.takeaway.text }), h('div', { class: 'mut small', text: r.takeaway.date + (r.itemTitle ? ' | ' + r.itemTitle : '') })),
           btn('Delete', function () { act(function () { return commit(function (x) { Ln.deleteTakeaway(x, r.takeaway.id); }, 'takeaway delete').then(function () { view.open = 'ln-tk'; render(); }); }); }, 'sm bad', { 'aria-label': 'Delete takeaway' }));
       }) : [h('p', { class: 'mut', id: 'ln-no-results', text: qs ? 'No takeaways match.' : 'No takeaways yet.' })]);
     }
-    q.addEventListener('input', showResults);
+    q.addEventListener('input', function () { showResults(); decorateRows(); });
     showResults();
     var tkCard = details('ln-tk', 'Takeaways (' + (s.takeaways || []).length + ')', [
       h('form', {
@@ -2219,7 +2320,7 @@
     var titles = new Map(); (s.learningItems || []).forEach(function (i) { titles.set(i.id, i.title); });
     var recent = (s.studySessions || []).slice().sort(function (a, b) { return b.date.localeCompare(a.date); }).slice(0, 10);
     var sessCard = details('ln-sessions-card', 'Recent sessions (' + (s.studySessions || []).length + ')', recent.length ? recent.map(function (x) {
-      return h('div', { class: 'item ln-sess', 'data-title': x.date },
+      return h('div', ROW({ class: 'item ln-sess', 'data-title': x.date }, 'studySessions', x),
         h('div', null, h('span', { class: 'entry-t', text: x.minutes + ' min' }), h('span', { class: 'mut small', text: ' ' + x.date + (x.itemId && titles.has(x.itemId) ? ' | ' + titles.get(x.itemId) : '') }), x.notes ? h('p', { class: 'small mut', text: x.notes }) : null),
         btn('Delete', function () { act(function () { return commit(function (z) { Ln.deleteSession(z, x.id); }, 'study session delete').then(function () { view.open = 'ln-sessions-card'; render(); }); }); }, 'sm bad', { 'aria-label': 'Delete session of ' + x.minutes + ' minutes on ' + x.date }));
     }) : h('p', { class: 'mut', text: 'No sessions yet.' }), view.open === 'ln-sessions-card');
@@ -2227,7 +2328,7 @@
     // Older learning entries the upgrade could not turn into items or sessions: kept as entered, each deletable after a confirm.
     var legacy = Ln.legacyEntries(s), legacyShown = legacy.slice(0, 200);
     var legacyCard = legacy.length ? details('ln-legacy', 'Older learning entries (' + legacy.length + (legacy.length > legacyShown.length ? ', newest ' + legacyShown.length + ' shown' : '') + ')', [h('p', { class: 'mut small', text: 'Kept exactly as entered.' }), legacyShown.map(function (e) {
-      return h('div', { class: 'item g-legacy' }, h('div', null, h('span', { class: 'entry-t', text: e.title }), h('span', { class: 'mut small', text: ' ' + e.date + ', ' + (e.type === 'hours' ? e.value + ' hours' : (e.status || '')) }), e.notes ? h('p', { class: 'small mut', text: e.notes }) : null),
+      return h('div', ROW({ class: 'item g-legacy' }, 'entries', e), h('div', null, h('span', { class: 'entry-t', text: e.title }), h('span', { class: 'mut small', text: ' ' + e.date + ', ' + (e.type === 'hours' ? e.value + ' hours' : (e.status || '')) }), e.notes ? h('p', { class: 'small mut', text: e.notes }) : null),
         btn('Delete', function () {
           openDialog({ title: 'Delete this older entry?', yes: 'Delete', danger: true, body: [h('p', { class: 'mut', text: e.title }), h('p', { class: 'small', text: 'Its title, date and notes are removed from the vault.' })],
             onYes: function () { return commit(function (x) { x.entries = x.entries.filter(function (z) { return z.id !== e.id; }); }, 'older learning entry delete').then(function () { view.open = 'ln-legacy'; render(); }); } });
@@ -2273,7 +2374,7 @@
       h('thead', null, h('tr', null, heads.map(function (x) { return h('th', { text: x }); }))),
       h('tbody', null, rows.map(function (r) { return h('tr', { 'data-cat': r.cat || null }, r.cells.map(function (c) { return h('td', { text: c }); })); }))));
   }
-  function actDo(fn, ok) { act(function () { return commit(fn.run, fn.audit).then(function () { if (ok) setNotice('ok', typeof ok === 'function' ? ok() : ok); render(); }); }); }
+  function actDo(fn, ok) { act(function () { return commit(fn.run, fn.audit, fn.from).then(function () { if (ok) setNotice('ok', typeof ok === 'function' ? ok() : ok); render(); }); }); }
   function ratingChips(a) {
     return h('div', { class: 'chips act-rate-row', role: 'group', 'aria-label': 'Worth it rating for ' + a.title }, [1, 2, 3, 4, 5].map(function (n) {
       return h('button', { type: 'button', class: 'chipbtn act-rate', 'data-n': String(n), 'aria-pressed': a.worthIt === n ? 'true' : 'false', text: String(n), 'aria-label': 'Rate ' + n + ' for ' + a.title,
@@ -2343,7 +2444,7 @@
     var box = h('div', { class: 'chips people-suggest', id: p + 'people-suggest', role: 'group', 'aria-label': 'People you can add' });
     function refresh() {
       var parts = input.value.split(','), tok = parts[parts.length - 1].trim();
-      var names = L.social.suggestNames(L.store.getState(), tok).filter(function (n) { return parts.slice(0, -1).map(function (x) { return L.social.nameKey(x); }).indexOf(L.social.nameKey(n)) < 0; }).slice(0, 8);
+      var names = L.social.suggestNames(st(), tok).filter(function (n) { return parts.slice(0, -1).map(function (x) { return L.social.nameKey(x); }).indexOf(L.social.nameKey(n)) < 0; }).slice(0, 8);
       box.replaceChildren();
       names.forEach(function (n) {
         box.appendChild(h('button', { type: 'button', class: 'chipbtn people-pick', text: n, 'aria-label': 'Add ' + n, onclick: function () { parts.pop(); var head = parts.map(function (x) { return x.trim(); }).filter(Boolean); head.push(n); input.value = head.join(', '); input.focus(); refresh(); } }));
@@ -2356,7 +2457,7 @@
   function editActivityDialog(s, a, t) {
     var form = activityForm(s, a, t, 'ae-');
     openDialog({
-      title: 'Edit activity', yes: 'Save', body: form.nodes,
+      title: 'Edit activity', yes: 'Save', body: [form.nodes, movePrivBtn('activities', a)],
       onYes: function () { var p = form.read(); return commit(function (x) { L.activities.updateActivity(x, a.id, p); }, 'activity edit').then(function () { setNotice('ok', 'Activity saved.'); render(); }); }
     });
   }
@@ -2380,7 +2481,7 @@
     var acts = [];
     // An unknown name in a Social-tagged activity can be added as a person on a tap; it is never added by itself.
     if (a.alsoSocial) L.social.unknownNames(s, a.withPeople).forEach(function (n) {
-      acts.push(btn('Add ' + n + ' as a person', function () { actDo({ run: function (x) { L.social.addPerson(x, { name: n }); }, audit: 'person add' }, 'Person added.'); }, 'sm act-addperson', { 'aria-label': 'Add ' + n + ' as a person' }));
+      acts.push(btn('Add ' + n + ' as a person', function () { actDo({ run: function (x) { L.social.addPerson(x, { name: n }); }, audit: 'person add', from: [['activities', a.id]] }, 'Person added.'); }, 'sm act-addperson', { 'aria-label': 'Add ' + n + ' as a person' }));
     });
     if (a.state === 'planned') {
       acts.push(btn('Done', function () { actDo({ run: function (x) { A.markDone(x, a.id); }, audit: 'activity done' }, 'Marked done.'); }, 'sm pri act-done', { 'aria-label': 'Mark ' + a.title + ' done' }));
@@ -2393,12 +2494,12 @@
     acts.push(btn('Delete', function () { askDeleteActivity(s, a); }, 'sm bad act-del', { 'aria-label': 'Delete ' + a.title }));
     if (a.state === 'done') kids.push(h('div', { class: 'row' }, h('span', { class: 'mut small', text: 'Worth it?' }), ratingChips(a)));
     kids.push(h('div', { class: 'row' }, acts));
-    return h('div', { class: 'goal act-item', 'data-title': a.title, 'data-state': a.state }, kids);
+    return h('div', ROW({ class: 'goal act-item', 'data-title': a.title, 'data-state': a.state }, 'activities', a, true), kids);
   }
   // A past-date planned activity: done, skipped or a new date, each on a tap.
   function pastRow(s, a, cls) {
     var A = L.activities, nd = h('input', { type: 'date', class: cls + '-date', 'aria-label': 'New date for ' + a.title, value: a.date });
-    return h('div', { class: 'item ' + cls, 'data-title': a.title },
+    return h('div', ROW({ class: 'item ' + cls, 'data-title': a.title }, 'activities', a),
       h('div', null, h('span', { class: 'entry-t', text: a.title }), h('span', { class: 'mut small', text: ' ' + dateRange(a) + (typeof a.costCents === 'number' ? ', ' + fmtC(s, a.costCents) : '') + (a.paidOn ? ' (paid)' : '') })),
       h('div', { class: 'row' }, nd,
         btn('Reschedule', function () { actDo({ run: function (x) { A.reschedule(x, a.id, nd.value); }, audit: 'activity reschedule' }, 'Rescheduled.'); }, 'sm ' + cls + '-rs', { 'aria-label': 'Reschedule ' + a.title }),
@@ -2415,7 +2516,7 @@
     var g = L.activities.glance(s, t), now = g.today.concat(g.week), srcs = {};
     now.concat(g.later).forEach(function (x) { srcs[x.source] = true; });
     var many = Object.keys(srcs).length > 1;
-    var kids = [h('h2', { text: 'At a glance' }),
+    var kids = [h('h2', null, 'At a glance ', lockMark(['activities', 'people', 'entries'])),
       h('p', { class: 'mut small', id: id + '-sum', text: g.count ? g.count + (g.count === 1 ? ' item' : ' items') + ' in the next 30 days.' : 'Nothing planned in the next 30 days.' })];
     if (g.today.length) kids.push(h('h3', { text: 'Today' }), g.today.map(function (x) { return glanceItem(s, x, many); }));
     if (g.week.length) kids.push(h('h3', { text: 'This week' }), g.week.map(function (x) { return glanceItem(s, x, many); }));
@@ -2523,7 +2624,7 @@
 
     var legacy = A.legacyEntries(s), legacyShown = legacy.slice(0, 200);
     var legacyCard = legacy.length ? details('act-legacy', 'Older activity entries (' + legacy.length + (legacy.length > legacyShown.length ? ', newest ' + legacyShown.length + ' shown' : '') + ')', [h('p', { class: 'mut small', text: 'Kept exactly as entered.' }), legacyShown.map(function (e) {
-      return h('div', { class: 'item g-legacy' }, h('div', null, h('span', { class: 'entry-t', text: e.title }), h('span', { class: 'mut small', text: ' ' + e.date }), e.notes ? h('p', { class: 'small mut', text: e.notes }) : null),
+      return h('div', ROW({ class: 'item g-legacy' }, 'entries', e), h('div', null, h('span', { class: 'entry-t', text: e.title }), h('span', { class: 'mut small', text: ' ' + e.date }), e.notes ? h('p', { class: 'small mut', text: e.notes }) : null),
         btn('Delete', function () {
           openDialog({ title: 'Delete this older entry?', yes: 'Delete', danger: true, body: [h('p', { class: 'mut', text: e.title }), h('p', { class: 'small', text: 'Its title, date and notes are removed from the vault.' })],
             onYes: function () { return commit(function (x) { x.entries = x.entries.filter(function (z) { return z.id !== e.id; }); }, 'older activity entry delete').then(function () { view.open = 'act-legacy'; render(); }); } });
@@ -2612,7 +2713,7 @@
     if (acts.indexOf('archive') >= 0) row.push(btn('Archive', function () { actDo({ run: function (x) { L.social.archivePerson(x, r.id, true); }, audit: 'social archive' }, 'Archived.'); }, 'sm soc-archive', { 'aria-label': 'Archive ' + r.name }));
     if (acts.indexOf('details') >= 0) row.push(btn('Details', function () { go('domain', { domain: 'social', person: r.id }); }, 'sm soc-details', { 'aria-label': 'Details for ' + r.name }));
     kids.push(h('div', { class: 'row' }, row));
-    return h('div', { class: 'item soc-row', 'data-person': r.name, 'data-state': r.state }, kids);
+    return h('div', ROW({ class: 'item soc-row', 'data-person': r.name, 'data-state': r.state }, 'people', r), kids);
   }
   function workLinks(s, key, id, t, label) {
     var A = L.social, ppl = key === 'pipelineIds' ? A.peopleForPipeline(s, id, t) : A.peopleForProject(s, id, t), linked = {}, kids = [];
@@ -2662,7 +2763,7 @@
       act(function () { var patch = { name: en.value, groupId: eg.value, cadenceDays: ec.value.trim() }; if (p.notes.length <= A.NOTE_MAX) patch.notes = enotes.value; return commit(function (x) { A.updatePerson(x, p.id, patch); }, 'person edit').then(function () { setNotice('ok', 'Saved.'); render(); }); });
     } }, field('Name', en), field('Group', eg), field('Own cadence in days (empty follows the group)', ec),
       p.notes.length > A.NOTE_MAX ? h('p', { class: 'mut small', text: 'A longer note carried over from an older entry is kept as it is.' }) : field('Notes (up to ' + A.NOTE_MAX + ' characters)', enotes, 'Do not enter ID numbers, account numbers or passwords.'),
-      h('button', { type: 'submit', class: 'btn pri', id: 'soc-e-save', text: 'Save' }))], view.open === 'soc-edit');
+      h('div', { class: 'row' }, h('button', { type: 'submit', class: 'btn pri', id: 'soc-e-save', text: 'Save' }), movePrivBtn('people', p)))], view.open === 'soc-edit');
     // log
     var ld = h('input', { type: 'date', id: 'soc-l-date', value: t }), lc = sel('soc-l-channel', A.CHANNELS.map(function (c) { return { v: c, t: c }; }), 'other'), ln = h('input', { type: 'text', id: 'soc-l-note', maxlength: String(A.NOTE_MAX), autocomplete: 'off' });
     var contacts = A.contactsOf(s, p.id), shown = view.logShown || 20;
@@ -2670,7 +2771,7 @@
       h('form', { onsubmit: function (e) { e.preventDefault(); act(function () { return commit(function (x) { A.logContact(x, p.id, { date: ld.value, channel: lc.value, notes: ln.value }, t); }, 'social contact').then(function () { setNotice('ok', 'Contact logged.'); render(); }); }); } },
         field('Date', ld), field('Channel', lc), field('Note (optional, up to ' + A.NOTE_MAX + ' characters)', ln, 'Do not enter ID numbers, account numbers or passwords.'), h('button', { type: 'submit', class: 'btn', id: 'soc-l-add', text: 'Log contact' })),
       contacts.length ? contacts.slice(0, shown).map(function (c) {
-        return h('div', { class: 'item soc-log-item', 'data-date': c.date }, h('div', null, h('span', { class: 'entry-t', text: c.date }), h('span', { class: 'mut small', text: ' ' + c.channel }), c.notes ? h('p', { class: 'small mut', text: c.notes }) : null),
+        return h('div', ROW({ class: 'item soc-log-item', 'data-date': c.date }, 'contacts', c), h('div', null, h('span', { class: 'entry-t', text: c.date }), h('span', { class: 'mut small', text: ' ' + c.channel }), c.notes ? h('p', { class: 'small mut', text: c.notes }) : null),
           btn('Delete', function () { actDo({ run: function (x) { A.deleteContact(x, c.id); }, audit: 'social contact delete' }, 'Contact deleted.'); }, 'sm bad soc-log-del', { 'aria-label': 'Delete the contact on ' + c.date }));
       }) : h('p', { class: 'mut', text: 'Nothing logged yet.' }),
       contacts.length > shown ? btn('Show more', function () { view.logShown = shown + 20; render(); }, 'sm') : null);
@@ -2734,7 +2835,7 @@
     var sug = A.suggestions(s);
     var gCard = details('soc-groups', 'Groups (' + (s.groups || []).length + ')', [
       (s.groups || []).map(function (g) {
-        return h('div', { class: 'item soc-group-item', 'data-group': g.name }, h('div', null, h('span', { class: 'entry-t', text: g.name }), h('span', { class: 'mut small', text: ' every ' + g.cadenceDays + ' days' })),
+        return h('div', ROW({ class: 'item soc-group-item', 'data-group': g.name }, 'groups', g), h('div', null, h('span', { class: 'entry-t', text: g.name }), h('span', { class: 'mut small', text: ' every ' + g.cadenceDays + ' days' })),
           h('div', { class: 'row' }, btn('Change days', function () {
             var inp = h('input', { type: 'text', id: 'soc-gd-input', inputmode: 'numeric', maxlength: '4', autocomplete: 'off', value: String(g.cadenceDays) });
             openDialog({ title: 'Days between contacts', yes: 'Save', body: field('Days', inp), onYes: function () { return commit(function (x) { A.updateGroup(x, g.id, { cadenceDays: inp.value }); }, 'social group').then(function () { view.open = 'soc-groups'; render(); }); } });
@@ -2771,12 +2872,12 @@
     var results = h('div', { id: 'soc-results' });
     var q = h('input', { type: 'search', id: 'soc-search', maxlength: '100', autocomplete: 'off', 'aria-label': 'Search people and facts' });
     q.addEventListener('input', function () {
-      var found = L.social.search(L.store.getState(), q.value);
+      var found = L.social.search(st(), q.value);
       results.replaceChildren();
       if (!q.value.trim()) return;
       if (!found.length) { results.appendChild(h('p', { class: 'mut small', text: 'No matches.' })); return; }
       found.forEach(function (f) {
-        var p = personById(L.store.getState(), f.personId);
+        var p = personById(st(), f.personId);
         var facts = f.hits.filter(function (x) { return x.kind === 'fact'; }).map(function (x) { var fa = p.facts.filter(function (y) { return y.id === x.id; })[0]; return fa ? fa.label + ': ' + fa.text : ''; });
         results.appendChild(h('div', { class: 'item soc-result', 'data-person': f.name }, h('div', null, h('span', { class: 'entry-t', text: f.name }), facts.length ? h('p', { class: 'small mut', text: facts.join(' | ') }) : null),
           btn('Details', function () { go('domain', { domain: 'social', person: f.personId }); }, 'sm', { 'aria-label': 'Details for ' + f.name })));
@@ -2786,17 +2887,17 @@
     return h('div', { id: 'soc-people-card' }, h('div', { class: 'card' }, h('h2', { text: 'People (' + ppl.length + ')' }), field('Search names and facts', q), results,
       ppl.map(function (p) {
         var lc = last.get(p.id);
-        return h('div', { class: 'item soc-person-row', 'data-person': p.name }, h('div', null, h('span', { class: 'entry-t', text: p.name }), groupName(s, p) ? chipEl(groupName(s, p), 'soc-group') : null, h('span', { class: 'mut small', text: ' ' + (lc ? 'last contact ' + lc.date : 'no contact yet') })),
+        return h('div', ROW({ class: 'item soc-person-row', 'data-person': p.name }, 'people', p), h('div', null, h('span', { class: 'entry-t', text: p.name }), groupName(s, p) ? chipEl(groupName(s, p), 'soc-group') : null, h('span', { class: 'mut small', text: ' ' + (lc ? 'last contact ' + lc.date : 'no contact yet') })),
           btn('Details', function () { go('domain', { domain: 'social', person: p.id }); }, 'sm', { 'aria-label': 'Details for ' + p.name }));
       }), ppl.length ? null : h('p', { class: 'mut', text: 'No people yet.' })),
       details('soc-add', 'Add a person', [addPersonForm(s, t)], view.open === 'soc-add' || !ppl.length),
-      arch.length ? details('soc-archived', 'Archived (' + arch.length + ')', arch.map(function (p) { return h('div', { class: 'item soc-arch', 'data-person': p.name }, h('div', null, h('span', { class: 'entry-t', text: p.name })), btn('Details', function () { go('domain', { domain: 'social', person: p.id }); }, 'sm', { 'aria-label': 'Details for ' + p.name })); })) : null);
+      arch.length ? details('soc-archived', 'Archived (' + arch.length + ')', arch.map(function (p) { return h('div', ROW({ class: 'item soc-arch', 'data-person': p.name }, 'people', p), h('div', null, h('span', { class: 'entry-t', text: p.name })), btn('Details', function () { go('domain', { domain: 'social', person: p.id }); }, 'sm', { 'aria-label': 'Details for ' + p.name })); })) : null);
   }
   function unlinkedCard(s) {
     var un = L.social.unlinkedContacts(s);
     if (!un.length) return null;
     return details('soc-unlinked', 'Logged contacts without a person (' + un.length + ')', [h('p', { class: 'mut small', text: 'Kept when a person was deleted.' }), un.slice(0, 100).map(function (c) {
-      return h('div', { class: 'item soc-unlinked-item' }, h('div', null, h('span', { class: 'entry-t', text: c.date }), h('span', { class: 'mut small', text: ' ' + c.channel }), c.notes ? h('p', { class: 'small mut', text: c.notes }) : null),
+      return h('div', ROW({ class: 'item soc-unlinked-item' }, 'contacts', c), h('div', null, h('span', { class: 'entry-t', text: c.date }), h('span', { class: 'mut small', text: ' ' + c.channel }), c.notes ? h('p', { class: 'small mut', text: c.notes }) : null),
         btn('Delete', function () { view.open = 'soc-unlinked'; actDo({ run: function (x) { L.social.deleteContact(x, c.id); }, audit: 'social contact delete' }, 'Contact deleted.'); }, 'sm bad', { 'aria-label': 'Delete the contact on ' + c.date }));
     })], view.open === 'soc-unlinked');
   }
@@ -2837,6 +2938,334 @@
       r.became.map(function (x) { return socRow(s, x, t, ['reached', 'snooze', 'cadence', 'archive']); }),
       h('p', { class: 'small', id: 'rv-soc-next-h', text: 'Due next week (' + r.dueNext.length + ')' }),
       r.dueNext.map(function (x) { return socRow(s, x, t, ['reached', 'cadence']); }));
+  }
+
+  // ---------- private vault (v0.11.0 part A) ----------
+  var PRIV_LABEL = { entries: 'Entries', accounts: 'Accounts', recurring: 'Recurring items', budgets: 'Budgets', projects: 'Projects', pipeline: 'Pipeline', goals: 'Goals',
+    maintenance: 'Maintenance', vehicles: 'Vehicles', properties: 'Properties', renewals: 'Renewals', documents: 'Documents', taxItems: 'Tax items', learningItems: 'Learning items',
+    studySessions: 'Study sessions', takeaways: 'Takeaways', activities: 'Activities', people: 'People', groups: 'Groups', contacts: 'Logged contacts', habits: 'Daily checks',
+    habitLog: 'Daily check ticks', cycle: 'Training cycle' };
+  function privKey(c, r) { return c === 'cycle' ? 'cycle' : c === 'budgets' ? r.category : c === 'habitLog' ? r.habitId + '|' + r.date : r.id; }
+  function privList(s, c) { return c === 'cycle' ? (s.cycle ? [s.cycle] : []) : (s[c] || []); }
+  function privText(c, r, s) {
+    switch (c) {
+      case 'entries': return r.title + ' (' + r.domain + ', ' + r.date + ')';
+      case 'accounts': case 'projects': case 'vehicles': case 'properties': case 'groups': case 'people': case 'habits': return r.name;
+      case 'budgets': return r.category;
+      case 'studySessions': return r.date + ', ' + r.minutes + ' min';
+      case 'takeaways': return r.date + ' ' + String(r.text).slice(0, 60);
+      case 'contacts': return r.date + ' ' + r.channel + (r.notes ? ' ' + String(r.notes).slice(0, 40) : '');
+      case 'habitLog': return r.date + ' ' + ((s.habits || []).filter(function (x) { return x.id === r.habitId; })[0] || { name: 'check' }).name;
+      case 'cycle': return 'Training cycle from ' + r.startDate;
+      default: return r.title || r.name || r.id;
+    }
+  }
+
+
+  // Row tagging: while the vault is open a row carries its collection and key; decorateRows() then adds the lock badge and Options.
+  function ROW(props, c, r, noOptions) {
+    if (!r || !L.priv.isOpen()) return props;
+    props['data-pc'] = c; props['data-pk'] = privKey(c, r);
+    if (noOptions) props['data-pnoopt'] = '1';
+    return props;
+  }
+  function decorateRows() {
+    var root = document.getElementById('app');
+    if (!root || !L.store.isUnlocked() || !L.priv.isOpen()) return;
+    var s = st();
+    Array.prototype.forEach.call(root.querySelectorAll('[data-pc]'), function (el) {
+      if (el.getAttribute('data-pdone')) return;
+      el.setAttribute('data-pdone', '1');
+      var c = el.getAttribute('data-pc'), k = el.getAttribute('data-pk');
+      var r = privList(s, c).filter(function (x) { return privKey(c, x) === k; })[0];
+      if (!r) return;
+      pr(el, c, r, { noOptions: el.getAttribute('data-pnoopt') === '1' });
+    });
+  }
+  // While the vault is open: a lock badge on private rows, and "Move to private vault" / "Move out" wherever a record is edited.
+  function isPrivRec(c, r) { return !!r && L.priv.isOpen() && L.priv.isPrivate(c, privKey(c, r)); }
+  function lockBadge() { return lockIcon('Private item', 'lockmark privbadge'); }
+  function movePrivBtn(c, r) {
+    if (!r || !L.priv.isOpen()) return null;
+    var isP = isPrivRec(c, r);
+    return btn(isP ? 'Move out' : 'Move to private vault', function () { privMoveDialog(st(), c, r, isP ? 'out' : 'in'); }, 'sm priv-move-btn', { 'data-collection': c });
+  }
+  // Decorate a row: badge when private; an Options button (it opens the item's options dialog) unless the row already has an edit dialog.
+  function pr(el, c, r, o) {
+    if (!r || !L.priv.isOpen()) return el;
+    if (isPrivRec(c, r)) {
+      el.classList.add('is-private');
+      var t = el.querySelector('.entry-t');
+      if (t) t.insertBefore(lockBadge(), t.firstChild); else el.insertBefore(lockBadge(), el.firstChild);
+    }
+    if (o && o.noOptions) return el;
+    var ob = btn('Options', function () { optionsDialog(c, r); }, 'sm priv-opt', { 'aria-label': 'Options for ' + privText(c, r, st()) });
+    var last = el.children[el.children.length - 1];
+    if (last && last.classList && last.classList.contains('row')) last.appendChild(ob); else el.appendChild(ob);
+    return el;
+  }
+  // For records that have no edit form: a small dialog holding the item's name and the move action.
+  function optionsDialog(c, r) {
+    var s = st();
+    openDialog({ title: 'Options', yes: 'Done', body: [h('p', { class: 'mut', text: privText(c, r, s) }), h('div', { class: 'row' }, movePrivBtn(c, r))], onYes: function () {} });
+  }
+  function privSetupCard() {
+    var p1 = h('input', { type: 'password', id: 'priv-set1', autocomplete: 'new-password', required: true, minlength: '12' });
+    var p2 = h('input', { type: 'password', id: 'priv-set2', autocomplete: 'new-password', required: true, minlength: '12' });
+    return h('form', { class: 'card', id: 'priv-setup', onsubmit: function (e) {
+      e.preventDefault();
+      act(function () {
+        var a = p1.value;
+        checkPass(a);
+        if (a !== p2.value) throw new Error('The two passphrases do not match.');
+        return L.priv.setUp(a).then(function () { p1.value = ''; p2.value = ''; setNotice('ok', 'Private vault set up and open.'); render(); });
+      });
+    } }, h('h2', { text: 'Set up the private vault' }),
+      field('Private passphrase (12 characters or more, different from your main passphrase)', p1), field('Confirm private passphrase', p2),
+      h('p', { class: 'warn small', text: 'If you forget this passphrase, the private items cannot be recovered. There is no reset and no backdoor.' }),
+      h('button', { type: 'submit', class: 'btn pri', id: 'priv-setup-btn', text: 'Set up private vault' }));
+  }
+  function privOpenForm() {
+    var p = h('input', { type: 'password', id: 'priv-pass', autocomplete: 'off', required: true });
+    var b = h('button', { type: 'submit', class: 'btn pri', id: 'priv-open', text: 'Open private vault' });
+    var msg = h('p', { class: 'small', id: 'priv-wait', role: 'status', text: '' });
+    function tick() {
+      clearTimeout(privTimer);
+      var left = Math.ceil((privFail.until - Date.now()) / 1000);
+      if (left > 0) { b.disabled = true; msg.textContent = 'Wrong passphrase. Wait ' + left + ' s before trying again.'; privTimer = setTimeout(tick, 250); }
+      else { b.disabled = false; msg.textContent = ''; }
+    }
+    var f = h('form', { onsubmit: function (e) {
+      e.preventDefault();
+      if (Date.now() < privFail.until) return;
+      act(function () {
+        var v = p.value;
+        return L.priv.open(v).then(function () { privFail = { n: 0, until: 0 }; p.value = ''; setNotice('ok', 'Private vault open.'); render(); }, function (err) {
+          if (err && err.message === 'BAD_PRIVATE_PASSPHRASE') { privFail.n++; privFail.until = Date.now() + Math.min(30000, 1000 * Math.pow(2, privFail.n - 1)); }
+          p.value = '';
+          throw err;
+        });
+      }).then(tick);
+    } }, field('Private passphrase', p), b, msg);
+    tick();
+    return f;
+  }
+  function privMoveDialog(s, c, r, dir) {
+    var key = privKey(c, r), kids = L.priv.childrenOf(s, c, key);
+    var pair = (c === 'activities' && r.expenseId) || (c === 'entries' && privList(s, 'activities').some(function (a) { return a.expenseId === key; }));
+    var chk = h('input', { type: 'checkbox', id: 'priv-kids', checked: true });
+    openDialog({
+      title: dir === 'in' ? 'Move to the private vault?' : 'Move out of the private vault?', yes: dir === 'in' ? 'Move in' : 'Move out',
+      body: [h('p', { class: 'mut', text: dir === 'in' ? 'It disappears from every screen, total and export while the vault is closed.' : 'It becomes an ordinary item again, visible with the app unlocked.' }),
+        pair ? h('p', { class: 'small', id: 'priv-pair', text: 'An activity and its Money expense always move together.' }) : null,
+        c === 'habits' ? h('p', { class: 'small', text: 'Its ticks move with it.' }) : null,
+        kids.length ? h('label', { class: 'row small' }, chk, h('span', { text: 'Also move ' + kids.length + ' linked ' + (kids.length === 1 ? 'item' : 'items') + ' (recommended)' })) : null],
+      onYes: function () {
+        return (dir === 'in' ? L.priv.moveIn : L.priv.moveOut)(c, key, { children: kids.length ? !!chk.checked : false }).then(function () { setNotice('ok', dir === 'in' ? 'Moved to the private vault.' : 'Moved out of the private vault.'); render(); });
+      }
+    });
+  }
+  function privMoveCard(s) {
+    var colls = L.priv.COLLECTIONS;
+    var q = h('input', { type: 'search', id: 'priv-q', value: privPick.q, maxlength: '100', autocomplete: 'off' });
+    var cs = sel('priv-coll', colls.map(function (c) { return { v: c, t: PRIV_LABEL[c] }; }), privPick.coll, function (e) { privPick.coll = e.target.value; render(); });
+    var c = privPick.coll, needle = privPick.q.trim().toLowerCase();
+    var all = privList(s, c).map(function (r) { return { r: r, t: privText(c, r, s), k: privKey(c, r) }; });
+    var hit = all.filter(function (x) { return !needle || x.t.toLowerCase().indexOf(needle) >= 0; });
+    var rows = hit.slice(0, 50).map(function (x) {
+      var isP = L.priv.isPrivate(c, x.k);
+      return h('div', { class: 'entry priv-row', 'data-key': x.k, 'data-private': isP ? '1' : '0' },
+        h('span', { class: 'entry-t' }, isP ? h('span', { class: 'chip ok' }, 'Private') : null, x.t),
+        btn(isP ? 'Move out' : 'Move to private vault', function () { privMoveDialog(s, c, x.r, isP ? 'out' : 'in'); }, 'sm priv-move'));
+    });
+    return h('div', { class: 'card', id: 'priv-move-card' }, h('h2', { text: 'Move items in or out' }),
+      h('p', { class: 'mut small', text: 'Tick "New items are private" above to save new items straight into the vault.' }),
+      field('Kind of item', cs),
+      h('form', { onsubmit: function (e) { e.preventDefault(); privPick.q = q.value; render(); } }, field('Search', q), h('button', { type: 'submit', class: 'btn sm', id: 'priv-search', text: 'Search' })),
+      rows.length ? rows : h('p', { class: 'mut', text: 'Nothing here.' }),
+      hit.length > 50 ? h('p', { class: 'mut small', text: 'Showing 50 of ' + hit.length + '. Narrow the search.' }) : null);
+  }
+  function privScreen(s) {
+    var b = mainState(), out = [btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Private vault' }),
+      h('p', { class: 'mut', text: 'A second lock inside LifeOS with its own passphrase. Unlocking the app does not open it. While it is closed, private items are missing from every screen, total, search, export and backup view. They never reach an AI prompt, the weekly digest or a CSV, even while it is open.' })];
+    if (!L.priv.isSetUp(b)) { out.push(privSetupCard()); return h('div', null, out); }
+    var secs = h('input', { type: 'number', id: 'priv-secs', min: '15', max: '1800', step: '1', value: String(b.settings.privAutoLockSec || 60) });
+    out.push(h('div', { class: 'card', id: 'priv-status' }, h('h2', { text: L.priv.isOpen() ? 'Open' : 'Closed' }),
+      L.priv.isOpen() ? h('p', { class: 'mut', text: 'It closes by itself after ' + (b.settings.privAutoLockSec || 60) + ' seconds without activity, when this tab is hidden, when the app locks, and before any AI request.' }) : privOpenForm(),
+      h('form', { onsubmit: function (e) {
+        e.preventDefault();
+        act(function () {
+          var n = Number(secs.value);
+          if (!Number.isInteger(n) || n < 15 || n > 1800) throw new Error('Choose a whole number of seconds from 15 to 1800.');
+          return commit(function (x) { x.settings.privAutoLockSec = n; }, 'private timer changed').then(render);
+        }, 'Saved.');
+      } }, field('Close the private vault after this many idle seconds (15 to 1800)', secs), h('button', { type: 'submit', class: 'btn sm', id: 'priv-secs-save', text: 'Save' }))));
+    if (L.priv.isOpen()) out.push(privMoveCard(s));
+    var o = passOnly('priv-old', 'off'), n1 = passOnly('priv-new1', 'new-password'), n2 = passOnly('priv-new2', 'new-password'), typed = h('input', { type: 'text', id: 'priv-destroy-confirm', autocomplete: 'off' });
+    out.push(h('div', { class: 'card', id: 'priv-manage' }, h('h2', { text: 'Passphrase and removal' }),
+      h('form', { onsubmit: function (e) {
+        e.preventDefault();
+        act(function () {
+          checkPass(n1.value);
+          if (n1.value !== n2.value) throw new Error('The two new passphrases do not match.');
+          var a = o.value, c = n1.value;
+          return L.priv.changePassphrase(a, c).then(function () { o.value = ''; n1.value = ''; n2.value = ''; setNotice('ok', 'Private passphrase changed. The vault is closed.'); render(); });
+        });
+      } }, field('Current private passphrase', o), field('New private passphrase (12 characters or more)', n1), field('Confirm new private passphrase', n2),
+        h('button', { type: 'submit', class: 'btn sm', id: 'priv-change', text: 'Change private passphrase' })),
+      h('hr'),
+      btn('Destroy the private vault', function () {
+        openDialog({ title: 'Destroy the private vault?', yes: 'Destroy it', danger: true,
+          body: [h('p', { class: 'mut', text: 'Every private item is permanently deleted. Type DESTROY to confirm. Make a backup first if unsure.' }), field('Confirmation', typed)],
+          onYes: function () {
+            if (typed.value !== 'DESTROY') throw new Error('Type DESTROY exactly to continue.');
+            return L.priv.destroy().then(function () { setNotice('ok', 'Private vault destroyed.'); render(); });
+          } });
+      }, 'bad', { id: 'priv-destroy' })));
+    return h('div', null, out);
+  }
+
+
+  // ---------- wellbeing (v0.11.0 part B): lives only in the private vault; numbers and dates only ----------
+  function avgText(v) { return v === null || v === undefined ? '-' : String(Math.round(v * 10) / 10); }
+  function wellbeingTile(s, d, t) {
+    var open = L.priv.isOpen(), val = 'Locked', lab = '', sub = '';
+    if (open) {
+      try {
+        var w = L.priv.getWellbeing(), a = L.wellbeing.avg(w, 'mood', addDays(t, -6), t).avg;
+        val = a === null ? 'n/a' : avgText(a); lab = 'Mood, 7-day average'; sub = 'Streak: ' + L.wellbeing.streak(w, t) + (L.wellbeing.streak(w, t) === 1 ? ' day' : ' days');
+      } catch (e) { val = 'n/a'; }
+    }
+    return h('button', { type: 'button', class: 'tile', 'data-domain': 'wellbeing', 'data-locked': open ? '0' : '1', onclick: function () { go('domain', { domain: 'wellbeing' }); } },
+      h('span', { class: 'tile-title' }, d.label, ' ', open ? null : lockIcon('Locked', 'lockmark')),
+      h('span', { class: 'tile-value', text: val }), h('span', { class: 'tile-sub', text: lab }), h('span', { class: 'tile-sub', text: sub }));
+  }
+  function ratingRow(area, label, vals, onTap) {
+    var btns = [1, 2, 3, 4, 5].map(function (n) {
+      return h('button', { type: 'button', class: 'rate', 'data-area': area, 'data-v': String(n), 'aria-label': label + ' ' + n, 'aria-pressed': vals[area] === n ? 'true' : 'false', text: String(n),
+        onclick: function () {
+          vals[area] = vals[area] === n ? undefined : n;
+          btns.forEach(function (b) { b.setAttribute('aria-pressed', vals[area] === Number(b.getAttribute('data-v')) ? 'true' : 'false'); });
+          if (onTap) onTap();
+        } });
+    });
+    return h('div', { class: 'ratingrow', 'data-area': area }, h('span', { class: 'lbl', text: label + ' (1 to 5, optional)' }), h('div', { class: 'row' }, btns));
+  }
+  function wbTrend(area, label, series) {
+    var W = 320, H = 70, P = 10;
+    function X(i) { return P + i * (W - 2 * P) / (series.length - 1); }
+    function Y(v) { return H - P - (v - 1) / 4 * (H - 2 * P); }
+    var g = [h('line', { class: 'axis', x1: '0', y1: String(H - P + 4), x2: String(W), y2: String(H - P + 4) })], run = [];
+    function flush() {
+      if (run.length > 1) g.push(h('polyline', { class: 'ln-avg', points: run.map(function (p) { return p[0].toFixed(1) + ',' + p[1].toFixed(1); }).join(' ') }));
+      run = [];
+    }
+    series.forEach(function (r, i) {
+      if (r.value === null) { flush(); return; }
+      run.push([X(i), Y(r.value)]);
+      g.push(h('circle', { class: 'dot-raw', cx: X(i).toFixed(1), cy: Y(r.value).toFixed(1), r: '2' }));
+    });
+    flush();
+    g.push(h('text', { class: 'tick', x: '2', y: '10', 'text-anchor': 'start' }, '5'));
+    g.push(h('text', { class: 'tick', x: '2', y: String(H - 2), 'text-anchor': 'start' }, '1'));
+    return h('svg', { class: 'chart', id: 'wb-trend-' + area, viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': 'Trend, last 30 days: ' + label }, g);
+  }
+  function wbSave(input) {
+    return act(function () {
+      return L.priv.commit(function (i) { if (!i.wellbeing) i.wellbeing = {}; L.wellbeing.save(i.wellbeing, input); }).then(function () { view.ck = null; setNotice('ok', 'Check-in saved.'); render(); });
+    });
+  }
+  // The check-in panel asks "Quick update, all areas" or "One section" every time it opens.
+  function checkinPanel(wb, t) {
+    var W = L.wellbeing, ck = view.ck;
+    if (!ck) return h('div', { class: 'card', id: 'wb-ck' }, btn('Check in', function () { view.ck = { step: 'choose', date: t }; render(); }, 'pri', { id: 'wb-open-ck' }));
+    var dateIn = h('input', { type: 'date', id: 'wb-date', value: ck.date, max: t, required: true, onchange: function (e) { if (e.target.value && e.target.value <= t) { ck.date = e.target.value; render(); } } });
+    var dateField = field('Date (past days can be edited)', dateIn);
+    var cancel = btn('Cancel', function () { view.ck = null; render(); }, 'sm', { id: 'wb-ck-cancel' });
+    if (ck.step === 'choose') {
+      return h('div', { class: 'card', id: 'wb-ck' }, h('h2', { text: 'Check in' }), dateField,
+        h('div', { class: 'row' }, btn('Quick update, all areas', function () { ck.step = 'quick'; render(); }, 'pri', { id: 'wb-quick' }), btn('One section', function () { ck.step = 'section'; render(); }, '', { id: 'wb-section' }), cancel));
+    }
+    var cur = W.byDate(wb, ck.date) || {}, vals = {};
+    W.AREA_IDS.forEach(function (a) { if (cur[a] !== undefined) vals[a] = cur[a]; });
+    var note = h('textarea', { id: 'wb-note', maxlength: String(W.NOTE_MAX), value: cur.note || '', 'aria-label': 'Note' });
+    var rows, area = ck.area && W.AREA_IDS.indexOf(ck.area) >= 0 ? ck.area : 'mood';
+    if (ck.step === 'quick') rows = W.AREAS.map(function (a) { return ratingRow(a.id, a.label, vals); });
+    else {
+      var pick = sel('wb-area', W.AREAS.map(function (a) { return { v: a.id, t: a.label }; }), area, function (e) { ck.area = e.target.value; render(); });
+      rows = [field('Section', pick), ratingRow(area, (W.AREAS.filter(function (a) { return a.id === area; })[0]).label, vals)];
+    }
+    return h('form', { class: 'card', id: 'wb-ck', onsubmit: function (e) {
+      e.preventDefault();
+      var input = { date: ck.date };
+      Object.keys(vals).forEach(function (a) { if (vals[a] !== undefined && (ck.step === 'quick' || a === area)) input[a] = vals[a]; });
+      input.note = note.value;
+      wbSave(input);
+    } }, h('h2', { text: ck.step === 'quick' ? 'Quick update, all areas' : 'One section' }), dateField, rows,
+      field('Note (optional, up to ' + W.NOTE_MAX + ' characters)', note),
+      h('div', { class: 'row' }, h('button', { type: 'submit', class: 'btn pri', id: 'wb-save', text: 'Save check-in' }), cancel));
+  }
+  function wbAreaCard(wb, a, t, s) {
+    var W = L.wellbeing, sm = W.summary(wb, a.id, t), live = W.live(s, t), kids = [];
+    kids.push(h('h3', { text: a.label }));
+    kids.push(h('div', { class: 'stats' },
+      stat('Today', sm.today === null ? '-' : String(sm.today), 'wb-today-' + a.id),
+      stat('7-day average', avgText(sm.avg7.avg) + (sm.avg7.n ? ' (' + sm.avg7.n + ')' : ''), 'wb-avg7-' + a.id),
+      stat('30-day average', avgText(sm.avg30.avg) + (sm.avg30.n ? ' (' + sm.avg30.n + ')' : ''), 'wb-avg30-' + a.id),
+      stat('Previous 7 days', avgText(sm.prev7.avg) + (sm.prev7.n ? ' (' + sm.prev7.n + ')' : ''), 'wb-prev7-' + a.id)));
+    kids.push(wbTrend(a.id, a.label, sm.series));
+    if (a.id === 'recovery') {
+      kids.push(h('div', { class: 'sub', id: 'wb-sleep' }, h('p', { class: 'small', text: 'Sleep from Health, read live: last night ' + (live.sleep.today === null ? '-' : live.sleep.today + ' h') + ', 7-day average ' + (live.sleep.avg7.avg === null ? '-' : live.sleep.avg7.avg + ' h') + ' (' + live.sleep.avg7.n + ' nights), 30-day average ' + (live.sleep.avg30.avg === null ? '-' : live.sleep.avg30.avg + ' h') + ' (' + live.sleep.avg30.n + ').' })));
+    }
+    if (a.id === 'connected') {
+      kids.push(h('div', { class: 'sub', id: 'wb-social' }, h('p', { class: 'small', text: 'Contacts made, from Social, read live: today ' + live.contacts.today + ', last 7 days ' + live.contacts.d7 + ', last 30 days ' + live.contacts.d30 + '.' }),
+        h('p', { class: 'small', text: 'Social-tagged activities, from Activities, read live: today ' + live.socialActivities.today + ', last 7 days ' + live.socialActivities.d7 + ', last 30 days ' + live.socialActivities.d30 + '.' })));
+    }
+    return h('div', { class: 'card wb-area', 'data-area': a.id }, kids);
+  }
+  function wbOldCard(s) {
+    var W = L.wellbeing, wb = L.priv.getWellbeing();
+    if (!W.hasOld(s.entries)) return null;
+    var n = W.pendingOld(s.entries, wb), all = s.entries.filter(function (e) { return e.domain === 'wellbeing' && e.type === 'mood'; }).length;
+    if (!n) return h('p', { class: 'small mut', id: 'wb-old-left', text: all + (all === 1 ? ' earlier mood entry cannot move in without losing something, so it stays where it is.' : ' earlier mood entries cannot move in without losing something, so they stay where they are.') });
+    return h('div', { class: 'card', id: 'wb-old' }, h('h2', { text: 'Earlier mood entries' }),
+      h('p', { class: 'small', text: n + (n === 1 ? ' earlier mood entry can move' : ' earlier mood entries can move') + ' into the vault as check-ins. Nothing is lost: a rating, its date and its text move together.' + (all > n ? ' ' + (all - n) + ' stay where they are because they would lose something.' : '') }),
+      btn('Move them in', function () {
+        openDialog({ title: 'Move earlier mood entries into the vault?', yes: 'Move in', body: h('p', { class: 'mut', text: 'They leave the main data and become check-ins. They disappear from every screen and export while the vault is closed.' }),
+          onYes: function () {
+            return L.priv.write(function (work, wbw) { L.wellbeing.moveOld(work, wbw, L.store.newId); }, { audit: 'private vault moved in' }).then(function () { setNotice('ok', 'Earlier mood entries moved in as check-ins.'); render(); });
+          } });
+      }, 'pri', { id: 'wb-old-move' }));
+  }
+  function wellbeingScreen(s) {
+    var out = [btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Wellbeing' })];
+    var b = mainState();
+    if (!L.priv.isSetUp(b)) {
+      out.push(h('p', { class: 'mut', text: 'Wellbeing is kept only inside the private vault: a second lock with its own passphrase. It never reaches an AI request, the weekly digest, a CSV or a backup readable without that passphrase.' }));
+      var legacy = b.entries.filter(function (e) { return e.domain === 'wellbeing'; }).length;
+      if (legacy) out.push(h('p', { class: 'small mut', id: 'wb-legacy', text: 'Earlier mood entries stay where they are until the vault exists. Then you can move them in as check-ins.' }));
+      out.push(privSetupCard());
+      return h('div', null, out);
+    }
+    if (!L.priv.isOpen()) {
+      out.push(h('p', { class: 'mut', id: 'wb-locked', text: 'Locked. Enter the private passphrase to see and add check-ins.' }), h('div', { class: 'card' }, h('h2', { text: 'Open the private vault' }), privOpenForm()));
+      return h('div', null, out);
+    }
+    var W = L.wellbeing, wb = L.priv.getWellbeing(), t = today(), st1 = W.streak(wb, t);
+    out.push(h('p', { class: 'mut small', text: 'Numbers and dates only. Stored in the private vault, never in the main data.' }));
+    var old = wbOldCard(s);
+    if (old) out.push(old);
+    out.push(checkinPanel(wb, t));
+    out.push(h('div', { class: 'stats' }, stat('Check-in streak', st1 + (st1 === 1 ? ' day' : ' days'), 'wb-streak'), stat('Check-ins this week', String(W.checkinsInWeek(wb, t)), 'wb-week')));
+    W.AREAS.forEach(function (a) { out.push(wbAreaCard(wb, a, t, s)); });
+    var recent = W.listOf(wb).slice().sort(function (x, y) { return y.date.localeCompare(x.date); }).slice(0, 14);
+    out.push(h('h2', { text: 'Recent check-ins' }));
+    out.push(h('div', { class: 'card', id: 'wb-recent' }, recent.length ? recent.map(function (c) {
+      var parts = W.AREAS.filter(function (a) { return c[a.id] !== undefined; }).map(function (a) { return a.label + ' ' + c[a.id]; });
+      return h('div', { class: 'item wb-row', 'data-date': c.date }, h('div', null, h('span', { class: 'entry-t', text: c.date }), h('div', { class: 'mut small', text: parts.join(', ') }), c.note ? h('div', { class: 'small', text: c.note }) : null),
+        btn('Edit', function () { view.ck = { step: 'choose', date: c.date }; render(); window.scrollTo(0, 0); }, 'sm wb-edit', { 'aria-label': 'Edit check-in for ' + c.date }));
+    }) : h('p', { class: 'mut', text: 'No check-ins yet.' })));
+    return h('div', null, out);
   }
 
   // ---------- settings ----------
@@ -2930,7 +3359,7 @@
           act(function () {
             checkPass(bp.value);
             if (bp.value !== bp2.value) throw new Error('The backup passphrases do not match.');
-            return L.vault.exportBackup(bp.value, st()).then(function (text) {
+            return L.vault.exportBackup(bp.value, mainState()).then(function (text) {
               download('lifeos-backup-' + today() + '.json', text, 'application/json');
               return commit(null, 'export');
             }).then(function () { setNotice('ok', 'Backup downloaded.'); });
@@ -2953,7 +3382,7 @@
               var ins = state.memory.insights, pv2 = state.settings.provider;
               var nAppr = ins.filter(function (i) { return i.status === 'approved'; }).length;
               var rr = h('input', { type: 'checkbox', id: 'bk-rereview', checked: true });
-              var cur = st(), older = L.store.dropsWork(cur, state);
+              var cur = mainState(), older = L.store.dropsWork(cur, state), oldFmt = state.sourceSchema < 10;
               var ack = older ? h('input', { type: 'checkbox', id: 'bk-workloss' }) : null;
               openDialog({
                 title: 'Replace all data with this backup?', yes: 'Replace', danger: true,
@@ -2966,12 +3395,13 @@
                     h('li', { text: 'Home: ' + (state.properties || []).length + ' properties, ' + (state.vehicles || []).length + ' vehicles, ' + (state.maintenance || []).length + ' maintenance items' }),
                     h('li', { text: 'Admin: ' + (state.renewals || []).length + ' renewals, ' + (state.documents || []).length + ' documents, ' + (state.taxItems || []).length + ' tax items' }),
                     h('li', { text: 'Daily checks: ' + (state.habits || []).length + ', training cycle: ' + (state.cycle ? 'set' : 'not set') }),
+                    h('li', { id: 'bk-priv', text: 'Private vault in this backup: ' + (state.priv ? 'yes' : 'no') + '. In this vault now: ' + (cur.priv ? 'yes' : 'no') + '.' }),
                     h('li', { text: 'Approved insights: ' + nAppr }),
                     h('li', { text: 'Lessons: ' + state.memory.lessons.length }),
                     h('li', { text: 'Provider settings: ' + (pv2.kind === 'none' ? 'none' : 'included (' + pv2.kind + ')') }),
                     h('li', { text: 'API key: ' + (pv2.apiKey ? 'included' : 'not included') })),
                   h('label', { class: 'row small' }, rr, h('span', { text: 'Re-review insights (restore every approved insight as proposed)' })),
-                  older ? h('p', { class: 'small', id: 'bk-older', text: 'This backup is from an older LifeOS version. Restoring it removes your ' + L.store.lossText(cur, state) + '.' }) : null,
+                  older ? h('p', { class: 'small', id: 'bk-older', text: (oldFmt ? 'This backup is from an older LifeOS version. ' : 'This backup has no private vault. ') + 'Restoring it removes your ' + L.store.lossText(cur, state) + '.' }) : null,
                   older ? h('label', { class: 'row small' }, ack, h('span', { text: 'I understand. Remove this data.' })) : null,
                   h('p', { class: 'mut', text: 'This replaces everything in this vault with the backup. It cannot be undone.' })],
                 onYes: function () {
@@ -2985,7 +3415,7 @@
       }, field('Restore from a backup file (64 MB max)', bf), field('Backup passphrase', ip),
         h('button', { type: 'submit', class: 'btn', text: 'Import backup' }))));
 
-    out.push(h('p', { class: 'mut small', id: 'app-version', text: 'LifeOS v0.10.0' }));
+    out.push(h('p', { class: 'mut small', id: 'app-version', text: 'LifeOS v0.11.0' }));
 
     if (L.syncUI) out.push(L.syncUI.section(syncCtx()));
 

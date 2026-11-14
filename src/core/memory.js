@@ -2,7 +2,10 @@
   'use strict';
   const L = (globalThis.LifeOS = globalThis.LifeOS || {});
   const MAX_TEXT = 280, MAX_ITEMS = 5, LESSON_CAP = 30, INSIGHT_CAP = 5000, CTX_MAX = 8;
-  const domains = () => L.DOMAINS.map((d) => d.id).concat(['overall']);
+  // SEC-66 (owner decision): wellbeing never reaches the AI. Prompts, the domain list the model may answer with, rules insights
+  // and new proposals leave it out; earlier wellbeing insights stay in the vault but are never sent.
+  const NO_AI = new Set(['wellbeing']);
+  const domains = () => L.DOMAINS.map((d) => d.id).filter((id) => !NO_AI.has(id)).concat(['overall']);
   const BIDI = /[\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF]/g;
   const newId = () => L._webcrypto.randomUUID();
 
@@ -13,11 +16,13 @@
   function checkLevel(l) { if (l !== 1 && l !== 2 && l !== 3) throw new Error('Invalid level'); return l; }
 
   function rulesInsights(state, weekStartISO) {
+    if (L.priv) state = L.priv.mainOnly(state);
     const dg = L.metrics.weeklyDigest(state, weekStartISO);
     const t = state.settings.targets, cur = state.settings.currency;
     const out = [];
     const money = (v) => L.metrics.fmtMoney(v, cur);
     for (const d of L.DOMAINS) {
+      if (!dg.domains[d.id]) continue;
       const { now, prev, unit } = dg.domains[d.id];
       if (now === 0 && prev === 0) continue;
       let text = null;
@@ -40,11 +45,6 @@
           break;
         case 'assets':
           if (now !== prev) text = 'Net worth moved ' + dir + ' from ' + money(prev) + ' to ' + money(now) + '.';
-          break;
-        case 'wellbeing':
-          if (now === 0) break;
-          if (prev > 0 && now !== prev) text = 'Average mood is ' + dir + ' from ' + prev + ' to ' + now + '.';
-          else if (prev === 0) text = 'Average mood this week is ' + now + ' out of 5.';
           break;
         case 'home':
           text = 'Maintenance tasks overdue: ' + now + ' (last week ' + prev + ').';
@@ -76,10 +76,11 @@
   const BODY_TEXT = /^Weight moved (up|down) /;
   const isBodyInsight = (i) => i.domain === 'health' && i.source === 'rules' && BODY_TEXT.test(i.text);
   function buildPrompt(state, level, period) {
+    if (L.priv) state = L.priv.mainOnly(state);
     checkLevel(level);
     const p = checkPeriod(period);
     const mem = state.memory;
-    const approvedAll = mem.insights.filter((i) => i.status === 'approved');
+    const approvedAll = mem.insights.filter((i) => i.status === 'approved' && !NO_AI.has(i.domain));
     const lines = [];
     let ctx;
     if (level === 1) {
@@ -87,6 +88,7 @@
       lines.push('Level 1 weekly review. Week of ' + dg.week + '.', 'Digest (this week vs previous week):');
       for (const d of L.DOMAINS) {
         const x = dg.domains[d.id];
+        if (!x) continue;
         lines.push('- ' + d.id + ': now ' + x.now + ' ' + x.unit + ', previous ' + x.prev + ' ' + x.unit);
       }
       const w = dg.work;
@@ -180,7 +182,8 @@
     if (!ins) throw new Error('Insight not found');
     ins.status = decision;
     ins.decidedAt = new Date().toISOString();
-    if (decision === 'rejected' && typeof reason === 'string') {
+    // Lessons are sent with every prompt, so a reason given for an earlier wellbeing insight is not kept as one (SEC-66).
+    if (decision === 'rejected' && typeof reason === 'string' && !NO_AI.has(ins.domain)) {
       const r = reason.replace(/[\u0000-\u001f\u007f]+/g, ' ').trim().slice(0, MAX_TEXT);
       if (r) {
         const ls = state.memory.lessons;

@@ -583,9 +583,12 @@
   const byDomain = (state, id) => state.entries.filter((e) => e.domain === id);
 
   function weeklyDigest(state, weekStartISO) {
+    if (L.priv) state = L.priv.mainOnly(state);
     const ws = weekStart(weekStartISO), pw = addDays(ws, -7);
     const domains = {};
     for (const d of DOMAINS) {
+      // SEC-66 (owner decision): wellbeing is kept away from the AI, so no wellbeing number is ever part of the digest.
+      if (d.id === 'wellbeing') continue;
       const ents = byDomain(state, d.id);
       domains[d.id] = { now: r2(weekMetric(state, d.id, ws, ents)), prev: r2(weekMetric(state, d.id, pw, ents)), unit: unitOf(state, d.id) };
     }

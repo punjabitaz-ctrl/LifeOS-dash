@@ -2,7 +2,7 @@
   'use strict';
   const L = (globalThis.LifeOS = globalThis.LifeOS || {});
   const KEY = 'envelope';
-  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 9, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
+  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 10, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
   const HABIT_CAP = 8, HABIT_LOG_CAP = 100000, KIND_CAP = 30;
   const RENEWAL_TOTAL_CAP = 2000;
   const ENTRY_CAP = 50000, INSIGHT_CAP = 5000, REVIEW_CAP = 1000, LESSON_CAP = 30, AUDIT_CAP = 200;
@@ -116,6 +116,7 @@
       health: schema >= 4 ? cleanHealthSettings(s.health) : { units: 'lb' },
       home: schema >= 6 ? cleanHomeSettings(s.home) : { starterDone: false },
       learning: schema >= 7 ? L.learning.cleanSettings(s.learning) : { weeklyMinutes: 0 },
+      privAutoLockSec: schema >= 10 && s.privAutoLockSec !== undefined ? num(s.privAutoLockSec, 15, 1800, 'privAutoLockSec', true) : 60,
     };
   }
   // 6 decimals, like converted weights, so a unit switch round trip does not drift.
@@ -453,13 +454,14 @@
 
   // ---- schema 5: goals ----
   const gtext = (v, max, name, empty) => { if (v === undefined) v = ''; if (typeof v !== 'string') fail(name + ' must be text'); return str(strip(v).trim(), max, name, empty); };
-  function cleanGoal(x, seen) {
+  function cleanGoal(x, seen, privOk) {
     if (!isObj(x)) fail('goal');
     const G = L.goals;
     const id = str(x.id, 100, 'goal id');
     if (seen.has(id)) fail('duplicate goal id');
     seen.add(id);
     const metric = oneOf(x.metric, G.METRICS.map((m) => m.id), 'goal metric');
+    if (!privOk && L.wellbeing && L.wellbeing.isGoalMetric(metric)) fail('a wellbeing goal metric can only be used by a private goal');
     const mdom = G.METRICS.find((m) => m.id === metric).domain;
     const o = {
       id, title: gtext(x.title, 200, 'goal title'),
@@ -480,10 +482,10 @@
     o.createdAt = ts(x.createdAt, 'goal createdAt');
     return o;
   }
-  function cleanGoals(list) {
+  function cleanGoals(list, privOk) {
     if (list === undefined) return [];
     const seen = new Set();
-    const out = arr(list, GOAL_CAP, 'goals').map((x) => cleanGoal(x, seen));
+    const out = arr(list, GOAL_CAP, 'goals').map((x) => cleanGoal(x, seen, privOk === true));
     const byId = new Map(out.map((g) => [g.id, g])), rank = (g) => L.goals.HORIZONS.indexOf(g.horizon);
     for (const g of out) {
       if (g.parentId === undefined) continue;
@@ -536,10 +538,11 @@
     }
     return { goals, entries: entries.filter((e) => !gone.has(e.id)) };
   }
-  function validateState(o) {
+  // opts.privateGoals: the caller validates a view with private records merged in, so wellbeing goal metrics are allowed (the stored main state never is).
+  function validateState(o, opts) {
     if (!isObj(o)) fail('state must be an object');
     scan(o, 0, { n: 4e6 });
-    if (![1, 2, 3, 4, 5, 6, 7, 8, SCHEMA].includes(o.schema)) fail('unsupported schema');
+    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, SCHEMA].includes(o.schema)) fail('unsupported schema');
     if (!L.metrics) fail('metrics module missing');
     const settings = cleanSettings(o.settings, o.schema), entries = cleanEntries(o.entries);
     const out = { schema: SCHEMA, settings, entries };
@@ -557,7 +560,7 @@
     const pids = new Set(out.projects.map((p) => p.id));
     for (const e of entries) if (e.projectId !== undefined && !pids.has(e.projectId)) delete e.projectId;
     // Schema 5 adds goals; older formats turn their goals/goal entries into goals (nothing is lost).
-    if (o.schema >= 5) out.goals = cleanGoals(o.goals);
+    if (o.schema >= 5) out.goals = cleanGoals(o.goals, !!(opts && opts.privateGoals));
     else { const m = goalsFromEntries(entries); out.goals = cleanGoals(m.goals); out.entries = m.entries; }
     // Schema 6 adds Home (properties, vehicles, maintenance) and Admin (renewals, documents, tax items). Older formats get
     // empty collections, and their home/due entries become renewals (see admin.legacyDue; nothing is dropped).
@@ -612,6 +615,12 @@
     }
     out.memory = cleanMemory(o.memory);
     out.audit = cleanAudit(o.audit);
+    // Schema 10 adds the private vault: checked structurally only (types, base64, sizes, iteration count, mark names); the key is never needed.
+    if (o.priv !== undefined) {
+      if (o.schema < 10) fail('private vault needs schema 10');
+      if (!L.priv) fail('private vault module missing');
+      try { out.priv = L.priv.cleanBlob(o.priv); } catch (e) { fail(e.message); }
+    }
     // The schema the input was written in, so callers can tell an older-format copy (no work data) from a schema 3 one.
     // Not enumerable: it never reaches the stored state, a backup or the fingerprint.
     Object.defineProperty(out, 'sourceSchema', { value: o.schema, enumerable: false });
@@ -624,6 +633,8 @@
     const src = next && next.sourceSchema;
     if (!cur || typeof src !== 'number') return [];
     const out = [];
+    // A copy without a private vault never replaces one that has it silently (any schema).
+    if (cur.priv && !next.priv) out.push('private vault');
     if (src < 3) { if ((cur.projects || []).length) out.push('projects'); if ((cur.pipeline || []).length) out.push('pipeline items'); }
     if (src < 5 && (cur.goals || []).length) out.push('goals');
     if (src < 6) {
@@ -670,6 +681,7 @@
         health: { units: 'lb' },
         home: { starterDone: false },
         learning: { weeklyMinutes: 0 },
+        privAutoLockSec: 60,
       },
       entries: [],
       accounts: [], recurring: [], budgets: [], categories: defaultCategories(),
@@ -715,6 +727,14 @@
   const serial = (fn) => { const run = queue.then(fn); queue = run.catch(() => {}); return run; };
   const requireUnlocked = () => { if (!state || !key) throw new Error('LOCKED'); };
 
+  // True when `p` is the main passphrase: tried against the stored envelope, never compared with anything stored.
+  async function matchesMain(p) {
+    requireUnlocked();
+    const env = await getAdapter().get(KEY);
+    if (!env) return false;
+    try { const { salt: sl } = V().parseEnvelope(env); await V().decrypt(await V().deriveKey(p, sl), env); return true; } catch (e) { return false; }
+  }
+  const dropPriv = () => { if (L.priv) L.priv.close('system'); };
   async function exists() { return !!(await getAdapter().get(KEY)); }
   async function init(passphrase) {
     V().checkPassphrase(passphrase);
@@ -740,6 +760,7 @@
     return st;
   }
   function lock() {
+    dropPriv();
     // Empty the live state object too, so any reference still held elsewhere no longer reaches plaintext.
     if (state) { try { replaceContents(state, {}); } catch (e) { /* ignore */ } }
     key = null; salt = null; state = null; meta = { rev: 0, updatedAt: '', deviceId: '' };
@@ -772,6 +793,7 @@
       requireUnlocked();
       const st = state;
       V().checkPassphrase(newP);
+      if (st.priv && L.priv && (await L.priv.matches(st.priv, newP))) throw new Error('The main passphrase must be different from the private vault passphrase.');
       const a = getAdapter();
       const env = await a.get(KEY);
       const { salt: sl } = V().parseEnvelope(env);
@@ -783,6 +805,7 @@
       await a.set(KEY, sealed.env);
       if (state !== st) throw new Error('LOCKED');
       key = nk; salt = nsl; meta = sealed.m;
+      dropPriv();
     });
   }
   function replaceState(next, opts) {
@@ -793,6 +816,7 @@
         const e = new Error('This backup is from an older version and has no ' + nameList(droppedData(st, next)) + '. Nothing was replaced.'); e.code = 'OLDER_FORMAT'; throw e;
       }
       const clean = validateState(next);
+      dropPriv();
       // A restored backup never brings its own sync bookkeeping: an older remoteRev would weaken the rollback
       // check, and a different OAuth client ID would be swapped in without the user seeing it.
       clean.settings.sync = Object.assign({}, st.settings.sync);
@@ -846,6 +870,7 @@
     return serial(async () => {
       requireUnlocked();
       const st = state, e = info.env;
+      dropPriv();
       // Persist only the known envelope fields, never whatever else the remote JSON carried.
       const env = { v: e.v, kdf: { name: e.kdf.name, hash: e.kdf.hash, iter: e.kdf.iter, salt: e.kdf.salt }, iv: e.iv, ct: e.ct };
       if (e.rev !== undefined) Object.assign(env, { rev: e.rev, updatedAt: e.updatedAt, deviceId: e.deviceId });
@@ -862,5 +887,5 @@
 
   // Validation helpers shared with home.js and admin.js (same rules and messages as the rest of validateState).
   L.validate = { fail, isObj, str, num, date, oneOf, bool, arr, strip, ts, newId };
-  L.store = { _setAdapter, exists, init, unlock, lock, isUnlocked, getState, commit, changePassphrase, replaceState, wipe, validateState, newId, defaultState, getMeta, saltId, exportEnvelope, inspectEnvelope, adoptEnvelope, dropsWork, droppedData, nameList, lossText, validateGoals: cleanGoals };
+  L.store = { matchesMain, _setAdapter, exists, init, unlock, lock, isUnlocked, getState, commit, changePassphrase, replaceState, wipe, validateState, newId, defaultState, getMeta, saltId, exportEnvelope, inspectEnvelope, adoptEnvelope, dropsWork, droppedData, nameList, lossText, validateGoals: (list, privOk) => cleanGoals(list, privOk === true) };
 })();

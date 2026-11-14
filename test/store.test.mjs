@@ -11,7 +11,7 @@ test('init / lock / unlock / commit / changePassphrase', async () => {
   assert.equal(await S.exists(), false);
   await assert.rejects(S.init('short'), /12 characters/);
   const st = await S.init(PASS);
-  assert.equal(st.schema, 9);
+  assert.equal(st.schema, 10);
   assert.ok(S.isUnlocked());
   await assert.rejects(S.init(PASS), { message: 'VAULT_EXISTS' });
   const env = ad._m.get('envelope');

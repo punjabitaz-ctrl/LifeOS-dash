@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-ivzNbpq3G00GONPlhWW9plKQriZG0gMNNNfA78ERP3o='; style-src 'sha256-AhW11rSnH8oIjKhS1vZoMCK0L0Rjw+8kHSt7Kwd2adw='; connect-src https://api.anthropic.com https://www.googleapis.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-/W6sYW7Cp7GzOh//NyGXnLiuEUby/4Z8G6p6W+UV2tQ='; style-src 'sha256-A8DP0KpzPkcWv2YiGoyKmTd29/bgmrjivHCZO3M/Gjo='; connect-src https://api.anthropic.com https://www.googleapis.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>LifeOS</title>
 <style>:root{color-scheme:light dark;--bg:#f4f5f7;--card:#fff;--fg:#14171c;--mut:#5b6573;--line:#dde1e7;--acc:#2255d4;--acc-fg:#fff;--ok:#1c7a46;--warn:#9a5b00;--bad:#b42318;--r:14px;--sh:0 1px 2px rgba(0,0,0,.06);--font:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
@@ -142,6 +142,19 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
 .gkids{margin-left:6px;padding-left:6px;border-left:2px solid var(--line)}
 .goal select{width:auto;max-width:100%;min-height:36px;padding:4px 8px}
 .goal .g-manual{flex:1 1 120px;width:auto;min-width:0}
+.privbar{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:space-between;margin:0 0 12px;padding:8px 12px;border:1px solid var(--ok);border-radius:10px}
+.lockmark{display:inline-flex;vertical-align:middle;color:var(--mut)}
+.lockico{width:12px;height:14px;fill:currentColor;stroke:currentColor;stroke-width:1.4}
+.lockico path{fill:none}
+.lockrow{display:flex;gap:6px;align-items:center;margin:0 0 8px}
+.priv-row{align-items:center}
+.privnew-note{display:flex;gap:6px;align-items:center;margin:0 0 8px}
+.privbadge{margin-right:6px}
+.is-private{border-left:3px solid var(--ok);padding-left:8px}
+.ratingrow{margin:0 0 12px}
+.rate{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:10px;min-width:44px;min-height:44px;padding:4px 10px;cursor:pointer}
+.rate[aria-pressed=true]{background:var(--acc);color:var(--acc-fg);border-color:var(--acc);font-weight:700}
+.wb-area .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
 </style>
 </head>
 <body>
@@ -209,7 +222,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   }
   async function exportBackup(passphrase, state) {
     checkPassphrase(passphrase);
-    const clean = L.store.validateState(state);
+    const clean = L.store.validateState(L.priv ? L.priv.mainOnly(state) : state);
     const salt = newSalt();
     const key = await deriveKey(passphrase, salt);
     const out = JSON.stringify(await makeEnvelope(key, salt, clean));
@@ -233,7 +246,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   'use strict';
   const L = (globalThis.LifeOS = globalThis.LifeOS || {});
   const KEY = 'envelope';
-  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 9, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
+  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 10, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
   const HABIT_CAP = 8, HABIT_LOG_CAP = 100000, KIND_CAP = 30;
   const RENEWAL_TOTAL_CAP = 2000;
   const ENTRY_CAP = 50000, INSIGHT_CAP = 5000, REVIEW_CAP = 1000, LESSON_CAP = 30, AUDIT_CAP = 200;
@@ -347,6 +360,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       health: schema >= 4 ? cleanHealthSettings(s.health) : { units: 'lb' },
       home: schema >= 6 ? cleanHomeSettings(s.home) : { starterDone: false },
       learning: schema >= 7 ? L.learning.cleanSettings(s.learning) : { weeklyMinutes: 0 },
+      privAutoLockSec: schema >= 10 && s.privAutoLockSec !== undefined ? num(s.privAutoLockSec, 15, 1800, 'privAutoLockSec', true) : 60,
     };
   }
   // 6 decimals, like converted weights, so a unit switch round trip does not drift.
@@ -684,13 +698,14 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
 
   // ---- schema 5: goals ----
   const gtext = (v, max, name, empty) => { if (v === undefined) v = ''; if (typeof v !== 'string') fail(name + ' must be text'); return str(strip(v).trim(), max, name, empty); };
-  function cleanGoal(x, seen) {
+  function cleanGoal(x, seen, privOk) {
     if (!isObj(x)) fail('goal');
     const G = L.goals;
     const id = str(x.id, 100, 'goal id');
     if (seen.has(id)) fail('duplicate goal id');
     seen.add(id);
     const metric = oneOf(x.metric, G.METRICS.map((m) => m.id), 'goal metric');
+    if (!privOk && L.wellbeing && L.wellbeing.isGoalMetric(metric)) fail('a wellbeing goal metric can only be used by a private goal');
     const mdom = G.METRICS.find((m) => m.id === metric).domain;
     const o = {
       id, title: gtext(x.title, 200, 'goal title'),
@@ -711,10 +726,10 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     o.createdAt = ts(x.createdAt, 'goal createdAt');
     return o;
   }
-  function cleanGoals(list) {
+  function cleanGoals(list, privOk) {
     if (list === undefined) return [];
     const seen = new Set();
-    const out = arr(list, GOAL_CAP, 'goals').map((x) => cleanGoal(x, seen));
+    const out = arr(list, GOAL_CAP, 'goals').map((x) => cleanGoal(x, seen, privOk === true));
     const byId = new Map(out.map((g) => [g.id, g])), rank = (g) => L.goals.HORIZONS.indexOf(g.horizon);
     for (const g of out) {
       if (g.parentId === undefined) continue;
@@ -767,10 +782,11 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     }
     return { goals, entries: entries.filter((e) => !gone.has(e.id)) };
   }
-  function validateState(o) {
+  // opts.privateGoals: the caller validates a view with private records merged in, so wellbeing goal metrics are allowed (the stored main state never is).
+  function validateState(o, opts) {
     if (!isObj(o)) fail('state must be an object');
     scan(o, 0, { n: 4e6 });
-    if (![1, 2, 3, 4, 5, 6, 7, 8, SCHEMA].includes(o.schema)) fail('unsupported schema');
+    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, SCHEMA].includes(o.schema)) fail('unsupported schema');
     if (!L.metrics) fail('metrics module missing');
     const settings = cleanSettings(o.settings, o.schema), entries = cleanEntries(o.entries);
     const out = { schema: SCHEMA, settings, entries };
@@ -788,7 +804,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     const pids = new Set(out.projects.map((p) => p.id));
     for (const e of entries) if (e.projectId !== undefined && !pids.has(e.projectId)) delete e.projectId;
     // Schema 5 adds goals; older formats turn their goals/goal entries into goals (nothing is lost).
-    if (o.schema >= 5) out.goals = cleanGoals(o.goals);
+    if (o.schema >= 5) out.goals = cleanGoals(o.goals, !!(opts && opts.privateGoals));
     else { const m = goalsFromEntries(entries); out.goals = cleanGoals(m.goals); out.entries = m.entries; }
     // Schema 6 adds Home (properties, vehicles, maintenance) and Admin (renewals, documents, tax items). Older formats get
     // empty collections, and their home/due entries become renewals (see admin.legacyDue; nothing is dropped).
@@ -843,6 +859,12 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     }
     out.memory = cleanMemory(o.memory);
     out.audit = cleanAudit(o.audit);
+    // Schema 10 adds the private vault: checked structurally only (types, base64, sizes, iteration count, mark names); the key is never needed.
+    if (o.priv !== undefined) {
+      if (o.schema < 10) fail('private vault needs schema 10');
+      if (!L.priv) fail('private vault module missing');
+      try { out.priv = L.priv.cleanBlob(o.priv); } catch (e) { fail(e.message); }
+    }
     // The schema the input was written in, so callers can tell an older-format copy (no work data) from a schema 3 one.
     // Not enumerable: it never reaches the stored state, a backup or the fingerprint.
     Object.defineProperty(out, 'sourceSchema', { value: o.schema, enumerable: false });
@@ -855,6 +877,8 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     const src = next && next.sourceSchema;
     if (!cur || typeof src !== 'number') return [];
     const out = [];
+    // A copy without a private vault never replaces one that has it silently (any schema).
+    if (cur.priv && !next.priv) out.push('private vault');
     if (src < 3) { if ((cur.projects || []).length) out.push('projects'); if ((cur.pipeline || []).length) out.push('pipeline items'); }
     if (src < 5 && (cur.goals || []).length) out.push('goals');
     if (src < 6) {
@@ -901,6 +925,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
         health: { units: 'lb' },
         home: { starterDone: false },
         learning: { weeklyMinutes: 0 },
+        privAutoLockSec: 60,
       },
       entries: [],
       accounts: [], recurring: [], budgets: [], categories: defaultCategories(),
@@ -946,6 +971,14 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   const serial = (fn) => { const run = queue.then(fn); queue = run.catch(() => {}); return run; };
   const requireUnlocked = () => { if (!state || !key) throw new Error('LOCKED'); };
 
+  // True when `p` is the main passphrase: tried against the stored envelope, never compared with anything stored.
+  async function matchesMain(p) {
+    requireUnlocked();
+    const env = await getAdapter().get(KEY);
+    if (!env) return false;
+    try { const { salt: sl } = V().parseEnvelope(env); await V().decrypt(await V().deriveKey(p, sl), env); return true; } catch (e) { return false; }
+  }
+  const dropPriv = () => { if (L.priv) L.priv.close('system'); };
   async function exists() { return !!(await getAdapter().get(KEY)); }
   async function init(passphrase) {
     V().checkPassphrase(passphrase);
@@ -971,6 +1004,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     return st;
   }
   function lock() {
+    dropPriv();
     // Empty the live state object too, so any reference still held elsewhere no longer reaches plaintext.
     if (state) { try { replaceContents(state, {}); } catch (e) { /* ignore */ } }
     key = null; salt = null; state = null; meta = { rev: 0, updatedAt: '', deviceId: '' };
@@ -1003,6 +1037,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       requireUnlocked();
       const st = state;
       V().checkPassphrase(newP);
+      if (st.priv && L.priv && (await L.priv.matches(st.priv, newP))) throw new Error('The main passphrase must be different from the private vault passphrase.');
       const a = getAdapter();
       const env = await a.get(KEY);
       const { salt: sl } = V().parseEnvelope(env);
@@ -1014,6 +1049,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       await a.set(KEY, sealed.env);
       if (state !== st) throw new Error('LOCKED');
       key = nk; salt = nsl; meta = sealed.m;
+      dropPriv();
     });
   }
   function replaceState(next, opts) {
@@ -1024,6 +1060,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
         const e = new Error('This backup is from an older version and has no ' + nameList(droppedData(st, next)) + '. Nothing was replaced.'); e.code = 'OLDER_FORMAT'; throw e;
       }
       const clean = validateState(next);
+      dropPriv();
       // A restored backup never brings its own sync bookkeeping: an older remoteRev would weaken the rollback
       // check, and a different OAuth client ID would be swapped in without the user seeing it.
       clean.settings.sync = Object.assign({}, st.settings.sync);
@@ -1077,6 +1114,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     return serial(async () => {
       requireUnlocked();
       const st = state, e = info.env;
+      dropPriv();
       // Persist only the known envelope fields, never whatever else the remote JSON carried.
       const env = { v: e.v, kdf: { name: e.kdf.name, hash: e.kdf.hash, iter: e.kdf.iter, salt: e.kdf.salt }, iv: e.iv, ct: e.ct };
       if (e.rev !== undefined) Object.assign(env, { rev: e.rev, updatedAt: e.updatedAt, deviceId: e.deviceId });
@@ -1093,7 +1131,757 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
 
   // Validation helpers shared with home.js and admin.js (same rules and messages as the rest of validateState).
   L.validate = { fail, isObj, str, num, date, oneOf, bool, arr, strip, ts, newId };
-  L.store = { _setAdapter, exists, init, unlock, lock, isUnlocked, getState, commit, changePassphrase, replaceState, wipe, validateState, newId, defaultState, getMeta, saltId, exportEnvelope, inspectEnvelope, adoptEnvelope, dropsWork, droppedData, nameList, lossText, validateGoals: cleanGoals };
+  L.store = { matchesMain, _setAdapter, exists, init, unlock, lock, isUnlocked, getState, commit, changePassphrase, replaceState, wipe, validateState, newId, defaultState, getMeta, saltId, exportEnvelope, inspectEnvelope, adoptEnvelope, dropsWork, droppedData, nameList, lossText, validateGoals: (list, privOk) => cleanGoals(list, privOk === true) };
+})();
+
+;
+(function () {
+  'use strict';
+  // v0.11.0 part A: the private vault. A second lock inside the main state (`state.priv`). The inner plaintext holds private
+  // records and `links` overlays (references from public records to private ones); the key and the plaintext live in this module
+  // only while open. Everything that is not a view, a private write or a move uses the main state alone.
+  const L = (globalThis.LifeOS = globalThis.LifeOS || {});
+  const ITER = 600000, CT_MAX = 40e6, LINK_CAP = 120000, WELL_MAX = 4e6, DEFAULT_SEC = 60;
+  const BLOCKED = new Set(['__proto__', 'constructor', 'prototype']);
+  const V = () => L.vault, S = () => L.store;
+  // Validating the merged view (public and private records together): private goals may use wellbeing metrics. The stored main state is always validated without this.
+  const PRIVATE_OK = Object.freeze({ privateGoals: true });
+  // Collections that can hold private records. `refs`: [field, target collection, isArray]. `key` defaults to id.
+  const COLL = {
+    entries: { refs: [['accountId', 'accounts'], ['projectId', 'projects']] },
+    accounts: {}, recurring: {}, budgets: { key: (r) => r.category }, projects: {}, pipeline: {},
+    goals: { refs: [['parentId', 'goals']] },
+    maintenance: { refs: [['propertyId', 'properties'], ['vehicleId', 'vehicles']] },
+    vehicles: {}, properties: {}, renewals: {}, documents: {}, taxItems: {},
+    learningItems: { refs: [['goalId', 'goals']] },
+    studySessions: { refs: [['itemId', 'learningItems']] },
+    takeaways: { refs: [['itemId', 'learningItems']] },
+    activities: { refs: [['goalId', 'goals'], ['expenseId', 'entries']] },
+    people: { refs: [['groupId', 'groups'], ['pipelineIds', 'pipeline', true], ['projectIds', 'projects', true]] },
+    groups: {}, contacts: { refs: [['personId', 'people']] },
+    habits: {}, habitLog: { key: (r) => r.habitId + '|' + r.date },
+    cycle: { single: true, key: () => 'cycle' },
+  };
+  const COLLECTIONS = Object.keys(COLL);
+  const MARK_NAMES = COLLECTIONS.concat(['wellbeing']);
+  const keyOf = (c, r) => (COLL[c].key ? COLL[c].key(r) : r.id);
+  const refsOf = (c) => COLL[c].refs || [];
+  const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+  const listOf = (st, c) => (c === 'cycle' ? (st.cycle ? [st.cycle] : []) : (Array.isArray(st[c]) ? st[c] : []));
+  const clone = (x) => JSON.parse(JSON.stringify(x));
+  const bad = (m) => { const e = new Error(m); e.code = 'PRIVATE_INVALID'; return e; };
+
+  // ---- module state: only while open ----
+  let key = null, saltB64 = '', inner = null, deadline = 0, timer = null, hooked = false, queue = Promise.resolve(), gen = 0;
+  const closers = [], viewBase = new WeakMap(), privRecs = new WeakSet();
+
+  // ---- structural validation of the outer blob (needs no key) ----
+  const B64 = /^[A-Za-z0-9+/]*={0,2}$/;
+  function b64len(s, name, min, max) {
+    if (typeof s !== 'string' || s.length % 4 || !B64.test(s)) throw bad('private vault ' + name + ' is not valid base64');
+    if (s.length < min || s.length > max) throw bad('private vault ' + name + ' has a bad size');
+    return s;
+  }
+  function cleanBlob(x) {
+    if (!isObj(x)) throw bad('private vault must be an object');
+    for (const k of Object.keys(x)) if (!['v', 'kdf', 'iv', 'ct', 'rev', 'marks'].includes(k)) throw bad('private vault has an unknown field');
+    if (x.v !== 1) throw bad('private vault version');
+    const k = x.kdf;
+    if (!isObj(k) || k.name !== 'PBKDF2' || k.hash !== 'SHA-256' || k.iter !== ITER) throw bad('private vault key settings');
+    for (const f of Object.keys(k)) if (!['name', 'hash', 'iter', 'salt'].includes(f)) throw bad('private vault has an unknown field');
+    b64len(k.salt, 'salt', 24, 24);
+    b64len(x.iv, 'iv', 16, 16);
+    b64len(x.ct, 'data', 24, CT_MAX);
+    if (!Number.isInteger(x.rev) || x.rev < 0 || x.rev > 1e9) throw bad('private vault revision');
+    if (!Array.isArray(x.marks) || x.marks.length > MARK_NAMES.length) throw bad('private vault marks');
+    const seen = new Set();
+    for (const m of x.marks) {
+      if (typeof m !== 'string' || !MARK_NAMES.includes(m) || BLOCKED.has(m) || seen.has(m)) throw bad('private vault marks');
+      seen.add(m);
+    }
+    return { v: 1, kdf: { name: 'PBKDF2', hash: 'SHA-256', iter: ITER, salt: k.salt }, iv: x.iv, ct: x.ct, rev: x.rev, marks: MARK_NAMES.filter((m) => seen.has(m)) };
+  }
+
+  // ---- inner plaintext ----
+  const emptyInner = (rev) => ({ schema: 1, rev, records: {}, links: [], wellbeing: {} });
+  function scanKeys(v, depth) {
+    if (depth > 12) throw bad('private data is nested too deeply');
+    if (v === null || typeof v !== 'object') return;
+    if (Array.isArray(v)) { for (const x of v) scanKeys(x, depth + 1); return; }
+    for (const k of Object.keys(v)) { if (BLOCKED.has(k)) throw bad('private data has a forbidden key'); scanKeys(v[k], depth + 1); }
+  }
+  function checkInner(p, rev) {
+    if (!isObj(p)) throw bad('private data must be an object');
+    for (const k of Object.keys(p)) if (!['schema', 'rev', 'records', 'links', 'wellbeing'].includes(k)) throw bad('private data has an unknown field');
+    if (p.schema !== 1) throw bad('private data schema');
+    if (rev !== undefined && p.rev !== rev) { const e = new Error('The private vault failed its revision check. It may have been altered.'); e.code = 'PRIVATE_REV'; throw e; }
+    if (!Number.isInteger(p.rev) || p.rev < 0 || p.rev > 1e9) throw bad('private data revision');
+    if (!isObj(p.records)) throw bad('private records');
+    for (const c of Object.keys(p.records)) {
+      if (!COLLECTIONS.includes(c)) throw bad('private records name an unknown collection');
+      const a = p.records[c];
+      if (!Array.isArray(a) || a.length > 60000 || (c === 'cycle' && a.length > 1)) throw bad('private records are malformed');
+      for (const r of a) if (!isObj(r)) throw bad('private record');
+    }
+    if (!Array.isArray(p.links) || p.links.length > LINK_CAP) throw bad('private links');
+    for (const l of p.links) {
+      if (!isObj(l) || Object.keys(l).length !== 4 || !COLLECTIONS.includes(l.fromCollection)) throw bad('private link');
+      const r = refsOf(l.fromCollection).find((x) => x[0] === l.field);
+      if (!r || typeof l.fromId !== 'string' || !l.fromId || l.fromId.length > 100 || typeof l.toId !== 'string' || !l.toId || l.toId.length > 100) throw bad('private link');
+    }
+    if (!isObj(p.wellbeing) || JSON.stringify(p.wellbeing).length > WELL_MAX) throw bad('private wellbeing data');
+    scanKeys(p, 0);
+    if (L.wellbeing) { try { p.wellbeing = L.wellbeing.clean(p.wellbeing); } catch (e) { throw bad('private wellbeing data is not valid'); } }
+    return p;
+  }
+  const keySets = (st) => { const o = {}; for (const c of COLLECTIONS) o[c] = new Set(listOf(st, c).map((r) => keyOf(c, r))); return o; };
+  function marksOf(p) {
+    const m = COLLECTIONS.filter((c) => (p.records[c] || []).length > 0);
+    if (Object.keys(p.wellbeing || {}).length) m.push('wellbeing');
+    return m;
+  }
+
+  // ---- merge, overlay, split ----
+  // Private records join the public ones. A private record whose key collides with a public one (budget category, habit tick,
+  // training cycle) is shadowed: hidden, kept untouched by the next write.
+  function merge(base, p) {
+    const out = Object.assign({}, base);
+    delete out.priv;
+    const shadow = {}, privKeys = {};
+    for (const c of COLLECTIONS) {
+      const pub = listOf(base, c), recs = (p.records && p.records[c]) || [];
+      privKeys[c] = new Set(); shadow[c] = [];
+      if (!recs.length) { if (c !== 'cycle') out[c] = pub.slice(); continue; }
+      const have = new Set(pub.map((r) => keyOf(c, r))), add = [];
+      for (const r of recs) {
+        const k = keyOf(c, r);
+        if (have.has(k)) { shadow[c].push(r); continue; }
+        have.add(k); privKeys[c].add(k); add.push(r);
+      }
+      if (c === 'cycle') out.cycle = add.length ? add[0] : base.cycle;
+      else out[c] = pub.concat(add);
+    }
+    return { out, shadow, privKeys };
+  }
+  // Re-attach references to private records. cow: copy a record before changing it (the view shares records with the base).
+  function overlay(st, links, cow) {
+    const idx = {}, copied = {}, ks = {};
+    for (const l of links) {
+      const c = l.fromCollection;
+      if (!idx[c]) { idx[c] = new Map(); st[c].forEach((r, i) => idx[c].set(r.id, i)); copied[c] = new Set(); }
+      const i = idx[c].get(l.fromId);
+      if (i === undefined) continue;
+      const tc = refsOf(c).find((x) => x[0] === l.field)[1];
+      if (!ks[tc]) ks[tc] = new Set(listOf(st, tc).map((r) => keyOf(tc, r)));
+      if (!ks[tc].has(l.toId)) continue;
+      let r = st[c][i];
+      if (cow && !copied[c].has(i)) { r = Object.assign({}, r); for (const x of refsOf(c)) if (Array.isArray(r[x[0]])) r[x[0]] = r[x[0]].slice(); st[c][i] = r; copied[c].add(i); }
+      if (refsOf(c).find((x) => x[0] === l.field)[2]) { if (!Array.isArray(r[l.field])) r[l.field] = []; if (!r[l.field].includes(l.toId)) r[l.field].push(l.toId); } else r[l.field] = l.toId;
+    }
+  }
+  function split(clean, ctx) {
+    const isP = {}, pub = Object.assign({}, clean), records = {}, links = [];
+    delete pub.priv;
+    const inSet = (c, k) => !!(ctx.moveIn[c] && ctx.moveIn[c].has(k)), outSet = (c, k) => !!(ctx.moveOut[c] && ctx.moveOut[c].has(k));
+    for (const c of COLLECTIONS) {
+      isP[c] = new Set();
+      for (const r of listOf(clean, c)) {
+        const k = keyOf(c, r);
+        let p = ctx.privKeys[c].has(k) || (!ctx.idsBefore[c].has(k) && ctx.newPrivate);
+        if (inSet(c, k)) p = true;
+        if (outSet(c, k)) p = false;
+        if (p) isP[c].add(k);
+      }
+    }
+    // An activity and its expense move together or not at all; a habit's ticks follow the habit.
+    for (const a of listOf(clean, 'activities')) {
+      if (!a.expenseId) continue;
+      const ap = isP.activities.has(a.id), ep = isP.entries.has(a.expenseId);
+      if (ap === ep || !listOf(clean, 'entries').some((e) => e.id === a.expenseId)) continue;
+      const out = outSet('activities', a.id) || outSet('entries', a.expenseId);
+      const to = !out;
+      for (const [c, k] of [['activities', a.id], ['entries', a.expenseId]]) { if (to) isP[c].add(k); else isP[c].delete(k); }
+    }
+    for (const t of listOf(clean, 'habitLog')) if (isP.habits.has(t.habitId)) isP.habitLog.add(keyOf('habitLog', t));
+    // SEC-62: a record created from or under a private record is private too, so no private text reaches the main state through a
+    // derived record (a confirmed recurring item, a carried-over outcome, the next maintenance task or renewal, a person added from
+    // an activity, a contact or study session logged for a private person or item). New records inherit when the caller names a
+    // private source (ctx.from), when the same write changed or removed a private record, or when they reference a private record.
+    if (!ctx.newPrivate) {
+      const fresh = [];
+      for (const c of COLLECTIONS) for (const r of listOf(clean, c)) { const k = keyOf(c, r); if (!ctx.idsBefore[c].has(k) && !isP[c].has(k)) fresh.push([c, k, r]); }
+      if (fresh.length) {
+        const all = (ctx.from || []).some(([c, k]) => isP[c] && isP[c].has(k)) || (ctx.privChanged && ctx.privChanged());
+        let more = true;
+        while (more) {
+          more = false;
+          for (const [c, k, r] of fresh) {
+            if (isP[c].has(k)) continue;
+            const hit = all || refsOf(c).some(([f, tc, isArr]) => (isArr ? Array.isArray(r[f]) && r[f].some((v) => isP[tc].has(v)) : typeof r[f] === 'string' && isP[tc].has(r[f])));
+            if (hit) { isP[c].add(k); more = true; }
+          }
+        }
+        for (const t of listOf(clean, 'habitLog')) if (isP.habits.has(t.habitId)) isP.habitLog.add(keyOf('habitLog', t));
+      }
+    }
+    for (const c of COLLECTIONS) {
+      const all = listOf(clean, c), mine = all.filter((r) => isP[c].has(keyOf(c, r))), rest = all.filter((r) => !isP[c].has(keyOf(c, r)));
+      const keep = (ctx.shadow[c] || []).filter((r) => !isP[c].has(keyOf(c, r))).map(clone);
+      if (c === 'cycle') { pub.cycle = rest.length ? rest[0] : null; }
+      else pub[c] = rest;
+      if (mine.length || keep.length) records[c] = mine.concat(keep);
+    }
+    for (const c of COLLECTIONS) {
+      for (const r of listOf(pub, c)) {
+        for (const [f, tc, isArr] of refsOf(c)) {
+          if (!isArr) {
+            const v = r[f];
+            if (typeof v === 'string' && isP[tc].has(v)) { links.push({ fromCollection: c, fromId: r.id, field: f, toId: v }); delete r[f]; }
+          } else if (Array.isArray(r[f])) {
+            const keepIds = [];
+            for (const v of r[f]) { if (isP[tc].has(v)) links.push({ fromCollection: c, fromId: r.id, field: f, toId: v }); else keepIds.push(v); }
+            r[f] = keepIds;
+          }
+        }
+      }
+    }
+    return { pub, records, links };
+  }
+
+  // ---- open / close / timer ----
+  const isOpen = () => !!(key && inner);
+  const pserial = (fn) => { const run = queue.then(fn); queue = run.catch(() => {}); return run; };
+  function scrub(p) {
+    if (!p) return;
+    try {
+      for (const c of Object.keys(p.records || {})) { for (const r of p.records[c]) for (const k of Object.keys(r)) delete r[k]; p.records[c].length = 0; delete p.records[c]; }
+      if (Array.isArray(p.links)) p.links.length = 0;
+      if (p.wellbeing) for (const k of Object.keys(p.wellbeing)) delete p.wellbeing[k];
+    } catch (e) { /* ignore */ }
+  }
+  // Empty working copies (merged views) after a write, so a pending continuation holds no private text.
+  function scrubState(w) {
+    if (!w) return;
+    try { for (const c of COLLECTIONS) { const a = listOf(w, c); for (const r of a) if (r && typeof r === 'object') for (const x of Object.keys(r)) delete r[x]; } for (const f of Object.keys(w)) delete w[f]; } catch (e) { /* ignore */ }
+  }
+  function scrubWb(w) { if (w && typeof w === 'object') for (const x of Object.keys(w)) delete w[x]; }
+  function auditQuiet(action) {
+    try {
+      if (!S().isUnlocked()) return;
+      S().commit((x) => {
+        if (!Array.isArray(x.audit)) x.audit = [];
+        x.audit.push({ ts: new Date().toISOString(), action });
+        while (x.audit.length > 200) x.audit.shift();
+      }, { quiet: true }).catch(() => {});
+    } catch (e) { /* ignore */ }
+  }
+  // why: undefined = the user or the timer (audited); 'system' = lock, wipe, passphrase change, sync replace, AI call (the caller audits).
+  function close(why) {
+    gen++; // an open or set-up still in flight when any close trigger fires must not leave the vault open (SEC-63)
+    clearTimeout(timer); timer = null; deadline = 0;
+    const was = isOpen();
+    const p = inner;
+    key = null; saltB64 = ''; inner = null;
+    scrub(p);
+    if (!was) return false;
+    if (why === undefined) auditQuiet('private vault closed');
+    for (const f of closers.slice()) { try { f(why); } catch (e) { /* ignore */ } }
+    return true;
+  }
+  function secs() {
+    try { const v = S().getState().settings.privAutoLockSec; return Number.isInteger(v) && v >= 15 && v <= 1800 ? v : DEFAULT_SEC; } catch (e) { return DEFAULT_SEC; }
+  }
+  function touch() {
+    if (!isOpen()) return;
+    const ms = secs() * 1000;
+    deadline = Date.now() + ms;
+    clearTimeout(timer);
+    timer = setTimeout(() => { close(); }, ms);
+    if (timer && typeof timer.unref === 'function') timer.unref();
+  }
+  function checkExpiry() { if (isOpen() && deadline && Date.now() >= deadline) { close(); return true; } return false; }
+  const hidden = () => typeof document !== 'undefined' && !!document.hidden;
+  function hook() {
+    if (hooked || typeof document === 'undefined' || !document.addEventListener) return;
+    hooked = true;
+    document.addEventListener('visibilitychange', () => { if (document.hidden) close(); });
+  }
+  const onClose = (f) => { if (typeof f === 'function') closers.push(f); };
+
+  async function sealPlain(p, k, salt) {
+    const { iv, ct } = await V().encrypt(k, p);
+    if (ct.length > CT_MAX) throw new Error('The private vault would be too large. Move some items out or delete old ones.');
+    return { v: 1, kdf: { name: 'PBKDF2', hash: 'SHA-256', iter: ITER, salt }, iv, ct, rev: p.rev, marks: marksOf(p) };
+  }
+  const bkey = async (pass, blob) => {
+    const salt = Uint8Array.from(atob(blob.kdf.salt), (ch) => ch.charCodeAt(0));
+    return V().deriveKey(pass, salt);
+  };
+  async function decryptBlob(blob, pass) {
+    const k = await bkey(pass, blob);
+    let p;
+    try { p = await V().decrypt(k, blob); } catch (e) { throw new Error('BAD_PRIVATE_PASSPHRASE'); }
+    checkInner(p, blob.rev);
+    return { k, p };
+  }
+  // True when `pass` opens the private blob (used to keep the main passphrase different without ever storing either).
+  async function matches(blob, pass) {
+    try { const k = await bkey(pass, blob); await V().decrypt(k, blob); return true; } catch (e) { return false; }
+  }
+  const needBase = () => { const st = S().getState(); return st; };
+  const isSetUp = (st) => !!(st && st.priv);
+  const marks = (st) => (st && st.priv ? st.priv.marks.slice() : []);
+
+  async function setUp(pass) {
+    return pserial(async () => {
+      const st = needBase(), g0 = gen;
+      if (st.priv) throw new Error('The private vault is already set up.');
+      V().checkPassphrase(pass);
+      if (await S().matchesMain(pass)) throw new Error('The private passphrase must be different from your main passphrase.');
+      const salt = V().newSalt();
+      const k = await V().deriveKey(pass, salt);
+      let sb = '';
+      for (const b of salt) sb += String.fromCharCode(b);
+      sb = btoa(sb);
+      const p = emptyInner(0), blob = await sealPlain(p, k, sb);
+      await S().commit((x) => {
+        if (x.priv) throw new Error('The private vault is already set up.');
+        x.priv = blob;
+        if (!Array.isArray(x.audit)) x.audit = [];
+        x.audit.push({ ts: new Date().toISOString(), action: 'private vault set up' });
+        while (x.audit.length > 200) x.audit.shift();
+      });
+      // A close trigger (tab hidden, app lock, AI call) during set-up leaves the new vault closed.
+      if (gen !== g0 || hidden()) { close('system'); return; }
+      close('system'); key = k; saltB64 = sb; inner = p; hook(); touch(); markRecs(p);
+    });
+  }
+  function markRecs(p) { for (const c of Object.keys(p.records)) for (const r of p.records[c]) privRecs.add(r); }
+  async function open(pass) {
+    return pserial(async () => {
+      const st = needBase();
+      if (!st.priv) throw new Error('No private vault is set up.');
+      if (isOpen()) return true;
+      const g0 = gen;
+      const { k, p } = await decryptBlob(st.priv, pass);
+      if (!S().isUnlocked() || S().getState() !== st) { scrub(p); throw new Error('LOCKED'); }
+      // A close trigger fired while the key was being derived (tab hidden, app lock, AI call, Close): stay closed.
+      if (gen !== g0 || hidden()) { scrub(p); throw new Error('The private vault closed while it was opening. Open it again.'); }
+      const m = merge(st, p);
+      try { const w = clone(m.out); overlay(w, p.links, false); S().validateState(w, PRIVATE_OK); } catch (e) { scrub(p); const x = bad('The private vault data is not valid: ' + String(e.message || '').slice(0, 120)); throw x; }
+      key = k; saltB64 = st.priv.kdf.salt; inner = p; hook(); touch(); markRecs(p);
+      auditQuiet('private vault opened');
+      return true;
+    });
+  }
+  async function changePassphrase(oldP, newP) {
+    return pserial(async () => {
+      const st = needBase();
+      if (!st.priv) throw new Error('No private vault is set up.');
+      const { p } = await decryptBlob(st.priv, oldP);
+      V().checkPassphrase(newP);
+      if (await S().matchesMain(newP)) throw new Error('The private passphrase must be different from your main passphrase.');
+      const salt = V().newSalt(), k = await V().deriveKey(newP, salt);
+      let sb = '';
+      for (const b of salt) sb += String.fromCharCode(b);
+      sb = btoa(sb);
+      const next = clone(p); next.rev = p.rev + 1;
+      const blob = await sealPlain(next, k, sb);
+      close('system');
+      await S().commit((x) => {
+        x.priv = blob;
+        if (!Array.isArray(x.audit)) x.audit = [];
+        x.audit.push({ ts: new Date().toISOString(), action: 'private vault passphrase changed' });
+        while (x.audit.length > 200) x.audit.shift();
+      });
+      scrub(next); scrub(p);
+    });
+  }
+  async function destroy() {
+    return pserial(async () => {
+      needBase();
+      close('system');
+      await S().commit((x) => {
+        delete x.priv;
+        if (!Array.isArray(x.audit)) x.audit = [];
+        x.audit.push({ ts: new Date().toISOString(), action: 'private vault destroyed' });
+        while (x.audit.length > 200) x.audit.shift();
+      });
+    });
+  }
+
+  // ---- views ----
+  function view(st) {
+    if (!isOpen() || !st || !st.priv || viewBase.has(st)) return st;
+    const m = merge(st, inner);
+    overlay(m.out, inner.links, true);
+    viewBase.set(m.out, st);
+    return m.out;
+  }
+  const isView = (s) => viewBase.has(s);
+  const mainOnly = (s) => (viewBase.has(s) ? viewBase.get(s) : s);
+  const isPrivateRecord = (r) => privRecs.has(r);
+
+  // ---- the single write path ----
+  // fn mutates a state-shaped working copy (public and private records together, overlays applied). Afterwards every record is
+  // routed to the main state or the inner plaintext by where it lives, in one write. Closed: plain store.commit.
+  // o: { newPrivate, moveIn:{c:Set}, moveOut:{c:Set}, audit }
+  // SEC-65: wellbeing values live only in the private vault. No write may add a wellbeing entry to the main state (earlier thin
+  // mood entries already there stay until they are moved in).
+  const isWbEntry = (e) => !!e && e.domain === 'wellbeing';
+  function noWellbeing(fn) {
+    return async (st, wb) => {
+      const had = new Set((Array.isArray(st.entries) ? st.entries : []).filter(isWbEntry).map((e) => e.id));
+      if (fn) await fn(st, wb);
+      if ((Array.isArray(st.entries) ? st.entries : []).some((e) => isWbEntry(e) && !had.has(e.id))) throw new Error('Wellbeing is kept only in the private vault. Use the Wellbeing check-in.');
+    };
+  }
+  function write(fn, o) {
+    o = o || {};
+    fn = noWellbeing(fn);
+    if (!isOpen()) {
+      if (o.newPrivate || o.moveIn || o.moveOut) return Promise.reject(new Error('The private vault is closed.'));
+      return S().commit(fn);
+    }
+    return pserial(() => writeRaw(fn, o));
+  }
+  function writeRaw(fn, o) {
+    return (async () => {
+      if (!isOpen()) throw new Error('The private vault is closed.');
+      const k = key, before = inner, sb = saltB64;
+      let next = null, next_wb = null, work = null, wb = null;
+      try {
+      await S().commit(async (st) => {
+        if (!st.priv || st.priv.rev !== before.rev) throw new Error('The private vault changed. Close it and open it again.');
+        const m = merge(st, before);
+        work = clone(m.out);
+        overlay(work, before.links, false);
+        const idsBefore = keySets(work);
+        wb = clone(before.wellbeing);
+        if (fn) await fn(work, wb);
+        // Did this write change or remove a private record? (Only asked when it also created records; see split.)
+        const privChanged = () => COLLECTIONS.some((c) => {
+          if (!m.privKeys[c].size) return false;
+          const now = new Map(listOf(work, c).map((r) => [keyOf(c, r), r]));
+          for (const r of (before.records[c] || [])) { const kk = keyOf(c, r); if (!m.privKeys[c].has(kk)) continue; const w = now.get(kk); if (!w || JSON.stringify(w) !== JSON.stringify(r)) return true; }
+          return false;
+        });
+        if (L.wellbeing) { try { next_wb = L.wellbeing.clean(wb); } catch (e) { throw bad('private wellbeing data is not valid'); } } else next_wb = wb;
+        if (o.audit) { if (!Array.isArray(work.audit)) work.audit = []; work.audit.push({ ts: new Date().toISOString(), action: o.audit }); while (work.audit.length > 200) work.audit.shift(); }
+        delete work.priv;
+        const clean = S().validateState(work, PRIVATE_OK);
+        const sp = split(clean, { privKeys: m.privKeys, shadow: m.shadow, idsBefore, moveIn: o.moveIn || {}, moveOut: o.moveOut || {}, newPrivate: !!o.newPrivate, from: Array.isArray(o.from) ? o.from : [], privChanged });
+        next = { schema: 1, rev: before.rev + 1, records: sp.records, links: sp.links, wellbeing: next_wb };
+        if (key !== k) throw new Error('The private vault is closed.');
+        const blob = await sealPlain(next, k, sb);
+        if (key !== k) throw new Error('The private vault is closed.');
+        for (const f of Object.keys(st)) delete st[f];
+        Object.assign(st, sp.pub, { priv: blob });
+      });
+      } catch (e) { scrub(next); scrubState(work); scrubWb(wb); throw e; }
+      // Success: drop the working copy's references only (its records were copied by validateState, never shared, but the stored state must never be touched here).
+      if (work) for (const f of Object.keys(work)) delete work[f];
+      scrubWb(wb);
+      // SEC-64: the vault closed while the write was being stored. The write is saved (encrypted); only the plaintext is dropped.
+      if (key !== k) { scrub(next); return; }
+      inner = next; scrub(before); markRecs(next); touch();
+    })();
+  }
+  // Part B and other inner-only changes: fn mutates a copy of the inner plaintext (records, links and wellbeing); one write.
+  function commit(fn) {
+    if (!isOpen()) return Promise.reject(new Error('The private vault is closed.'));
+    return pserial(async () => {
+      if (!isOpen()) throw new Error('The private vault is closed.');
+      const k = key, before = inner, sb = saltB64;
+      const next = clone(before);
+      let w = null;
+      try {
+        await fn(next);
+        if (key !== k) throw new Error('The private vault is closed.');
+        next.rev = before.rev + 1;
+        checkInner(next, next.rev);
+        await S().commit(async (st) => {
+          if (!st.priv || st.priv.rev !== before.rev) throw new Error('The private vault changed. Close it and open it again.');
+          const m = merge(st, next); w = clone(m.out); overlay(w, next.links, false);
+          S().validateState(w, PRIVATE_OK);
+          if (key !== k) throw new Error('The private vault is closed.');
+          const blob = await sealPlain(next, k, sb);
+          if (key !== k) throw new Error('The private vault is closed.');
+          st.priv = blob;
+        });
+      } catch (e) { scrub(next); scrubState(w); throw e; }
+      scrubState(w);
+      // SEC-64: closed while the write was being stored: it is saved (encrypted); only the plaintext is dropped.
+      if (key !== k) { scrub(next); return; }
+      inner = next; scrub(before); markRecs(next); touch();
+    });
+  }
+  const getWellbeing = () => { if (!isOpen()) throw new Error('The private vault is closed.'); return clone(inner.wellbeing); };
+
+  // ---- moving ----
+  const CHILDREN = {
+    people: [['contacts', 'personId']],
+    learningItems: [['studySessions', 'itemId'], ['takeaways', 'itemId']],
+    projects: [['entries', 'projectId']],
+    accounts: [['entries', 'accountId']],
+    properties: [['maintenance', 'propertyId']],
+    vehicles: [['maintenance', 'vehicleId']],
+    groups: [['people', 'groupId']],
+  };
+  // Everything that has to move with (c, id): its pair (activity and expense), a habit's ticks, and with `children` its children.
+  function closure(st, c, id, children) {
+    if (!COLLECTIONS.includes(c)) throw new Error('Unknown collection');
+    // SEC-68: indexes built once per call, so a parent with tens of thousands of children is linear, not quadratic.
+    const byKey = {}, byRef = {};
+    const rec = (cc, k) => { if (!byKey[cc]) byKey[cc] = new Map(listOf(st, cc).map((r) => [keyOf(cc, r), r])); return byKey[cc].get(k); };
+    const refs = (cc, f, v) => {
+      const t = cc + '\u0000' + f;
+      if (!byRef[t]) { const m = new Map(); for (const r of listOf(st, cc)) { const x = r[f]; if (typeof x === 'string') { if (!m.has(x)) m.set(x, []); m.get(x).push(r); } } byRef[t] = m; }
+      return byRef[t].get(v) || [];
+    };
+    const seen = new Set(), out = [], q = [[c, id]];
+    for (let qi = 0; qi < q.length; qi++) {
+      const [cc, k] = q[qi], tag = cc + '\u0000' + k;
+      if (seen.has(tag)) continue;
+      const r0 = rec(cc, k);
+      if (!r0) { if (cc === c && k === id) throw new Error('That item no longer exists.'); continue; }
+      seen.add(tag); out.push([cc, k]);
+      if (cc === 'activities' && r0.expenseId) q.push(['entries', r0.expenseId]);
+      if (cc === 'entries') for (const a of refs('activities', 'expenseId', k)) q.push(['activities', a.id]);
+      if (cc === 'habits') for (const t of refs('habitLog', 'habitId', k)) q.push(['habitLog', keyOf('habitLog', t)]);
+      if (children) for (const [ch, f] of CHILDREN[cc] || []) for (const r of refs(ch, f, k)) if (ch !== 'entries' || (cc === 'accounts' ? r.type === 'balance' : r.type === 'outcome')) q.push([ch, keyOf(ch, r)]);
+    }
+    return out;
+  }
+  function childrenOf(st, c, id) {
+    const all = closure(st, c, id, true), base = new Set(closure(st, c, id, false).map((x) => x[0] + '\u0000' + x[1]));
+    return all.filter((x) => !base.has(x[0] + '\u0000' + x[1])).map((x) => ({ collection: x[0], id: x[1] }));
+  }
+  const toSets = (list) => { const o = {}; for (const [c, k] of list) (o[c] = o[c] || new Set()).add(k); return o; };
+  async function move(dir, c, id, opts) {
+    if (!isOpen()) throw new Error('Open the private vault first.');
+    const st = view(S().getState()), want = dir === 'in';
+    const base = S().getState(), pk = {}, bk = {};
+    const inPriv = (cc, k) => { if (!pk[cc]) pk[cc] = new Set((inner.records[cc] || []).map((r) => keyOf(cc, r))); return pk[cc].has(k); };
+    const inBase = (cc, k) => { if (!bk[cc]) bk[cc] = new Set(listOf(base, cc).map((r) => keyOf(cc, r))); return bk[cc].has(k); };
+    const list = closure(st, c, id, !!(opts && opts.children)).filter(([cc, k]) => {
+      const priv = inPriv(cc, k) && !inBase(cc, k);
+      return want ? !priv : priv;
+    });
+    if (!list.length) return 0;
+    for (const [cc, k] of list) {
+      if (want && inPriv(cc, k)) throw new Error('A private item with the same name already exists.');
+      if (want && cc === 'cycle' && inner.records.cycle && inner.records.cycle.length) throw new Error('A training cycle is already in the private vault.');
+      if (!want && cc === 'cycle' && S().getState().cycle) throw new Error('A training cycle already exists outside the private vault.');
+    }
+    await writeRaw(null, { [want ? 'moveIn' : 'moveOut']: toSets(list), audit: want ? 'private vault moved in' : 'private vault moved out' });
+    return list.length;
+  }
+  function isPrivateKey(c, k) {
+    if (!isOpen()) return false;
+    const base = S().getState();
+    return (inner.records[c] || []).some((r) => keyOf(c, r) === k) && !listOf(base, c).some((r) => keyOf(c, r) === k);
+  }
+  const moveIn = (c, id, opts) => pserial(() => move('in', c, id, opts));
+  const moveOut = (c, id, opts) => pserial(() => move('out', c, id, opts));
+  // Which collection keys are private right now (open only): for UI badges and routing checks.
+  function isPrivate(c, id) { return isPrivateKey(c, id); }
+
+  L.priv = {
+    COLLECTIONS, MARK_NAMES, isSetUp, setUp, open, close, isOpen, view, commit, write, moveIn, moveOut, childrenOf, changePassphrase, destroy, marks,
+    touch, checkExpiry, onClose, isView, mainOnly, isPrivateRecord, isPrivate, cleanBlob, matches, getWellbeing, secsLeft: () => (isOpen() ? Math.max(0, Math.ceil((deadline - Date.now()) / 1000)) : 0),
+  };
+})();
+
+;
+(function () {
+  'use strict';
+  // v0.11.0 part B: Wellbeing. Lives only in the private vault's inner plaintext (`wellbeing.checkins`), never in the main state.
+  // Numbers and dates only: no interpretation, labels, thresholds, flags, norms or advice. Sleep, contacts and social-tagged
+  // activities are read live from Health, Social and Activities and never copied. Pure functions over a wellbeing object; the
+  // callers (priv.commit or priv.write) do the saving.
+  const L = (globalThis.LifeOS = globalThis.LifeOS || {});
+  const CAP = 6000, NOTE_MAX = 200, ID_MAX = 100;
+  const AREAS = Object.freeze([
+    Object.freeze({ id: 'mood', label: 'Mood' }),
+    Object.freeze({ id: 'mental', label: 'Mental state' }),
+    Object.freeze({ id: 'recovery', label: 'Rest and recovery' }),
+    Object.freeze({ id: 'connected', label: 'Social engagement' }),
+    Object.freeze({ id: 'intimacy', label: 'Intimacy' }),
+  ]);
+  const AREA_IDS = AREAS.map((a) => a.id);
+  const FIELDS = AREA_IDS.concat(['note']);
+  const SECRET_MESSAGE = 'That looks like an ID number or a card number. Do not enter ID numbers, account numbers or passwords here.';
+  const BLOCKED = new Set(['__proto__', 'constructor', 'prototype']);
+  const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+  const D = () => L.metrics;
+  const fail = (m) => { const e = new Error(m); e.code = 'WELLBEING_INVALID'; throw e; };
+  const isRating = (v) => Number.isInteger(v) && v >= 1 && v <= 5;
+  const addDays = (s, n) => D().addDays(s, n);
+
+  // ---- validation of stored data (opening the vault) ----
+  function cleanCheckin(x, seen) {
+    if (!isObj(x)) fail('check-in');
+    for (const k of Object.keys(x)) if (k !== 'id' && k !== 'date' && !FIELDS.includes(k)) fail('check-in has an unknown field');
+    if (typeof x.id !== 'string' || !x.id || x.id.length > ID_MAX) fail('check-in id');
+    if (seen.ids.has(x.id)) fail('duplicate check-in id');
+    if (!D().isDate(x.date)) fail('check-in date');
+    if (seen.dates.has(x.date)) fail('two check-ins share a date');
+    seen.ids.add(x.id); seen.dates.add(x.date);
+    const o = { id: x.id, date: x.date };
+    for (const a of AREA_IDS) if (x[a] !== undefined) { if (!isRating(x[a])) fail('check-in rating'); o[a] = x[a]; }
+    if (x.note !== undefined) {
+      if (typeof x.note !== 'string' || x.note.length > NOTE_MAX) fail('check-in note');
+      if (x.note) o.note = x.note;
+    }
+    if (!AREA_IDS.some((a) => o[a] !== undefined) && o.note === undefined) fail('empty check-in');
+    return o;
+  }
+  // The inner `wellbeing` object: only `checkins` is allowed; absent when empty (so an empty vault has no wellbeing mark).
+  function clean(w) {
+    if (!isObj(w)) fail('wellbeing data');
+    for (const k of Object.keys(w)) { if (BLOCKED.has(k) || k !== 'checkins') fail('wellbeing data has an unknown field'); }
+    if (w.checkins === undefined) return {};
+    if (!Array.isArray(w.checkins) || w.checkins.length > CAP) fail('wellbeing check-ins');
+    const seen = { ids: new Set(), dates: new Set() };
+    const list = w.checkins.map((c) => cleanCheckin(c, seen)).sort((a, b) => a.date.localeCompare(b.date));
+    return list.length ? { checkins: list } : {};
+  }
+
+  // ---- reading ----
+  const listOf = (w) => (w && Array.isArray(w.checkins) ? w.checkins : []);
+  const byDate = (w, d) => listOf(w).find((c) => c.date === d) || null;
+  function ratingsOf(w, area, a, b) {
+    const out = [];
+    for (const c of listOf(w)) if (c.date >= a && c.date <= b && c[area] !== undefined) out.push(c[area]);
+    return out;
+  }
+  // Mean of the ratings logged in [a, b]; n is how many; avg is null with none. Exact, unrounded.
+  function avg(w, area, a, b) {
+    if (!AREA_IDS.includes(area)) fail('Unknown area');
+    const r = ratingsOf(w, area, a, b);
+    return { n: r.length, avg: r.length ? r.reduce((s, v) => s + v, 0) / r.length : null };
+  }
+  // Per area: today's rating, the 7 and 30 day averages (today included), the 7 days before those, and a 30 day daily series.
+  function summary(w, area, today) {
+    if (!D().isDate(today)) fail('today must be YYYY-MM-DD');
+    const t = byDate(w, today), series = [];
+    for (let i = 29; i >= 0; i--) { const d = addDays(today, -i), c = byDate(w, d); series.push({ date: d, value: c && c[area] !== undefined ? c[area] : null }); }
+    return {
+      area, today: t && t[area] !== undefined ? t[area] : null,
+      avg7: avg(w, area, addDays(today, -6), today), avg30: avg(w, area, addDays(today, -29), today), prev7: avg(w, area, addDays(today, -13), addDays(today, -7)),
+      series,
+    };
+  }
+  // Consecutive local dates with a check-in, ending today, or ending yesterday when today has none yet.
+  function streak(w, today) {
+    if (!D().isDate(today)) fail('today must be YYYY-MM-DD');
+    const have = new Set(listOf(w).map((c) => c.date));
+    let d = have.has(today) ? today : addDays(today, -1), n = 0;
+    while (have.has(d)) { n++; d = addDays(d, -1); }
+    return n;
+  }
+  const checkinsInWeek = (w, asOf) => listOf(w).filter((c) => c.date >= addDays(asOf, -6) && c.date <= asOf).length;
+  // Goal metric values: null (no data) when there is nothing to average.
+  function goalValue(w, metric, asOf) {
+    if (metric === 'wbCheckinsPerWeek') return listOf(w).length ? checkinsInWeek(w, asOf) : null;
+    const area = AREA_IDS.find((a) => metric === 'wb' + a[0].toUpperCase() + a.slice(1));
+    if (!area) fail('Unknown goal metric');
+    const v = avg(w, area, addDays(asOf, -6), asOf).avg;
+    return v === null ? null : Math.round(v * 100) / 100;
+  }
+  const GOAL_METRICS = Object.freeze(AREA_IDS.map((a) => 'wb' + a[0].toUpperCase() + a.slice(1)).concat(['wbCheckinsPerWeek']));
+  const isGoalMetric = (m) => GOAL_METRICS.includes(m);
+  // Live reads from other areas, computed on demand and never stored. `state` is the view (private records merged in while open).
+  function live(state, today) {
+    const m = D(), a7 = addDays(today, -6), a30 = addDays(today, -29);
+    const sleep = (a, b) => m.sleepAvg(state, a, b);
+    const soc = (a, b) => (state.activities || []).filter((x) => x.state === 'done' && x.alsoSocial && x.date >= a && x.date <= b).length;
+    const contacts = (a, b) => (L.social && L.social.contactsBetween ? L.social.contactsBetween(state, a, b) : 0);
+    return {
+      sleep: { today: sleep(today, today).avg, avg7: sleep(a7, today), avg30: sleep(a30, today) },
+      contacts: { today: contacts(today, today), d7: contacts(a7, today), d30: contacts(a30, today) },
+      socialActivities: { today: soc(today, today), d7: soc(a7, today), d30: soc(a30, today) },
+    };
+  }
+
+  // ---- writing (called with the inner wellbeing object inside priv.commit / priv.write) ----
+  function textOf(v) {
+    if (typeof v !== 'string') fail('The note must be text.');
+    const t = v.trim();
+    if (t.length > NOTE_MAX) fail('The note can be up to ' + NOTE_MAX + ' characters.');
+    if (L.admin && L.admin.looksSecret(t)) fail(SECRET_MESSAGE);
+    return t;
+  }
+  // Merge one section update (or a quick update of several) into the check-in for input.date. A field that is undefined is left
+  // alone, null (or an empty note) removes it, a rating sets it. Other sections of the same day are never touched.
+  function save(w, input, newId) {
+    if (!isObj(w)) fail('wellbeing data');
+    if (!isObj(input)) fail('Check-in must be an object');
+    for (const k of Object.keys(input)) if (k !== 'date' && !FIELDS.includes(k)) fail('Unknown check-in field');
+    if (!D().isDate(input.date)) fail('The date must be a valid date.');
+    const patch = {};
+    for (const a of AREA_IDS) {
+      const v = input[a];
+      if (v === undefined) continue;
+      if (v === null) { patch[a] = null; continue; }
+      if (!isRating(v)) fail('A rating is a whole number from 1 to 5.');
+      patch[a] = v;
+    }
+    if (input.note !== undefined) { const t = input.note === null ? '' : textOf(input.note); patch.note = t === '' ? null : t; }
+    if (!Object.keys(patch).length) fail('Nothing to save. Pick at least one rating or write a note.');
+    const list = Array.isArray(w.checkins) ? w.checkins : [];
+    let c = list.find((x) => x.date === input.date);
+    const isNew = !c;
+    if (isNew) {
+      if (list.length >= CAP) fail('You can keep up to ' + CAP + ' check-ins.');
+      c = { id: typeof newId === 'function' ? newId() : L.store.newId(), date: input.date };
+    }
+    const next = Object.assign({}, c);
+    for (const k of Object.keys(patch)) { if (patch[k] === null) delete next[k]; else next[k] = patch[k]; }
+    const has = AREA_IDS.some((a) => next[a] !== undefined) || next.note !== undefined;
+    if (!has && isNew) fail('Nothing to save. Pick at least one rating or write a note.');
+    // Nothing above failed: only now is the caller's object changed.
+    let out = list.filter((x) => x !== c);
+    if (has) out.push(next);
+    out.sort((a, b) => a.date.localeCompare(b.date));
+    if (out.length) w.checkins = out; else delete w.checkins;
+    return has ? next : null;
+  }
+
+  // ---- earlier thin mood entries (domain wellbeing, type mood) ----
+  // An entry moves in only when everything it holds fits exactly: an integer 1 to 5 rating, its title and notes in one note of up
+  // to 200 characters that passes the secrets guard, and no clash with a check-in already holding a different mood on that date.
+  // Anything else stays where it is, so nothing is lost. Running it again moves nothing new.
+  const isOld = (e) => e && e.domain === 'wellbeing' && e.type === 'mood';
+  function oldPlan(entries, w) {
+    const olds = (entries || []).filter(isOld).slice().sort((a, b) => a.date.localeCompare(b.date) || String(a.createdAt || '').localeCompare(String(b.createdAt || '')));
+    const move = [], keep = [], day = new Map();
+    for (const c of listOf(w)) day.set(c.date, { mood: c.mood, note: c.note });
+    for (const e of olds) {
+      const text = [e.title, e.notes].filter((x) => typeof x === 'string' && x.trim()).map((x) => x.trim()).join(' - ');
+      let ok = isRating(e.value) && D().isDate(e.date) && text.length <= NOTE_MAX && !(L.admin && L.admin.looksSecret(text));
+      const cur = day.get(e.date);
+      if (ok && cur && ((cur.mood !== undefined && cur.mood !== e.value) || (cur.note !== undefined && text && cur.note !== text))) ok = false;
+      if (ok && !listOf(w).some((c) => c.date === e.date) && listOf(w).length + new Set(move.map((m) => m.date)).size >= CAP) ok = false;
+      if (ok) { move.push({ id: e.id, date: e.date, mood: e.value, note: text }); day.set(e.date, { mood: e.value, note: text || (cur && cur.note) }); } else keep.push(e.id);
+    }
+    return { move, keep };
+  }
+  const pendingOld = (entries, w) => oldPlan(entries, w).move.length;
+  const hasOld = (entries) => (entries || []).some(isOld);
+  // Inside priv.write(fn): fn(work, wb). Removes the movable entries from work.entries and merges them into wb.
+  function moveOld(work, wb, newId) {
+    const plan = oldPlan(work.entries, wb), gone = new Set(plan.move.map((m) => m.id));
+    for (const m of plan.move) save(wb, { date: m.date, mood: m.mood, note: m.note || undefined }, newId);
+    work.entries = work.entries.filter((e) => !gone.has(e.id));
+    return { moved: plan.move.length, kept: plan.keep.length };
+  }
+
+  L.wellbeing = {
+    AREAS, AREA_IDS, CAP, NOTE_MAX, SECRET_MESSAGE, GOAL_METRICS, isGoalMetric, clean, cleanCheckin, listOf, byDate, avg, summary, streak, checkinsInWeek,
+    goalValue, live, save, oldPlan, pendingOld, hasOld, moveOld, isRating,
+  };
 })();
 
 ;
@@ -1160,6 +1948,8 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     const { domain, type, map } = opts || {};
     const dom = L.DOMAINS.find((d) => d.id === domain);
     if (!dom || !dom.types.some((t) => t.id === type)) throw new Error('Unknown domain or type');
+    // SEC-65: wellbeing lives only in the private vault, so it is never imported into the main state.
+    if (domain === 'wellbeing') throw new Error('Wellbeing is kept only in the private vault and cannot be imported.');
     if (!map || typeof map !== 'object') throw new Error('Column mapping required');
     const tfields = dom.types.find((t) => t.id === type).fields;
     // Only fields the selected type has may be mapped; its required fields must be mapped.
@@ -1208,7 +1998,8 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       return '"' + s.replace(/"/g, '""') + '"';
     };
     const lines = [cols.map(q).join(',')];
-    for (const e of rows || []) lines.push(cols.map((c) => q(e[c])).join(','));
+    // CSV exports never carry private records, even if a caller hands them over.
+    for (const e of rows || []) if (!(L.priv && L.priv.isPrivateRecord(e))) lines.push(cols.map((c) => q(e[c])).join(','));
     return lines.join('\r\n') + '\r\n';
   }
   const exportEntries = (entries) => toCsv(['id', 'domain', 'type', 'date', 'title', 'value', 'status', 'person', 'due', 'notes', 'createdAt', 'kind', 'minutes', 'effort', 'projectId'], entries);
@@ -1804,9 +2595,12 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   const byDomain = (state, id) => state.entries.filter((e) => e.domain === id);
 
   function weeklyDigest(state, weekStartISO) {
+    if (L.priv) state = L.priv.mainOnly(state);
     const ws = weekStart(weekStartISO), pw = addDays(ws, -7);
     const domains = {};
     for (const d of DOMAINS) {
+      // SEC-66 (owner decision): wellbeing is kept away from the AI, so no wellbeing number is ever part of the digest.
+      if (d.id === 'wellbeing') continue;
       const ents = byDomain(state, d.id);
       domains[d.id] = { now: r2(weekMetric(state, d.id, ws, ents)), prev: r2(weekMetric(state, d.id, pw, ents)), unit: unitOf(state, d.id) };
     }
@@ -4196,7 +4990,15 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     mk('avgWorthIt', 'Average worth-it rating', 'activities', 'number'),
     mk('peopleOverdue', 'People overdue', 'social', 'count'),
     mk('contactsPerWeek', 'Contacts per week', 'social', 'count'),
+    // Wellbeing metrics (v0.11.0): read from the private vault while it is open; only a private goal may use them (store.validateState).
+    mk('wbMood', 'Mood, 7-day average', 'wellbeing', 'number'),
+    mk('wbMental', 'Mental state, 7-day average', 'wellbeing', 'number'),
+    mk('wbRecovery', 'Rest and recovery, 7-day average', 'wellbeing', 'number'),
+    mk('wbConnected', 'Social engagement, 7-day average', 'wellbeing', 'number'),
+    mk('wbIntimacy', 'Intimacy, 7-day average', 'wellbeing', 'number'),
+    mk('wbCheckinsPerWeek', 'Wellbeing check-ins per week', 'wellbeing', 'count'),
   ]);
+  const isWellbeingMetric = (id) => typeof id === 'string' && id.slice(0, 2) === 'wb' && !!metricDef(id);
   // Body metrics are sensitive (SEC-32): goals on them never reach a digest, prompt or rules insight.
   const BODY = Object.freeze(['weight', 'bodyFat']);
   const PACE_LABEL = Object.freeze({ ahead: 'Ahead', 'on-track': 'On track', behind: 'Behind', 'no-data': 'No data yet' });
@@ -4268,6 +5070,10 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       case 'avgWorthIt': return L.activities.goalRating(state, asOf);
       case 'peopleOverdue': return L.social.goalOverdue(state, asOf);
       case 'contactsPerWeek': return L.social.goalContacts(state, asOf);
+      case 'wbMood': case 'wbMental': case 'wbRecovery': case 'wbConnected': case 'wbIntimacy': case 'wbCheckinsPerWeek':
+        // Private data: only while the vault is open, otherwise "no data yet" (a private goal is not even visible while it is closed).
+        if (!L.priv || !L.priv.isOpen() || !L.wellbeing) return null;
+        return L.wellbeing.goalValue(L.priv.getWellbeing(), metric, asOf);
       case 'pipelineWon':
         if (!(state.pipeline || []).length) return null;
         return state.pipeline.filter((x) => x.stage === 'won' && x.updatedAt <= asOf).length;
@@ -4468,7 +5274,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     }
     checkShape(g);
     checkParent(state.goals.concat([g]), g);
-    L.store.validateGoals(state.goals.concat([g]));
+    L.store.validateGoals(state.goals.concat([g]), true); // wellbeing metrics: the private-only rule is enforced where the goal is stored (store.validateState)
     state.goals.push(g);
     return g;
   }
@@ -4491,7 +5297,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     const list = state.goals.map((x) => (x.id === id ? n : x));
     checkParent(list, n);
     for (const c of list.filter((x) => x.parentId === id)) checkParent(list, c);
-    L.store.validateGoals(list);
+    L.store.validateGoals(list, true);
     for (const k of Object.keys(g)) delete g[k];
     Object.assign(g, n);
     return g;
@@ -4547,7 +5353,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   }
 
   L.goals = {
-    HORIZONS, HORIZON_LABEL, METRICS, BODY, PACE_LABEL, TOLERANCE, metricDef, isBody, currentValue, progressOf, elapsedShare, paceOf, evaluate,
+    HORIZONS, HORIZON_LABEL, METRICS, isWellbeingMetric, BODY, PACE_LABEL, TOLERANCE, metricDef, isBody, currentValue, progressOf, elapsedShare, paceOf, evaluate,
     fmtValue, pct, summary, digestCounts, weekShare, publicActive, childrenOf, ladder, defaultDue, nextPeriod, rollTarget, reviewGoals,
     addGoal, updateGoal, setManualValue, setOverride, achieveGoal, dropGoal, reopenGoal, deleteGoal, rollOver,
   };
@@ -4558,7 +5364,10 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   'use strict';
   const L = (globalThis.LifeOS = globalThis.LifeOS || {});
   const MAX_TEXT = 280, MAX_ITEMS = 5, LESSON_CAP = 30, INSIGHT_CAP = 5000, CTX_MAX = 8;
-  const domains = () => L.DOMAINS.map((d) => d.id).concat(['overall']);
+  // SEC-66 (owner decision): wellbeing never reaches the AI. Prompts, the domain list the model may answer with, rules insights
+  // and new proposals leave it out; earlier wellbeing insights stay in the vault but are never sent.
+  const NO_AI = new Set(['wellbeing']);
+  const domains = () => L.DOMAINS.map((d) => d.id).filter((id) => !NO_AI.has(id)).concat(['overall']);
   const BIDI = /[\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF]/g;
   const newId = () => L._webcrypto.randomUUID();
 
@@ -4569,11 +5378,13 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   function checkLevel(l) { if (l !== 1 && l !== 2 && l !== 3) throw new Error('Invalid level'); return l; }
 
   function rulesInsights(state, weekStartISO) {
+    if (L.priv) state = L.priv.mainOnly(state);
     const dg = L.metrics.weeklyDigest(state, weekStartISO);
     const t = state.settings.targets, cur = state.settings.currency;
     const out = [];
     const money = (v) => L.metrics.fmtMoney(v, cur);
     for (const d of L.DOMAINS) {
+      if (!dg.domains[d.id]) continue;
       const { now, prev, unit } = dg.domains[d.id];
       if (now === 0 && prev === 0) continue;
       let text = null;
@@ -4596,11 +5407,6 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
           break;
         case 'assets':
           if (now !== prev) text = 'Net worth moved ' + dir + ' from ' + money(prev) + ' to ' + money(now) + '.';
-          break;
-        case 'wellbeing':
-          if (now === 0) break;
-          if (prev > 0 && now !== prev) text = 'Average mood is ' + dir + ' from ' + prev + ' to ' + now + '.';
-          else if (prev === 0) text = 'Average mood this week is ' + now + ' out of 5.';
           break;
         case 'home':
           text = 'Maintenance tasks overdue: ' + now + ' (last week ' + prev + ').';
@@ -4632,10 +5438,11 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   const BODY_TEXT = /^Weight moved (up|down) /;
   const isBodyInsight = (i) => i.domain === 'health' && i.source === 'rules' && BODY_TEXT.test(i.text);
   function buildPrompt(state, level, period) {
+    if (L.priv) state = L.priv.mainOnly(state);
     checkLevel(level);
     const p = checkPeriod(period);
     const mem = state.memory;
-    const approvedAll = mem.insights.filter((i) => i.status === 'approved');
+    const approvedAll = mem.insights.filter((i) => i.status === 'approved' && !NO_AI.has(i.domain));
     const lines = [];
     let ctx;
     if (level === 1) {
@@ -4643,6 +5450,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       lines.push('Level 1 weekly review. Week of ' + dg.week + '.', 'Digest (this week vs previous week):');
       for (const d of L.DOMAINS) {
         const x = dg.domains[d.id];
+        if (!x) continue;
         lines.push('- ' + d.id + ': now ' + x.now + ' ' + x.unit + ', previous ' + x.prev + ' ' + x.unit);
       }
       const w = dg.work;
@@ -4736,7 +5544,8 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     if (!ins) throw new Error('Insight not found');
     ins.status = decision;
     ins.decidedAt = new Date().toISOString();
-    if (decision === 'rejected' && typeof reason === 'string') {
+    // Lessons are sent with every prompt, so a reason given for an earlier wellbeing insight is not kept as one (SEC-66).
+    if (decision === 'rejected' && typeof reason === 'string' && !NO_AI.has(ins.domain)) {
       const r = reason.replace(/[\u0000-\u001f\u007f]+/g, ' ').trim().slice(0, MAX_TEXT);
       if (r) {
         const ls = state.memory.lessons;
@@ -4826,6 +5635,8 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   }
 
   async function complete(provider, prompt, fetchImpl) {
+    // The private vault is always closed before any AI call.
+    if (L.priv) L.priv.close('system');
     const p = validateProvider(provider);
     if (p.kind === 'none' || p.kind === 'manual') throw new Error('MANUAL');
     if (!prompt || typeof prompt.system !== 'string' || typeof prompt.user !== 'string') throw new Error('Invalid prompt');
@@ -5081,7 +5892,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     return Array.from(new Uint8Array(d), (x) => x.toString(16).padStart(2, '0')).join('');
   }
   const count = (a) => (Array.isArray(a) ? a.length : 0);
-  const summary = (meta, state, schema) => ({ rev: meta.rev, updatedAt: meta.updatedAt, entries: count(state.entries), projects: count(state.projects), pipeline: count(state.pipeline), goals: count(state.goals), maintenance: count(state.maintenance), renewals: count(state.renewals), activities: count(state.activities), habits: count(state.habits), cycle: !!state.cycle, schema });
+  const summary = (meta, state, schema) => ({ rev: meta.rev, updatedAt: meta.updatedAt, entries: count(state.entries), projects: count(state.projects), pipeline: count(state.pipeline), goals: count(state.goals), maintenance: count(state.maintenance), renewals: count(state.renewals), activities: count(state.activities), habits: count(state.habits), cycle: !!state.cycle, priv: !!state.priv, schema });
 
   async function inspect(text, passphrase) {
     let envObj;
@@ -5143,7 +5954,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     }
     const lm = S.getMeta();
     // An older-format Drive copy has no projects, pipeline (before schema 3), cycle, daily checks, workout types, body targets (before schema 4) or goals (before schema 5): using it would drop this device's data.
-    const dropped = S.droppedData(cur, { sourceSchema: info.sourceSchema }), dropsWork = dropped.length > 0;
+    const dropped = S.droppedData(cur, { sourceSchema: info.sourceSchema, priv: info.state.priv }), dropsWork = dropped.length > 0;
     return hide({
       kind: localChanged ? 'conflict' : 'download-offer',
       local: summary(lm, cur, cur.schema), remote: summary(info.meta, info.state, info.sourceSchema), passphraseDiffers: keyDiffers, dropsWork, dropped,
@@ -5268,6 +6079,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   function friendly(e) {
     var m = e && e.message ? String(e.message) : '';
     if (m === 'BAD_PASSPHRASE_OR_DATA') return 'That passphrase did not work, or the data is damaged.';
+    if (m === 'BAD_PRIVATE_PASSPHRASE') return 'That private passphrase did not work.';
     if (!m) return 'Something went wrong.';
     return m.slice(0, 300);
   }
@@ -5342,10 +6154,54 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     s.audit.push({ ts: new Date().toISOString(), action: action });
     while (s.audit.length > 200) s.audit.shift();
   }
-  function commit(fn, action) {
-    return L.store.commit(function (s) { if (fn) fn(s); if (action) addAudit(s, action); });
+  // Every write goes through the private vault's single routing helper: a record is saved where it lives (main state or private
+  // vault); with the vault closed it is a plain commit. New records are public unless "New items are private" is ticked.
+  var privNew = false, privFail = { n: 0, until: 0 }, privTimer = null, privPick = { coll: 'accounts', q: '' };
+  // from: [[collection, key]] the records a new record is made from (SEC-62): if any of them is private, so is the new one.
+  function commit(fn, action, from) {
+    var o = newPriv() ? { newPrivate: true } : (from && L.priv.isOpen() ? { from: from } : null);
+    return L.priv.write(function (s) { if (fn) fn(s); if (action) addAudit(s, action); }, o);
   }
-  function st() { return L.store.getState(); }
+  // The "New items are private" toggle only means anything while the vault is open; closed, it is off and ignored.
+  function newPriv() { return privNew && L.store.isUnlocked() && L.priv.isOpen(); }
+  function privNewNote() {
+    return h('p', { class: 'privnew-note small', role: 'status' }, lockIcon('Private', 'lockmark'), ' ', h('span', { class: 'chip ok', text: 'New items are private' }));
+  }
+  // Show the toggle's state on every add form (and add dialog) while it is on. Idempotent; called after each render and on toggling.
+  function markAddForms() {
+    var root = document.getElementById('app');
+    if (!root) return;
+    Array.prototype.forEach.call(root.querySelectorAll('.privnew-note'), function (n) { n.remove(); });
+    Array.prototype.forEach.call(document.querySelectorAll('.dialog.adds'), function (n) { Array.prototype.forEach.call(n.querySelectorAll('.privnew-note'), function (m) { m.remove(); }); });
+    if (!newPriv()) return;
+    Array.prototype.forEach.call(root.querySelectorAll('form'), function (f) {
+      var b = f.querySelector('button[type=submit]');
+      if (b && /^(Add (?!category|type|date|fact)|Log |Save budget|Save balance|Save cycle)/.test(b.textContent)) f.insertBefore(privNewNote(), f.firstChild);
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('.dialog.adds'), function (d) { d.insertBefore(privNewNote(), d.children[1] || null); });
+  }
+  // The main state alone: prompts, digest, insights, review records, CSV and backups use this, even while the vault is open.
+  function mainState() { return L.store.getState(); }
+  // What screens show: the main state while the vault is closed, with private records merged in while it is open.
+  function st() { var b = L.store.getState(); return L.priv.isOpen() ? L.priv.view(b) : b; }
+  var DOMAIN_COLLS = {
+    money: ['entries', 'recurring', 'budgets', 'activities'], assets: ['entries', 'accounts'], work: ['entries', 'projects', 'pipeline'],
+    health: ['entries', 'habits', 'habitLog', 'cycle', 'activities'], activities: ['activities', 'entries', 'people'],
+    social: ['people', 'contacts', 'groups', 'activities'], learning: ['learningItems', 'studySessions', 'takeaways'],
+    home: ['properties', 'vehicles', 'maintenance', 'recurring'], admin: ['renewals', 'documents', 'taxItems', 'learningItems', 'recurring'],
+    goals: null, wellbeing: ['entries', 'wellbeing']
+  };
+  // A small lock marker (no counts, no names) wherever a number or list could be affected by hidden private items.
+  function lockMark(colls) {
+    if (!L.store.isUnlocked() || L.priv.isOpen()) return null;
+    var m = L.priv.marks(mainState());
+    if (!m.length || (colls && !colls.some(function (c) { return m.indexOf(c) >= 0; }))) return null;
+    return lockIcon('Some private items are hidden', 'lockmark');
+  }
+  function lockIcon(label, cls) {
+    return h('span', { class: cls || 'lockmark', role: 'img', 'aria-label': label, title: label },
+      h('svg', { class: 'lockico', viewBox: '0 0 12 14', 'aria-hidden': 'true', focusable: 'false' }, h('rect', { x: '1', y: '6', width: '10', height: '7', rx: '1.5' }), h('path', { d: 'M3 6V4a3 3 0 0 1 6 0v2' })));
+  }
   function go(name, extra) {
     view = Object.assign({ name: name }, extra || {});
     notice = null; csvPending = null; ai = null;
@@ -5370,7 +6226,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
         if (keep !== false) closeDialog();
       }, function (e) { err.textContent = friendly(e); });
     }, o.danger ? 'bad' : 'pri');
-    var box = h('div', { class: 'dialog', role: 'dialog', 'aria-modal': 'true', 'aria-label': o.title },
+    var box = h('div', { class: 'dialog' + (o.adds ? ' adds' : ''), role: 'dialog', 'aria-modal': 'true', 'aria-label': o.title },
       h('h2', { text: o.title }), o.body || null, err,
       h('div', { class: 'row' }, yes, btn('Cancel', closeDialog)));
     dlgEl = h('div', { class: 'overlay' }, box);
@@ -5385,6 +6241,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       }
     });
     document.body.appendChild(dlgEl);
+    markAddForms();
     var inp = box.querySelector('input,textarea');
     (inp || yes).focus();
   }
@@ -5394,6 +6251,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     try { return (st().settings.autoLockMin || 15) * 60000; } catch (e) { return 900000; }
   }
   function resetIdle() {
+    if (L.priv.isOpen()) L.priv.touch();
     clearTimeout(idleTimer);
     if (!L.store.isUnlocked() || locking) return;
     lastActive = Date.now();
@@ -5401,6 +6259,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   }
   // Wall-clock check: timers can pause during device sleep or background throttling.
   function checkIdle() {
+    L.priv.checkExpiry();
     if (L.store.isUnlocked() && !locking && lastActive && Date.now() - lastActive >= limitMs()) lockNow();
   }
   function lockNow() {
@@ -5412,6 +6271,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     var p = L.store.isUnlocked() ? Promise.race([commit(null, 'lock').catch(function () {}), new Promise(function (r) { setTimeout(r, 1000); })]) : Promise.resolve();
     locking = p.then(function () {
       L.store.lock();
+      privNew = false;
       closeDialog();
       csvPending = null; ai = null; notice = null; lastActive = 0;
       view = { name: 'lock' };
@@ -5430,16 +6290,18 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   // ---------- chrome ----------
   function render() {
     var root = document.getElementById('app');
+    clearTimeout(privTimer);
     root.replaceChildren();
     noticeEl = h('div', { class: 'notice' + (notice ? ' ' + notice.kind : ''), role: 'status', 'aria-live': 'polite', text: notice ? notice.text : '' });
     if (!L.store.isUnlocked() || view.name === 'lock') { root.appendChild(lockScreen()); return; }
     var s = st();
     var body;
     try {
-      body = view.name === 'domain' ? (view.domain === 'money' ? moneyScreen(s) : view.domain === 'assets' ? assetsScreen(s) : view.domain === 'work' ? workScreen(s) : view.domain === 'health' ? healthScreen(s) : view.domain === 'goals' ? goalsScreen(s) : view.domain === 'home' ? homeScreen(s) : view.domain === 'admin' ? adminScreen(s) : view.domain === 'learning' ? learningScreen(s) : view.domain === 'activities' ? activitiesScreen(s) : view.domain === 'social' ? socialScreen(s) : domainScreen(s))
+      body = view.name === 'domain' ? (view.domain === 'money' ? moneyScreen(s) : view.domain === 'assets' ? assetsScreen(s) : view.domain === 'work' ? workScreen(s) : view.domain === 'health' ? healthScreen(s) : view.domain === 'goals' ? goalsScreen(s) : view.domain === 'home' ? homeScreen(s) : view.domain === 'admin' ? adminScreen(s) : view.domain === 'learning' ? learningScreen(s) : view.domain === 'activities' ? activitiesScreen(s) : view.domain === 'social' ? socialScreen(s) : view.domain === 'wellbeing' ? wellbeingScreen(s) : domainScreen(s))
         : view.name === 'review' ? reviewScreen(s)
         : view.name === 'memory' ? memoryScreen(s)
         : view.name === 'settings' ? settingsScreen(s)
+        : view.name === 'private' ? privScreen(s)
         : dashScreen(s);
     } catch (e) { body = h('p', { text: friendly(e) }); }
     var cur = view.name === 'domain' ? (view.domain === 'money' || view.domain === 'assets' || view.domain === 'work' || view.domain === 'health' ? view.domain : 'dashboard') : view.name;
@@ -5447,10 +6309,39 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       return h('button', { type: 'button', text: n[1], 'aria-current': n[0] === cur ? 'page' : null, onclick: function () { if (n[0] === 'money' || n[0] === 'assets' || n[0] === 'work' || n[0] === 'health') go('domain', { domain: n[0] }); else go(n[0]); } });
     }));
     root.appendChild(h('div', { class: 'app' },
-      h('header', { class: 'top' }, h('span', { class: 'brand', text: 'LifeOS' }), btn('Lock', function () { lockNow(); }, 'sm lockbtn')),
+      h('header', { class: 'top' }, h('span', { class: 'brand', text: 'LifeOS' }),
+        h('span', { class: 'row' }, btn(L.priv.isOpen() ? 'Private (open)' : 'Private', function () { go('private'); }, 'sm', { id: 'nav-private', 'aria-current': view.name === 'private' ? 'page' : null }),
+          btn('Lock', function () { lockNow(); }, 'sm lockbtn'))),
       nav,
-      h('main', { class: 'main' }, noticeEl, body)));
+      h('main', { class: 'main' }, noticeEl, privBar(), screenMark(), body)));
+    markAddForms();
+    decorateRows();
   }
+
+  // The strip shown while the private vault is open, and the marker line shown while it is closed and something is hidden.
+  function privBar() {
+    if (!L.priv.isOpen()) return null;
+    var tick = h('input', { type: 'checkbox', id: 'priv-new', checked: privNew, onchange: function (e) { privNew = !!e.target.checked; markAddForms(); } });
+    return h('div', { class: 'privbar', id: 'priv-bar' }, h('span', { class: 'chip ok', text: 'Private vault open' }),
+      h('label', { class: 'row small' }, tick, h('span', { text: 'New items are private' })),
+      btn('Close vault', function () { L.priv.close(); }, 'sm', { id: 'priv-close' }));
+  }
+  function screenMark() {
+    var colls = null;
+    if (view.name === 'domain') { if (view.domain === 'wellbeing') return null; colls = DOMAIN_COLLS[view.domain]; }
+    else if (view.name === 'dashboard' || view.name === 'settings' || view.name === 'memory' || view.name === 'private') return null;
+    var m = lockMark(colls === undefined ? null : colls);
+    return m ? h('p', { class: 'small mut lockrow' }, m, ' Some private items are hidden.') : null;
+  }
+  // SEC-67: nothing typed or shown while open survives the close: the toggle, the private search text and any notice (a notice can
+  // name a private record, for example "Posted <title>.").
+  L.priv.onClose(function () {
+    privNew = false; privPick = { coll: 'accounts', q: '' }; notice = null;
+    if (!L.store.isUnlocked() || locking) return;
+    closeDialog(); csvPending = null; ai = null;
+    view = { name: view.name, domain: view.domain };
+    render();
+  });
 
   // ---------- lock screen ----------
   function lockScreen() {
@@ -5511,11 +6402,12 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   function dashScreen(s) {
     var t = today(), wk = L.metrics.weekStart(t);
     var tiles = L.DOMAINS.map(function (d) {
+      if (d.id === 'wellbeing') return wellbeingTile(s, d, t);
       var hl, ser;
       try { hl = L.metrics.headline(s, d.id, t); } catch (e) { hl = { label: '', display: '-', sub: '' }; }
       try { ser = L.metrics.series(s, d.id, 8, t); } catch (e) { ser = []; }
       return h('button', { type: 'button', class: 'tile', 'data-domain': d.id, onclick: function () { go('domain', { domain: d.id }); } },
-        h('span', { class: 'tile-title', text: d.label }),
+        h('span', { class: 'tile-title' }, d.label, ' ', lockMark(DOMAIN_COLLS[d.id])),
         h('span', { class: 'tile-value', text: hl.display }),
         h('span', { class: 'tile-sub', text: hl.label }),
         h('span', { class: 'tile-sub', text: hl.sub }),
@@ -5610,7 +6502,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       if (en.kind) meta.push(en.kind);
       if (en.minutes !== undefined) meta.push(en.minutes + ' min');
       if (en.effort !== undefined) meta.push('effort ' + en.effort);
-      return h('div', { class: 'entry' },
+      return h('div', ROW({ class: 'entry' }, 'entries', en),
         h('div', null, h('div', { class: 'entry-t', text: en.title }),
           h('div', { class: 'mut small', text: en.date + ' | ' + meta.join(' | ') }),
           en.notes ? h('div', { class: 'small', text: en.notes }) : null),
@@ -5694,11 +6586,13 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     }
     card.appendChild(h('div', { class: 'row' }, btn('Export CSV', function () {
       act(function () {
-        if (!list.length) throw new Error('No entries to export.');
-        download('lifeos-' + d.id + '.csv', L.csv.exportEntries(list), 'text/csv');
+        // Exports are computed from the main state only, even while the private vault is open.
+        var out = mainState().entries.filter(function (x) { return x.domain === d.id; });
+        if (!out.length) throw new Error('No entries to export.');
+        download('lifeos-' + d.id + '.csv', L.csv.exportEntries(out), 'text/csv');
         return commit(null, 'export');
       }, 'CSV exported.');
-    })));
+    }), lockMark(DOMAIN_COLLS[d.id])));
     return card;
   }
 
@@ -5751,7 +6645,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     function setType(t) { type = t; cat = ''; paint(); }
     paint();
     openDialog({
-      title: 'Quick add', yes: 'Save',
+      title: 'Quick add', yes: 'Save', adds: true,
       body: [h('div', { class: 'row' }, tEx, tIn), field('Amount', amount), h('span', { class: 'lbl', text: 'Category' }), chips, field('Date', dateIn), field('Note (optional)', note)],
       onYes: function () {
         var v = parseAmount(amount.value);
@@ -5817,7 +6711,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
             h('div', { class: 'mut small', text: d.date + ' | ' + (d.type === 'income' ? 'Income ' : 'Expense ') + moneyFmt(L.metrics.cents(d.value), cur) + (d.category ? ' | ' + d.category : '') })),
           h('div', { class: 'row' },
             btn('Confirm', function () {
-              act(function () { return commit(function (x) { L.metrics.confirmRecurring(x, d.id, today()); }, 'recurring confirm').then(function () { setNotice('ok', 'Posted ' + d.title + '.'); render(); }); });
+              act(function () { return commit(function (x) { L.metrics.confirmRecurring(x, d.id, today()); }, 'recurring confirm', [['recurring', d.id]]).then(function () { setNotice('ok', 'Posted ' + d.title + '.'); render(); }); });
             }, 'pri sm', { 'aria-label': 'Confirm ' + d.title }),
             btn('Skip', function () {
               act(function () { return commit(function (x) { L.metrics.skipRecurring(x, d.id, today()); }, 'recurring skip').then(function () { render(); }); });
@@ -5845,7 +6739,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     var bAmt = h('input', { type: 'text', id: 'bud-amount', inputmode: 'decimal', autocomplete: 'off', maxlength: '14' });
     var budgets = details('budgets', 'Monthly budgets (' + s.budgets.length + ')', [
       s.budgets.map(function (b) {
-        return h('div', { class: 'item' }, h('span', { text: b.category + ': ' + moneyFmt(L.metrics.cents(b.value), cur) }),
+        return h('div', ROW({ class: 'item' }, 'budgets', b), h('span', { text: b.category + ': ' + moneyFmt(L.metrics.cents(b.value), cur) }),
           btn('Remove', function () { act(function () { return commit(function (x) { x.budgets = x.budgets.filter(function (z) { return z.category !== b.category; }); }, 'budget remove').then(render); }); }, 'sm', { 'aria-label': 'Remove budget for ' + b.category }));
       }),
       h('form', {
@@ -5877,7 +6771,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     var recurring = details('recurring', 'Recurring items (' + s.recurring.length + ')', [
       h('p', { class: 'mut small', text: 'These only create a proposal on the due date. You confirm each one.' }),
       s.recurring.map(function (r) {
-        return h('div', { class: 'item' },
+        return h('div', ROW({ class: 'item' }, 'recurring', r),
           h('div', null, h('div', { class: 'entry-t', text: r.title }),
             h('div', { class: 'mut small', text: (r.type === 'income' ? 'Income ' : 'Expense ') + moneyFmt(L.metrics.cents(r.value), cur) + ' | ' + r.cadence + ' | next ' + r.nextDate + (r.active ? '' : ' | paused') + (r.household ? ' | household' : '') })),
           h('div', { class: 'row' },
@@ -5972,7 +6866,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
 
     function acctRow(a) {
       var r = latest[a.id];
-      return h('div', { class: 'item acct', 'data-account': a.name },
+      return h('div', ROW({ class: 'item acct', 'data-account': a.name }, 'accounts', a, true),
         h('div', null, h('div', { class: 'entry-t', text: a.name }),
           h('div', { class: 'mut small' }, h('span', { class: 'chip' + (a.liability ? ' bad' : ''), text: KIND_LABEL[a.kind] + (a.liability ? ' (owed)' : '') }),
             r ? moneyFmt(Math.abs(r.cents), cur) + ' as of ' + r.date : 'No balance yet')),
@@ -5986,7 +6880,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     function renameDialog(a) {
       var inp = h('input', { type: 'text', id: 'ac-rename', maxlength: '200', value: a.name, autocomplete: 'off' });
       openDialog({
-        title: 'Rename account', yes: 'Save', body: field('Name', inp),
+        title: 'Rename account', yes: 'Save', body: [field('Name', inp), movePrivBtn('accounts', a)],
         onYes: function () {
           var n = inp.value.trim();
           if (!n) throw new Error('Enter a name.');
@@ -6094,7 +6988,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   }
   function suggestAI(level, period) {
     return act(function () {
-      var s = st();
+      var s = mainState();
       var kind = s.settings.provider.kind;
       var pr = L.memory.buildPrompt(s, level, period);
       if (kind === 'none' || kind === 'manual') {
@@ -6111,7 +7005,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     });
   }
   function aiPanel(level, period, label) {
-    var kind = st().settings.provider.kind;
+    var kind = mainState().settings.provider.kind;
     var box = h('div', null,
       h('div', { class: 'row' }, btn(label, function () { suggestAI(level, period); }, 'sm', { id: 'ai-suggest' })),
       h('p', { class: 'mut small', text: kind === 'anthropic' ? 'Sends only the numeric digest, approved insights and lessons to api.anthropic.com.' : kind === 'local' ? 'Sends only the numeric digest, approved insights and lessons to your local model.' : 'Manual mode: copy the prompt into your own AI chat and paste the reply here.' }));
@@ -6139,8 +7033,8 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   function reviewScreen(s) {
     var t = today(), wk = L.metrics.weekStart(t);
     var period = { from: wk, to: addDays(wk, 6) };
-    var dg = L.metrics.weeklyDigest(s, wk);
-    var rows = L.DOMAINS.map(function (d) {
+    var dg = L.metrics.weeklyDigest(mainState(), wk);
+    var rows = L.DOMAINS.filter(function (d) { return d.id !== 'wellbeing'; }).map(function (d) {
       var x = (dg.domains && dg.domains[d.id]) || { now: 0, prev: 0, unit: '' };
       var dl = Math.round((x.now - x.prev) * 100) / 100;
       return h('tr', null, h('td', { text: d.label }), h('td', { text: String(Math.round(x.now * 100) / 100) + ' ' + x.unit }),
@@ -6160,7 +7054,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       h('div', { class: 'row' },
         btn(haveRules ? 'Rules suggestions added' : 'Run rules suggestions', function () {
           act(function () {
-            var items = L.memory.rulesInsights(st(), wk);
+            var items = L.memory.rulesInsights(mainState(), wk);
             if (!items.length) throw new Error('No rule-based suggestions this week.');
             return runPropose(items, 1, period, 'rules').then(render);
           });
@@ -6178,7 +7072,8 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       reviewActivitiesCard(s, wk, t),
       h('h2', { text: '7. Social' }),
       reviewSocialCard(s, wk, t),
-      h('h2', { text: '8. Your three priorities' }),
+      reviewWellbeingStep(t),
+      h('h2', { text: (L.priv.isOpen() ? '9' : '8') + '. Your three priorities' }),
       h('form', {
         class: 'card',
         onsubmit: function (e) {
@@ -6186,7 +7081,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
           act(function () {
             var ps = pri.map(function (p) { return p.value.trim(); });
             if (ps.some(function (p) { return !p; })) throw new Error('Enter all three priorities.');
-            var digest = L.metrics.weeklyDigest(st(), wk);
+            var digest = L.metrics.weeklyDigest(mainState(), wk);
             return commit(function (x) {
               x.memory.reviews = x.memory.reviews.filter(function (r) { return r.weekOf !== wk; });
               x.memory.reviews.push({ id: L.store.newId(), weekOf: wk, digest: digest, priorities: ps, completedAt: new Date().toISOString() });
@@ -6195,6 +7090,22 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
         }
       }, pri.map(function (p, n) { return field('Priority ' + (n + 1), p); }),
         h('button', { type: 'submit', class: 'btn pri', id: 'finish-review', text: 'Finish review' })));
+  }
+
+  // A step shown only while the private vault is open. It reads the vault for the screen and stores nothing: not in the review
+  // record, the digest, an insight or the audit log.
+  function reviewWellbeingStep(t) {
+    if (!L.priv.isOpen()) return null;
+    var W = L.wellbeing, wb = L.priv.getWellbeing();
+    return h('div', { id: 'rv-wellbeing' }, h('h2', { text: '8. Wellbeing' }),
+      h('div', { class: 'card' }, h('p', { class: 'mut small', text: 'Shown only while the private vault is open. Nothing here is saved with the review.' }),
+        h('table', null, h('thead', null, h('tr', null, ['Area', 'Today', '7-day average', 'Check-ins'].map(function (x) { return h('th', { text: x }); }))),
+          h('tbody', null, W.AREAS.map(function (a) {
+            var sm = W.summary(wb, a.id, t);
+            return h('tr', { 'data-area': a.id }, h('td', { text: a.label }), h('td', { text: sm.today === null ? '-' : String(sm.today) }), h('td', { text: avgText(sm.avg7.avg) }), h('td', { text: String(sm.avg7.n) }));
+          }))),
+        h('p', { class: 'small', text: 'Check-in streak: ' + W.streak(wb, t) + '.' }),
+        btn('Open Wellbeing', function () { go('domain', { domain: 'wellbeing' }); }, 'sm', { id: 'rv-wb-open' })));
   }
 
   // ---------- work (v0.4.0) ----------
@@ -6231,7 +7142,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
           var ids = [];
           boxes.forEach(function (b) { var i = b.querySelector('input'); if (i.checked) ids.push(i.getAttribute('data-carry')); });
           if (!ids.length) throw new Error('Tick at least one outcome to carry over.');
-          return commit(function (x) { L.metrics.carryOver(x, ids, wk); }, 'outcomes carried over').then(function () { setNotice('ok', 'Carried over ' + ids.length + (ids.length === 1 ? ' outcome.' : ' outcomes.')); afterRender(); });
+          return commit(function (x) { L.metrics.carryOver(x, ids, wk); }, 'outcomes carried over', ids.map(function (i) { return ['entries', i]; })).then(function () { setNotice('ok', 'Carried over ' + ids.length + (ids.length === 1 ? ' outcome.' : ' outcomes.')); afterRender(); });
         });
       }, 'sm pri', { id: 'carry-go' }));
   }
@@ -6274,7 +7185,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     var wkList = L.metrics.weekOutcomes(s, wk);
     var oList = wkList.map(function (en) {
       var done = en.status === 'done', pn = en.projectId ? projName(s, en.projectId) : '';
-      return h('div', { class: 'item outcome', 'data-outcome': en.title, 'data-status': en.status },
+      return h('div', ROW({ class: 'item outcome', 'data-outcome': en.title, 'data-status': en.status }, 'entries', en),
         h('div', null, h('div', { class: 'entry-t' + (done ? ' done-t' : ''), text: en.title }),
           pn ? h('div', { class: 'mut small' }, h('span', { class: 'chip', text: pn })) : null),
         btn(done ? 'Reopen' : 'Mark done', function () {
@@ -6312,7 +7223,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     var shownP = live.slice().sort(function (a, b) { return (a.status === 'done') - (b.status === 'done') || a.name.localeCompare(b.name); });
     var pList = shownP.map(function (p) {
       var od = p.status === 'active' && p.nextDate && p.nextDate < t;
-      return h('div', { class: 'item proj', 'data-project': p.name },
+      return h('div', ROW({ class: 'item proj', 'data-project': p.name }, 'projects', p),
         h('div', null, h('div', { class: 'entry-t', text: p.name }),
           h('div', { class: 'mut small' }, h('span', { class: 'chip', text: p.kind }), h('span', { class: 'chip', text: p.status }),
             od ? h('span', { class: 'chip bad', text: 'Overdue' }) : null),
@@ -6336,7 +7247,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     });
     var archived = projects.filter(function (p) { return p.archived; });
     var aList = archived.map(function (p) {
-      return h('div', { class: 'item aproj' }, h('div', null, h('div', { class: 'entry-t', text: p.name }), h('div', { class: 'mut small' }, h('span', { class: 'chip', text: p.kind }))),
+      return h('div', ROW({ class: 'item aproj' }, 'projects', p), h('div', null, h('div', { class: 'entry-t', text: p.name }), h('div', { class: 'mut small' }, h('span', { class: 'chip', text: p.kind }))),
         h('div', { class: 'row' },
           btn('Restore', function () {
             if (live.length >= 200) { setNotice('err', 'You have reached the 200 project limit. Archive or delete some first.'); return; }
@@ -6386,7 +7297,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
         h('h3', { text: STAGE_LABEL[k] + ' (' + counts[k] + ')' }),
         pipeline.filter(function (x) { return x.stage === k; }).sort(function (a, b) { return a.updatedAt.localeCompare(b.updatedAt); }).map(function (it) {
           var stale = L.metrics.isStale(it, t), idx = order.indexOf(it.stage), nxt = idx < 4 ? order[idx + 1] : (idx === 4 ? 'won' : null);
-          return h('div', { class: 'pitem', 'data-item': it.title, 'data-stage': it.stage },
+          return h('div', ROW({ class: 'pitem', 'data-item': it.title, 'data-stage': it.stage }, 'pipeline', it),
             h('div', { class: 'entry-t', text: it.title }),
             h('div', { class: 'mut small' }, (it.org ? it.org + ' | ' : '') + it.kind + (it.source ? ' | ' + it.source : '')),
             it.nextStep ? h('div', { class: 'small', text: 'Next: ' + it.nextStep + (it.nextDate ? ' (' + it.nextDate + ')' : '') }) : null,
@@ -6414,8 +7325,8 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       oCard, cc, pCard, lCard, trend,
       details('work-data', 'Entries and CSV', [
         h('div', { class: 'row' },
-          btn('Export pipeline CSV', function () { download('lifeos-pipeline.csv', L.csv.exportPipeline(pipeline), 'text/csv'); }, 'sm', { id: 'exp-pipeline' }),
-          btn('Export projects CSV', function () { download('lifeos-projects.csv', L.csv.exportProjects(projects), 'text/csv'); }, 'sm', { id: 'exp-projects' })),
+          btn('Export pipeline CSV', function () { download('lifeos-pipeline.csv', L.csv.exportPipeline(mainState().pipeline || []), 'text/csv'); }, 'sm', { id: 'exp-pipeline' }),
+          btn('Export projects CSV', function () { download('lifeos-projects.csv', L.csv.exportProjects(mainState().projects || []), 'text/csv'); }, 'sm', { id: 'exp-projects' }), lockMark(['pipeline', 'projects'])),
         domainScreen(s, { embed: true, noForm: true })]));
   }
 
@@ -6587,7 +7498,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     var hName = h('input', { type: 'text', id: 'hb-name', maxlength: '60', autocomplete: 'off' });
     var hRows = habits.map(function (hb) {
       var st2 = M.habitStats(s, hb.id, t);
-      return h('div', { class: 'item habit', 'data-habit-row': hb.name },
+      return h('div', ROW({ class: 'item habit', 'data-habit-row': hb.name }, 'habits', hb),
         h('div', null, h('div', { class: 'entry-t', text: hb.name }),
           h('div', { class: 'mut small' }, h('span', { class: 'hb-rate', text: st2.checks7 + ' of 7 days (' + fmt1(st2.rate7) + '%)' }), ' | ', h('span', { class: 'hb-streak', text: st2.streak + '-day streak' }))),
         btn('Delete', function () {
@@ -6656,7 +7567,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     }, h('h3', { text: 'Training cycle (optional)' }), field('Start date', cyStart), field('Days per sprint', cySprint), field('Sprints per cycle', cyCount), field('Rest days after the last sprint', cyRest),
       h('label', { class: 'field check' }, cyAlt, h('span', { text: 'Alternate heavy and light weeks' })), field('First week is', cyFirst),
       h('div', { class: 'row' }, h('button', { type: 'submit', class: 'btn pri', id: 'cy-save', text: 'Save cycle' }),
-        cy ? btn('Clear cycle', function () { act(function () { return commit(function (x) { x.cycle = null; }, 'cycle clear').then(done('Training cycle cleared.')); }); }, '', { id: 'cy-clear' }) : null));
+        cy ? btn('Clear cycle', function () { act(function () { return commit(function (x) { x.cycle = null; }, 'cycle clear').then(done('Training cycle cleared.')); }); }, '', { id: 'cy-clear' }) : null, cy ? movePrivBtn('cycle', cy) : null, cy && isPrivRec('cycle', cy) ? lockBadge() : null));
 
     var kName = h('input', { type: 'text', id: 'kd-name', maxlength: '40', autocomplete: 'off' });
     var fKinds = h('div', null, h('h3', { text: 'Workout types' }),
@@ -6721,7 +7632,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     var notes = h('textarea', { id: 'ge-notes', maxlength: '2000', value: g.notes || '' });
     openDialog({
       title: 'Edit goal', yes: 'Save',
-      body: [field('Title', title), field('Target', target), field('Due date', due), field('Parent goal (a longer horizon)', parent), field('Notes (optional)', notes)],
+      body: [field('Title', title), field('Target', target), field('Due date', due), field('Parent goal (a longer horizon)', parent), field('Notes (optional)', notes), movePrivBtn('goals', g)],
       onYes: function () {
         return commit(function (x) { L.goals.updateGoal(x, g.id, { title: title.value, targetValue: target.value, dueDate: due.value, parentId: parent.value || null, notes: notes.value }); }, 'goal edit').then(function () { setNotice('ok', 'Goal saved.'); render(); });
       }
@@ -6768,7 +7679,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
         btn('Reopen', function () { act(function () { return commit(function (x) { L.goals.reopenGoal(x, g.id); }, 'goal reopened').then(function () { render(); }); }); }, 'sm g-reopen'),
         btn('Delete', function () { askDeleteGoal(s, g); }, 'sm bad g-delete')));
     }
-    return h('div', { class: 'goal' + (opts.depth ? ' goal-child' : ''), 'data-goal': g.title, 'data-state': g.state }, kids);
+    return h('div', ROW({ class: 'goal' + (opts.depth ? ' goal-child' : ''), 'data-goal': g.title, 'data-state': g.state }, 'goals', g, active), kids);
   }
   function rollGoal(g, t) {
     act(function () { return commit(function (x) { L.goals.rollOver(x, g.id, t); }, 'goal rolled over').then(function () { setNotice('ok', 'Goal moved into its next period.'); render(); }); });
@@ -6780,7 +7691,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   function goalForm(s, t) {
     var title = h('input', { type: 'text', id: 'g-title', maxlength: '200', autocomplete: 'off', required: true });
     var horizon = sel('g-horizon', L.goals.HORIZONS.map(function (x) { return { v: x, t: L.goals.HORIZON_LABEL[x] }; }), 'quarterly');
-    var metric = sel('g-metric', L.goals.METRICS.map(function (m) { return { v: m.id, t: m.label }; }), 'manual');
+    var metric = sel('g-metric', L.goals.METRICS.filter(function (m) { return !L.goals.isWellbeingMetric(m.id) || L.priv.isOpen(); }).map(function (m) { return { v: m.id, t: m.label + (L.goals.isWellbeingMetric(m.id) ? ' (private goals only)' : '') }; }), 'manual');
     var dir = sel('g-dir', [{ v: 'up', t: 'Goes up' }, { v: 'down', t: 'Goes down' }], 'up');
     var start = h('input', { type: 'text', id: 'g-start', inputmode: 'decimal', maxlength: '20', autocomplete: 'off' });
     var target = h('input', { type: 'text', id: 'g-target', inputmode: 'decimal', maxlength: '20', autocomplete: 'off', required: true });
@@ -6805,6 +7716,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
         act(function () {
           var p = { title: title.value, horizon: horizon.value, metric: metric.value, direction: dir.value, startValue: start.value, targetValue: target.value, startDate: sdate.value, dueDate: due.value || undefined, parentId: parent.value || undefined, notes: notes.value };
           if (metric.value === 'manual') { p.domain = domain.value; p.manualValue = curIn.value; }
+          if (L.goals.isWellbeingMetric(metric.value) && !newPriv()) throw new Error('A wellbeing goal metric can only be used by a private goal. Tick "New items are private" first.');
           return commit(function (x) { L.goals.addGoal(x, p, t); }, 'goal add').then(function () { setNotice('ok', 'Goal added.'); render(); });
         });
       }
@@ -6841,7 +7753,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     if (!old.length) return null;
     var shown = old.slice(0, 200);
     return details('goal-legacy', 'Older goal entries (' + old.length + (old.length > shown.length ? ', newest ' + shown.length + ' shown' : '') + ')', shown.map(function (e) {
-      return h('div', { class: 'item g-legacy' }, h('div', null, h('span', { class: 'entry-t', text: e.title }),
+      return h('div', ROW({ class: 'item g-legacy' }, 'entries', e), h('div', null, h('span', { class: 'entry-t', text: e.title }),
         h('span', { class: 'mut small', text: ' ' + e.date + ', ' + (e.status || '') }), e.notes ? h('p', { class: 'small mut', text: e.notes }) : null));
     }), false);
   }
@@ -6905,7 +7817,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     if (m.cadence !== 'once') sub.push(L.home.CADENCE_LABEL[m.cadence] + (m.everyDays ? ' ' + m.everyDays + ' days' : ''));
     if (m.area) sub.push(m.area);
     var nm = homeName(s, m); if (nm) sub.push(nm);
-    return h('div', { class: 'item mt-row' + (cls ? ' ' + cls : ''), 'data-title': m.title },
+    return h('div', ROW({ class: 'item mt-row' + (cls ? ' ' + cls : ''), 'data-title': m.title }, 'maintenance', m),
       h('div', null, h('div', { class: 'entry-t', text: m.title }), h('div', { class: 'mut small', text: sub.join(' | ') })),
       h('div', { class: 'row' },
         btn('Done', function () { markDoneDialog(s, m); }, 'sm pri mt-done', { 'aria-label': 'Mark ' + m.title + ' done' }),
@@ -6925,7 +7837,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
           h('div', { class: 'row' }, due,
             btn('Confirm', function () {
               act(function () {
-                return commit(function (x) { if (isHome) L.home.confirmNext(x, p.fromId, due.value); else L.admin.confirmRenewal(x, p.fromId, due.value); }, isHome ? 'maintenance next confirmed' : 'renewal next confirmed')
+                return commit(function (x) { if (isHome) L.home.confirmNext(x, p.fromId, due.value); else L.admin.confirmRenewal(x, p.fromId, due.value); }, isHome ? 'maintenance next confirmed' : 'renewal next confirmed', [[isHome ? 'maintenance' : 'renewals', p.fromId]])
                   .then(function () { setNotice('ok', 'Created the next one.'); render(); });
               });
             }, 'sm pri prop-confirm', { 'aria-label': 'Confirm next ' + p.title }),
@@ -7002,7 +7914,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     var pKind = sel('pr-kind', CAD_OPTS(PROP_LABEL, H.PROPERTY_KINDS), 'house');
     var props = details('hm-props', 'Properties (' + (s.properties || []).length + ')', [
       (s.properties || []).map(function (p) {
-        return h('div', { class: 'item pr-row' }, h('div', null, h('span', { class: 'entry-t', text: p.name }), h('span', { class: 'mut small', text: ' ' + PROP_LABEL[p.kind] + (p.archived ? ', archived' : '') })),
+        return h('div', ROW({ class: 'item pr-row' }, 'properties', p), h('div', null, h('span', { class: 'entry-t', text: p.name }), h('span', { class: 'mut small', text: ' ' + PROP_LABEL[p.kind] + (p.archived ? ', archived' : '') })),
           h('div', { class: 'row' },
             btn(p.archived ? 'Restore' : 'Archive', function () { act(function () { return commit(function (x) { H.setArchived(x, 'properties', p.id, !p.archived); }, 'property archive').then(function () { view.open = 'hm-props'; render(); }); }); }, 'sm'),
             btn('Delete', function () {
@@ -7023,7 +7935,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     var vUnit = sel('vh-unit', [{ v: 'mi', t: 'Miles' }, { v: 'km', t: 'Kilometres' }], 'mi');
     var vehCard = details('hm-vehicles', 'Vehicles (' + (s.vehicles || []).length + ')', [
       sum.vehicles.map(function (v) {
-        return h('div', { class: 'item vh-row', 'data-name': v.name },
+        return h('div', ROW({ class: 'item vh-row', 'data-name': v.name }, 'vehicles', v),
           h('div', null, h('span', { class: 'entry-t', text: v.name + (v.year ? ' (' + v.year + ')' : '') }),
             h('div', { class: 'mut small', text: (v.odometer !== undefined ? v.odometer + ' ' + v.unit : 'no odometer reading') + ' | ' + (v.last ? 'last service ' + v.last.date + (v.last.odometer !== undefined ? ' at ' + v.last.odometer + ' ' + v.unit : '') : 'no service recorded') })),
           btn('Delete', function () {
@@ -7043,14 +7955,14 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     var billsCard = h('div', { class: 'card', id: 'hm-bills' }, h('h2', { text: 'Household bills' }),
       h('p', { class: 'mut small', text: 'These are your Money recurring items flagged as household. There is no second list. Weekly counts 52 a year, yearly counts once.' }),
       sum.bills.items.length ? sum.bills.items.map(function (b) {
-        return h('div', { class: 'item hb-row', 'data-title': b.title }, h('div', null, h('span', { class: 'entry-t', text: b.title }), h('span', { class: 'mut small', text: ' ' + moneyFmt(b.cents, cur) + ' ' + b.cadence + ', ' + moneyFmt(b.monthlyCents, cur) + ' per month' })),
+        return h('div', ROW({ class: 'item hb-row', 'data-title': b.title }, 'recurring', b), h('div', null, h('span', { class: 'entry-t', text: b.title }), h('span', { class: 'mut small', text: ' ' + moneyFmt(b.cents, cur) + ' ' + b.cadence + ', ' + moneyFmt(b.monthlyCents, cur) + ' per month' })),
           btn('Remove flag', function () { act(function () { return commit(function (x) { H.setHousehold(x, b.id, false); }, 'household flag off').then(render); }); }, 'sm', { 'aria-label': 'Remove ' + b.title + ' from household bills' }));
       }) : h('p', { class: 'mut', text: 'No household bills flagged yet.' }),
       pick ? h('div', { class: 'row' }, pick, btn('Flag as household', function () { act(function () { return commit(function (x) { H.setHousehold(x, pick.value, true); }, 'household flag on').then(render); }); }, 'sm pri', { id: 'hb-add' })) : h('p', { class: 'mut small', text: 'Add recurring expenses under Money to flag them here.' }));
 
     var done = (s.maintenance || []).filter(function (m) { return m.state === 'done'; }).sort(function (a, b) { return (b.lastDone || '').localeCompare(a.lastDone || ''); }).slice(0, 50);
     var hist = details('hm-history', 'Recent history (' + done.length + ')', done.length ? done.map(function (m) {
-      return h('div', { class: 'item hist-row' }, h('div', null, h('span', { class: 'entry-t', text: m.title }), h('div', { class: 'mut small', text: 'done ' + m.lastDone + (typeof m.cost === 'number' ? ' | ' + moneyFmt(m.cost, cur) : '') + (m.vendor ? ' | ' + m.vendor : '') })));
+      return h('div', ROW({ class: 'item hist-row' }, 'maintenance', m), h('div', null, h('span', { class: 'entry-t', text: m.title }), h('div', { class: 'mut small', text: 'done ' + m.lastDone + (typeof m.cost === 'number' ? ' | ' + moneyFmt(m.cost, cur) : '') + (m.vendor ? ' | ' + m.vendor : '') })));
     }) : h('p', { class: 'mut', text: 'Nothing finished yet.' }), false);
 
     return h('div', null, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Home' }),
@@ -7068,7 +7980,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     if (typeof r.amount === 'number') sub.push(moneyFmt(r.amount, cur));
     if (r.provider) sub.push(r.provider);
     if (r.autoRenews) sub.push('auto renews');
-    return h('div', { class: 'item rn-row', 'data-title': r.title },
+    return h('div', ROW({ class: 'item rn-row', 'data-title': r.title }, 'renewals', r),
       h('div', null, h('div', { class: 'entry-t', text: r.title }), h('div', { class: 'mut small', text: sub.join(' | ') })),
       h('div', { class: 'row' },
         btn('Done', function () {
@@ -7124,7 +8036,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     var subCard = h('div', { class: 'card', id: 'ad-subs' }, h('h2', { text: 'Subscriptions (' + subs.items.length + ')' }),
       h('p', { class: 'mut small', text: 'Per month and per year from the amounts you entered. A flag means no review recorded in the last 12 months.' }),
       subs.items.length ? subs.items.map(function (x) {
-        return h('div', { class: 'item sub-row', 'data-title': x.title },
+        return h('div', ROW({ class: 'item sub-row', 'data-title': x.title }, 'recurring', x),
           h('div', null, h('span', { class: 'entry-t', text: x.title }),
             h('div', { class: 'mut small', text: (x.monthlyCents === null ? 'no amount' : moneyFmt(x.monthlyCents, cur) + ' per month, ' + moneyFmt(x.annualCents, cur) + ' per year') + ' | ' + (x.reviewedOn ? 'reviewed ' + x.reviewedOn : 'never reviewed') }),
             x.stale ? h('span', { class: 'chip bad sub-stale', text: 'Not reviewed in 12 months' }) : null),
@@ -7142,7 +8054,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     var docCard = details('ad-docs', 'Document index (' + docs.length + ')', [
       h('p', { class: 'warn', id: 'doc-warning', text: 'This is an index of where documents are kept, not a place to store them. Do not enter ID numbers, account numbers or passwords.' }),
       docs.map(function (d) {
-        return h('div', { class: 'item doc-row', 'data-title': d.title },
+        return h('div', ROW({ class: 'item doc-row', 'data-title': d.title }, 'documents', d),
           h('div', null, h('div', { class: 'entry-t', text: d.title }), h('div', { class: 'mut small', text: [d.kind, d.whereKept ? 'kept: ' + d.whereKept : '', d.expires ? 'expires ' + d.expires : ''].filter(Boolean).join(' | ') })),
           btn('Delete', function () { act(function () { return commit(function (x) { A.deleteDocument(x, d.id); }, 'document delete').then(function () { view.open = 'ad-docs'; render(); }); }); }, 'sm bad', { 'aria-label': 'Delete ' + d.title }));
       }),
@@ -7167,7 +8079,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       years.map(function (y) {
         return h('div', { class: 'tx-year', 'data-year': String(y.year) }, h('h3', { text: y.year + ' (' + y.needed + ' needed, ' + y.received + ' received, ' + y.filed + ' filed)' }),
           y.items.map(function (it) {
-            return h('div', { class: 'item tx-row', 'data-title': it.title },
+            return h('div', ROW({ class: 'item tx-row', 'data-title': it.title }, 'taxItems', it),
               h('div', null, h('span', { class: 'entry-t' + (it.state === 'filed' ? ' done-t' : ''), text: it.title }), h('div', { class: 'mut small', text: it.state + (it.dueDate ? ' | due ' + it.dueDate : '') })),
               h('div', { class: 'row' },
                 sel('tx-state-' + it.id, A.TAX_STATES.map(function (v) { return { v: v, t: v }; }), it.state, function (e) { var v = e.target.value; act(function () { return commit(function (x) { A.setTaxState(x, it.id, v); }, 'tax item state').then(function () { view.open = 'ad-tax'; render(); }); }); }),
@@ -7188,7 +8100,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     // so each can be deleted after a confirm; the list shows the 200 soonest.
     var legacy = A.legacyEntries(s), legacyShown = legacy.slice(0, 200);
     var legacyCard = legacy.length ? details('ad-legacy', 'Older due items (' + legacy.length + (legacy.length > legacyShown.length ? ', soonest ' + legacyShown.length + ' shown' : '') + ')', [h('p', { class: 'mut small', text: 'Kept exactly as entered. They count in the timeline until you delete them.' }), legacyShown.map(function (e) {
-      return h('div', { class: 'item g-legacy' }, h('div', null, h('span', { class: 'entry-t', text: e.title }), h('span', { class: 'mut small', text: ' due ' + e.due + ', ' + (e.status || 'open') + ', entered ' + e.date }), e.notes ? h('p', { class: 'small mut', text: e.notes }) : null),
+      return h('div', ROW({ class: 'item g-legacy' }, 'entries', e), h('div', null, h('span', { class: 'entry-t', text: e.title }), h('span', { class: 'mut small', text: ' due ' + e.due + ', ' + (e.status || 'open') + ', entered ' + e.date }), e.notes ? h('p', { class: 'small mut', text: e.notes }) : null),
         btn('Delete', function () {
           openDialog({ title: 'Delete this older due item?', yes: 'Delete', danger: true, body: [h('p', { class: 'mut', text: e.title }), h('p', { class: 'small', text: 'Its title, dates and notes are removed from the vault.' })],
             onYes: function () { return commit(function (x) { x.entries = x.entries.filter(function (z) { return z.id !== e.id; }); }, 'older due item delete').then(function () { view.open = 'ad-legacy'; render(); }); } });
@@ -7244,7 +8156,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     custom.addEventListener('input', function () { mins = custom.value.trim(); paint(); });
     paint();
     openDialog({
-      title: 'Log study time', yes: 'Save',
+      title: 'Log study time', yes: 'Save', adds: true,
       body: [field('Item (optional)', item), h('span', { class: 'lbl', text: 'Minutes' }), chips, field('Or type minutes', custom), field('Date', dateIn), field('Note (optional)', note)],
       onYes: function () {
         return commit(function (x) { L.learning.addSession(x, { itemId: item.value, date: dateIn.value, minutes: custom.value, notes: note.value }, today()); }, 'study session add')
@@ -7275,7 +8187,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     var goal = sel('ei-goal', goalOptions(s), it.goalId || '');
     openDialog({
       title: 'Edit item', yes: 'Save',
-      body: [field('Title', title), field('Target date', tdate), field('Exam date', exam), expires ? field('Certification expires', expires) : null, field('Linked goal', goal)],
+      body: [field('Title', title), field('Target date', tdate), field('Exam date', exam), expires ? field('Certification expires', expires) : null, field('Linked goal', goal), movePrivBtn('learningItems', it)],
       onYes: function () {
         var patch = { title: title.value, targetDate: tdate.value, examDate: exam.value, goalId: goal.value };
         if (expires) patch.expiresOn = expires.value;
@@ -7314,7 +8226,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     acts.push(btn('Edit', function () { editItemDialog(s, it); }, 'sm', { 'aria-label': 'Edit ' + it.title }));
     acts.push(btn('Delete', function () { askDeleteItem(s, it); }, 'sm bad ln-delete', { 'aria-label': 'Delete ' + it.title }));
     kids.push(h('div', { class: 'row' }, acts));
-    return h('div', { class: 'goal ln-item', 'data-title': it.title, 'data-state': it.state }, kids);
+    return h('div', ROW({ class: 'goal ln-item', 'data-title': it.title, 'data-state': it.state }, 'learningItems', it, true), kids);
   }
   function learningScreen(s) {
     var t = today(), Ln = L.learning, sum = Ln.summary(s, t), w = sum.week, info = Ln.weekInfo(t);
@@ -7392,12 +8304,12 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     function showResults() {
       var qs = q.value.trim(), found = Ln.search(s, qs), shown = qs ? found : (s.takeaways || []).slice().sort(function (a, b) { return b.date.localeCompare(a.date); }).slice(0, 10).map(function (x) { return { takeaway: x, itemTitle: x.itemId ? ((s.learningItems || []).filter(function (i) { return i.id === x.itemId; })[0] || {}).title || '' : '' }; });
       results.replaceChildren.apply(results, shown.length ? shown.slice(0, 50).map(function (r) {
-        return h('div', { class: 'item ln-tk', 'data-title': r.takeaway.text.slice(0, 40) },
+        return h('div', ROW({ class: 'item ln-tk', 'data-title': r.takeaway.text.slice(0, 40) }, 'takeaways', r.takeaway),
           h('div', null, h('div', { class: 'entry-t', text: r.takeaway.text }), h('div', { class: 'mut small', text: r.takeaway.date + (r.itemTitle ? ' | ' + r.itemTitle : '') })),
           btn('Delete', function () { act(function () { return commit(function (x) { Ln.deleteTakeaway(x, r.takeaway.id); }, 'takeaway delete').then(function () { view.open = 'ln-tk'; render(); }); }); }, 'sm bad', { 'aria-label': 'Delete takeaway' }));
       }) : [h('p', { class: 'mut', id: 'ln-no-results', text: qs ? 'No takeaways match.' : 'No takeaways yet.' })]);
     }
-    q.addEventListener('input', showResults);
+    q.addEventListener('input', function () { showResults(); decorateRows(); });
     showResults();
     var tkCard = details('ln-tk', 'Takeaways (' + (s.takeaways || []).length + ')', [
       h('form', {
@@ -7412,7 +8324,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     var titles = new Map(); (s.learningItems || []).forEach(function (i) { titles.set(i.id, i.title); });
     var recent = (s.studySessions || []).slice().sort(function (a, b) { return b.date.localeCompare(a.date); }).slice(0, 10);
     var sessCard = details('ln-sessions-card', 'Recent sessions (' + (s.studySessions || []).length + ')', recent.length ? recent.map(function (x) {
-      return h('div', { class: 'item ln-sess', 'data-title': x.date },
+      return h('div', ROW({ class: 'item ln-sess', 'data-title': x.date }, 'studySessions', x),
         h('div', null, h('span', { class: 'entry-t', text: x.minutes + ' min' }), h('span', { class: 'mut small', text: ' ' + x.date + (x.itemId && titles.has(x.itemId) ? ' | ' + titles.get(x.itemId) : '') }), x.notes ? h('p', { class: 'small mut', text: x.notes }) : null),
         btn('Delete', function () { act(function () { return commit(function (z) { Ln.deleteSession(z, x.id); }, 'study session delete').then(function () { view.open = 'ln-sessions-card'; render(); }); }); }, 'sm bad', { 'aria-label': 'Delete session of ' + x.minutes + ' minutes on ' + x.date }));
     }) : h('p', { class: 'mut', text: 'No sessions yet.' }), view.open === 'ln-sessions-card');
@@ -7420,7 +8332,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     // Older learning entries the upgrade could not turn into items or sessions: kept as entered, each deletable after a confirm.
     var legacy = Ln.legacyEntries(s), legacyShown = legacy.slice(0, 200);
     var legacyCard = legacy.length ? details('ln-legacy', 'Older learning entries (' + legacy.length + (legacy.length > legacyShown.length ? ', newest ' + legacyShown.length + ' shown' : '') + ')', [h('p', { class: 'mut small', text: 'Kept exactly as entered.' }), legacyShown.map(function (e) {
-      return h('div', { class: 'item g-legacy' }, h('div', null, h('span', { class: 'entry-t', text: e.title }), h('span', { class: 'mut small', text: ' ' + e.date + ', ' + (e.type === 'hours' ? e.value + ' hours' : (e.status || '')) }), e.notes ? h('p', { class: 'small mut', text: e.notes }) : null),
+      return h('div', ROW({ class: 'item g-legacy' }, 'entries', e), h('div', null, h('span', { class: 'entry-t', text: e.title }), h('span', { class: 'mut small', text: ' ' + e.date + ', ' + (e.type === 'hours' ? e.value + ' hours' : (e.status || '')) }), e.notes ? h('p', { class: 'small mut', text: e.notes }) : null),
         btn('Delete', function () {
           openDialog({ title: 'Delete this older entry?', yes: 'Delete', danger: true, body: [h('p', { class: 'mut', text: e.title }), h('p', { class: 'small', text: 'Its title, date and notes are removed from the vault.' })],
             onYes: function () { return commit(function (x) { x.entries = x.entries.filter(function (z) { return z.id !== e.id; }); }, 'older learning entry delete').then(function () { view.open = 'ln-legacy'; render(); }); } });
@@ -7466,7 +8378,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       h('thead', null, h('tr', null, heads.map(function (x) { return h('th', { text: x }); }))),
       h('tbody', null, rows.map(function (r) { return h('tr', { 'data-cat': r.cat || null }, r.cells.map(function (c) { return h('td', { text: c }); })); }))));
   }
-  function actDo(fn, ok) { act(function () { return commit(fn.run, fn.audit).then(function () { if (ok) setNotice('ok', typeof ok === 'function' ? ok() : ok); render(); }); }); }
+  function actDo(fn, ok) { act(function () { return commit(fn.run, fn.audit, fn.from).then(function () { if (ok) setNotice('ok', typeof ok === 'function' ? ok() : ok); render(); }); }); }
   function ratingChips(a) {
     return h('div', { class: 'chips act-rate-row', role: 'group', 'aria-label': 'Worth it rating for ' + a.title }, [1, 2, 3, 4, 5].map(function (n) {
       return h('button', { type: 'button', class: 'chipbtn act-rate', 'data-n': String(n), 'aria-pressed': a.worthIt === n ? 'true' : 'false', text: String(n), 'aria-label': 'Rate ' + n + ' for ' + a.title,
@@ -7536,7 +8448,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     var box = h('div', { class: 'chips people-suggest', id: p + 'people-suggest', role: 'group', 'aria-label': 'People you can add' });
     function refresh() {
       var parts = input.value.split(','), tok = parts[parts.length - 1].trim();
-      var names = L.social.suggestNames(L.store.getState(), tok).filter(function (n) { return parts.slice(0, -1).map(function (x) { return L.social.nameKey(x); }).indexOf(L.social.nameKey(n)) < 0; }).slice(0, 8);
+      var names = L.social.suggestNames(st(), tok).filter(function (n) { return parts.slice(0, -1).map(function (x) { return L.social.nameKey(x); }).indexOf(L.social.nameKey(n)) < 0; }).slice(0, 8);
       box.replaceChildren();
       names.forEach(function (n) {
         box.appendChild(h('button', { type: 'button', class: 'chipbtn people-pick', text: n, 'aria-label': 'Add ' + n, onclick: function () { parts.pop(); var head = parts.map(function (x) { return x.trim(); }).filter(Boolean); head.push(n); input.value = head.join(', '); input.focus(); refresh(); } }));
@@ -7549,7 +8461,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   function editActivityDialog(s, a, t) {
     var form = activityForm(s, a, t, 'ae-');
     openDialog({
-      title: 'Edit activity', yes: 'Save', body: form.nodes,
+      title: 'Edit activity', yes: 'Save', body: [form.nodes, movePrivBtn('activities', a)],
       onYes: function () { var p = form.read(); return commit(function (x) { L.activities.updateActivity(x, a.id, p); }, 'activity edit').then(function () { setNotice('ok', 'Activity saved.'); render(); }); }
     });
   }
@@ -7573,7 +8485,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     var acts = [];
     // An unknown name in a Social-tagged activity can be added as a person on a tap; it is never added by itself.
     if (a.alsoSocial) L.social.unknownNames(s, a.withPeople).forEach(function (n) {
-      acts.push(btn('Add ' + n + ' as a person', function () { actDo({ run: function (x) { L.social.addPerson(x, { name: n }); }, audit: 'person add' }, 'Person added.'); }, 'sm act-addperson', { 'aria-label': 'Add ' + n + ' as a person' }));
+      acts.push(btn('Add ' + n + ' as a person', function () { actDo({ run: function (x) { L.social.addPerson(x, { name: n }); }, audit: 'person add', from: [['activities', a.id]] }, 'Person added.'); }, 'sm act-addperson', { 'aria-label': 'Add ' + n + ' as a person' }));
     });
     if (a.state === 'planned') {
       acts.push(btn('Done', function () { actDo({ run: function (x) { A.markDone(x, a.id); }, audit: 'activity done' }, 'Marked done.'); }, 'sm pri act-done', { 'aria-label': 'Mark ' + a.title + ' done' }));
@@ -7586,12 +8498,12 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     acts.push(btn('Delete', function () { askDeleteActivity(s, a); }, 'sm bad act-del', { 'aria-label': 'Delete ' + a.title }));
     if (a.state === 'done') kids.push(h('div', { class: 'row' }, h('span', { class: 'mut small', text: 'Worth it?' }), ratingChips(a)));
     kids.push(h('div', { class: 'row' }, acts));
-    return h('div', { class: 'goal act-item', 'data-title': a.title, 'data-state': a.state }, kids);
+    return h('div', ROW({ class: 'goal act-item', 'data-title': a.title, 'data-state': a.state }, 'activities', a, true), kids);
   }
   // A past-date planned activity: done, skipped or a new date, each on a tap.
   function pastRow(s, a, cls) {
     var A = L.activities, nd = h('input', { type: 'date', class: cls + '-date', 'aria-label': 'New date for ' + a.title, value: a.date });
-    return h('div', { class: 'item ' + cls, 'data-title': a.title },
+    return h('div', ROW({ class: 'item ' + cls, 'data-title': a.title }, 'activities', a),
       h('div', null, h('span', { class: 'entry-t', text: a.title }), h('span', { class: 'mut small', text: ' ' + dateRange(a) + (typeof a.costCents === 'number' ? ', ' + fmtC(s, a.costCents) : '') + (a.paidOn ? ' (paid)' : '') })),
       h('div', { class: 'row' }, nd,
         btn('Reschedule', function () { actDo({ run: function (x) { A.reschedule(x, a.id, nd.value); }, audit: 'activity reschedule' }, 'Rescheduled.'); }, 'sm ' + cls + '-rs', { 'aria-label': 'Reschedule ' + a.title }),
@@ -7608,7 +8520,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     var g = L.activities.glance(s, t), now = g.today.concat(g.week), srcs = {};
     now.concat(g.later).forEach(function (x) { srcs[x.source] = true; });
     var many = Object.keys(srcs).length > 1;
-    var kids = [h('h2', { text: 'At a glance' }),
+    var kids = [h('h2', null, 'At a glance ', lockMark(['activities', 'people', 'entries'])),
       h('p', { class: 'mut small', id: id + '-sum', text: g.count ? g.count + (g.count === 1 ? ' item' : ' items') + ' in the next 30 days.' : 'Nothing planned in the next 30 days.' })];
     if (g.today.length) kids.push(h('h3', { text: 'Today' }), g.today.map(function (x) { return glanceItem(s, x, many); }));
     if (g.week.length) kids.push(h('h3', { text: 'This week' }), g.week.map(function (x) { return glanceItem(s, x, many); }));
@@ -7716,7 +8628,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
 
     var legacy = A.legacyEntries(s), legacyShown = legacy.slice(0, 200);
     var legacyCard = legacy.length ? details('act-legacy', 'Older activity entries (' + legacy.length + (legacy.length > legacyShown.length ? ', newest ' + legacyShown.length + ' shown' : '') + ')', [h('p', { class: 'mut small', text: 'Kept exactly as entered.' }), legacyShown.map(function (e) {
-      return h('div', { class: 'item g-legacy' }, h('div', null, h('span', { class: 'entry-t', text: e.title }), h('span', { class: 'mut small', text: ' ' + e.date }), e.notes ? h('p', { class: 'small mut', text: e.notes }) : null),
+      return h('div', ROW({ class: 'item g-legacy' }, 'entries', e), h('div', null, h('span', { class: 'entry-t', text: e.title }), h('span', { class: 'mut small', text: ' ' + e.date }), e.notes ? h('p', { class: 'small mut', text: e.notes }) : null),
         btn('Delete', function () {
           openDialog({ title: 'Delete this older entry?', yes: 'Delete', danger: true, body: [h('p', { class: 'mut', text: e.title }), h('p', { class: 'small', text: 'Its title, date and notes are removed from the vault.' })],
             onYes: function () { return commit(function (x) { x.entries = x.entries.filter(function (z) { return z.id !== e.id; }); }, 'older activity entry delete').then(function () { view.open = 'act-legacy'; render(); }); } });
@@ -7805,7 +8717,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     if (acts.indexOf('archive') >= 0) row.push(btn('Archive', function () { actDo({ run: function (x) { L.social.archivePerson(x, r.id, true); }, audit: 'social archive' }, 'Archived.'); }, 'sm soc-archive', { 'aria-label': 'Archive ' + r.name }));
     if (acts.indexOf('details') >= 0) row.push(btn('Details', function () { go('domain', { domain: 'social', person: r.id }); }, 'sm soc-details', { 'aria-label': 'Details for ' + r.name }));
     kids.push(h('div', { class: 'row' }, row));
-    return h('div', { class: 'item soc-row', 'data-person': r.name, 'data-state': r.state }, kids);
+    return h('div', ROW({ class: 'item soc-row', 'data-person': r.name, 'data-state': r.state }, 'people', r), kids);
   }
   function workLinks(s, key, id, t, label) {
     var A = L.social, ppl = key === 'pipelineIds' ? A.peopleForPipeline(s, id, t) : A.peopleForProject(s, id, t), linked = {}, kids = [];
@@ -7855,7 +8767,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       act(function () { var patch = { name: en.value, groupId: eg.value, cadenceDays: ec.value.trim() }; if (p.notes.length <= A.NOTE_MAX) patch.notes = enotes.value; return commit(function (x) { A.updatePerson(x, p.id, patch); }, 'person edit').then(function () { setNotice('ok', 'Saved.'); render(); }); });
     } }, field('Name', en), field('Group', eg), field('Own cadence in days (empty follows the group)', ec),
       p.notes.length > A.NOTE_MAX ? h('p', { class: 'mut small', text: 'A longer note carried over from an older entry is kept as it is.' }) : field('Notes (up to ' + A.NOTE_MAX + ' characters)', enotes, 'Do not enter ID numbers, account numbers or passwords.'),
-      h('button', { type: 'submit', class: 'btn pri', id: 'soc-e-save', text: 'Save' }))], view.open === 'soc-edit');
+      h('div', { class: 'row' }, h('button', { type: 'submit', class: 'btn pri', id: 'soc-e-save', text: 'Save' }), movePrivBtn('people', p)))], view.open === 'soc-edit');
     // log
     var ld = h('input', { type: 'date', id: 'soc-l-date', value: t }), lc = sel('soc-l-channel', A.CHANNELS.map(function (c) { return { v: c, t: c }; }), 'other'), ln = h('input', { type: 'text', id: 'soc-l-note', maxlength: String(A.NOTE_MAX), autocomplete: 'off' });
     var contacts = A.contactsOf(s, p.id), shown = view.logShown || 20;
@@ -7863,7 +8775,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       h('form', { onsubmit: function (e) { e.preventDefault(); act(function () { return commit(function (x) { A.logContact(x, p.id, { date: ld.value, channel: lc.value, notes: ln.value }, t); }, 'social contact').then(function () { setNotice('ok', 'Contact logged.'); render(); }); }); } },
         field('Date', ld), field('Channel', lc), field('Note (optional, up to ' + A.NOTE_MAX + ' characters)', ln, 'Do not enter ID numbers, account numbers or passwords.'), h('button', { type: 'submit', class: 'btn', id: 'soc-l-add', text: 'Log contact' })),
       contacts.length ? contacts.slice(0, shown).map(function (c) {
-        return h('div', { class: 'item soc-log-item', 'data-date': c.date }, h('div', null, h('span', { class: 'entry-t', text: c.date }), h('span', { class: 'mut small', text: ' ' + c.channel }), c.notes ? h('p', { class: 'small mut', text: c.notes }) : null),
+        return h('div', ROW({ class: 'item soc-log-item', 'data-date': c.date }, 'contacts', c), h('div', null, h('span', { class: 'entry-t', text: c.date }), h('span', { class: 'mut small', text: ' ' + c.channel }), c.notes ? h('p', { class: 'small mut', text: c.notes }) : null),
           btn('Delete', function () { actDo({ run: function (x) { A.deleteContact(x, c.id); }, audit: 'social contact delete' }, 'Contact deleted.'); }, 'sm bad soc-log-del', { 'aria-label': 'Delete the contact on ' + c.date }));
       }) : h('p', { class: 'mut', text: 'Nothing logged yet.' }),
       contacts.length > shown ? btn('Show more', function () { view.logShown = shown + 20; render(); }, 'sm') : null);
@@ -7927,7 +8839,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     var sug = A.suggestions(s);
     var gCard = details('soc-groups', 'Groups (' + (s.groups || []).length + ')', [
       (s.groups || []).map(function (g) {
-        return h('div', { class: 'item soc-group-item', 'data-group': g.name }, h('div', null, h('span', { class: 'entry-t', text: g.name }), h('span', { class: 'mut small', text: ' every ' + g.cadenceDays + ' days' })),
+        return h('div', ROW({ class: 'item soc-group-item', 'data-group': g.name }, 'groups', g), h('div', null, h('span', { class: 'entry-t', text: g.name }), h('span', { class: 'mut small', text: ' every ' + g.cadenceDays + ' days' })),
           h('div', { class: 'row' }, btn('Change days', function () {
             var inp = h('input', { type: 'text', id: 'soc-gd-input', inputmode: 'numeric', maxlength: '4', autocomplete: 'off', value: String(g.cadenceDays) });
             openDialog({ title: 'Days between contacts', yes: 'Save', body: field('Days', inp), onYes: function () { return commit(function (x) { A.updateGroup(x, g.id, { cadenceDays: inp.value }); }, 'social group').then(function () { view.open = 'soc-groups'; render(); }); } });
@@ -7964,12 +8876,12 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     var results = h('div', { id: 'soc-results' });
     var q = h('input', { type: 'search', id: 'soc-search', maxlength: '100', autocomplete: 'off', 'aria-label': 'Search people and facts' });
     q.addEventListener('input', function () {
-      var found = L.social.search(L.store.getState(), q.value);
+      var found = L.social.search(st(), q.value);
       results.replaceChildren();
       if (!q.value.trim()) return;
       if (!found.length) { results.appendChild(h('p', { class: 'mut small', text: 'No matches.' })); return; }
       found.forEach(function (f) {
-        var p = personById(L.store.getState(), f.personId);
+        var p = personById(st(), f.personId);
         var facts = f.hits.filter(function (x) { return x.kind === 'fact'; }).map(function (x) { var fa = p.facts.filter(function (y) { return y.id === x.id; })[0]; return fa ? fa.label + ': ' + fa.text : ''; });
         results.appendChild(h('div', { class: 'item soc-result', 'data-person': f.name }, h('div', null, h('span', { class: 'entry-t', text: f.name }), facts.length ? h('p', { class: 'small mut', text: facts.join(' | ') }) : null),
           btn('Details', function () { go('domain', { domain: 'social', person: f.personId }); }, 'sm', { 'aria-label': 'Details for ' + f.name })));
@@ -7979,17 +8891,17 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     return h('div', { id: 'soc-people-card' }, h('div', { class: 'card' }, h('h2', { text: 'People (' + ppl.length + ')' }), field('Search names and facts', q), results,
       ppl.map(function (p) {
         var lc = last.get(p.id);
-        return h('div', { class: 'item soc-person-row', 'data-person': p.name }, h('div', null, h('span', { class: 'entry-t', text: p.name }), groupName(s, p) ? chipEl(groupName(s, p), 'soc-group') : null, h('span', { class: 'mut small', text: ' ' + (lc ? 'last contact ' + lc.date : 'no contact yet') })),
+        return h('div', ROW({ class: 'item soc-person-row', 'data-person': p.name }, 'people', p), h('div', null, h('span', { class: 'entry-t', text: p.name }), groupName(s, p) ? chipEl(groupName(s, p), 'soc-group') : null, h('span', { class: 'mut small', text: ' ' + (lc ? 'last contact ' + lc.date : 'no contact yet') })),
           btn('Details', function () { go('domain', { domain: 'social', person: p.id }); }, 'sm', { 'aria-label': 'Details for ' + p.name }));
       }), ppl.length ? null : h('p', { class: 'mut', text: 'No people yet.' })),
       details('soc-add', 'Add a person', [addPersonForm(s, t)], view.open === 'soc-add' || !ppl.length),
-      arch.length ? details('soc-archived', 'Archived (' + arch.length + ')', arch.map(function (p) { return h('div', { class: 'item soc-arch', 'data-person': p.name }, h('div', null, h('span', { class: 'entry-t', text: p.name })), btn('Details', function () { go('domain', { domain: 'social', person: p.id }); }, 'sm', { 'aria-label': 'Details for ' + p.name })); })) : null);
+      arch.length ? details('soc-archived', 'Archived (' + arch.length + ')', arch.map(function (p) { return h('div', ROW({ class: 'item soc-arch', 'data-person': p.name }, 'people', p), h('div', null, h('span', { class: 'entry-t', text: p.name })), btn('Details', function () { go('domain', { domain: 'social', person: p.id }); }, 'sm', { 'aria-label': 'Details for ' + p.name })); })) : null);
   }
   function unlinkedCard(s) {
     var un = L.social.unlinkedContacts(s);
     if (!un.length) return null;
     return details('soc-unlinked', 'Logged contacts without a person (' + un.length + ')', [h('p', { class: 'mut small', text: 'Kept when a person was deleted.' }), un.slice(0, 100).map(function (c) {
-      return h('div', { class: 'item soc-unlinked-item' }, h('div', null, h('span', { class: 'entry-t', text: c.date }), h('span', { class: 'mut small', text: ' ' + c.channel }), c.notes ? h('p', { class: 'small mut', text: c.notes }) : null),
+      return h('div', ROW({ class: 'item soc-unlinked-item' }, 'contacts', c), h('div', null, h('span', { class: 'entry-t', text: c.date }), h('span', { class: 'mut small', text: ' ' + c.channel }), c.notes ? h('p', { class: 'small mut', text: c.notes }) : null),
         btn('Delete', function () { view.open = 'soc-unlinked'; actDo({ run: function (x) { L.social.deleteContact(x, c.id); }, audit: 'social contact delete' }, 'Contact deleted.'); }, 'sm bad', { 'aria-label': 'Delete the contact on ' + c.date }));
     })], view.open === 'soc-unlinked');
   }
@@ -8030,6 +8942,334 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       r.became.map(function (x) { return socRow(s, x, t, ['reached', 'snooze', 'cadence', 'archive']); }),
       h('p', { class: 'small', id: 'rv-soc-next-h', text: 'Due next week (' + r.dueNext.length + ')' }),
       r.dueNext.map(function (x) { return socRow(s, x, t, ['reached', 'cadence']); }));
+  }
+
+  // ---------- private vault (v0.11.0 part A) ----------
+  var PRIV_LABEL = { entries: 'Entries', accounts: 'Accounts', recurring: 'Recurring items', budgets: 'Budgets', projects: 'Projects', pipeline: 'Pipeline', goals: 'Goals',
+    maintenance: 'Maintenance', vehicles: 'Vehicles', properties: 'Properties', renewals: 'Renewals', documents: 'Documents', taxItems: 'Tax items', learningItems: 'Learning items',
+    studySessions: 'Study sessions', takeaways: 'Takeaways', activities: 'Activities', people: 'People', groups: 'Groups', contacts: 'Logged contacts', habits: 'Daily checks',
+    habitLog: 'Daily check ticks', cycle: 'Training cycle' };
+  function privKey(c, r) { return c === 'cycle' ? 'cycle' : c === 'budgets' ? r.category : c === 'habitLog' ? r.habitId + '|' + r.date : r.id; }
+  function privList(s, c) { return c === 'cycle' ? (s.cycle ? [s.cycle] : []) : (s[c] || []); }
+  function privText(c, r, s) {
+    switch (c) {
+      case 'entries': return r.title + ' (' + r.domain + ', ' + r.date + ')';
+      case 'accounts': case 'projects': case 'vehicles': case 'properties': case 'groups': case 'people': case 'habits': return r.name;
+      case 'budgets': return r.category;
+      case 'studySessions': return r.date + ', ' + r.minutes + ' min';
+      case 'takeaways': return r.date + ' ' + String(r.text).slice(0, 60);
+      case 'contacts': return r.date + ' ' + r.channel + (r.notes ? ' ' + String(r.notes).slice(0, 40) : '');
+      case 'habitLog': return r.date + ' ' + ((s.habits || []).filter(function (x) { return x.id === r.habitId; })[0] || { name: 'check' }).name;
+      case 'cycle': return 'Training cycle from ' + r.startDate;
+      default: return r.title || r.name || r.id;
+    }
+  }
+
+
+  // Row tagging: while the vault is open a row carries its collection and key; decorateRows() then adds the lock badge and Options.
+  function ROW(props, c, r, noOptions) {
+    if (!r || !L.priv.isOpen()) return props;
+    props['data-pc'] = c; props['data-pk'] = privKey(c, r);
+    if (noOptions) props['data-pnoopt'] = '1';
+    return props;
+  }
+  function decorateRows() {
+    var root = document.getElementById('app');
+    if (!root || !L.store.isUnlocked() || !L.priv.isOpen()) return;
+    var s = st();
+    Array.prototype.forEach.call(root.querySelectorAll('[data-pc]'), function (el) {
+      if (el.getAttribute('data-pdone')) return;
+      el.setAttribute('data-pdone', '1');
+      var c = el.getAttribute('data-pc'), k = el.getAttribute('data-pk');
+      var r = privList(s, c).filter(function (x) { return privKey(c, x) === k; })[0];
+      if (!r) return;
+      pr(el, c, r, { noOptions: el.getAttribute('data-pnoopt') === '1' });
+    });
+  }
+  // While the vault is open: a lock badge on private rows, and "Move to private vault" / "Move out" wherever a record is edited.
+  function isPrivRec(c, r) { return !!r && L.priv.isOpen() && L.priv.isPrivate(c, privKey(c, r)); }
+  function lockBadge() { return lockIcon('Private item', 'lockmark privbadge'); }
+  function movePrivBtn(c, r) {
+    if (!r || !L.priv.isOpen()) return null;
+    var isP = isPrivRec(c, r);
+    return btn(isP ? 'Move out' : 'Move to private vault', function () { privMoveDialog(st(), c, r, isP ? 'out' : 'in'); }, 'sm priv-move-btn', { 'data-collection': c });
+  }
+  // Decorate a row: badge when private; an Options button (it opens the item's options dialog) unless the row already has an edit dialog.
+  function pr(el, c, r, o) {
+    if (!r || !L.priv.isOpen()) return el;
+    if (isPrivRec(c, r)) {
+      el.classList.add('is-private');
+      var t = el.querySelector('.entry-t');
+      if (t) t.insertBefore(lockBadge(), t.firstChild); else el.insertBefore(lockBadge(), el.firstChild);
+    }
+    if (o && o.noOptions) return el;
+    var ob = btn('Options', function () { optionsDialog(c, r); }, 'sm priv-opt', { 'aria-label': 'Options for ' + privText(c, r, st()) });
+    var last = el.children[el.children.length - 1];
+    if (last && last.classList && last.classList.contains('row')) last.appendChild(ob); else el.appendChild(ob);
+    return el;
+  }
+  // For records that have no edit form: a small dialog holding the item's name and the move action.
+  function optionsDialog(c, r) {
+    var s = st();
+    openDialog({ title: 'Options', yes: 'Done', body: [h('p', { class: 'mut', text: privText(c, r, s) }), h('div', { class: 'row' }, movePrivBtn(c, r))], onYes: function () {} });
+  }
+  function privSetupCard() {
+    var p1 = h('input', { type: 'password', id: 'priv-set1', autocomplete: 'new-password', required: true, minlength: '12' });
+    var p2 = h('input', { type: 'password', id: 'priv-set2', autocomplete: 'new-password', required: true, minlength: '12' });
+    return h('form', { class: 'card', id: 'priv-setup', onsubmit: function (e) {
+      e.preventDefault();
+      act(function () {
+        var a = p1.value;
+        checkPass(a);
+        if (a !== p2.value) throw new Error('The two passphrases do not match.');
+        return L.priv.setUp(a).then(function () { p1.value = ''; p2.value = ''; setNotice('ok', 'Private vault set up and open.'); render(); });
+      });
+    } }, h('h2', { text: 'Set up the private vault' }),
+      field('Private passphrase (12 characters or more, different from your main passphrase)', p1), field('Confirm private passphrase', p2),
+      h('p', { class: 'warn small', text: 'If you forget this passphrase, the private items cannot be recovered. There is no reset and no backdoor.' }),
+      h('button', { type: 'submit', class: 'btn pri', id: 'priv-setup-btn', text: 'Set up private vault' }));
+  }
+  function privOpenForm() {
+    var p = h('input', { type: 'password', id: 'priv-pass', autocomplete: 'off', required: true });
+    var b = h('button', { type: 'submit', class: 'btn pri', id: 'priv-open', text: 'Open private vault' });
+    var msg = h('p', { class: 'small', id: 'priv-wait', role: 'status', text: '' });
+    function tick() {
+      clearTimeout(privTimer);
+      var left = Math.ceil((privFail.until - Date.now()) / 1000);
+      if (left > 0) { b.disabled = true; msg.textContent = 'Wrong passphrase. Wait ' + left + ' s before trying again.'; privTimer = setTimeout(tick, 250); }
+      else { b.disabled = false; msg.textContent = ''; }
+    }
+    var f = h('form', { onsubmit: function (e) {
+      e.preventDefault();
+      if (Date.now() < privFail.until) return;
+      act(function () {
+        var v = p.value;
+        return L.priv.open(v).then(function () { privFail = { n: 0, until: 0 }; p.value = ''; setNotice('ok', 'Private vault open.'); render(); }, function (err) {
+          if (err && err.message === 'BAD_PRIVATE_PASSPHRASE') { privFail.n++; privFail.until = Date.now() + Math.min(30000, 1000 * Math.pow(2, privFail.n - 1)); }
+          p.value = '';
+          throw err;
+        });
+      }).then(tick);
+    } }, field('Private passphrase', p), b, msg);
+    tick();
+    return f;
+  }
+  function privMoveDialog(s, c, r, dir) {
+    var key = privKey(c, r), kids = L.priv.childrenOf(s, c, key);
+    var pair = (c === 'activities' && r.expenseId) || (c === 'entries' && privList(s, 'activities').some(function (a) { return a.expenseId === key; }));
+    var chk = h('input', { type: 'checkbox', id: 'priv-kids', checked: true });
+    openDialog({
+      title: dir === 'in' ? 'Move to the private vault?' : 'Move out of the private vault?', yes: dir === 'in' ? 'Move in' : 'Move out',
+      body: [h('p', { class: 'mut', text: dir === 'in' ? 'It disappears from every screen, total and export while the vault is closed.' : 'It becomes an ordinary item again, visible with the app unlocked.' }),
+        pair ? h('p', { class: 'small', id: 'priv-pair', text: 'An activity and its Money expense always move together.' }) : null,
+        c === 'habits' ? h('p', { class: 'small', text: 'Its ticks move with it.' }) : null,
+        kids.length ? h('label', { class: 'row small' }, chk, h('span', { text: 'Also move ' + kids.length + ' linked ' + (kids.length === 1 ? 'item' : 'items') + ' (recommended)' })) : null],
+      onYes: function () {
+        return (dir === 'in' ? L.priv.moveIn : L.priv.moveOut)(c, key, { children: kids.length ? !!chk.checked : false }).then(function () { setNotice('ok', dir === 'in' ? 'Moved to the private vault.' : 'Moved out of the private vault.'); render(); });
+      }
+    });
+  }
+  function privMoveCard(s) {
+    var colls = L.priv.COLLECTIONS;
+    var q = h('input', { type: 'search', id: 'priv-q', value: privPick.q, maxlength: '100', autocomplete: 'off' });
+    var cs = sel('priv-coll', colls.map(function (c) { return { v: c, t: PRIV_LABEL[c] }; }), privPick.coll, function (e) { privPick.coll = e.target.value; render(); });
+    var c = privPick.coll, needle = privPick.q.trim().toLowerCase();
+    var all = privList(s, c).map(function (r) { return { r: r, t: privText(c, r, s), k: privKey(c, r) }; });
+    var hit = all.filter(function (x) { return !needle || x.t.toLowerCase().indexOf(needle) >= 0; });
+    var rows = hit.slice(0, 50).map(function (x) {
+      var isP = L.priv.isPrivate(c, x.k);
+      return h('div', { class: 'entry priv-row', 'data-key': x.k, 'data-private': isP ? '1' : '0' },
+        h('span', { class: 'entry-t' }, isP ? h('span', { class: 'chip ok' }, 'Private') : null, x.t),
+        btn(isP ? 'Move out' : 'Move to private vault', function () { privMoveDialog(s, c, x.r, isP ? 'out' : 'in'); }, 'sm priv-move'));
+    });
+    return h('div', { class: 'card', id: 'priv-move-card' }, h('h2', { text: 'Move items in or out' }),
+      h('p', { class: 'mut small', text: 'Tick "New items are private" above to save new items straight into the vault.' }),
+      field('Kind of item', cs),
+      h('form', { onsubmit: function (e) { e.preventDefault(); privPick.q = q.value; render(); } }, field('Search', q), h('button', { type: 'submit', class: 'btn sm', id: 'priv-search', text: 'Search' })),
+      rows.length ? rows : h('p', { class: 'mut', text: 'Nothing here.' }),
+      hit.length > 50 ? h('p', { class: 'mut small', text: 'Showing 50 of ' + hit.length + '. Narrow the search.' }) : null);
+  }
+  function privScreen(s) {
+    var b = mainState(), out = [btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Private vault' }),
+      h('p', { class: 'mut', text: 'A second lock inside LifeOS with its own passphrase. Unlocking the app does not open it. While it is closed, private items are missing from every screen, total, search, export and backup view. They never reach an AI prompt, the weekly digest or a CSV, even while it is open.' })];
+    if (!L.priv.isSetUp(b)) { out.push(privSetupCard()); return h('div', null, out); }
+    var secs = h('input', { type: 'number', id: 'priv-secs', min: '15', max: '1800', step: '1', value: String(b.settings.privAutoLockSec || 60) });
+    out.push(h('div', { class: 'card', id: 'priv-status' }, h('h2', { text: L.priv.isOpen() ? 'Open' : 'Closed' }),
+      L.priv.isOpen() ? h('p', { class: 'mut', text: 'It closes by itself after ' + (b.settings.privAutoLockSec || 60) + ' seconds without activity, when this tab is hidden, when the app locks, and before any AI request.' }) : privOpenForm(),
+      h('form', { onsubmit: function (e) {
+        e.preventDefault();
+        act(function () {
+          var n = Number(secs.value);
+          if (!Number.isInteger(n) || n < 15 || n > 1800) throw new Error('Choose a whole number of seconds from 15 to 1800.');
+          return commit(function (x) { x.settings.privAutoLockSec = n; }, 'private timer changed').then(render);
+        }, 'Saved.');
+      } }, field('Close the private vault after this many idle seconds (15 to 1800)', secs), h('button', { type: 'submit', class: 'btn sm', id: 'priv-secs-save', text: 'Save' }))));
+    if (L.priv.isOpen()) out.push(privMoveCard(s));
+    var o = passOnly('priv-old', 'off'), n1 = passOnly('priv-new1', 'new-password'), n2 = passOnly('priv-new2', 'new-password'), typed = h('input', { type: 'text', id: 'priv-destroy-confirm', autocomplete: 'off' });
+    out.push(h('div', { class: 'card', id: 'priv-manage' }, h('h2', { text: 'Passphrase and removal' }),
+      h('form', { onsubmit: function (e) {
+        e.preventDefault();
+        act(function () {
+          checkPass(n1.value);
+          if (n1.value !== n2.value) throw new Error('The two new passphrases do not match.');
+          var a = o.value, c = n1.value;
+          return L.priv.changePassphrase(a, c).then(function () { o.value = ''; n1.value = ''; n2.value = ''; setNotice('ok', 'Private passphrase changed. The vault is closed.'); render(); });
+        });
+      } }, field('Current private passphrase', o), field('New private passphrase (12 characters or more)', n1), field('Confirm new private passphrase', n2),
+        h('button', { type: 'submit', class: 'btn sm', id: 'priv-change', text: 'Change private passphrase' })),
+      h('hr'),
+      btn('Destroy the private vault', function () {
+        openDialog({ title: 'Destroy the private vault?', yes: 'Destroy it', danger: true,
+          body: [h('p', { class: 'mut', text: 'Every private item is permanently deleted. Type DESTROY to confirm. Make a backup first if unsure.' }), field('Confirmation', typed)],
+          onYes: function () {
+            if (typed.value !== 'DESTROY') throw new Error('Type DESTROY exactly to continue.');
+            return L.priv.destroy().then(function () { setNotice('ok', 'Private vault destroyed.'); render(); });
+          } });
+      }, 'bad', { id: 'priv-destroy' })));
+    return h('div', null, out);
+  }
+
+
+  // ---------- wellbeing (v0.11.0 part B): lives only in the private vault; numbers and dates only ----------
+  function avgText(v) { return v === null || v === undefined ? '-' : String(Math.round(v * 10) / 10); }
+  function wellbeingTile(s, d, t) {
+    var open = L.priv.isOpen(), val = 'Locked', lab = '', sub = '';
+    if (open) {
+      try {
+        var w = L.priv.getWellbeing(), a = L.wellbeing.avg(w, 'mood', addDays(t, -6), t).avg;
+        val = a === null ? 'n/a' : avgText(a); lab = 'Mood, 7-day average'; sub = 'Streak: ' + L.wellbeing.streak(w, t) + (L.wellbeing.streak(w, t) === 1 ? ' day' : ' days');
+      } catch (e) { val = 'n/a'; }
+    }
+    return h('button', { type: 'button', class: 'tile', 'data-domain': 'wellbeing', 'data-locked': open ? '0' : '1', onclick: function () { go('domain', { domain: 'wellbeing' }); } },
+      h('span', { class: 'tile-title' }, d.label, ' ', open ? null : lockIcon('Locked', 'lockmark')),
+      h('span', { class: 'tile-value', text: val }), h('span', { class: 'tile-sub', text: lab }), h('span', { class: 'tile-sub', text: sub }));
+  }
+  function ratingRow(area, label, vals, onTap) {
+    var btns = [1, 2, 3, 4, 5].map(function (n) {
+      return h('button', { type: 'button', class: 'rate', 'data-area': area, 'data-v': String(n), 'aria-label': label + ' ' + n, 'aria-pressed': vals[area] === n ? 'true' : 'false', text: String(n),
+        onclick: function () {
+          vals[area] = vals[area] === n ? undefined : n;
+          btns.forEach(function (b) { b.setAttribute('aria-pressed', vals[area] === Number(b.getAttribute('data-v')) ? 'true' : 'false'); });
+          if (onTap) onTap();
+        } });
+    });
+    return h('div', { class: 'ratingrow', 'data-area': area }, h('span', { class: 'lbl', text: label + ' (1 to 5, optional)' }), h('div', { class: 'row' }, btns));
+  }
+  function wbTrend(area, label, series) {
+    var W = 320, H = 70, P = 10;
+    function X(i) { return P + i * (W - 2 * P) / (series.length - 1); }
+    function Y(v) { return H - P - (v - 1) / 4 * (H - 2 * P); }
+    var g = [h('line', { class: 'axis', x1: '0', y1: String(H - P + 4), x2: String(W), y2: String(H - P + 4) })], run = [];
+    function flush() {
+      if (run.length > 1) g.push(h('polyline', { class: 'ln-avg', points: run.map(function (p) { return p[0].toFixed(1) + ',' + p[1].toFixed(1); }).join(' ') }));
+      run = [];
+    }
+    series.forEach(function (r, i) {
+      if (r.value === null) { flush(); return; }
+      run.push([X(i), Y(r.value)]);
+      g.push(h('circle', { class: 'dot-raw', cx: X(i).toFixed(1), cy: Y(r.value).toFixed(1), r: '2' }));
+    });
+    flush();
+    g.push(h('text', { class: 'tick', x: '2', y: '10', 'text-anchor': 'start' }, '5'));
+    g.push(h('text', { class: 'tick', x: '2', y: String(H - 2), 'text-anchor': 'start' }, '1'));
+    return h('svg', { class: 'chart', id: 'wb-trend-' + area, viewBox: '0 0 ' + W + ' ' + H, role: 'img', 'aria-label': 'Trend, last 30 days: ' + label }, g);
+  }
+  function wbSave(input) {
+    return act(function () {
+      return L.priv.commit(function (i) { if (!i.wellbeing) i.wellbeing = {}; L.wellbeing.save(i.wellbeing, input); }).then(function () { view.ck = null; setNotice('ok', 'Check-in saved.'); render(); });
+    });
+  }
+  // The check-in panel asks "Quick update, all areas" or "One section" every time it opens.
+  function checkinPanel(wb, t) {
+    var W = L.wellbeing, ck = view.ck;
+    if (!ck) return h('div', { class: 'card', id: 'wb-ck' }, btn('Check in', function () { view.ck = { step: 'choose', date: t }; render(); }, 'pri', { id: 'wb-open-ck' }));
+    var dateIn = h('input', { type: 'date', id: 'wb-date', value: ck.date, max: t, required: true, onchange: function (e) { if (e.target.value && e.target.value <= t) { ck.date = e.target.value; render(); } } });
+    var dateField = field('Date (past days can be edited)', dateIn);
+    var cancel = btn('Cancel', function () { view.ck = null; render(); }, 'sm', { id: 'wb-ck-cancel' });
+    if (ck.step === 'choose') {
+      return h('div', { class: 'card', id: 'wb-ck' }, h('h2', { text: 'Check in' }), dateField,
+        h('div', { class: 'row' }, btn('Quick update, all areas', function () { ck.step = 'quick'; render(); }, 'pri', { id: 'wb-quick' }), btn('One section', function () { ck.step = 'section'; render(); }, '', { id: 'wb-section' }), cancel));
+    }
+    var cur = W.byDate(wb, ck.date) || {}, vals = {};
+    W.AREA_IDS.forEach(function (a) { if (cur[a] !== undefined) vals[a] = cur[a]; });
+    var note = h('textarea', { id: 'wb-note', maxlength: String(W.NOTE_MAX), value: cur.note || '', 'aria-label': 'Note' });
+    var rows, area = ck.area && W.AREA_IDS.indexOf(ck.area) >= 0 ? ck.area : 'mood';
+    if (ck.step === 'quick') rows = W.AREAS.map(function (a) { return ratingRow(a.id, a.label, vals); });
+    else {
+      var pick = sel('wb-area', W.AREAS.map(function (a) { return { v: a.id, t: a.label }; }), area, function (e) { ck.area = e.target.value; render(); });
+      rows = [field('Section', pick), ratingRow(area, (W.AREAS.filter(function (a) { return a.id === area; })[0]).label, vals)];
+    }
+    return h('form', { class: 'card', id: 'wb-ck', onsubmit: function (e) {
+      e.preventDefault();
+      var input = { date: ck.date };
+      Object.keys(vals).forEach(function (a) { if (vals[a] !== undefined && (ck.step === 'quick' || a === area)) input[a] = vals[a]; });
+      input.note = note.value;
+      wbSave(input);
+    } }, h('h2', { text: ck.step === 'quick' ? 'Quick update, all areas' : 'One section' }), dateField, rows,
+      field('Note (optional, up to ' + W.NOTE_MAX + ' characters)', note),
+      h('div', { class: 'row' }, h('button', { type: 'submit', class: 'btn pri', id: 'wb-save', text: 'Save check-in' }), cancel));
+  }
+  function wbAreaCard(wb, a, t, s) {
+    var W = L.wellbeing, sm = W.summary(wb, a.id, t), live = W.live(s, t), kids = [];
+    kids.push(h('h3', { text: a.label }));
+    kids.push(h('div', { class: 'stats' },
+      stat('Today', sm.today === null ? '-' : String(sm.today), 'wb-today-' + a.id),
+      stat('7-day average', avgText(sm.avg7.avg) + (sm.avg7.n ? ' (' + sm.avg7.n + ')' : ''), 'wb-avg7-' + a.id),
+      stat('30-day average', avgText(sm.avg30.avg) + (sm.avg30.n ? ' (' + sm.avg30.n + ')' : ''), 'wb-avg30-' + a.id),
+      stat('Previous 7 days', avgText(sm.prev7.avg) + (sm.prev7.n ? ' (' + sm.prev7.n + ')' : ''), 'wb-prev7-' + a.id)));
+    kids.push(wbTrend(a.id, a.label, sm.series));
+    if (a.id === 'recovery') {
+      kids.push(h('div', { class: 'sub', id: 'wb-sleep' }, h('p', { class: 'small', text: 'Sleep from Health, read live: last night ' + (live.sleep.today === null ? '-' : live.sleep.today + ' h') + ', 7-day average ' + (live.sleep.avg7.avg === null ? '-' : live.sleep.avg7.avg + ' h') + ' (' + live.sleep.avg7.n + ' nights), 30-day average ' + (live.sleep.avg30.avg === null ? '-' : live.sleep.avg30.avg + ' h') + ' (' + live.sleep.avg30.n + ').' })));
+    }
+    if (a.id === 'connected') {
+      kids.push(h('div', { class: 'sub', id: 'wb-social' }, h('p', { class: 'small', text: 'Contacts made, from Social, read live: today ' + live.contacts.today + ', last 7 days ' + live.contacts.d7 + ', last 30 days ' + live.contacts.d30 + '.' }),
+        h('p', { class: 'small', text: 'Social-tagged activities, from Activities, read live: today ' + live.socialActivities.today + ', last 7 days ' + live.socialActivities.d7 + ', last 30 days ' + live.socialActivities.d30 + '.' })));
+    }
+    return h('div', { class: 'card wb-area', 'data-area': a.id }, kids);
+  }
+  function wbOldCard(s) {
+    var W = L.wellbeing, wb = L.priv.getWellbeing();
+    if (!W.hasOld(s.entries)) return null;
+    var n = W.pendingOld(s.entries, wb), all = s.entries.filter(function (e) { return e.domain === 'wellbeing' && e.type === 'mood'; }).length;
+    if (!n) return h('p', { class: 'small mut', id: 'wb-old-left', text: all + (all === 1 ? ' earlier mood entry cannot move in without losing something, so it stays where it is.' : ' earlier mood entries cannot move in without losing something, so they stay where they are.') });
+    return h('div', { class: 'card', id: 'wb-old' }, h('h2', { text: 'Earlier mood entries' }),
+      h('p', { class: 'small', text: n + (n === 1 ? ' earlier mood entry can move' : ' earlier mood entries can move') + ' into the vault as check-ins. Nothing is lost: a rating, its date and its text move together.' + (all > n ? ' ' + (all - n) + ' stay where they are because they would lose something.' : '') }),
+      btn('Move them in', function () {
+        openDialog({ title: 'Move earlier mood entries into the vault?', yes: 'Move in', body: h('p', { class: 'mut', text: 'They leave the main data and become check-ins. They disappear from every screen and export while the vault is closed.' }),
+          onYes: function () {
+            return L.priv.write(function (work, wbw) { L.wellbeing.moveOld(work, wbw, L.store.newId); }, { audit: 'private vault moved in' }).then(function () { setNotice('ok', 'Earlier mood entries moved in as check-ins.'); render(); });
+          } });
+      }, 'pri', { id: 'wb-old-move' }));
+  }
+  function wellbeingScreen(s) {
+    var out = [btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Wellbeing' })];
+    var b = mainState();
+    if (!L.priv.isSetUp(b)) {
+      out.push(h('p', { class: 'mut', text: 'Wellbeing is kept only inside the private vault: a second lock with its own passphrase. It never reaches an AI request, the weekly digest, a CSV or a backup readable without that passphrase.' }));
+      var legacy = b.entries.filter(function (e) { return e.domain === 'wellbeing'; }).length;
+      if (legacy) out.push(h('p', { class: 'small mut', id: 'wb-legacy', text: 'Earlier mood entries stay where they are until the vault exists. Then you can move them in as check-ins.' }));
+      out.push(privSetupCard());
+      return h('div', null, out);
+    }
+    if (!L.priv.isOpen()) {
+      out.push(h('p', { class: 'mut', id: 'wb-locked', text: 'Locked. Enter the private passphrase to see and add check-ins.' }), h('div', { class: 'card' }, h('h2', { text: 'Open the private vault' }), privOpenForm()));
+      return h('div', null, out);
+    }
+    var W = L.wellbeing, wb = L.priv.getWellbeing(), t = today(), st1 = W.streak(wb, t);
+    out.push(h('p', { class: 'mut small', text: 'Numbers and dates only. Stored in the private vault, never in the main data.' }));
+    var old = wbOldCard(s);
+    if (old) out.push(old);
+    out.push(checkinPanel(wb, t));
+    out.push(h('div', { class: 'stats' }, stat('Check-in streak', st1 + (st1 === 1 ? ' day' : ' days'), 'wb-streak'), stat('Check-ins this week', String(W.checkinsInWeek(wb, t)), 'wb-week')));
+    W.AREAS.forEach(function (a) { out.push(wbAreaCard(wb, a, t, s)); });
+    var recent = W.listOf(wb).slice().sort(function (x, y) { return y.date.localeCompare(x.date); }).slice(0, 14);
+    out.push(h('h2', { text: 'Recent check-ins' }));
+    out.push(h('div', { class: 'card', id: 'wb-recent' }, recent.length ? recent.map(function (c) {
+      var parts = W.AREAS.filter(function (a) { return c[a.id] !== undefined; }).map(function (a) { return a.label + ' ' + c[a.id]; });
+      return h('div', { class: 'item wb-row', 'data-date': c.date }, h('div', null, h('span', { class: 'entry-t', text: c.date }), h('div', { class: 'mut small', text: parts.join(', ') }), c.note ? h('div', { class: 'small', text: c.note }) : null),
+        btn('Edit', function () { view.ck = { step: 'choose', date: c.date }; render(); window.scrollTo(0, 0); }, 'sm wb-edit', { 'aria-label': 'Edit check-in for ' + c.date }));
+    }) : h('p', { class: 'mut', text: 'No check-ins yet.' })));
+    return h('div', null, out);
   }
 
   // ---------- settings ----------
@@ -8123,7 +9363,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
           act(function () {
             checkPass(bp.value);
             if (bp.value !== bp2.value) throw new Error('The backup passphrases do not match.');
-            return L.vault.exportBackup(bp.value, st()).then(function (text) {
+            return L.vault.exportBackup(bp.value, mainState()).then(function (text) {
               download('lifeos-backup-' + today() + '.json', text, 'application/json');
               return commit(null, 'export');
             }).then(function () { setNotice('ok', 'Backup downloaded.'); });
@@ -8146,7 +9386,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
               var ins = state.memory.insights, pv2 = state.settings.provider;
               var nAppr = ins.filter(function (i) { return i.status === 'approved'; }).length;
               var rr = h('input', { type: 'checkbox', id: 'bk-rereview', checked: true });
-              var cur = st(), older = L.store.dropsWork(cur, state);
+              var cur = mainState(), older = L.store.dropsWork(cur, state), oldFmt = state.sourceSchema < 10;
               var ack = older ? h('input', { type: 'checkbox', id: 'bk-workloss' }) : null;
               openDialog({
                 title: 'Replace all data with this backup?', yes: 'Replace', danger: true,
@@ -8159,12 +9399,13 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
                     h('li', { text: 'Home: ' + (state.properties || []).length + ' properties, ' + (state.vehicles || []).length + ' vehicles, ' + (state.maintenance || []).length + ' maintenance items' }),
                     h('li', { text: 'Admin: ' + (state.renewals || []).length + ' renewals, ' + (state.documents || []).length + ' documents, ' + (state.taxItems || []).length + ' tax items' }),
                     h('li', { text: 'Daily checks: ' + (state.habits || []).length + ', training cycle: ' + (state.cycle ? 'set' : 'not set') }),
+                    h('li', { id: 'bk-priv', text: 'Private vault in this backup: ' + (state.priv ? 'yes' : 'no') + '. In this vault now: ' + (cur.priv ? 'yes' : 'no') + '.' }),
                     h('li', { text: 'Approved insights: ' + nAppr }),
                     h('li', { text: 'Lessons: ' + state.memory.lessons.length }),
                     h('li', { text: 'Provider settings: ' + (pv2.kind === 'none' ? 'none' : 'included (' + pv2.kind + ')') }),
                     h('li', { text: 'API key: ' + (pv2.apiKey ? 'included' : 'not included') })),
                   h('label', { class: 'row small' }, rr, h('span', { text: 'Re-review insights (restore every approved insight as proposed)' })),
-                  older ? h('p', { class: 'small', id: 'bk-older', text: 'This backup is from an older LifeOS version. Restoring it removes your ' + L.store.lossText(cur, state) + '.' }) : null,
+                  older ? h('p', { class: 'small', id: 'bk-older', text: (oldFmt ? 'This backup is from an older LifeOS version. ' : 'This backup has no private vault. ') + 'Restoring it removes your ' + L.store.lossText(cur, state) + '.' }) : null,
                   older ? h('label', { class: 'row small' }, ack, h('span', { text: 'I understand. Remove this data.' })) : null,
                   h('p', { class: 'mut', text: 'This replaces everything in this vault with the backup. It cannot be undone.' })],
                 onYes: function () {
@@ -8178,7 +9419,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       }, field('Restore from a backup file (64 MB max)', bf), field('Backup passphrase', ip),
         h('button', { type: 'submit', class: 'btn', text: 'Import backup' }))));
 
-    out.push(h('p', { class: 'mut small', id: 'app-version', text: 'LifeOS v0.10.0' }));
+    out.push(h('p', { class: 'mut small', id: 'app-version', text: 'LifeOS v0.11.0' }));
 
     if (L.syncUI) out.push(L.syncUI.section(syncCtx()));
 
@@ -8230,7 +9471,8 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   function sumList(c, label, s) {
     return c.h('div', { class: 'small' },
       c.h('strong', { text: label }),
-      c.h('div', { class: 'mut', text: 'Revision ' + s.rev + ', saved ' + when(s.updatedAt) + ', ' + s.entries + ' entries, ' + (s.schema < 3 ? 'older version (no projects, pipeline or health data)' : s.projects + ' projects, ' + s.pipeline + ' pipeline items' + (s.schema < 4 ? ', older version (no cycle, daily checks or workout types)' : ', ' + (s.habits || 0) + ' daily checks, ' + (s.cycle ? 'training cycle set' : 'no training cycle') + (s.schema < 5 ? ', older version (no goals)' : ', ' + (s.goals || 0) + ' goals') + (s.schema < 6 ? ', older version (no Home or Admin data)' : ', ' + (s.maintenance || 0) + ' maintenance items, ' + (s.renewals || 0) + ' renewals'))) }));
+      c.h('div', { class: 'mut', text: 'Revision ' + s.rev + ', saved ' + when(s.updatedAt) + ', ' + s.entries + ' entries, ' + (s.schema < 3 ? 'older version (no projects, pipeline or health data)' : s.projects + ' projects, ' + s.pipeline + ' pipeline items' + (s.schema < 4 ? ', older version (no cycle, daily checks or workout types)' : ', ' + (s.habits || 0) + ' daily checks, ' + (s.cycle ? 'training cycle set' : 'no training cycle') + (s.schema < 5 ? ', older version (no goals)' : ', ' + (s.goals || 0) + ' goals') + (s.schema < 6 ? ', older version (no Home or Admin data)' : ', ' + (s.maintenance || 0) + ' maintenance items, ' + (s.renewals || 0) + ' renewals'))) }),
+      c.h('div', { class: 'mut sync-priv', text: 'Private vault: ' + (s.priv ? 'yes' : 'no') }));
   }
 
   // c is the context app.js passes in: { h, field, btn, openDialog, commit, download, setNotice, render }
@@ -8286,7 +9528,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
           h('p', { class: 'mut', text: conflict ? 'Nothing is merged. Pick the copy to keep. The other copy is saved to a file first.' : 'This device has no changes since the last sync.' }),
           d.passphraseDiffers ? h('p', { class: 'small', id: 'sync-passdiff', text: 'The Drive copy uses a different passphrase from this device. Using the Drive copy switches this device to that passphrase. Keeping this device uploads it under this device\'s passphrase.' }) : null,
           sumList(c, 'This device', d.local), sumList(c, 'Google Drive', d.remote), c.field('Choice', pick),
-          ack ? h('p', { class: 'small', id: 'sync-olderformat', text: 'The Drive copy is from an older LifeOS version. Using it removes this device\'s ' + L.store.lossText(L.store.getState(), { sourceSchema: d.remote.schema }) + '.' }) : null,
+          ack ? h('p', { class: 'small', id: 'sync-olderformat', text: (d.remote.schema < 10 ? 'The Drive copy is from an older LifeOS version. ' : 'The Drive copy has no private vault. ') + 'Using it removes this device\'s ' + L.store.lossText(L.store.getState(), { sourceSchema: d.remote.schema, priv: d.remote.priv ? true : undefined }) + '.' }) : null,
           ack ? h('label', { class: 'row small' }, ack, h('span', { text: 'I understand. Remove this data if I use the Drive copy.' })) : null],
         onYes: function () {
           return L.sync.apply(d, pick.value, {

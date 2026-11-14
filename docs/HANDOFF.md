@@ -8,7 +8,7 @@ LifeOS (Living Independent and Free Everyday Operating System): one offline-capa
 ## Where things are
 - Repo: github.com/punjabitaz-ctrl/LifeOS-dash, branch main, push straight to main.
 - Live copy: https://lfs-dsh.punjabitaz.workers.dev/dist/lifeos (Cloudflare Worker with static assets, free tier, behind a Cloudflare Access sign-in that stays on). Deploys on push.
-- Source: src/core/*.js (vault, store, csv, metrics, home, admin, learning, activities, social, goals, memory, ai, sync), src/ui/* (shell, styles, app, sync-ui). `node build.mjs` writes dist/lifeos.html and `_headers`.
+- Source: src/core/*.js (vault, store, priv, wellbeing, csv, metrics, home, admin, learning, activities, social, goals, memory, ai, sync), src/ui/* (shell, styles, app, sync-ui). `node build.mjs` writes dist/lifeos.html and `_headers`.
 - Tests: `node --test test/` and test/smoke*.mjs (test/smoke-leaks.mjs, the leak test in test/v090-audit.test.mjs and the Social error test in test/v0100-audit.test.mjs check that no free text from any domain leaves the vault) (Playwright with system Chrome; `npm i --no-save playwright`).
 - Spec: SPEC.md, one addendum per version. Audit log: docs/SECURITY.md. Sync setup guide: docs/SYNC-SETUP.md.
 
@@ -24,9 +24,10 @@ LifeOS (Living Independent and Free Everyday Operating System): one offline-capa
 | 0.7.0 | Home and Admin, schema 6: Home (properties, vehicles, maintenance, household bills) and Admin (renewals, subscriptions, document index, tax checklist, 30/60/90 timeline); Admin tile | audited (SEC-44 to SEC-48 fixed), committed |
 | 0.8.0 | Learning, schema 7: items, study sessions, takeaways, weekly study target, certification expiry in the Admin timeline, three goal metrics, review step, dashboard Log study button; src/core/learning.js | audited (SEC-49 Low and SEC-50 Info fixed), committed |
 | 0.9.0 | Activities, schema 8: planned/done/skipped activities, 30-day upcoming and At a glance provider list, cost and ROI tables, paid-while-planned amendment (paidOn), Health and Social computed from activities, review step, three goal metrics; src/core/activities.js | audited (SEC-51 to SEC-53 Low, SEC-54 Info fixed; SEC-55, SEC-56 Info documented), committed |
-| 0.10.0 | Social, schema 9: groups, people, contact log, important dates (at a glance), facts, Work links (pipeline items and projects), review step, two goal metrics, snooze; src/core/social.js | audited (SEC-57 Medium, SEC-58 to SEC-60 Low, SEC-61 Info fixed), not committed |
+| 0.10.0 | Social, schema 9: groups, people, contact log, important dates (at a glance), facts, Work links (pipeline items and projects), review step, two goal metrics, snooze; src/core/social.js | audited (SEC-57 Medium, SEC-58 to SEC-60 Low, SEC-61 Info fixed), committed |
+| 0.11.0 | Private vault and Wellbeing, schema 10: a second lock with its own passphrase inside the encrypted state (src/core/priv.js), moves of any record, lock markers and badges, "New items are private"; Wellbeing check-ins only inside it (src/core/wellbeing.js), kept away from the AI | audited (SEC-62 and SEC-66 Medium, SEC-63 to SEC-65 and SEC-67 to SEC-69 Low, SEC-70 Info fixed), not committed |
 
-Schema: 9 as of v0.10.0 (8 at v0.9.0). Every schema change needs a tested migration and the downgrade guards (SEC-27/28) extended to the new collections.
+Schema: 10 as of v0.11.0 (9 at v0.10.0). Every schema change needs a tested migration and the downgrade guards (SEC-27/28) extended to the new collections.
 
 ## How each build cycle runs
 1. Owner picks the next domain and answers scope questions.
@@ -66,8 +67,8 @@ Haiku is used for short, capped research only. Keep prompts lean and cap reply l
 4. Learning deep (done in v0.8.0, audited).
 5. Activities (done in v0.9.0, audited).
 6. Social (done in v0.10.0, audited).
-7. Next: Wellbeing inside a new private inner vault with its own passphrase, excluded from AI with no override; whether the check-in is combined or per section is chosen at update time.
-8. Then: a final complete independent review of the whole codebase.
+7. Wellbeing inside a private inner vault (done in v0.11.0, audited).
+8. Next: a final complete independent review of the whole codebase.
 9. Not built: activity CSV import, vault archiving (with several domains at their caps the vault passes 64 MB; Social alone reaches 55.7 MB of JSON with three-byte text; export and sync refuse rather than cut), NAS sync to replace Google Drive.
 10. Possible later: real-device test pass, custom domain.
 
@@ -77,4 +78,4 @@ Haiku is used for short, capped research only. Keep prompts lean and cap reply l
 - Local model (Ollama) may be unreachable from the hosted HTTPS copy in some browsers; untested.
 
 ## Current step
-v0.10.0 Social is audited (see "v0.10.0 audit" in docs/SECURITY.md): SEC-57 (Medium, a name shared by two people is now attributed to nobody instead of both), SEC-58 (Low, names match across Unicode forms), SEC-59 (Low, converting later contact entries is idempotent, never drops or duplicates, and the offer shows only when something can convert), SEC-60 (Low, the glance card shows label and name only) and SEC-61 (Info, size messages name logged contacts and facts) fixed with tests in test/v0100-audit.test.mjs, plus steps in test/smoke-social.mjs and test/smoke-leaks.mjs. Migration verdict: the schema 1 to 8 migration converts every old contact entry on read as the addendum asks; the offer only covers entries added later (CSV import). At the audit `node --test test/` passed 359 of 359 in the default zone, New York and Auckland, and all eleven smoke scripts passed twice. Not committed or pushed. Next: the orchestrator re-runs tests and smokes, commits and pushes v0.10.0, then a first real run on phone and PC, then Wellbeing (roadmap item 7).
+v0.11.0 private vault and Wellbeing is audited (see "v0.11.0 audit" in docs/SECURITY.md). Fixed with tests in test/v0110-audit.test.mjs and steps in test/smoke-priv.mjs and test/smoke-wellbeing.mjs: SEC-62 (Medium, records made from or under a private record are now private; this goes beyond the addendum, owner may confirm), SEC-66 (Medium, owner decision: no wellbeing value in the digest, prompts, rules insights or lessons; test/metrics.test.mjs now asserts absence), SEC-63, SEC-64, SEC-65, SEC-67, SEC-68, SEC-69 (Low) and SEC-70 (Info, the older-app check now runs the real v0.10.0 code from commit 8bf2325). At the audit `node --test test/` passed 425 of 425 in the default zone, New York and Auckland, and all thirteen smoke scripts passed twice. Not committed or pushed. Next: the orchestrator re-runs tests and smokes, commits and pushes v0.11.0, then the final complete independent review (roadmap item 8). A forgotten private passphrase destroys the private data everywhere; say so to the owner before first use.

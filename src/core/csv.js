@@ -61,6 +61,8 @@
     const { domain, type, map } = opts || {};
     const dom = L.DOMAINS.find((d) => d.id === domain);
     if (!dom || !dom.types.some((t) => t.id === type)) throw new Error('Unknown domain or type');
+    // SEC-65: wellbeing lives only in the private vault, so it is never imported into the main state.
+    if (domain === 'wellbeing') throw new Error('Wellbeing is kept only in the private vault and cannot be imported.');
     if (!map || typeof map !== 'object') throw new Error('Column mapping required');
     const tfields = dom.types.find((t) => t.id === type).fields;
     // Only fields the selected type has may be mapped; its required fields must be mapped.
@@ -109,7 +111,8 @@
       return '"' + s.replace(/"/g, '""') + '"';
     };
     const lines = [cols.map(q).join(',')];
-    for (const e of rows || []) lines.push(cols.map((c) => q(e[c])).join(','));
+    // CSV exports never carry private records, even if a caller hands them over.
+    for (const e of rows || []) if (!(L.priv && L.priv.isPrivateRecord(e))) lines.push(cols.map((c) => q(e[c])).join(','));
     return lines.join('\r\n') + '\r\n';
   }
   const exportEntries = (entries) => toCsv(['id', 'domain', 'type', 'date', 'title', 'value', 'status', 'person', 'due', 'notes', 'createdAt', 'kind', 'minutes', 'effort', 'projectId'], entries);

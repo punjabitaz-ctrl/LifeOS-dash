@@ -61,7 +61,7 @@
   }
   async function exportBackup(passphrase, state) {
     checkPassphrase(passphrase);
-    const clean = L.store.validateState(state);
+    const clean = L.store.validateState(L.priv ? L.priv.mainOnly(state) : state);
     const salt = newSalt();
     const key = await deriveKey(passphrase, salt);
     const out = JSON.stringify(await makeEnvelope(key, salt, clean));

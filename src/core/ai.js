@@ -60,6 +60,8 @@
   }
 
   async function complete(provider, prompt, fetchImpl) {
+    // The private vault is always closed before any AI call.
+    if (L.priv) L.priv.close('system');
     const p = validateProvider(provider);
     if (p.kind === 'none' || p.kind === 'manual') throw new Error('MANUAL');
     if (!prompt || typeof prompt.system !== 'string' || typeof prompt.user !== 'string') throw new Error('Invalid prompt');

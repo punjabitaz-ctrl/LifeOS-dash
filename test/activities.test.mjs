@@ -24,7 +24,7 @@ test('schema 1 to 7 migrate to 8 with no data loss; every old activities entry s
   const base = legacyBase(), old = base.entries.filter((e) => e.domain === 'activities');
   for (const k of [1, 2, 3, 4, 5, 6, 7]) {
     const got = S.validateState(asS(k, base));
-    assert.equal(got.schema, 9); assert.equal(got.sourceSchema, k);
+    assert.equal(got.schema, 10); assert.equal(got.sourceSchema, k);
     assert.deepEqual(got.activityCategories, ['outing', 'event', 'travel', 'hobby', 'networking', 'volunteering', 'class', 'other']);
     assert.equal(got.entries.filter((e) => e.domain !== 'activities' && e.domain !== 'social').length, 1, 'other entries untouched (the social entry becomes a person since schema 9)');
     assert.equal(got.activities.length + got.entries.filter((e) => e.domain === 'activities').length, 3);
@@ -46,15 +46,15 @@ test('migration is persisted on unlock of a stored schema 7 vault', async () => 
   const salt = V.newSalt(), key = await V.deriveKey(PASS, salt);
   ad._m.set('envelope', await V.makeEnvelope(key, salt, asS(7, legacyBase())));
   const st = await S.unlock(PASS);
-  assert.equal(st.schema, 9); assert.equal(st.activities.length, 3);
+  assert.equal(st.schema, 10); assert.equal(st.activities.length, 3);
   await S.commit(() => {});
   const raw = await V.decrypt(key, ad._m.get('envelope'));
-  assert.equal(raw.schema, 9); assert.equal(raw.activities.length, 3);
+  assert.equal(raw.schema, 10); assert.equal(raw.activities.length, 3);
 });
 test('a v0.8.0 (schema 7) backup imports cleanly; a schema 8 backup round trips every new field', async () => {
   const salt = V.newSalt(), key = await V.deriveKey(PASS, salt);
   const got = await V.importBackup(PASS, JSON.stringify(await V.makeEnvelope(key, salt, asS(7, legacyBase()))));
-  assert.equal(got.schema, 9); assert.equal(got.sourceSchema, 7); assert.equal(got.activities.length, 3); assert.ok(!JSON.stringify(got).includes('sourceSchema'));
+  assert.equal(got.schema, 10); assert.equal(got.sourceSchema, 7); assert.equal(got.activities.length, 3); assert.ok(!JSON.stringify(got).includes('sourceSchema'));
   const full = state((s) => {
     s.goals.push({ id: 'g1', title: 'G', horizon: 'quarterly', domain: 'activities', metric: 'avgWorthIt', direction: 'up', startValue: 0, targetValue: 5, startDate: '2026-10-01', dueDate: '2026-12-31', state: 'active', notes: '', createdAt: '2026-10-01T00:00:00.000Z' });
     s.entries.push(exp({ id: 'ex1' }));
@@ -62,7 +62,7 @@ test('a v0.8.0 (schema 7) backup imports cleanly; a schema 8 backup round trips 
     s.activityCategories.push('Extra');
   });
   const back = await V.importBackup(PASS, await V.exportBackup(PASS, full));
-  assert.deepEqual(back.activities, full.activities); assert.deepEqual(back.activityCategories, full.activityCategories); assert.equal(back.sourceSchema, 9);
+  assert.deepEqual(back.activities, full.activities); assert.deepEqual(back.activityCategories, full.activityCategories); assert.equal(back.sourceSchema, 10);
   assert.equal(back.activities[0].expenseId, 'ex1'); assert.equal(back.activities[0].paidOn, '2026-11-01');
 });
 
@@ -89,7 +89,7 @@ test('activities and the category list are protected from an older-format backup
     }
     const bk7 = await V.importBackup(PASS, JSON.stringify(await V.makeEnvelope(key, salt, asS(7, S.defaultState()))));
     await S.replaceState(bk7, { allowWorkLoss: true });
-    assert.equal(size(S.getState()), 0); assert.equal(S.getState().schema, 9);
+    assert.equal(size(S.getState()), 0); assert.equal(S.getState().schema, 10);
   }
   await fresh(); await S.replaceState(GUARDED[0][2]());
   assert.deepEqual(S.droppedData(S.getState(), await V.importBackup(PASS, await V.exportBackup(PASS, S.getState()))), []);
@@ -102,7 +102,7 @@ test('activities and the category list are protected from an older (schema 7) Dr
     await putRemote(d, asS(7, S.defaultState()), 3);
     const dec = await L.sync.run();
     assert.equal(dec.kind, 'download-offer'); assert.equal(dec.dropsWork, true); assert.deepEqual(dec.dropped, [name]);
-    assert.equal(dec.local.schema, 9); assert.equal(dec.remote.schema, 7); assert.equal(dec.local.activities, k === 'activities' ? 1 : 0);
+    assert.equal(dec.local.schema, 10); assert.equal(dec.remote.schema, 7); assert.equal(dec.local.activities, k === 'activities' ? 1 : 0);
     const before = JSON.stringify(ad._m.get('envelope')), w = d.writes;
     await assert.rejects(L.sync.apply(dec, 'download'), (e) => e.code === 'OLDER_FORMAT' && e.message.includes(name));
     await assert.rejects(L.sync.apply(dec, 'download', { allowWorkLoss: 1 }), (e) => e.code === 'OLDER_FORMAT');
@@ -119,7 +119,7 @@ test('activities and the category list are protected from an older (schema 7) Dr
   }
 });
 test('a newer schema is refused and a schema 8 vault is never downgraded by the validator', () => {
-  assert.throws(() => S.validateState(Object.assign(S.defaultState(), { schema: 10 })), /schema/);
+  assert.throws(() => S.validateState(Object.assign(S.defaultState(), { schema: 11 })), /schema/);
   assert.equal(S.validateState(clone(GUARDED[0][2]())).activities.length, 1);
   assert.deepEqual(S.validateState(Object.assign(clone(S.defaultState()), { schema: 8 })).activities, []);
 });
@@ -532,10 +532,10 @@ test('sync round trip with schema 8 Activities data: ciphertext only, restores o
   assert.equal((await L.sync.run()).kind, 'uploaded');
   for (const secret of ['Sync Kayak', 'Sync Harbour', 'Sync Person', 'Sync activity', 'Sync Custom']) assert.ok(!d.file.text.includes(secret), 'no plaintext on Drive: ' + secret);
   const up = await V.importBackup(PASS, d.file.text);
-  assert.equal(up.schema, 9); assert.equal(shape(up), want);
+  assert.equal(up.schema, 10); assert.equal(shape(up), want);
   const ad2 = memAdapter(); S._setAdapter(ad2); S.lock(); await S.init(PASS);
   const dec = await L.sync.run({ passphrase: PASS });
-  assert.equal(dec.kind, 'download-offer'); assert.equal(dec.dropsWork, false); assert.equal(dec.remote.schema, 9); assert.equal(dec.remote.activities, 2);
+  assert.equal(dec.kind, 'download-offer'); assert.equal(dec.dropsWork, false); assert.equal(dec.remote.schema, 10); assert.equal(dec.remote.activities, 2);
   await L.sync.apply(dec, 'download');
   assert.equal(shape(S.getState()), want);
   S.lock(); await S.unlock(PASS); assert.equal(shape(S.getState()), want);

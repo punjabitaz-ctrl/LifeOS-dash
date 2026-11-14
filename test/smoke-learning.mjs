@@ -258,7 +258,7 @@ async function run(label, viewport) {
     await step('settings: version, study target, and no learning text', async () => {
       await nav('Settings');
       await page.waitForSelector('#app-version', T);
-      await expectText('#app-version', 'LifeOS v0.10.0');
+      await expectText('#app-version', 'LifeOS v0.11.0');
       if ((await page.inputValue('#t-study')) !== '150') throw new Error('study target in settings');
       const t = await text('main');
       for (const secret of ['Rust course', 'Systems book', 'Cloud cert', 'Old topic', 'Ownership means', 'Borrowing is']) if (t.includes(secret)) throw new Error('settings page shows ' + secret);

@@ -110,9 +110,11 @@ test('weeklyDigest now vs prev with units', () => {
   const d = M.weeklyDigest(s, '2026-11-12');
   assert.equal(d.week, '2026-11-09');
   assert.deepEqual(d.domains.health, { now: 2, prev: 1, unit: 'workouts' });
-  assert.deepEqual(d.domains.wellbeing, { now: 4, prev: 0, unit: 'score' });
+  // SEC-66 (owner decision, a spec change): wellbeing is kept away from the AI, so an old thin mood entry adds no wellbeing number to the digest.
+  assert.equal(d.domains.wellbeing, undefined);
+  assert.ok(!('wellbeing' in d.domains));
   assert.equal(d.domains.assets.unit, 'USD');
-  assert.deepEqual(Object.keys(d.domains).length, 11);
+  assert.deepEqual(Object.keys(d.domains).length, 10);
   assert.ok(!JSON.stringify(d).includes('t0'));
 });
 test('series returns n weekly points ending this week', () => {

@@ -44,7 +44,7 @@ test('schema 1 to 8 migrate to 9 with no data loss; every old contact survives, 
   const base = legacyBase(), old = base.entries.filter((e) => e.domain === 'social');
   for (const k of [1, 2, 3, 4, 5, 6, 7, 8]) {
     const got = S.validateState(asSoc(k, base));
-    assert.equal(got.schema, 9); assert.equal(got.sourceSchema, k);
+    assert.equal(got.schema, 10); assert.equal(got.sourceSchema, k);
     assert.equal(got.people.length, 3, 'Sam, Alex Kim and Jo: case and spacing variants merge');
     assert.deepEqual(got.people.map((p) => p.name).sort(), ['Alex Kim', 'Jo', 'Sam']);
     assert.deepEqual(got.groups, []);
@@ -72,15 +72,15 @@ test('migration is persisted on unlock of a stored schema 8 vault', async () => 
   const salt = V.newSalt(), key = await V.deriveKey(PASS, salt);
   ad._m.set('envelope', await V.makeEnvelope(key, salt, asSoc(8, legacyBase())));
   const st = await S.unlock(PASS);
-  assert.equal(st.schema, 9); assert.equal(st.people.length, 3);
+  assert.equal(st.schema, 10); assert.equal(st.people.length, 3);
   await S.commit(() => {});
   const raw = await V.decrypt(key, ad._m.get('envelope'));
-  assert.equal(raw.schema, 9); assert.equal(raw.people.length, 3); assert.ok(raw.contacts.length >= 6);
+  assert.equal(raw.schema, 10); assert.equal(raw.people.length, 3); assert.ok(raw.contacts.length >= 6);
 });
 test('a v0.9.0 (schema 8) backup imports cleanly; a schema 9 backup round trips every new field', async () => {
   const salt = V.newSalt(), key = await V.deriveKey(PASS, salt);
   const got = await V.importBackup(PASS, JSON.stringify(await V.makeEnvelope(key, salt, asSoc(8, legacyBase()))));
-  assert.equal(got.schema, 9); assert.equal(got.sourceSchema, 8); assert.equal(got.people.length, 3); assert.ok(!JSON.stringify(got).includes('sourceSchema'));
+  assert.equal(got.schema, 10); assert.equal(got.sourceSchema, 8); assert.equal(got.people.length, 3); assert.ok(!JSON.stringify(got).includes('sourceSchema'));
   const full = state((s) => {
     s.pipeline.push(pipe({ id: 'pl1' })); s.projects.push(proj({ id: 'pj1' }));
     s.groups.push(grp({ id: 'g1', name: 'Family', cadenceDays: 14 }));
@@ -89,7 +89,7 @@ test('a v0.9.0 (schema 8) backup imports cleanly; a schema 9 backup round trips 
     s.contacts.push(con({ id: 'c1', notes: 'Hello' }), con({ id: 'c2', personId: undefined, date: '2026-11-01' }));
   });
   const back = await V.importBackup(PASS, await V.exportBackup(PASS, full));
-  assert.deepEqual(back.groups, full.groups); assert.deepEqual(back.people, full.people); assert.deepEqual(back.contacts, full.contacts); assert.equal(back.sourceSchema, 9);
+  assert.deepEqual(back.groups, full.groups); assert.deepEqual(back.people, full.people); assert.deepEqual(back.contacts, full.contacts); assert.equal(back.sourceSchema, 10);
 });
 
 // ---- downgrade guards ----
@@ -116,7 +116,7 @@ test('groups, people and contacts are protected from an older-format backup on r
     }
     const bk8 = await V.importBackup(PASS, JSON.stringify(await V.makeEnvelope(key, salt, asSoc(8, S.defaultState()))));
     await S.replaceState(bk8, { allowWorkLoss: true });
-    assert.equal(size(S.getState()), 0); assert.equal(S.getState().schema, 9);
+    assert.equal(size(S.getState()), 0); assert.equal(S.getState().schema, 10);
   }
   await fresh(); await S.replaceState(GUARDED[1][2]());
   assert.deepEqual(S.droppedData(S.getState(), await V.importBackup(PASS, await V.exportBackup(PASS, S.getState()))), []);
@@ -129,7 +129,7 @@ test('groups, people and contacts are protected from an older (schema 8) Drive c
     await putRemote(d, asSoc(8, S.defaultState()), 3);
     const dec = await L.sync.run();
     assert.equal(dec.kind, 'download-offer'); assert.equal(dec.dropsWork, true); assert.deepEqual(dec.dropped, [name]);
-    assert.equal(dec.local.schema, 9); assert.equal(dec.remote.schema, 8);
+    assert.equal(dec.local.schema, 10); assert.equal(dec.remote.schema, 8);
     const before = JSON.stringify(ad._m.get('envelope')), w = d.writes;
     await assert.rejects(L.sync.apply(dec, 'download'), (e) => e.code === 'OLDER_FORMAT' && e.message.includes(name));
     await assert.rejects(L.sync.apply(dec, 'download', { allowWorkLoss: 1 }), (e) => e.code === 'OLDER_FORMAT');
@@ -146,7 +146,7 @@ test('groups, people and contacts are protected from an older (schema 8) Drive c
   }
 });
 test('a newer schema is refused and a schema 9 vault is never downgraded by the validator', () => {
-  assert.throws(() => S.validateState(Object.assign(S.defaultState(), { schema: 10 })), /schema/);
+  assert.throws(() => S.validateState(Object.assign(S.defaultState(), { schema: 11 })), /schema/);
   assert.equal(S.validateState(clone(GUARDED[1][2]())).people.length, 1);
   assert.deepEqual(S.validateState(Object.assign(clone(S.defaultState()), { schema: 8 })).people, []);
 });
@@ -594,10 +594,10 @@ test('sync round trip with schema 9 Social data: ciphertext only, restores on an
   assert.equal((await L.sync.run()).kind, 'uploaded');
   for (const secret of ['Sync Group', 'Sync Person', 'Sync person notes', 'Sync Birthday', 'Sync Fact', 'Sync fact text', 'Sync contact', 'Sync Deal']) assert.ok(!d.file.text.includes(secret), 'no plaintext on Drive: ' + secret);
   const up = await V.importBackup(PASS, d.file.text);
-  assert.equal(up.schema, 9); assert.equal(shape(up), want);
+  assert.equal(up.schema, 10); assert.equal(shape(up), want);
   const ad2 = memAdapter(); S._setAdapter(ad2); S.lock(); await S.init(PASS);
   const dec = await L.sync.run({ passphrase: PASS });
-  assert.equal(dec.kind, 'download-offer'); assert.equal(dec.dropsWork, false); assert.equal(dec.remote.schema, 9);
+  assert.equal(dec.kind, 'download-offer'); assert.equal(dec.dropsWork, false); assert.equal(dec.remote.schema, 10);
   await L.sync.apply(dec, 'download');
   assert.equal(shape(S.getState()), want);
   S.lock(); await S.unlock(PASS); assert.equal(shape(S.getState()), want);
@@ -611,10 +611,10 @@ test('sync round trip with schema 9 Social data: ciphertext only, restores on an
 });
 
 // ---- version ----
-test('the version is 0.10.0 everywhere and the two-digit minor is shown whole', () => {
+test('the version is 0.11.0 everywhere and the two-digit minor is shown whole', () => {
   const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
-  assert.equal(pkg.version, '0.10.0');
+  assert.equal(pkg.version, '0.11.0');
   const ui = readFileSync(new URL('../src/ui/app.js', import.meta.url), 'utf8');
-  assert.ok(ui.includes("text: 'LifeOS v0.10.0'")); assert.ok(!/LifeOS v0\.9/.test(ui));
+  assert.ok(ui.includes("text: 'LifeOS v0.11.0'")); assert.ok(!/LifeOS v0\.9/.test(ui));
   assert.ok(/v0\.10\.0/.test('LifeOS v0.10.0') && !/v0\.1\b/.test('LifeOS v0.10.0'));
 });

@@ -32,7 +32,15 @@
     mk('avgWorthIt', 'Average worth-it rating', 'activities', 'number'),
     mk('peopleOverdue', 'People overdue', 'social', 'count'),
     mk('contactsPerWeek', 'Contacts per week', 'social', 'count'),
+    // Wellbeing metrics (v0.11.0): read from the private vault while it is open; only a private goal may use them (store.validateState).
+    mk('wbMood', 'Mood, 7-day average', 'wellbeing', 'number'),
+    mk('wbMental', 'Mental state, 7-day average', 'wellbeing', 'number'),
+    mk('wbRecovery', 'Rest and recovery, 7-day average', 'wellbeing', 'number'),
+    mk('wbConnected', 'Social engagement, 7-day average', 'wellbeing', 'number'),
+    mk('wbIntimacy', 'Intimacy, 7-day average', 'wellbeing', 'number'),
+    mk('wbCheckinsPerWeek', 'Wellbeing check-ins per week', 'wellbeing', 'count'),
   ]);
+  const isWellbeingMetric = (id) => typeof id === 'string' && id.slice(0, 2) === 'wb' && !!metricDef(id);
   // Body metrics are sensitive (SEC-32): goals on them never reach a digest, prompt or rules insight.
   const BODY = Object.freeze(['weight', 'bodyFat']);
   const PACE_LABEL = Object.freeze({ ahead: 'Ahead', 'on-track': 'On track', behind: 'Behind', 'no-data': 'No data yet' });
@@ -104,6 +112,10 @@
       case 'avgWorthIt': return L.activities.goalRating(state, asOf);
       case 'peopleOverdue': return L.social.goalOverdue(state, asOf);
       case 'contactsPerWeek': return L.social.goalContacts(state, asOf);
+      case 'wbMood': case 'wbMental': case 'wbRecovery': case 'wbConnected': case 'wbIntimacy': case 'wbCheckinsPerWeek':
+        // Private data: only while the vault is open, otherwise "no data yet" (a private goal is not even visible while it is closed).
+        if (!L.priv || !L.priv.isOpen() || !L.wellbeing) return null;
+        return L.wellbeing.goalValue(L.priv.getWellbeing(), metric, asOf);
       case 'pipelineWon':
         if (!(state.pipeline || []).length) return null;
         return state.pipeline.filter((x) => x.stage === 'won' && x.updatedAt <= asOf).length;
@@ -304,7 +316,7 @@
     }
     checkShape(g);
     checkParent(state.goals.concat([g]), g);
-    L.store.validateGoals(state.goals.concat([g]));
+    L.store.validateGoals(state.goals.concat([g]), true); // wellbeing metrics: the private-only rule is enforced where the goal is stored (store.validateState)
     state.goals.push(g);
     return g;
   }
@@ -327,7 +339,7 @@
     const list = state.goals.map((x) => (x.id === id ? n : x));
     checkParent(list, n);
     for (const c of list.filter((x) => x.parentId === id)) checkParent(list, c);
-    L.store.validateGoals(list);
+    L.store.validateGoals(list, true);
     for (const k of Object.keys(g)) delete g[k];
     Object.assign(g, n);
     return g;
@@ -383,7 +395,7 @@
   }
 
   L.goals = {
-    HORIZONS, HORIZON_LABEL, METRICS, BODY, PACE_LABEL, TOLERANCE, metricDef, isBody, currentValue, progressOf, elapsedShare, paceOf, evaluate,
+    HORIZONS, HORIZON_LABEL, METRICS, isWellbeingMetric, BODY, PACE_LABEL, TOLERANCE, metricDef, isBody, currentValue, progressOf, elapsedShare, paceOf, evaluate,
     fmtValue, pct, summary, digestCounts, weekShare, publicActive, childrenOf, ladder, defaultDue, nextPeriod, rollTarget, reviewGoals,
     addGoal, updateGoal, setManualValue, setOverride, achieveGoal, dropGoal, reopenGoal, deleteGoal, rollOver,
   };
