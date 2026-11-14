@@ -5,6 +5,7 @@ import '../src/core/metrics.js';
 import '../src/core/home.js';
 import '../src/core/admin.js';
 import '../src/core/learning.js';
+import '../src/core/activities.js';
 import '../src/core/goals.js';
 import '../src/core/memory.js';
 import '../src/core/ai.js';

@@ -65,7 +65,7 @@
     const salt = newSalt();
     const key = await deriveKey(passphrase, salt);
     const out = JSON.stringify(await makeEnvelope(key, salt, clean));
-    if (out.length > MAX_BACKUP) throw new Error('The backup would be larger than 64 MB, so no file was made. Your data on this device is unchanged. Delete old entries, study sessions, takeaways or long notes, then try again.');
+    if (out.length > MAX_BACKUP) throw new Error('The backup would be larger than 64 MB, so no file was made. Your data on this device is unchanged. Delete old entries, study sessions, takeaways, activities or long notes, then try again.');
     return out;
   }
   async function importBackup(passphrase, text) {

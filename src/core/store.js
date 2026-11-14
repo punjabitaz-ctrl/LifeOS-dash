@@ -2,7 +2,7 @@
   'use strict';
   const L = (globalThis.LifeOS = globalThis.LifeOS || {});
   const KEY = 'envelope';
-  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 7, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
+  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 8, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
   const HABIT_CAP = 8, HABIT_LOG_CAP = 100000, KIND_CAP = 30;
   const RENEWAL_TOTAL_CAP = 2000;
   const ENTRY_CAP = 50000, INSIGHT_CAP = 5000, REVIEW_CAP = 1000, LESSON_CAP = 30, AUDIT_CAP = 200;
@@ -296,6 +296,14 @@
       out.learning = {};
       for (const k of ['minutes', 'sessions', 'days', 'active', 'finished', 'stalled']) out.learning[k] = num(d.learning[k], 0, 1e9, 'digest learning', true);
     }
+    if (d.activities !== undefined) {
+      if (!isObj(d.activities)) fail('digest activities');
+      const x = d.activities, o = {};
+      for (const k of ['done', 'planned7', 'planned30', 'healthTagged', 'socialTagged']) o[k] = num(x[k], 0, 1e9, 'digest activities', true);
+      for (const k of ['spendCents', 'committedCents']) o[k] = num(x[k], 0, Number.MAX_SAFE_INTEGER, 'digest activities', true);
+      o.avgRating = num(x.avgRating, 0, 5, 'digest activities');
+      out.activities = o;
+    }
     for (const k of ['home', 'admin']) {
       if (d[k] === undefined) continue;
       if (!isObj(d[k])) fail('digest ' + k);
@@ -521,7 +529,7 @@
   function validateState(o) {
     if (!isObj(o)) fail('state must be an object');
     scan(o, 0, { n: 4e6 });
-    if (![1, 2, 3, 4, 5, 6, SCHEMA].includes(o.schema)) fail('unsupported schema');
+    if (![1, 2, 3, 4, 5, 6, 7, SCHEMA].includes(o.schema)) fail('unsupported schema');
     if (!L.metrics) fail('metrics module missing');
     const settings = cleanSettings(o.settings, o.schema), entries = cleanEntries(o.entries);
     const out = { schema: SCHEMA, settings, entries };
@@ -565,6 +573,18 @@
       out.takeaways = [];
       out.entries = m.entries;
     }
+    // Schema 8 adds Activities and their category list. Older formats get an empty list and the default categories, and their
+    // activities/session entries become done activities (see activities.legacy; only a session past the cap stays an entry).
+    const Ac = L.activities;
+    if (o.schema >= 8) {
+      out.activityCategories = Ac.cleanCategories(o.activityCategories);
+      out.activities = Ac.cleanActivities(o.activities, out.goals, out.entries);
+    } else {
+      const m = Ac.legacy(out.entries, newId);
+      out.activityCategories = Ac.cleanCategories(undefined);
+      out.activities = Ac.cleanActivities(m.activities, out.goals, m.entries);
+      out.entries = m.entries;
+    }
     out.memory = cleanMemory(o.memory);
     out.audit = cleanAudit(o.audit);
     // The schema the input was written in, so callers can tell an older-format copy (no work data) from a schema 3 one.
@@ -573,7 +593,7 @@
     return out;
   }
   // Data the live state holds that an older-format copy (`next`, marked by validateState) cannot carry.
-  // Schema 3 added projects and pipeline; schema 4 added the training cycle, daily checks, workout types and body targets; schema 5 added goals; schema 6 added Home and Admin collections; schema 7 added Learning.
+  // Schema 3 added projects and pipeline; schema 4 added the training cycle, daily checks, workout types and body targets; schema 5 added goals; schema 6 added Home and Admin collections; schema 7 added Learning; schema 8 added Activities.
   const sameJson = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   function droppedData(cur, next) {
     const src = next && next.sourceSchema;
@@ -589,6 +609,10 @@
       for (const [k, n] of [['learningItems', 'learning items'], ['studySessions', 'study sessions'], ['takeaways', 'takeaways']]) if ((cur[k] || []).length) out.push(n);
       if (cur.settings && cur.settings.learning && cur.settings.learning.weeklyMinutes > 0) out.push('study target');
     }
+    if (src < 8) {
+      if ((cur.activities || []).length) out.push('activities');
+      if (cur.activityCategories && !sameJson(cur.activityCategories, L.activities.DEFAULT_CATEGORIES)) out.push('activity categories');
+    }
     if (src < 4) {
       if (cur.cycle) out.push('training cycle');
       if ((cur.habits || []).length) out.push('daily checks');
@@ -601,7 +625,7 @@
   const dropsWork = (cur, next) => droppedData(cur, next).length > 0;
   const andList = (l) => (l.length > 1 ? l.slice(0, -1).join(', ') + ' and ' + l[l.length - 1] : l.join(''));
   // Plain-language list for warnings, with counts: "3 projects and 4 pipeline items". Names only, never values.
-  const COUNTED = { properties: 'properties', vehicles: 'vehicles', 'maintenance items': 'maintenance', renewals: 'renewals', documents: 'documents', 'tax items': 'taxItems', 'learning items': 'learningItems', 'study sessions': 'studySessions', takeaways: 'takeaways' };
+  const COUNTED = { properties: 'properties', vehicles: 'vehicles', 'maintenance items': 'maintenance', renewals: 'renewals', documents: 'documents', 'tax items': 'taxItems', 'learning items': 'learningItems', 'study sessions': 'studySessions', takeaways: 'takeaways', activities: 'activities' };
   function lossText(cur, next) {
     return andList(droppedData(cur, next).map((n) => (n === 'projects' ? cur.projects.length + ' projects' : n === 'pipeline items' ? cur.pipeline.length + ' pipeline items' : n === 'daily checks' ? cur.habits.length + ' daily checks' : n === 'goals' ? cur.goals.length + ' goals' : COUNTED[n] ? cur[COUNTED[n]].length + ' ' + n : 'your ' + n)));
   }
@@ -624,6 +648,7 @@
       projects: [], pipeline: [], goals: [],
       properties: [], vehicles: [], maintenance: [], renewals: [], documents: [], taxItems: [],
       learningItems: [], studySessions: [], takeaways: [],
+      activities: [], activityCategories: L.activities.DEFAULT_CATEGORIES.slice(),
       cycle: null, kinds: L.metrics.DEFAULT_KINDS.slice(), habits: [], habitLog: [],
       memory: { insights: [], lessons: [], reviews: [] },
       audit: [],

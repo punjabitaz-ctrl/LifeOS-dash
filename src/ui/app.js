@@ -243,7 +243,7 @@
     var s = st();
     var body;
     try {
-      body = view.name === 'domain' ? (view.domain === 'money' ? moneyScreen(s) : view.domain === 'assets' ? assetsScreen(s) : view.domain === 'work' ? workScreen(s) : view.domain === 'health' ? healthScreen(s) : view.domain === 'goals' ? goalsScreen(s) : view.domain === 'home' ? homeScreen(s) : view.domain === 'admin' ? adminScreen(s) : view.domain === 'learning' ? learningScreen(s) : domainScreen(s))
+      body = view.name === 'domain' ? (view.domain === 'money' ? moneyScreen(s) : view.domain === 'assets' ? assetsScreen(s) : view.domain === 'work' ? workScreen(s) : view.domain === 'health' ? healthScreen(s) : view.domain === 'goals' ? goalsScreen(s) : view.domain === 'home' ? homeScreen(s) : view.domain === 'admin' ? adminScreen(s) : view.domain === 'learning' ? learningScreen(s) : view.domain === 'activities' ? activitiesScreen(s) : domainScreen(s))
         : view.name === 'review' ? reviewScreen(s)
         : view.name === 'memory' ? memoryScreen(s)
         : view.name === 'settings' ? settingsScreen(s)
@@ -337,9 +337,9 @@
     } else pr.appendChild(h('p', { class: 'mut', text: 'No priorities yet. Run your weekly review to set three.' }));
     if (!rv || rv.weekOf !== wk) pr.appendChild(btn('Start weekly review', function () { go('review'); }, 'pri'));
     var due = L.metrics.dueRecurring(s, t).length;
-    return h('div', null, h('div', { class: 'row sp' }, h('h1', { text: 'Dashboard' }), h('div', { class: 'row' }, btn('Log study', function () { studyDialog(''); }, 'qa-btn', { id: 'quick-study' }), btn('Quick add', quickAdd, 'pri qa-btn', { id: 'quick-add' }))),
+    return h('div', null, h('div', { class: 'row sp' }, h('h1', { text: 'Dashboard' }), h('div', { class: 'row' }, btn('Log study', function () { studyDialog(''); }, 'qa-btn', { id: 'quick-study' }), btn('Add activity', function () { go('domain', { domain: 'activities', open: 'act-add' }); }, 'qa-btn', { id: 'quick-activity' }), btn('Quick add', quickAdd, 'pri qa-btn', { id: 'quick-add' }))),
       due ? h('div', { class: 'warn' }, due + (due === 1 ? ' recurring item is' : ' recurring items are') + ' due. ', btn('Review', function () { go('domain', { domain: 'money' }); }, 'sm', { id: 'due-review' })) : null,
-      pr, h('div', { class: 'grid' }, tiles));
+      glanceCard(s, t, 'dash-glance'), pr, h('div', { class: 'grid' }, tiles));
   }
 
   // ---------- domain ----------
@@ -433,6 +433,7 @@
       opts.embed ? null : btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'),
       opts.embed ? null : h('h1', { text: d.label }),
       opts.noForm ? null : h('div', { class: 'card' }, h('h2', { text: 'Add entry' }), form),
+      d.id === 'social' && !opts.embed ? socialFromActivities(s, today()) : null,
       h('h2', { text: 'Entries (' + list.length + ')' }),
       h('div', { class: 'card' }, rows.length ? rows : h('p', { class: 'mut', text: 'Nothing here yet.' })),
       list.length > shown ? btn('Show more', function () { view.shown = shown + 50; render(); }) : null,
@@ -980,7 +981,9 @@
       reviewHomeAdminCard(s, wk),
       h('h2', { text: '5. Learning' }),
       reviewLearningCard(s, wk, t),
-      h('h2', { text: '6. Your three priorities' }),
+      h('h2', { text: '6. Activities' }),
+      reviewActivitiesCard(s, wk, t),
+      h('h2', { text: '7. Your three priorities' }),
       h('form', {
         class: 'card',
         onsubmit: function (e) {
@@ -1368,7 +1371,8 @@
         stat('Minutes', String(ww.minutes), 'hl-minutes'),
         stat('Week number', String(ww.isoWeek), 'hl-weeknum'),
         stat('Cycle week', ww.cycleWeek === null ? 'n/a' : (ww.cycleWeek === 0 ? 'Not started' : String(ww.cycleWeek)), 'hl-cycleweek')),
-      ww.mix.length ? mixRows(ww.mix, ww.sessions) : h('p', { class: 'mut', text: 'No workouts logged this week.' }));
+      ww.mix.length ? mixRows(ww.mix, ww.sessions) : h('p', { class: 'mut', text: 'No workouts logged this week.' }),
+      healthFromActivities(s, wk));
 
     // body
     var bodyCard = h('div', { class: 'card', id: 'hl-body' }, h('h2', { text: 'Body' }),
@@ -2255,6 +2259,277 @@
     return h('div', { class: 'card', id: 'rv-learning' }, kids);
   }
 
+  // ---------- activities (v0.9.0) ----------
+  // Nothing here happens by itself: Done, Skipped, Reschedule, a rating, the Money expense and removing a manual duplicate are each offered and taken on a tap.
+  function fmtC(s, c) { return moneyFmt(c, s.settings.currency); }
+  function dateRange(a) { return a.endDate ? a.date + ' to ' + a.endDate : a.date; }
+  function chipEl(text, cls) { return h('span', { class: 'chip' + (cls ? ' ' + cls : ''), text: text }); }
+  function tbl(id, heads, rows) {
+    return h('div', { class: 'tablewrap' }, h('table', { id: id },
+      h('thead', null, h('tr', null, heads.map(function (x) { return h('th', { text: x }); }))),
+      h('tbody', null, rows.map(function (r) { return h('tr', { 'data-cat': r.cat || null }, r.cells.map(function (c) { return h('td', { text: c }); })); }))));
+  }
+  function actDo(fn, ok) { act(function () { return commit(fn.run, fn.audit).then(function () { if (ok) setNotice('ok', ok); render(); }); }); }
+  function ratingChips(a) {
+    return h('div', { class: 'chips act-rate-row', role: 'group', 'aria-label': 'Worth it rating for ' + a.title }, [1, 2, 3, 4, 5].map(function (n) {
+      return h('button', { type: 'button', class: 'chipbtn act-rate', 'data-n': String(n), 'aria-pressed': a.worthIt === n ? 'true' : 'false', text: String(n), 'aria-label': 'Rate ' + n + ' for ' + a.title,
+        onclick: function () { actDo({ run: function (x) { L.activities.rate(x, a.id, n); }, audit: 'activity rate' }, 'Rating saved.'); } });
+    }));
+  }
+  function moneyOfferBtn(s, a) {
+    var o = L.activities.expenseOffer(s, a.id);
+    if (!o) return null;
+    return btn('Add ' + fmtC(s, o.costCents) + ' to Money', function () { actDo({ run: function (x) { L.activities.createExpense(x, a.id); }, audit: 'activity expense' }, 'Added to Money.'); }, 'sm pri act-money', { 'aria-label': 'Add the cost of ' + a.title + ' to Money as an expense' });
+  }
+  function askDeleteActivity(s, a) {
+    openDialog({
+      title: 'Delete this activity?', yes: 'Delete', danger: true,
+      body: [h('p', { class: 'mut', text: a.title }), h('p', { class: 'small', text: a.expenseId ? 'Its Money expense is kept.' : 'Nothing in Money changes.' })],
+      onYes: function () { return commit(function (x) { L.activities.deleteActivity(x, a.id); }, 'activity delete').then(function () { setNotice('ok', 'Activity deleted.'); render(); }); }
+    });
+  }
+  // The same fields for adding (inline) and editing (dialog). read() gives the input the core expects.
+  function activityForm(s, a, t, p) {
+    var A = L.activities, edit = !!a, cats = A.categories(s).slice();
+    if (edit && cats.indexOf(a.category) < 0) cats.push(a.category);
+    var f = {};
+    f.title = h('input', { type: 'text', id: p + 'title', maxlength: '200', autocomplete: 'off', required: true, value: edit ? a.title : '' });
+    f.category = sel(p + 'category', cats.map(function (c) { return { v: c, t: c }; }), edit ? a.category : (cats.indexOf('other') >= 0 ? 'other' : cats[0]));
+    f.date = h('input', { type: 'date', id: p + 'date', value: edit ? a.date : t, required: true });
+    f.end = h('input', { type: 'date', id: p + 'end', value: edit && a.endDate ? a.endDate : '' });
+    f.minutes = h('input', { type: 'text', id: p + 'minutes', inputmode: 'numeric', maxlength: '6', autocomplete: 'off', value: edit && a.minutes ? String(a.minutes) : '' });
+    f.place = h('input', { type: 'text', id: p + 'place', maxlength: '200', autocomplete: 'off', value: edit ? a.place : '' });
+    f.people = h('input', { type: 'text', id: p + 'people', maxlength: '1100', autocomplete: 'off', value: edit ? a.withPeople.join(', ') : '' });
+    f.cost = h('input', { type: 'text', id: p + 'cost', inputmode: 'decimal', maxlength: '14', autocomplete: 'off', value: edit && typeof a.costCents === 'number' ? (a.costCents / 100).toFixed(2) : '' });
+    f.ret = h('input', { type: 'text', id: p + 'return', inputmode: 'decimal', maxlength: '14', autocomplete: 'off', value: edit && typeof a.returnCents === 'number' ? (a.returnCents / 100).toFixed(2) : '' });
+    f.health = h('input', { type: 'checkbox', id: p + 'health', checked: edit && a.alsoHealth });
+    f.kind = sel(p + 'kind', [{ v: '', t: '(none)' }].concat((s.kinds || []).map(function (k) { return { v: k, t: k }; })), edit && a.healthKind ? a.healthKind : '');
+    f.social = h('input', { type: 'checkbox', id: p + 'social', checked: edit && a.alsoSocial });
+    f.goal = sel(p + 'goal', goalOptions(s), edit && a.goalId ? a.goalId : '');
+    var long = edit && a.notes.length > A.NOTE_MAX;
+    f.notes = long ? null : h('textarea', { id: p + 'notes', maxlength: String(A.NOTE_MAX) }, edit ? a.notes : '');
+    if (!edit) {
+      f.state = sel(p + 'state', [{ v: 'planned', t: 'Planned' }, { v: 'done', t: 'Done' }], date2state(t, t));
+      f.worth = sel(p + 'worth', [{ v: '', t: '(not rated)' }].concat([1, 2, 3, 4, 5].map(function (n) { return { v: String(n), t: String(n) }; })), '');
+      f.date.addEventListener('change', function () { if (f.date.value) f.state.value = date2state(f.date.value, t); });
+    }
+    function date2state(d, now) { return d < now ? 'done' : 'planned'; }
+    var nodes = [field('Title', f.title), field('Category', f.category), edit ? null : field('State', f.state), field('Date', f.date), field('End date (optional, for a multi-day activity)', f.end),
+      field('Minutes (optional)', f.minutes), field('Place (optional)', f.place, 'Do not enter ID numbers, account numbers or passwords.'),
+      field('With (optional, names separated by commas, up to ' + A.PEOPLE_MAX + ')', f.people),
+      field('Cost in dollars (optional)', f.cost, edit && a.expenseId ? 'In Money. A new amount here also changes that Money expense.' : 'Entered once. Marking it done offers to add it to Money.'),
+      field('Financial return in dollars (optional)', f.ret),
+      edit ? null : field('Worth it, 1 to 5 (once done)', f.worth),
+      h('label', { class: 'field check' }, f.health, h('span', { text: 'Also count in Health as a workout' })), field('Health type (optional)', f.kind),
+      h('label', { class: 'field check' }, f.social, h('span', { text: 'Also count in Social as contact with these people' })),
+      field('Linked goal (optional)', f.goal),
+      f.notes ? field('Notes (optional, up to ' + A.NOTE_MAX + ' characters)', f.notes, 'Do not enter ID numbers, account numbers or passwords.') : h('p', { class: 'mut small', text: 'Notes carried over from an older entry are kept as they are.' })];
+    function read() {
+      var o = { title: f.title.value, category: f.category.value, date: f.date.value, endDate: f.end.value, minutes: f.minutes.value, place: f.place.value, people: f.people.value,
+        returnAmount: f.ret.value, alsoHealth: f.health.checked, healthKind: f.kind.value, alsoSocial: f.social.checked, goalId: f.goal.value };
+      o.cost = f.cost.value;
+      if (f.notes) o.notes = f.notes.value;
+      if (!edit) { o.state = f.state.value; if (f.worth.value) o.worthIt = f.worth.value; }
+      return o;
+    }
+    return { nodes: nodes, read: read, f: f };
+  }
+  function editActivityDialog(s, a, t) {
+    var form = activityForm(s, a, t, 'ae-');
+    openDialog({
+      title: 'Edit activity', yes: 'Save', body: form.nodes,
+      onYes: function () { var p = form.read(); return commit(function (x) { L.activities.updateActivity(x, a.id, p); }, 'activity edit').then(function () { setNotice('ok', 'Activity saved.'); render(); }); }
+    });
+  }
+  function actRow(s, a, t) {
+    var A = L.activities, sub = [dateRange(a), a.category];
+    if (a.minutes) sub.push(a.minutes + ' min');
+    if (a.place) sub.push(a.place);
+    if (a.withPeople.length) sub.push('with ' + a.withPeople.join(', '));
+    var money = [];
+    if (typeof a.costCents === 'number') money.push(a.paidOn ? 'paid ' + fmtC(s, a.costCents) + ' on ' + a.paidOn : (a.state === 'planned' ? 'committed ' : a.state === 'done' ? 'cost ' : 'cost not spent ') + fmtC(s, a.costCents));
+    if (a.state === 'done' && typeof a.returnCents === 'number') money.push('return ' + fmtC(s, a.returnCents));
+    if (a.state === 'done' && typeof a.worthIt === 'number') money.push('worth it ' + a.worthIt + ' of 5');
+    var chips = [chipEl(A.STATE_LABEL[a.state], 'act-state')];
+    if (a.alsoHealth) chips.push(chipEl('Health', 'act-tag'));
+    if (a.alsoSocial) chips.push(chipEl('Social', 'act-tag'));
+    if (a.paidOn) chips.push(chipEl('Paid', 'act-paid'));
+    if (a.expenseId) chips.push(chipEl('In Money', 'act-linked'));
+    var kids = [h('div', { class: 'row sp' }, h('strong', { class: 'entry-t', text: a.title }), h('span', null, chips)), h('p', { class: 'mut small', text: sub.join(' | ') })];
+    if (money.length) kids.push(h('p', { class: 'small act-money-line', text: money.join(' | ') }));
+    if (a.notes) kids.push(h('p', { class: 'small mut', text: a.notes }));
+    var acts = [];
+    if (a.state === 'planned') {
+      acts.push(btn('Done', function () { actDo({ run: function (x) { A.markDone(x, a.id); }, audit: 'activity done' }, 'Marked done.'); }, 'sm pri act-done', { 'aria-label': 'Mark ' + a.title + ' done' }));
+      acts.push(btn('Skip', function () { actDo({ run: function (x) { A.markSkipped(x, a.id); }, audit: 'activity skipped' }, a.expenseId ? 'Marked skipped. Its Money expense is kept.' : 'Marked skipped.'); }, 'sm act-skip', { 'aria-label': 'Skip ' + a.title }));
+    }
+    if (a.state === 'planned' && a.costCents > 0 && !a.paidOn) acts.push(btn('Mark paid', function () { actDo({ run: function (x) { A.markPaid(x, a.id, t); }, audit: 'activity paid' }, 'Marked paid. You can add it to Money.'); }, 'sm act-paid-btn', { 'aria-label': 'Mark ' + a.title + ' paid' }));
+    var mo = moneyOfferBtn(s, a); if (mo) acts.push(mo);
+    if (a.state === 'skipped' || a.state === 'done') acts.push(btn(a.state === 'done' ? 'Back to planned' : 'Reopen', function () { actDo({ run: function (x) { A.setState(x, a.id, 'planned'); }, audit: 'activity reopen' }); }, 'sm act-reopen', { 'aria-label': 'Make ' + a.title + ' planned again' }));
+    acts.push(btn('Edit', function () { editActivityDialog(s, a, t); }, 'sm act-edit', { 'aria-label': 'Edit ' + a.title }));
+    acts.push(btn('Delete', function () { askDeleteActivity(s, a); }, 'sm bad act-del', { 'aria-label': 'Delete ' + a.title }));
+    if (a.state === 'done') kids.push(h('div', { class: 'row' }, h('span', { class: 'mut small', text: 'Worth it?' }), ratingChips(a)));
+    kids.push(h('div', { class: 'row' }, acts));
+    return h('div', { class: 'goal act-item', 'data-title': a.title, 'data-state': a.state }, kids);
+  }
+  // A past-date planned activity: done, skipped or a new date, each on a tap.
+  function pastRow(s, a, cls) {
+    var A = L.activities, nd = h('input', { type: 'date', class: cls + '-date', 'aria-label': 'New date for ' + a.title, value: a.date });
+    return h('div', { class: 'item ' + cls, 'data-title': a.title },
+      h('div', null, h('span', { class: 'entry-t', text: a.title }), h('span', { class: 'mut small', text: ' ' + dateRange(a) + (typeof a.costCents === 'number' ? ', ' + fmtC(s, a.costCents) : '') + (a.paidOn ? ' (paid)' : '') })),
+      h('div', { class: 'row' }, nd,
+        btn('Reschedule', function () { actDo({ run: function (x) { A.reschedule(x, a.id, nd.value); }, audit: 'activity reschedule' }, 'Rescheduled.'); }, 'sm ' + cls + '-rs', { 'aria-label': 'Reschedule ' + a.title }),
+        btn('Done', function () { actDo({ run: function (x) { A.markDone(x, a.id); }, audit: 'activity done' }, 'Marked done.'); }, 'sm ' + cls + '-done', { 'aria-label': 'Mark ' + a.title + ' done' }),
+        btn('Skipped', function () { actDo({ run: function (x) { A.markSkipped(x, a.id); }, audit: 'activity skipped' }, a.expenseId ? 'Marked skipped. Its Money expense is kept.' : 'Marked skipped.'); }, 'sm ' + cls + '-skip', { 'aria-label': 'Mark ' + a.title + ' skipped' })));
+  }
+  function glanceItem(s, x, many) {
+    var line = dateRange(x) + (typeof x.costCents === 'number' && x.costCents > 0 ? ' | ' + fmtC(s, x.costCents) + ' committed' : '') + (x.paid ? ' | paid' : '');
+    return h('div', { class: 'item gl-item', 'data-title': x.title, 'data-source': x.source },
+      h('div', null, h('span', { class: 'entry-t', text: x.title }), h('span', { class: 'mut small', text: ' ' + line }), many ? chipEl(x.sourceLabel, 'gl-src') : null));
+  }
+  // The at-a-glance card: today and this week, the rest of the 30 days behind one tap. It reads the provider list, so other domains can add upcoming items.
+  function glanceCard(s, t, id) {
+    var g = L.activities.glance(s, t), many = g.providers.length > 1, now = g.today.concat(g.week);
+    var kids = [h('h2', { text: 'At a glance' }),
+      h('p', { class: 'mut small', id: id + '-sum', text: g.count ? g.count + (g.count === 1 ? ' item' : ' items') + ' in the next 30 days.' : 'Nothing planned in the next 30 days.' })];
+    if (g.today.length) kids.push(h('h3', { text: 'Today' }), g.today.map(function (x) { return glanceItem(s, x, many); }));
+    if (g.week.length) kids.push(h('h3', { text: 'This week' }), g.week.map(function (x) { return glanceItem(s, x, many); }));
+    if (!now.length && g.count) kids.push(h('p', { class: 'mut small', text: 'Nothing today or this week.' }));
+    if (g.later.length) kids.push(h('details', { class: 'fold-in', id: id + '-later', open: view.open === id + '-later' || null }, h('summary', { text: 'Rest of the next 30 days (' + g.later.length + ')' }), g.later.map(function (x) { return glanceItem(s, x, many); })));
+    return h('div', { class: 'card', id: id }, kids);
+  }
+  function dupNotices(s, kind, cls) {
+    var A = L.activities, byId = new Map((s.activities || []).map(function (a) { return [a.id, a]; })), ents = new Map(s.entries.map(function (e) { return [e.id, e]; }));
+    return A.duplicates(s).filter(function (d) { return d.kind === kind && !(view.keep && view.keep[d.activityId + d.entryId]); }).map(function (d) {
+      var a = byId.get(d.activityId), e = ents.get(d.entryId);
+      return h('div', { class: 'warn ' + cls, 'data-title': a.title },
+        h('p', { class: 'small', text: 'The ' + (kind === 'health' ? 'workout' : 'contact') + ' you logged on ' + d.date + ' is also counted from the activity "' + a.title + '". Both show. Remove your manual entry?' }),
+        h('div', { class: 'row' },
+          btn('Remove manual entry', function () { actDo({ run: function (x) { A.removeDuplicate(x, d.activityId, d.entryId); }, audit: 'activity duplicate removed' }, 'Manual entry removed.'); }, 'sm ' + cls + '-remove', { 'aria-label': 'Remove the manual ' + (e ? e.title : '') + ' entry' }),
+          btn('Keep both', function () { view.keep = view.keep || {}; view.keep[d.activityId + d.entryId] = true; render(); }, 'sm ' + cls + '-keep')));
+    });
+  }
+  // Health view: sessions from Activities this week, marked.
+  function healthFromActivities(s, wk) {
+    var A = L.activities, rows = A.healthSessions(s, wk, addDays(wk, 6)), dup = dupNotices(s, 'health', 'hl-dupe');
+    if (!rows.length && !dup.length) return null;
+    return h('div', { class: 'sub', id: 'hl-from-act' }, h('h3', { text: 'From Activities' }),
+      rows.map(function (a) { return h('div', { class: 'item hl-act', 'data-title': a.title }, h('div', null, h('span', { class: 'entry-t', text: a.title }), h('span', { class: 'mut small', text: ' ' + a.date + (a.minutes ? ', ' + a.minutes + ' min' : '') + (a.healthKind ? ', ' + a.healthKind : '') }), chipEl('from Activities', 'act-from'))); }), dup);
+  }
+  // Social view: last contact from Activities, marked.
+  function socialFromActivities(s, t) {
+    var c = Array.from(L.activities.contacts(s, t).values()).sort(function (a, b) { return b.date.localeCompare(a.date) || a.name.localeCompare(b.name); }), dup = dupNotices(s, 'social', 'soc-dupe');
+    if (!c.length && !dup.length) return null;
+    return h('div', { class: 'card', id: 'soc-from-act' }, h('h2', { text: 'From Activities' }),
+      h('p', { class: 'mut small', text: 'Last contact counted from done activities that are tagged Social. No contact entry is stored for them.' }),
+      c.map(function (x) { return h('div', { class: 'item soc-act', 'data-person': x.name }, h('div', null, h('span', { class: 'entry-t', text: x.name }), h('span', { class: 'mut small', text: ' last contact ' + x.date + ', ' + x.title }), chipEl('from Activities', 'act-from'))); }), dup);
+  }
+
+  function activitiesScreen(s) {
+    var A = L.activities, t = today(), wk = L.metrics.weekStart(t), ws = A.weekStats(s, wk, t), up = A.upcoming(s, t);
+    var stats = h('div', { class: 'stats' },
+      stat('Active days this week', String(ws.days), 'act-days'), stat('Done this week', String(ws.done), 'act-done-count'),
+      stat('Spent this week', fmtC(s, ws.spendCents), 'act-spend'), stat('Committed, next 30 days', fmtC(s, up.committedCents), 'act-committed'));
+
+    var offers = A.offers(s, t);
+    var offerCard = offers.length ? h('div', { class: 'card', id: 'act-offers' }, h('h2', { text: 'Add to Money? (' + offers.length + ')' }),
+      h('p', { class: 'mut small', text: 'A cost reaches Money when you mark it paid or done and add it here. Nothing is added by itself.' }),
+      offers.map(function (o) {
+        return h('div', { class: 'item act-offer', 'data-title': o.title },
+          h('div', null, h('span', { class: 'entry-t', text: o.title }), h('span', { class: 'mut small', text: ' ' + o.date + ', ' + fmtC(s, o.costCents) + (o.category ? ', category ' + o.category : '') })),
+          btn('Add to Money', function () { actDo({ run: function (x) { A.createExpense(x, o.id); }, audit: 'activity expense' }, 'Added to Money.'); }, 'sm pri act-offer-add', { 'aria-label': 'Add ' + o.title + ' to Money as an expense' }));
+      })) : null;
+    var dupes = [].concat(dupNotices(s, 'health', 'act-dupe'), dupNotices(s, 'social', 'act-dupe'));
+
+    var late = A.overduePlanned(s, t);
+    var lateCard = late.length ? h('div', { class: 'card', id: 'act-overdue' }, h('h2', { text: 'Planned, date passed (' + late.length + ')' }),
+      h('p', { class: 'mut small', text: 'Nothing changes until you tap it.' }), late.map(function (a) { return pastRow(s, a, 'act-past'); })) : null;
+
+    var upCard = h('div', { class: 'card', id: 'act-upcoming' }, h('h2', { text: 'Upcoming (' + up.count + ' in 30 days)' }),
+      up.today.length ? [h('h3', { text: 'Today' }), up.today.map(function (a) { return actRow(s, a, t); })] : null,
+      up.week.length ? [h('h3', { text: 'This week' }), up.week.map(function (a) { return actRow(s, a, t); })] : null,
+      !up.today.length && !up.week.length ? h('p', { class: 'mut', text: up.count ? 'Nothing today or this week.' : 'Nothing planned in the next 30 days.' }) : null);
+    var laterCard = up.later.length ? details('act-later', 'Rest of the next 30 days (' + up.later.length + ')', up.later.map(function (a) { return actRow(s, a, t); }), view.open === 'act-later') : null;
+
+    var form = activityForm(s, null, t, 'act-');
+    var addCard = details('act-add', 'Add an activity', [h('form', {
+      id: 'act-form',
+      onsubmit: function (e) {
+        e.preventDefault();
+        act(function () { var p = form.read(); return commit(function (x) { A.addActivity(x, p, t); }, 'activity add').then(function () { view.open = 'act-add'; setNotice('ok', 'Activity added.'); render(); }); });
+      }
+    }, form.nodes, h('button', { type: 'submit', class: 'btn pri', id: 'act-add-btn', text: 'Add activity' }))], view.open === 'act-add' || !(s.activities || []).length);
+
+    var recent = (s.activities || []).filter(function (a) { return a.state !== 'planned'; }).sort(function (a, b) { return b.date.localeCompare(a.date) || a.title.localeCompare(b.title); });
+    var shown = view.actShown || 20;
+    var recentCard = h('div', { class: 'card', id: 'act-recent' }, h('h2', { text: 'Recent (' + recent.length + ')' }),
+      recent.length ? recent.slice(0, shown).map(function (a) { return actRow(s, a, t); }) : h('p', { class: 'mut', text: 'Nothing done yet.' }),
+      recent.length > shown ? btn('Show more', function () { view.actShown = shown + 20; render(); }, 'sm') : null);
+
+    // cost and ratings: numbers only, "no data" where there is nothing to average
+    var months = A.costMonths(s), cur = t.slice(0, 7);
+    if (months.indexOf(cur) < 0) months.unshift(cur);
+    months.sort().reverse();
+    var month = view.month && months.indexOf(view.month) >= 0 ? view.month : cur;
+    var r = A.roi(s, month), C = function (c) { return c === null ? 'no data' : fmtC(s, c); };
+    var monthSel = sel('act-month', months.map(function (m) { return { v: m, t: monthLabel(m) }; }), month, function (e) { view.month = e.target.value; view.open = 'act-roi'; render(); });
+    var roiCard = details('act-roi', 'Cost and ratings', [
+      h('p', { class: 'mut small', text: 'Done activities only. The cost is entered once; a linked Money expense is the same money and is not added again.' }),
+      h('h3', { text: 'Cost per activity' }),
+      r.perActivity.length ? tbl('roi-per-activity', ['Activity', 'Date', 'Cost'], r.perActivity.slice(0, 20).map(function (x) { return { cat: x.title, cells: [x.title, x.date, fmtC(s, x.costCents)] }; })) : h('p', { class: 'mut', id: 'roi-per-activity-none', text: 'no data' }),
+      h('h3', { text: 'Cost by category per month' }), field('Month', monthSel),
+      tbl('roi-by-cat', ['Category', 'Activities', 'Cost'], r.byCategory.rows.map(function (x) { return { cat: x.category, cells: [x.category, String(x.count), C(x.cents)] }; }).concat([{ cat: '(total)', cells: ['Total', String(r.byCategory.total.count), C(r.byCategory.total.cents)] }])),
+      h('h3', { text: 'Cost per hour' }),
+      tbl('roi-per-hour', ['Category', 'Activities', 'Per hour'], r.perHour.rows.map(function (x) { return { cat: x.category, cells: [x.category, String(x.count), C(x.centsPerHour)] }; }).concat([{ cat: '(total)', cells: ['All', String(r.perHour.total.count), C(r.perHour.total.centsPerHour)] }])),
+      h('h3', { text: 'Average worth-it rating' }),
+      tbl('roi-worth', ['Category', 'Rated', 'Average'], r.worth.rows.map(function (x) { return { cat: x.category, cells: [x.category, String(x.rated), x.avg === null ? 'no data' : x.avg.toFixed(2) + ' of 5'] }; }).concat([{ cat: '(total)', cells: ['All', String(r.worth.total.rated), r.worth.total.avg === null ? 'no data' : r.worth.total.avg.toFixed(2) + ' of 5'] }])),
+      h('h3', { text: 'Financial return minus cost' }),
+      tbl('roi-returns', ['Category', 'Return', 'Cost', 'Net'], r.returns.rows.map(function (x) { return { cat: x.category, cells: [x.category, C(x.returnCents), C(x.costCents), C(x.netCents)] }; }).concat([{ cat: '(total)', cells: ['All', C(r.returns.total.returnCents), C(r.returns.total.costCents), C(r.returns.total.netCents)] }]))
+    ], view.open === 'act-roi');
+
+    // categories
+    var newCat = h('input', { type: 'text', id: 'act-newcat', maxlength: '40', autocomplete: 'off', 'aria-label': 'New category' });
+    var catCard = details('act-cats', 'Categories (' + A.categories(s).length + ')', [
+      h('div', { class: 'chips' }, A.categories(s).map(function (c) {
+        return h('span', { class: 'chip act-cat', 'data-cat': c }, c, h('button', { type: 'button', class: 'x', 'aria-label': 'Remove category ' + c, text: 'x', onclick: function () { actDo({ run: function (x) { A.removeCategory(x, c); }, audit: 'activity categories' }); view.open = 'act-cats'; } }));
+      })),
+      h('form', { onsubmit: function (e) { e.preventDefault(); view.open = 'act-cats'; actDo({ run: function (x) { A.addCategory(x, newCat.value); }, audit: 'activity categories' }, 'Category added.'); } },
+        field('Add a category', newCat), h('button', { type: 'submit', class: 'btn', id: 'act-cat-add', text: 'Add category' }))], view.open === 'act-cats');
+
+    var legacy = A.legacyEntries(s), legacyShown = legacy.slice(0, 200);
+    var legacyCard = legacy.length ? details('act-legacy', 'Older activity entries (' + legacy.length + (legacy.length > legacyShown.length ? ', newest ' + legacyShown.length + ' shown' : '') + ')', [h('p', { class: 'mut small', text: 'Kept exactly as entered.' }), legacyShown.map(function (e) {
+      return h('div', { class: 'item g-legacy' }, h('div', null, h('span', { class: 'entry-t', text: e.title }), h('span', { class: 'mut small', text: ' ' + e.date }), e.notes ? h('p', { class: 'small mut', text: e.notes }) : null),
+        btn('Delete', function () {
+          openDialog({ title: 'Delete this older entry?', yes: 'Delete', danger: true, body: [h('p', { class: 'mut', text: e.title }), h('p', { class: 'small', text: 'Its title, date and notes are removed from the vault.' })],
+            onYes: function () { return commit(function (x) { x.entries = x.entries.filter(function (z) { return z.id !== e.id; }); }, 'older activity entry delete').then(function () { view.open = 'act-legacy'; render(); }); } });
+        }, 'sm bad leg-del', { 'aria-label': 'Delete ' + e.title }));
+    })], view.open === 'act-legacy') : null;
+
+    return h('div', null, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Activities' }),
+      h('p', { class: 'mut small', text: 'Outings, events, travel, hobbies, volunteering and classes. Nothing is marked done, skipped, rated or added to Money unless you tap it.' }),
+      stats, offerCard, dupes, lateCard, upCard, laterCard, addCard, recentCard, roiCard, catCard, legacyCard);
+  }
+  // Weekly review step: past-date planned activities (done, skipped or reschedule), then the worth-it rating, then the Money offers. A tap takes each action.
+  function reviewActivitiesCard(s, wk, t) {
+    var A = L.activities;
+    if (!A.hasData(s)) return h('p', { class: 'mut', id: 'rv-act-none', text: 'No activities yet. Add some under Activities.' });
+    var r = A.reviewWeek(s, wk, t), w = r.stats, kids = [];
+    kids.push(h('p', { class: 'small', id: 'rv-act-stats', text: 'This week: ' + w.done + (w.done === 1 ? ' activity' : ' activities') + ' done on ' + w.days + (w.days === 1 ? ' day' : ' days') + ', ' + fmtC(s, w.spendCents) + ' spent.' }));
+    kids.push(h('p', { class: 'small', id: 'rv-act-past-h', text: 'Planned, date passed (' + r.pastPlanned.length + ')' }));
+    if (r.pastPlanned.length) kids.push(h('p', { class: 'mut small', text: 'Nothing changes until you tap it.' }));
+    r.pastPlanned.forEach(function (a) { kids.push(pastRow(s, a, 'rv-act')); });
+    kids.push(h('p', { class: 'small', id: 'rv-act-rate-h', text: 'Worth it? Done in the last 14 days, not rated (' + r.toRate.length + ')' }));
+    r.toRate.forEach(function (a) { kids.push(h('div', { class: 'item rv-act-rate', 'data-title': a.title }, h('div', null, h('span', { class: 'entry-t', text: a.title }), h('span', { class: 'mut small', text: ' ' + a.date })), ratingChips(a))); });
+    if (r.offers.length) {
+      kids.push(h('p', { class: 'small', id: 'rv-act-offers-h', text: 'Add to Money? (' + r.offers.length + ')' }));
+      r.offers.forEach(function (o) {
+        kids.push(h('div', { class: 'item rv-act-offer', 'data-title': o.title }, h('div', null, h('span', { class: 'entry-t', text: o.title }), h('span', { class: 'mut small', text: ' ' + o.date + ', ' + fmtC(s, o.costCents) })),
+          btn('Add to Money', function () { actDo({ run: function (x) { A.createExpense(x, o.id); }, audit: 'activity expense' }, 'Added to Money.'); }, 'sm pri rv-act-money', { 'aria-label': 'Add ' + o.title + ' to Money as an expense' })));
+      });
+    }
+    return h('div', { class: 'card', id: 'rv-activities' }, kids);
+  }
+
   // ---------- memory ----------
   function memoryScreen(s) {
     var t = today(), mp = monthPeriod(t), qp = quarterPeriod(t);
@@ -2423,7 +2698,7 @@
       }, field('Restore from a backup file (64 MB max)', bf), field('Backup passphrase', ip),
         h('button', { type: 'submit', class: 'btn', text: 'Import backup' }))));
 
-    out.push(h('p', { class: 'mut small', id: 'app-version', text: 'LifeOS v0.8.0' }));
+    out.push(h('p', { class: 'mut small', id: 'app-version', text: 'LifeOS v0.9.0' }));
 
     if (L.syncUI) out.push(L.syncUI.section(syncCtx()));
 

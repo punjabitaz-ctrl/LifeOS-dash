@@ -27,6 +27,9 @@
     mk('studyMinutes', 'Study minutes per week', 'learning', 'count'),
     mk('learningFinished', 'Learning items finished', 'learning', 'count'),
     mk('itemProgress', 'Progress of linked learning items', 'learning', 'percent'),
+    mk('activitiesPerMonth', 'Activities done (this month)', 'activities', 'count'),
+    mk('activitySpend', 'Activity spend (this month)', 'activities', 'currency'),
+    mk('avgWorthIt', 'Average worth-it rating', 'activities', 'number'),
   ]);
   // Body metrics are sensitive (SEC-32): goals on them never reach a digest, prompt or rules insight.
   const BODY = Object.freeze(['weight', 'bodyFat']);
@@ -77,7 +80,7 @@
         return s.length ? s[s.length - 1].value : null;
       }
       case 'workoutsPerWeek':
-        if (!ents.some((e) => e.type === 'workout' && e.date <= asOf)) return null;
+        if (!ents.some((e) => e.type === 'workout' && e.date <= asOf) && !(state.activities || []).some((x) => x.state === 'done' && x.alsoHealth && x.date <= asOf)) return null;
         return m.workoutWeek(state, m.weekStart(asOf)).sessions;
       case 'avgSleep': return m.sleepAvg(state, m.addDays(asOf, -6), asOf).avg;
       case 'habitRate':
@@ -94,6 +97,9 @@
       case 'learningFinished':
         if (!(state.learningItems || []).length) return null;
         return L.learning.finishedBy(state, asOf);
+      case 'activitiesPerMonth': return L.activities.goalCount(state, asOf);
+      case 'activitySpend': return L.activities.goalSpend(state, asOf);
+      case 'avgWorthIt': return L.activities.goalRating(state, asOf);
       case 'pipelineWon':
         if (!(state.pipeline || []).length) return null;
         return state.pipeline.filter((x) => x.stage === 'won' && x.updatedAt <= asOf).length;
@@ -358,6 +364,7 @@
     let n = 0;
     for (const g of state.goals) if (g.parentId === id) { delete g.parentId; n++; }
     for (const i of state.learningItems || []) if (i.goalId === id) delete i.goalId;
+    for (const a of state.activities || []) if (a.goalId === id) delete a.goalId;
     state.goals = state.goals.filter((g) => g.id !== id);
     return n;
   }

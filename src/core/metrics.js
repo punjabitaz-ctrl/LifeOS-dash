@@ -250,13 +250,15 @@
     const r = findDue(state, id, today);
     r.nextDate = advanceDate(r.nextDate, r.cadence);
   }
-  function overdue(ents, asOf, days) {
+  // Last contact per person: manual contact entries, plus (when `state` is given) done social-tagged activities with that person. Computed, never stored twice.
+  function overdue(ents, asOf, days, state) {
     const last = new Map();
     for (const e of ents) {
       if (e.type !== 'contact' || e.date > asOf) continue;
       const k = e.person.toLowerCase();
       if (!last.has(k) || e.date > last.get(k)) last.set(k, e.date);
     }
+    if (state && L.activities) for (const [k, c] of L.activities.contacts(state, asOf)) if (!last.has(k) || c.date > last.get(k)) last.set(k, c.date);
     let n = 0;
     for (const d of last.values()) if (daysBetween(asOf, d) > days) n++;
     return { n, total: last.size };
@@ -428,12 +430,13 @@
   function workoutWeek(state, ws) {
     ws = weekStart(ws);
     const we = addDays(ws, 6), cy = state.cycle || null;
-    const wk = hEntries(state, 'workout').filter((e) => inR(e, ws, we));
+    // Done Health-tagged activities count as sessions and minutes too (computed here; no workout entry is stored for them).
+    const wk = hEntries(state, 'workout').filter((e) => inR(e, ws, we)).concat(L.activities ? L.activities.healthSessions(state, ws, we) : []);
     const mix = new Map();
     let minutes = 0;
     for (const e of wk) {
       minutes += e.minutes || 0;
-      const k = e.kind || 'untyped', g = mix.get(k) || { kind: k, count: 0, minutes: 0 };
+      const k = e.kind || e.healthKind || 'untyped', g = mix.get(k) || { kind: k, count: 0, minutes: 0 };
       g.count++; g.minutes += e.minutes || 0; mix.set(k, g);
     }
     return {
@@ -560,9 +563,9 @@
       case 'money': { const s = savings(ents, ws, we); return s.rate === null ? 0 : s.rate * 100; }
       case 'assets': return netWorthDetail(state, we).total;
       case 'work': return count(ents, ws, we, (e) => e.type === 'outcome' && e.status === 'done');
-      case 'health': return count(ents, ws, we, (e) => e.type === 'workout');
-      case 'activities': return activeDays(ents, ws, we);
-      case 'social': return overdue(ents, we, tg.contactDays).n;
+      case 'health': return workoutWeek(state, ws).sessions;
+      case 'activities': return L.activities.current(state) ? L.activities.weekValue(state, we) : activeDays(ents, ws, we);
+      case 'social': return overdue(ents, we, tg.contactDays, state).n;
       // Study minutes once any Learning data exists (schema 7); the older count of finished items before that.
       case 'learning': return L.learning.current(state) ? L.learning.weekValue(state, we) : count(ents, ws, we, (e) => e.type === 'item' && e.status === 'done');
       case 'home': return L.home.weekValue(state, we);
@@ -589,7 +592,7 @@
     const we = addDays(ws, 6), wm = sumMoney(byDomain(state, 'money'), ws, we), nw = netWorthDetail(state, we);
     const mv = monthView(state, monthOf(we));
     const money = { income: dollars(wm.incC), spend: dollars(wm.expC), budgetUsedPct: mv.budgetCents > 0 ? r1(mv.budgetedSpentCents * 100 / mv.budgetCents) : 0, netWorth: nw.total, liabilities: nw.liabilities };
-    return { week: ws, domains, money, work: workDigest(state, ws), health: healthDigest(state, ws), goals: L.goals.digestCounts(state, ws), home: L.home.digest(state, ws), admin: L.admin.digest(state, ws), learning: L.learning.digest(state, ws) };
+    return { week: ws, domains, money, work: workDigest(state, ws), health: healthDigest(state, ws), activities: L.activities.digest(state, ws), goals: L.goals.digestCounts(state, ws), home: L.home.digest(state, ws), admin: L.admin.digest(state, ws), learning: L.learning.digest(state, ws) };
   }
   function series(state, domainId, n, today) {
     if (!DOMAINS.some((d) => d.id === domainId)) throw new Error('Unknown domain');
@@ -631,17 +634,18 @@
         return R('Outcomes done this week', done + ' of ' + total, done, w.overdue + ' overdue next ' + (w.overdue === 1 ? 'action' : 'actions') + ', ' + w.openPipeline + ' open in pipeline');
       }
       case 'health': {
-        const n = count(ents, ws, we, (e) => e.type === 'workout');
+        const n = workoutWeek(state, ws).sessions;
         const base = n >= tg.workoutsPerWeek ? 'Target met' : (tg.workoutsPerWeek - n) + ' to go';
         const cl = state.cycle ? cycleLabel(trainingCycle(state.cycle, today)) : '';
         return R('Workouts this week', n + ' of ' + tg.workoutsPerWeek, n, cl ? base + '. ' + cl : base);
       }
       case 'activities': {
+        if (L.activities.current(state)) return L.activities.headline(state, today, R);
         const d = activeDays(ents, ws, we), s = count(ents, ws, we, (e) => e.type === 'session');
         return R('Active days this week', String(d), d, s + (s === 1 ? ' session' : ' sessions'));
       }
       case 'social': {
-        const o = overdue(ents, today, tg.contactDays);
+        const o = overdue(ents, today, tg.contactDays, state);
         return R('People overdue', String(o.n), o.n, o.total + ' tracked, over ' + tg.contactDays + ' days since contact');
       }
       case 'learning': {

@@ -44,7 +44,7 @@ test('schema 1 to 6 migrate to 7 with no data loss; every old learning entry sur
   const old = base.entries.filter((e) => e.domain === 'learning');
   for (const k of [1, 2, 3, 4, 5, 6]) {
     const got = S.validateState(asS(k, base));
-    assert.equal(got.schema, 7); assert.equal(got.sourceSchema, k);
+    assert.equal(got.schema, 8); assert.equal(got.sourceSchema, k);
     assert.deepEqual(got.takeaways, []); assert.deepEqual(got.settings.learning, { weeklyMinutes: 0 });
     assert.equal(got.entries.filter((e) => e.domain !== 'learning').length, 2, 'other entries untouched');
     const kept = got.entries.filter((e) => e.domain === 'learning');
@@ -78,10 +78,10 @@ test('migration is persisted on unlock of stored schema 1 to 6 vaults', async ()
     const salt = V.newSalt(), key = await V.deriveKey(PASS, salt);
     ad._m.set('envelope', await V.makeEnvelope(key, salt, asS(k, legacyBase())));
     const st = await S.unlock(PASS);
-    assert.equal(st.schema, 7); assert.equal(st.learningItems.length, 3); assert.equal(st.studySessions.length, 2);
+    assert.equal(st.schema, 8); assert.equal(st.learningItems.length, 3); assert.equal(st.studySessions.length, 2);
     await S.commit((x) => { Ln.addTakeaway(x, { text: 'Persisted takeaway text' }, TODAY); });
     const raw = await V.decrypt(key, ad._m.get('envelope'));
-    assert.equal(raw.schema, 7); assert.equal(raw.learningItems.length, 3); assert.equal(raw.takeaways.length, 1);
+    assert.equal(raw.schema, 8); assert.equal(raw.learningItems.length, 3); assert.equal(raw.takeaways.length, 1);
     assert.equal(raw.entries.filter((e) => e.domain === 'learning').length, 4, 'only the four that do not fit stay entries');
     S.lock();
   }
@@ -95,7 +95,7 @@ test('the learning migration respects the caps: nothing beyond them is dropped',
 test('a v0.7.0 (schema 6) backup imports cleanly; a schema 7 backup round trips every new field', async () => {
   const salt = V.newSalt(), key = await V.deriveKey(PASS, salt);
   const got = await V.importBackup(PASS, JSON.stringify(await V.makeEnvelope(key, salt, asS(6, legacyBase()))));
-  assert.equal(got.schema, 7); assert.equal(got.sourceSchema, 6); assert.equal(got.learningItems.length, 3); assert.ok(!JSON.stringify(got).includes('sourceSchema'));
+  assert.equal(got.schema, 8); assert.equal(got.sourceSchema, 6); assert.equal(got.learningItems.length, 3); assert.ok(!JSON.stringify(got).includes('sourceSchema'));
   const full = state((s) => {
     s.goals.push(goal({ metric: 'itemProgress' }));
     s.learningItems.push(item({ id: 'a', title: 'AWS exam', kind: 'certification', provider: 'Vendor', progressPct: 42.5, startDate: '2026-10-01', targetDate: '2026-12-01', examDate: '2026-12-05', expiresOn: '2029-12-05', goalId: 'g1', notes: 'n', createdAt: '2026-10-01T00:00:00.000Z' }),
@@ -106,7 +106,7 @@ test('a v0.7.0 (schema 6) backup imports cleanly; a schema 7 backup round trips 
   });
   const back = await V.importBackup(PASS, await V.exportBackup(PASS, full));
   for (const k of Object.keys(COLL)) assert.deepEqual(back[k], full[k], k);
-  assert.deepEqual(back.settings.learning, { weeklyMinutes: 300 }); assert.equal(back.sourceSchema, 7);
+  assert.deepEqual(back.settings.learning, { weeklyMinutes: 300 }); assert.equal(back.sourceSchema, 8);
 });
 
 // ---- downgrade guards (SEC-27 / SEC-28 extended to every schema 7 collection and the study target) ----
@@ -134,7 +134,7 @@ test('every schema 7 collection and the study target are protected from an older
     }
     const bk6 = await V.importBackup(PASS, JSON.stringify(await V.makeEnvelope(key, salt, asS(6, S.defaultState()))));
     await S.replaceState(bk6, { allowWorkLoss: true });
-    assert.equal(size(S.getState()), 0); assert.equal(S.getState().schema, 7);
+    assert.equal(size(S.getState()), 0); assert.equal(S.getState().schema, 8);
     assert.deepEqual(S.droppedData(S.getState(), bk6), []);
   }
   await fresh();
@@ -150,14 +150,14 @@ test('every schema 7 collection and the study target are protected from an older
     await putRemote(d, asS(6, S.defaultState()), 3);
     const dec = await L.sync.run();
     assert.equal(dec.kind, 'download-offer'); assert.equal(dec.dropsWork, true); assert.deepEqual(dec.dropped, [name]);
-    assert.equal(dec.local.schema, 7); assert.equal(dec.remote.schema, 6);
+    assert.equal(dec.local.schema, 8); assert.equal(dec.remote.schema, 6);
     const before = JSON.stringify(ad._m.get('envelope')), w = d.writes;
     await assert.rejects(L.sync.apply(dec, 'download'), (e) => e.code === 'OLDER_FORMAT' && e.message.includes(name));
     await assert.rejects(L.sync.apply(dec, 'download', { allowWorkLoss: 1 }), (e) => e.code === 'OLDER_FORMAT');
     assert.equal(JSON.stringify(ad._m.get('envelope')), before); assert.equal(d.writes, w);
     assert.ok(size(S.getState()) > 0);
     await L.sync.apply(dec, 'download', { allowWorkLoss: true });
-    assert.equal(size(S.getState()), 0); assert.equal(S.getState().schema, 7);
+    assert.equal(size(S.getState()), 0); assert.equal(S.getState().schema, 8);
     const f = await fresh();
     await L.sync.run();
     await putRemote(f.d, asS(6, S.defaultState()), 2);
@@ -170,7 +170,7 @@ test('every schema 7 collection and the study target are protected from an older
   }
 });
 test('a newer schema is refused and a schema 7 vault is never downgraded by the validator', () => {
-  assert.throws(() => S.validateState(Object.assign(S.defaultState(), { schema: 8 })), /schema/);
+  assert.throws(() => S.validateState(Object.assign(S.defaultState(), { schema: 9 })), /schema/);
   assert.equal(S.validateState(clone(withOne('learningItems'))).learningItems.length, 1);
   assert.deepEqual(S.validateState(Object.assign(clone(S.defaultState()), { schema: 7 })).learningItems, []);
 });
@@ -596,10 +596,10 @@ test('sync round trip with schema 7 Learning data: ciphertext only, restores on 
   assert.equal((await L.sync.run()).kind, 'uploaded');
   for (const secret of ['Sync Rust', 'Sync Publisher', 'Sync item', 'Sync session', 'Sync takeaway']) assert.ok(!d.file.text.includes(secret), 'no plaintext on Drive: ' + secret);
   const up = await V.importBackup(PASS, d.file.text);
-  assert.equal(up.schema, 7); assert.equal(shape(up), want);
+  assert.equal(up.schema, 8); assert.equal(shape(up), want);
   const ad2 = memAdapter(); S._setAdapter(ad2); S.lock(); await S.init(PASS);
   const dec = await L.sync.run({ passphrase: PASS });
-  assert.equal(dec.kind, 'download-offer'); assert.equal(dec.dropsWork, false); assert.equal(dec.remote.schema, 7);
+  assert.equal(dec.kind, 'download-offer'); assert.equal(dec.dropsWork, false); assert.equal(dec.remote.schema, 8);
   await L.sync.apply(dec, 'download');
   assert.equal(shape(S.getState()), want);
   S.lock(); await S.unlock(PASS); assert.equal(shape(S.getState()), want);
