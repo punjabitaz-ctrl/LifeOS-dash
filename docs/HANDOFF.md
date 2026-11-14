@@ -8,8 +8,8 @@ LifeOS (Living Independent and Free Everyday Operating System): one offline-capa
 ## Where things are
 - Repo: github.com/punjabitaz-ctrl/LifeOS-dash, branch main, push straight to main.
 - Live copy: https://lfs-dsh.punjabitaz.workers.dev/dist/lifeos (Cloudflare Worker with static assets, free tier, behind a Cloudflare Access sign-in that stays on). Deploys on push.
-- Source: src/core/*.js (vault, store, csv, metrics, home, admin, learning, activities, goals, memory, ai, sync), src/ui/* (shell, styles, app, sync-ui). `node build.mjs` writes dist/lifeos.html and `_headers`.
-- Tests: `node --test test/` and test/smoke*.mjs (test/smoke-leaks.mjs and the leak test in test/v090-audit.test.mjs check that no free text from any domain leaves the vault) (Playwright with system Chrome; `npm i --no-save playwright`).
+- Source: src/core/*.js (vault, store, csv, metrics, home, admin, learning, activities, social, goals, memory, ai, sync), src/ui/* (shell, styles, app, sync-ui). `node build.mjs` writes dist/lifeos.html and `_headers`.
+- Tests: `node --test test/` and test/smoke*.mjs (test/smoke-leaks.mjs, the leak test in test/v090-audit.test.mjs and the Social error test in test/v0100-audit.test.mjs check that no free text from any domain leaves the vault) (Playwright with system Chrome; `npm i --no-save playwright`).
 - Spec: SPEC.md, one addendum per version. Audit log: docs/SECURITY.md. Sync setup guide: docs/SYNC-SETUP.md.
 
 ## Build state
@@ -23,9 +23,10 @@ LifeOS (Living Independent and Free Everyday Operating System): one offline-capa
 | 0.6.0 | Goals: linked metrics, pace, ladder, review step, tile; CSV workout fields; 100,000 tick cap | audited, committed |
 | 0.7.0 | Home and Admin, schema 6: Home (properties, vehicles, maintenance, household bills) and Admin (renewals, subscriptions, document index, tax checklist, 30/60/90 timeline); Admin tile | audited (SEC-44 to SEC-48 fixed), committed |
 | 0.8.0 | Learning, schema 7: items, study sessions, takeaways, weekly study target, certification expiry in the Admin timeline, three goal metrics, review step, dashboard Log study button; src/core/learning.js | audited (SEC-49 Low and SEC-50 Info fixed), committed |
-| 0.9.0 | Activities, schema 8: planned/done/skipped activities, 30-day upcoming and At a glance provider list, cost and ROI tables, paid-while-planned amendment (paidOn), Health and Social computed from activities, review step, three goal metrics; src/core/activities.js | audited (SEC-51 to SEC-53 Low, SEC-54 Info fixed; SEC-55, SEC-56 Info documented), not yet committed |
+| 0.9.0 | Activities, schema 8: planned/done/skipped activities, 30-day upcoming and At a glance provider list, cost and ROI tables, paid-while-planned amendment (paidOn), Health and Social computed from activities, review step, three goal metrics; src/core/activities.js | audited (SEC-51 to SEC-53 Low, SEC-54 Info fixed; SEC-55, SEC-56 Info documented), committed |
+| 0.10.0 | Social, schema 9: groups, people, contact log, important dates (at a glance), facts, Work links (pipeline items and projects), review step, two goal metrics, snooze; src/core/social.js | audited (SEC-57 Medium, SEC-58 to SEC-60 Low, SEC-61 Info fixed), not committed |
 
-Schema: 8 as of v0.9.0. Every schema change needs a tested migration and the downgrade guards (SEC-27/28) extended to the new collections.
+Schema: 9 as of v0.10.0 (8 at v0.9.0). Every schema change needs a tested migration and the downgrade guards (SEC-27/28) extended to the new collections.
 
 ## How each build cycle runs
 1. Owner picks the next domain and answers scope questions.
@@ -63,11 +64,12 @@ Haiku is used for short, capped research only. Keep prompts lean and cap reply l
 2. Home and Admin deep (done in v0.7.0, one cycle).
 3. Recommended before more building: a first real run on phone and PC (owner's to-do 2), since nothing has yet run on a real device.
 4. Learning deep (done in v0.8.0, audited).
-5. Activities (done in v0.9.0, audited). Activity CSV import is not built.
-6. Next: Social; then Wellbeing.
-7. Whole-vault size: with several domains at their caps the vault passes 64 MB (Activities 33 MB and Learning 46 MB alone with three-byte text); export and sync refuse rather than cut. Needs an archiving design before more domains add data.
-8. NAS sync to replace Google Drive once the NAS is rebuilt.
-9. Possible later: independent re-audit of the whole codebase, real-device test pass, custom domain.
+5. Activities (done in v0.9.0, audited).
+6. Social (done in v0.10.0, audited).
+7. Next: Wellbeing inside a new private inner vault with its own passphrase, excluded from AI with no override; whether the check-in is combined or per section is chosen at update time.
+8. Then: a final complete independent review of the whole codebase.
+9. Not built: activity CSV import, vault archiving (with several domains at their caps the vault passes 64 MB; Social alone reaches 55.7 MB of JSON with three-byte text; export and sync refuse rather than cut), NAS sync to replace Google Drive.
+10. Possible later: real-device test pass, custom domain.
 
 ## Open items
 - SEC-30 (Info, accepted): carry-over list has no limit.
@@ -75,4 +77,4 @@ Haiku is used for short, capped research only. Keep prompts lean and cap reply l
 - Local model (Ollama) may be unreachable from the hosted HTTPS copy in some browsers; untested.
 
 ## Current step
-v0.9.0 Activities is audited (see "v0.9.0 audit" in docs/SECURITY.md): SEC-51 (Low, the cost of an activity already in Money can now be corrected and its one expense changes in the same save), SEC-52 (Low, a linked expense always means paid, never also committed), SEC-53 (Low, the prompt says "none rated" instead of a zero rating) and SEC-54 (Info, size messages name activities) fixed with tests in test/v090-audit.test.mjs and a step in test/smoke-activities.mjs; SEC-55 and SEC-56 (Info) documented. The audit added a money-integrity sequence test and an end-to-end leak check across every domain (Node test plus test/smoke-leaks.mjs). At the audit, `node --test test/` passed 320 of 320 in the default zone, New York and Auckland, and all ten smoke scripts passed twice. Not committed or pushed. Next: the orchestrator re-runs tests and smokes, commits and pushes v0.9.0, then a first real run on phone and PC, then Social (roadmap item 6).
+v0.10.0 Social is audited (see "v0.10.0 audit" in docs/SECURITY.md): SEC-57 (Medium, a name shared by two people is now attributed to nobody instead of both), SEC-58 (Low, names match across Unicode forms), SEC-59 (Low, converting later contact entries is idempotent, never drops or duplicates, and the offer shows only when something can convert), SEC-60 (Low, the glance card shows label and name only) and SEC-61 (Info, size messages name logged contacts and facts) fixed with tests in test/v0100-audit.test.mjs, plus steps in test/smoke-social.mjs and test/smoke-leaks.mjs. Migration verdict: the schema 1 to 8 migration converts every old contact entry on read as the addendum asks; the offer only covers entries added later (CSV import). At the audit `node --test test/` passed 359 of 359 in the default zone, New York and Auckland, and all eleven smoke scripts passed twice. Not committed or pushed. Next: the orchestrator re-runs tests and smokes, commits and pushes v0.10.0, then a first real run on phone and PC, then Wellbeing (roadmap item 7).

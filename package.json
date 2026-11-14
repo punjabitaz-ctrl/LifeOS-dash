@@ -1,1 +1,1 @@
-{"name":"lifeos","version":"0.9.0","private":true,"scripts":{"test":"node --test test/","build":"node build.mjs"}}
+{"name":"lifeos","version":"0.10.0","private":true,"scripts":{"test":"node --test test/","build":"node build.mjs"}}

@@ -99,6 +99,50 @@ async function run(label, viewport) {
       await page.waitForSelector('.notice:has-text("Activity saved.")', T);
       await grab('activities');
     });
+    await step('Social: errors and saves with a marker in the input are reported without the marker', async () => {
+      await nav('Home'); await page.waitForSelector('.tile', T); await page.click('.tile[data-domain="social"]');
+      await page.waitForSelector('#soc-people-card', T);
+      if (!(await page.locator('#soc-add').evaluate((el) => el.open))) await page.click('#soc-add > summary');
+      await page.fill('#soc-p-name', ADV_MARK + 'typed person'); await page.fill('#soc-p-notes', ADV_MARK + 'card 4111 1111 1111 1111'); await page.click('#soc-p-add');
+      await page.waitForSelector('.notice.err:has-text("ID number")', T);
+      if ((await page.textContent('.notice.err')).includes(ADV_MARK)) throw new Error('person secrets notice echoes input');
+      await page.fill('#soc-p-notes', ADV_MARK + 'typed person note'); await page.click('#soc-p-add');
+      await page.waitForSelector('.notice:has-text("Person added.")', T);
+      await page.click('.soc-person-row button >> nth=0');
+      await page.waitForSelector('#soc-facts', T);
+      await page.fill('#soc-f-label', ADV_MARK + 'label'); await page.fill('#soc-f-text', ADV_MARK + 'card 4111 1111 1111 1111'); await page.click('#soc-f-add');
+      await page.waitForSelector('.notice.err:has-text("ID number")', T);
+      if ((await page.textContent('.notice.err')).includes(ADV_MARK)) throw new Error('fact secrets notice echoes input');
+      const before = await page.locator('.soc-fact').count();
+      await page.fill('#soc-f-text', ADV_MARK + 'typed fact'); await page.click('#soc-f-add');
+      await page.waitForFunction((n) => document.querySelectorAll('.soc-fact').length === n + 1, before, T);
+      await page.fill('#soc-d-label', ADV_MARK + 'date'); await page.fill('#soc-d-date', '2026-11-22'); await page.click('#soc-d-add');
+      await page.waitForSelector('.soc-date-item[data-label^="' + ADV_MARK + 'date"]', T);
+      await page.fill('#soc-l-note', ADV_MARK + 'typed contact note'); await page.click('#soc-l-add');
+      await page.waitForSelector('.notice:has-text("Contact logged.")', T);
+      await grab('social person');
+    });
+    await step('Social (audit v0.10.0): the adversarial person detail, search, Work cards, review and a marked group name', async () => {
+      await nav('Home'); await page.waitForSelector('.tile', T);
+      const glance = await page.textContent('#dash-glance').catch(() => '');
+      if (!glance.includes(ADV_MARK)) throw new Error('the important date with a marker is not on the glance card, so the check proves nothing');
+      await page.click('.tile[data-domain="social"]'); await page.waitForSelector('#soc-people-card', T);
+      await page.fill('#soc-search', 'LEAK mark'); await page.waitForSelector('.soc-result', T);
+      await grab('social search');
+      await page.click('.soc-person-row[data-person^="' + ADV_MARK + '"] button'); await page.waitForSelector('#soc-facts .soc-fact', T);
+      if (!(await page.textContent('#soc-work')).includes(ADV_MARK)) throw new Error('linked Work items not shown');
+      await page.click('.soc-reached'); await page.waitForSelector('.notice:has-text("Contact logged.")', T);
+      await grab('social adversarial person');
+      await page.click('#soc-back'); await page.waitForSelector('#soc-people-card', T);
+      if (!(await page.locator('#soc-groups').evaluate((el) => el.open))) await page.click('#soc-groups > summary');
+      await page.fill('#soc-g-name', ADV_MARK + 'typed group'); await page.fill('#soc-g-days', 'x' + ADV_MARK); await page.click('#soc-g-add');
+      await page.waitForSelector('.notice.err', T);
+      if ((await page.textContent('.notice.err')).includes(ADV_MARK)) throw new Error('group error echoes input');
+      await page.fill('#soc-g-days', '12'); await page.click('#soc-g-add'); await page.waitForSelector('.notice:has-text("Group added.")', T);
+      await nav('Home'); await page.waitForSelector('.tile', T); await page.click('.tile[data-domain="work"]'); await page.waitForSelector('.wk-person', T);
+      await nav('Review'); await page.waitForSelector('#rv-social, #rv-soc-none', T);
+      await grab('social work and review');
+    });
     await step('lock, unlock and reload', async () => {
       await page.click('.top .lockbtn'); await page.waitForSelector('#pass', T);
       if ((await page.textContent('body')).includes(ADV_MARK)) throw new Error('locked page shows data');
@@ -109,7 +153,7 @@ async function run(label, viewport) {
     });
     await step('nothing outside the vault holds a marker', async () => {
       const audit = await page.evaluate(() => JSON.stringify(globalThis.LifeOS.store.getState().audit));
-      if (!audit.includes('activity add')) throw new Error('audit log not written: ' + audit.slice(0, 80));
+      if (!audit.includes('activity add') || !audit.includes('social fact add')) throw new Error('audit log not written: ' + audit.slice(0, 80));
       const idb = await page.evaluate(() => new Promise((res, rej) => {
         const r = indexedDB.open('lifeos');
         r.onsuccess = () => { const db = r.result, out = []; const tx = db.transaction(db.objectStoreNames, 'readonly');

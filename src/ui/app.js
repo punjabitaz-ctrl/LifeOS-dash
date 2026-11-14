@@ -243,7 +243,7 @@
     var s = st();
     var body;
     try {
-      body = view.name === 'domain' ? (view.domain === 'money' ? moneyScreen(s) : view.domain === 'assets' ? assetsScreen(s) : view.domain === 'work' ? workScreen(s) : view.domain === 'health' ? healthScreen(s) : view.domain === 'goals' ? goalsScreen(s) : view.domain === 'home' ? homeScreen(s) : view.domain === 'admin' ? adminScreen(s) : view.domain === 'learning' ? learningScreen(s) : view.domain === 'activities' ? activitiesScreen(s) : domainScreen(s))
+      body = view.name === 'domain' ? (view.domain === 'money' ? moneyScreen(s) : view.domain === 'assets' ? assetsScreen(s) : view.domain === 'work' ? workScreen(s) : view.domain === 'health' ? healthScreen(s) : view.domain === 'goals' ? goalsScreen(s) : view.domain === 'home' ? homeScreen(s) : view.domain === 'admin' ? adminScreen(s) : view.domain === 'learning' ? learningScreen(s) : view.domain === 'activities' ? activitiesScreen(s) : view.domain === 'social' ? socialScreen(s) : domainScreen(s))
         : view.name === 'review' ? reviewScreen(s)
         : view.name === 'memory' ? memoryScreen(s)
         : view.name === 'settings' ? settingsScreen(s)
@@ -983,7 +983,9 @@
       reviewLearningCard(s, wk, t),
       h('h2', { text: '6. Activities' }),
       reviewActivitiesCard(s, wk, t),
-      h('h2', { text: '7. Your three priorities' }),
+      h('h2', { text: '7. Social' }),
+      reviewSocialCard(s, wk, t),
+      h('h2', { text: '8. Your three priorities' }),
       h('form', {
         class: 'card',
         onsubmit: function (e) {
@@ -1121,7 +1123,8 @@
         h('div', null, h('div', { class: 'entry-t', text: p.name }),
           h('div', { class: 'mut small' }, h('span', { class: 'chip', text: p.kind }), h('span', { class: 'chip', text: p.status }),
             od ? h('span', { class: 'chip bad', text: 'Overdue' }) : null),
-          h('div', { class: 'small', text: p.nextAction ? 'Next: ' + p.nextAction + (p.nextDate ? ' (' + p.nextDate + ')' : '') : (p.nextDate ? 'Next date ' + p.nextDate : 'No next action set') })),
+          h('div', { class: 'small', text: p.nextAction ? 'Next: ' + p.nextAction + (p.nextDate ? ' (' + p.nextDate + ')' : '') : (p.nextDate ? 'Next date ' + p.nextDate : 'No next action set') }),
+          workLinks(s, 'projectIds', p.id, t, p.name)),
         h('div', { class: 'row' },
           btn('Update next', function () {
             var a = h('input', { type: 'text', id: 'ed-next', maxlength: '200', value: p.nextAction || '' });
@@ -1195,6 +1198,7 @@
             h('div', { class: 'mut small' }, (it.org ? it.org + ' | ' : '') + it.kind + (it.source ? ' | ' + it.source : '')),
             it.nextStep ? h('div', { class: 'small', text: 'Next: ' + it.nextStep + (it.nextDate ? ' (' + it.nextDate + ')' : '') }) : null,
             h('div', { class: 'small' }, stale ? h('span', { class: 'chip bad', text: 'Stale' }) : null, h('span', { class: 'mut', text: 'Updated ' + it.updatedAt })),
+            workLinks(s, 'pipelineIds', it.id, t, it.title),
             h('div', { class: 'row' },
               nxt ? btn('To ' + STAGE_LABEL[nxt], function () { setItem(it, function (z) { z.stage = nxt; }, 'pipeline stage'); }, 'sm pri', { 'aria-label': 'Move ' + it.title + ' to ' + STAGE_LABEL[nxt] }) : null,
               sel(null, order.map(function (k) { return { v: k, t: STAGE_LABEL[k] }; }), it.stage, function (e) {
@@ -2269,7 +2273,7 @@
       h('thead', null, h('tr', null, heads.map(function (x) { return h('th', { text: x }); }))),
       h('tbody', null, rows.map(function (r) { return h('tr', { 'data-cat': r.cat || null }, r.cells.map(function (c) { return h('td', { text: c }); })); }))));
   }
-  function actDo(fn, ok) { act(function () { return commit(fn.run, fn.audit).then(function () { if (ok) setNotice('ok', ok); render(); }); }); }
+  function actDo(fn, ok) { act(function () { return commit(fn.run, fn.audit).then(function () { if (ok) setNotice('ok', typeof ok === 'function' ? ok() : ok); render(); }); }); }
   function ratingChips(a) {
     return h('div', { class: 'chips act-rate-row', role: 'group', 'aria-label': 'Worth it rating for ' + a.title }, [1, 2, 3, 4, 5].map(function (n) {
       return h('button', { type: 'button', class: 'chipbtn act-rate', 'data-n': String(n), 'aria-pressed': a.worthIt === n ? 'true' : 'false', text: String(n), 'aria-label': 'Rate ' + n + ' for ' + a.title,
@@ -2316,7 +2320,7 @@
     function date2state(d, now) { return d < now ? 'done' : 'planned'; }
     var nodes = [field('Title', f.title), field('Category', f.category), edit ? null : field('State', f.state), field('Date', f.date), field('End date (optional, for a multi-day activity)', f.end),
       field('Minutes (optional)', f.minutes), field('Place (optional)', f.place, 'Do not enter ID numbers, account numbers or passwords.'),
-      field('With (optional, names separated by commas, up to ' + A.PEOPLE_MAX + ')', f.people),
+      field('With (optional, names separated by commas, up to ' + A.PEOPLE_MAX + ')', f.people), peopleSuggest(s, f.people, p),
       field('Cost in dollars (optional)', f.cost, edit && a.expenseId ? 'In Money. A new amount here also changes that Money expense.' : 'Entered once. Marking it done offers to add it to Money.'),
       field('Financial return in dollars (optional)', f.ret),
       edit ? null : field('Worth it, 1 to 5 (once done)', f.worth),
@@ -2333,6 +2337,21 @@
       return o;
     }
     return { nodes: nodes, read: read, f: f };
+  }
+  // Existing people offered as suggestions for the people field: a tap adds the name, nothing is added by itself.
+  function peopleSuggest(s, input, p) {
+    var box = h('div', { class: 'chips people-suggest', id: p + 'people-suggest', role: 'group', 'aria-label': 'People you can add' });
+    function refresh() {
+      var parts = input.value.split(','), tok = parts[parts.length - 1].trim();
+      var names = L.social.suggestNames(L.store.getState(), tok).filter(function (n) { return parts.slice(0, -1).map(function (x) { return L.social.nameKey(x); }).indexOf(L.social.nameKey(n)) < 0; }).slice(0, 8);
+      box.replaceChildren();
+      names.forEach(function (n) {
+        box.appendChild(h('button', { type: 'button', class: 'chipbtn people-pick', text: n, 'aria-label': 'Add ' + n, onclick: function () { parts.pop(); var head = parts.map(function (x) { return x.trim(); }).filter(Boolean); head.push(n); input.value = head.join(', '); input.focus(); refresh(); } }));
+      });
+    }
+    input.addEventListener('input', refresh);
+    refresh();
+    return box;
   }
   function editActivityDialog(s, a, t) {
     var form = activityForm(s, a, t, 'ae-');
@@ -2359,6 +2378,10 @@
     if (money.length) kids.push(h('p', { class: 'small act-money-line', text: money.join(' | ') }));
     if (a.notes) kids.push(h('p', { class: 'small mut', text: a.notes }));
     var acts = [];
+    // An unknown name in a Social-tagged activity can be added as a person on a tap; it is never added by itself.
+    if (a.alsoSocial) L.social.unknownNames(s, a.withPeople).forEach(function (n) {
+      acts.push(btn('Add ' + n + ' as a person', function () { actDo({ run: function (x) { L.social.addPerson(x, { name: n }); }, audit: 'person add' }, 'Person added.'); }, 'sm act-addperson', { 'aria-label': 'Add ' + n + ' as a person' }));
+    });
     if (a.state === 'planned') {
       acts.push(btn('Done', function () { actDo({ run: function (x) { A.markDone(x, a.id); }, audit: 'activity done' }, 'Marked done.'); }, 'sm pri act-done', { 'aria-label': 'Mark ' + a.title + ' done' }));
       acts.push(btn('Skip', function () { actDo({ run: function (x) { A.markSkipped(x, a.id); }, audit: 'activity skipped' }, a.expenseId ? 'Marked skipped. Its Money expense is kept.' : 'Marked skipped.'); }, 'sm act-skip', { 'aria-label': 'Skip ' + a.title }));
@@ -2389,7 +2412,9 @@
   }
   // The at-a-glance card: today and this week, the rest of the 30 days behind one tap. It reads the provider list, so other domains can add upcoming items.
   function glanceCard(s, t, id) {
-    var g = L.activities.glance(s, t), many = g.providers.length > 1, now = g.today.concat(g.week);
+    var g = L.activities.glance(s, t), now = g.today.concat(g.week), srcs = {};
+    now.concat(g.later).forEach(function (x) { srcs[x.source] = true; });
+    var many = Object.keys(srcs).length > 1;
     var kids = [h('h2', { text: 'At a glance' }),
       h('p', { class: 'mut small', id: id + '-sum', text: g.count ? g.count + (g.count === 1 ? ' item' : ' items') + ' in the next 30 days.' : 'Nothing planned in the next 30 days.' })];
     if (g.today.length) kids.push(h('h3', { text: 'Today' }), g.today.map(function (x) { return glanceItem(s, x, many); }));
@@ -2552,6 +2577,268 @@
     return h('div', null, out);
   }
 
+  // ---------- social (v0.10.0) ----------
+  // People, a contact log, important dates and facts. Nothing happens by itself: logging a contact, snoozing, changing a cadence,
+  // archiving and adding an unknown name as a person are each a tap. Last contact is computed; no duplicate is stored.
+  function socLast(r) {
+    if (r.never) return 'No contact yet';
+    return 'Last contact ' + r.last + ' (' + r.daysSince + (r.daysSince === 1 ? ' day' : ' days') + ' ago)' + (r.source === 'activity' ? ', from Activities' : '');
+  }
+  function socDue(r) {
+    var t = 'every ' + r.cadence + ' days';
+    if (r.state === 'overdue' && !r.never) return t + ', overdue by ' + r.overdueDays + (r.overdueDays === 1 ? ' day' : ' days');
+    if (r.state === 'overdue') return t;
+    if (r.state === 'snoozed') return t + ', snoozed';
+    return t + ', due ' + r.dueDate;
+  }
+  function personById(s, id) { return (s.people || []).filter(function (p) { return p.id === id; })[0]; }
+  function groupName(s, p) { var g = p && p.groupId ? (s.groups || []).filter(function (x) { return x.id === p.groupId; })[0] : null; return g ? g.name : ''; }
+  function cadenceDialog(s, p) {
+    var inp = h('input', { type: 'text', id: 'soc-cad-input', inputmode: 'numeric', maxlength: '4', autocomplete: 'off', value: typeof p.cadenceDays === 'number' ? String(p.cadenceDays) : '' });
+    openDialog({
+      title: 'Change cadence', yes: 'Save',
+      body: [h('p', { class: 'mut small', text: 'Days between contacts for this person. Leave it empty to follow the group, or the default of ' + s.settings.targets.contactDays + ' days.' }), field('Days', inp)],
+      onYes: function () { return commit(function (x) { L.social.setCadence(x, p.id, inp.value.trim() === '' ? null : inp.value); }, 'person cadence').then(function () { setNotice('ok', 'Cadence saved.'); render(); }); }
+    });
+  }
+  // One person in a list, with the tap actions. kind: 'overdue' | 'soon' | 'plain'.
+  function socRow(s, r, t, acts) {
+    var p = personById(s, r.id), g = groupName(s, p), kids = [];
+    kids.push(h('div', null, h('span', { class: 'entry-t', text: r.name }), g ? chipEl(g, 'soc-group') : null, h('div', { class: 'mut small', text: socLast(r) + '. ' + socDue(r) })));
+    var row = [];
+    if (acts.indexOf('reached') >= 0) row.push(btn('Reached out today', function () { actDo({ run: function (x) { L.social.reachedOutToday(x, r.id, t); }, audit: 'social contact' }, 'Contact logged.'); }, 'sm pri soc-reached', { 'aria-label': 'Log contact with ' + r.name + ' today' }));
+    if (acts.indexOf('snooze') >= 0) row.push(btn('Snooze 7 days', function () { actDo({ run: function (x) { L.social.snooze(x, r.id, t); }, audit: 'social snooze' }, 'Snoozed for 7 days.'); }, 'sm soc-snooze', { 'aria-label': 'Snooze ' + r.name + ' for 7 days' }));
+    if (acts.indexOf('cadence') >= 0) row.push(btn('Change cadence', function () { cadenceDialog(s, p); }, 'sm soc-cadence', { 'aria-label': 'Change cadence for ' + r.name }));
+    if (acts.indexOf('archive') >= 0) row.push(btn('Archive', function () { actDo({ run: function (x) { L.social.archivePerson(x, r.id, true); }, audit: 'social archive' }, 'Archived.'); }, 'sm soc-archive', { 'aria-label': 'Archive ' + r.name }));
+    if (acts.indexOf('details') >= 0) row.push(btn('Details', function () { go('domain', { domain: 'social', person: r.id }); }, 'sm soc-details', { 'aria-label': 'Details for ' + r.name }));
+    kids.push(h('div', { class: 'row' }, row));
+    return h('div', { class: 'item soc-row', 'data-person': r.name, 'data-state': r.state }, kids);
+  }
+  function workLinks(s, key, id, t, label) {
+    var A = L.social, ppl = key === 'pipelineIds' ? A.peopleForPipeline(s, id, t) : A.peopleForProject(s, id, t), linked = {}, kids = [];
+    ppl.forEach(function (x) { linked[x.id] = true; });
+    ppl.forEach(function (x) {
+      kids.push(h('div', { class: 'row wk-person', 'data-person': x.name }, chipEl(x.name, 'wk-person-name'), h('span', { class: 'mut small', text: x.last ? 'last contact ' + x.last : 'no contact yet' }),
+        btn('Unlink', function () { actDo({ run: function (y) { (key === 'pipelineIds' ? A.unlinkPipeline : A.unlinkProject)(y, x.id, id); }, audit: 'person unlink' }, 'Unlinked. Nothing was deleted.'); }, 'sm wk-unlink', { 'aria-label': 'Unlink ' + x.name + ' from ' + label })));
+    });
+    var avail = (s.people || []).filter(function (p) { return !p.archived && !linked[p.id]; });
+    if (avail.length) {
+      var pick = sel(null, avail.map(function (p) { return { v: p.id, t: p.name }; }), avail[0].id);
+      pick.setAttribute('aria-label', 'Person to link to ' + label);
+      kids.push(h('div', { class: 'row' }, pick, btn('Link person', function () { actDo({ run: function (y) { (key === 'pipelineIds' ? A.linkPipeline : A.linkProject)(y, pick.value, id); }, audit: 'person link' }, 'Linked.'); }, 'sm wk-link', { 'aria-label': 'Link the chosen person to ' + label })));
+    }
+    return h('div', { class: 'wk-people' }, kids);
+  }
+  function askDeletePerson(s, p) {
+    var n = L.social.contactsOf(s, p.id).length, box = h('input', { type: 'checkbox', id: 'soc-del-log' });
+    openDialog({
+      title: 'Delete this person?', yes: 'Delete person', danger: true,
+      body: [h('p', { class: 'mut', text: p.name }), h('p', { class: 'small', id: 'soc-del-count', text: n + (n === 1 ? ' logged contact. It is kept' : ' logged contacts. They are kept') + ' without a person unless you tick the box. Linked pipeline items and projects are not deleted.' }),
+        h('label', { class: 'field check' }, box, h('span', { text: 'Also delete their logged contacts' }))],
+      onYes: function () { var del = box.checked; return commit(function (x) { L.social.deletePerson(x, p.id, { deleteLog: del }); }, 'person delete').then(function () { view.person = null; setNotice('ok', del ? 'Person and their log deleted.' : 'Person deleted. Their log is kept.'); render(); }); }
+    });
+  }
+  function personScreen(s, p) {
+    var A = L.social, t = today(), r = A.roster(s, t, { ignoreSnooze: true }).filter(function (x) { return x.id === p.id; })[0];
+    if (!r) { var last = A.lastContacts(s, t).get(p.id); r = { id: p.id, name: p.name, cadence: A.cadenceOf(s, p), last: last ? last.date : null, source: last ? last.source : null, never: !last, state: 'archived', daysSince: last ? L.home.dates.daysBetween(t, last.date) : null }; }
+    var src = A.cadenceSource(s, p);
+    var head = [h('p', { class: 'small', id: 'soc-p-last', text: socLast(r) }),
+      h('p', { class: 'small', id: 'soc-p-cad', text: 'Cadence: every ' + r.cadence + ' days (' + (src === 'own' ? 'their own' : src === 'group' ? 'from the group' : 'default') + ')' + (p.snoozedUntil && t < p.snoozedUntil ? '. Snoozed until ' + p.snoozedUntil + '.' : '') + (p.archived ? ' Archived.' : '') }),
+      groupName(s, p) ? h('p', { class: 'small', text: 'Group: ' + groupName(s, p) }) : null, p.notes ? h('p', { class: 'small mut', text: p.notes }) : null];
+    var top = [];
+    if (!p.archived) top.push(btn('Reached out today', function () { actDo({ run: function (x) { A.reachedOutToday(x, p.id, t); }, audit: 'social contact' }, 'Contact logged.'); }, 'sm pri soc-reached'));
+    if (!p.archived) top.push(btn('Snooze 7 days', function () { actDo({ run: function (x) { A.snooze(x, p.id, t); }, audit: 'social snooze' }, 'Snoozed for 7 days.'); }, 'sm soc-snooze'));
+    if (p.snoozedUntil) top.push(btn('End snooze', function () { actDo({ run: function (x) { A.unsnooze(x, p.id); }, audit: 'social snooze' }); }, 'sm soc-unsnooze'));
+    top.push(btn('Change cadence', function () { cadenceDialog(s, p); }, 'sm soc-cadence'));
+    top.push(btn(p.archived ? 'Restore' : 'Archive', function () { actDo({ run: function (x) { A.archivePerson(x, p.id, !p.archived); }, audit: 'social archive' }, p.archived ? 'Restored.' : 'Archived.'); }, 'sm soc-archive'));
+    top.push(btn('Delete', function () { askDeletePerson(s, p); }, 'sm bad soc-del'));
+    // edit
+    var en = h('input', { type: 'text', id: 'soc-e-name', maxlength: '100', autocomplete: 'off', value: p.name });
+    var eg = sel('soc-e-group', [{ v: '', t: '(no group)' }].concat((s.groups || []).map(function (g) { return { v: g.id, t: g.name }; })), p.groupId || '');
+    var ec = h('input', { type: 'text', id: 'soc-e-cad', inputmode: 'numeric', maxlength: '4', autocomplete: 'off', value: typeof p.cadenceDays === 'number' ? String(p.cadenceDays) : '' });
+    var enotes = h('textarea', { id: 'soc-e-notes', maxlength: String(A.NOTE_MAX) }, p.notes.length > A.NOTE_MAX ? '' : p.notes);
+    var editCard = details('soc-edit', 'Edit', [h('form', { onsubmit: function (e) {
+      e.preventDefault();
+      act(function () { var patch = { name: en.value, groupId: eg.value, cadenceDays: ec.value.trim() }; if (p.notes.length <= A.NOTE_MAX) patch.notes = enotes.value; return commit(function (x) { A.updatePerson(x, p.id, patch); }, 'person edit').then(function () { setNotice('ok', 'Saved.'); render(); }); });
+    } }, field('Name', en), field('Group', eg), field('Own cadence in days (empty follows the group)', ec),
+      p.notes.length > A.NOTE_MAX ? h('p', { class: 'mut small', text: 'A longer note carried over from an older entry is kept as it is.' }) : field('Notes (up to ' + A.NOTE_MAX + ' characters)', enotes, 'Do not enter ID numbers, account numbers or passwords.'),
+      h('button', { type: 'submit', class: 'btn pri', id: 'soc-e-save', text: 'Save' }))], view.open === 'soc-edit');
+    // log
+    var ld = h('input', { type: 'date', id: 'soc-l-date', value: t }), lc = sel('soc-l-channel', A.CHANNELS.map(function (c) { return { v: c, t: c }; }), 'other'), ln = h('input', { type: 'text', id: 'soc-l-note', maxlength: String(A.NOTE_MAX), autocomplete: 'off' });
+    var contacts = A.contactsOf(s, p.id), shown = view.logShown || 20;
+    var logCard = h('div', { class: 'card', id: 'soc-log' }, h('h2', { text: 'Contact log (' + contacts.length + ')' }),
+      h('form', { onsubmit: function (e) { e.preventDefault(); act(function () { return commit(function (x) { A.logContact(x, p.id, { date: ld.value, channel: lc.value, notes: ln.value }, t); }, 'social contact').then(function () { setNotice('ok', 'Contact logged.'); render(); }); }); } },
+        field('Date', ld), field('Channel', lc), field('Note (optional, up to ' + A.NOTE_MAX + ' characters)', ln, 'Do not enter ID numbers, account numbers or passwords.'), h('button', { type: 'submit', class: 'btn', id: 'soc-l-add', text: 'Log contact' })),
+      contacts.length ? contacts.slice(0, shown).map(function (c) {
+        return h('div', { class: 'item soc-log-item', 'data-date': c.date }, h('div', null, h('span', { class: 'entry-t', text: c.date }), h('span', { class: 'mut small', text: ' ' + c.channel }), c.notes ? h('p', { class: 'small mut', text: c.notes }) : null),
+          btn('Delete', function () { actDo({ run: function (x) { A.deleteContact(x, c.id); }, audit: 'social contact delete' }, 'Contact deleted.'); }, 'sm bad soc-log-del', { 'aria-label': 'Delete the contact on ' + c.date }));
+      }) : h('p', { class: 'mut', text: 'Nothing logged yet.' }),
+      contacts.length > shown ? btn('Show more', function () { view.logShown = shown + 20; render(); }, 'sm') : null);
+    // important dates
+    var dl = h('input', { type: 'text', id: 'soc-d-label', maxlength: '100', autocomplete: 'off' }), dd = h('input', { type: 'date', id: 'soc-d-date' }), dy = h('input', { type: 'checkbox', id: 'soc-d-year' });
+    var datesCard = h('div', { class: 'card', id: 'soc-dates' }, h('h2', { text: 'Important dates (' + p.importantDates.length + ' of ' + A.DATES_MAX + ')' }),
+      p.importantDates.map(function (d, i) {
+        return h('div', { class: 'item soc-date-item', 'data-label': d.label }, h('div', null, h('span', { class: 'entry-t', text: d.label }), h('span', { class: 'mut small', text: ' ' + d.monthDay + (d.year ? ', ' + d.year : '') })),
+          btn('Remove', function () { actDo({ run: function (x) { A.removeDate(x, p.id, i); }, audit: 'social date remove' }, 'Date removed.'); }, 'sm bad', { 'aria-label': 'Remove ' + d.label }));
+      }),
+      p.importantDates.length < A.DATES_MAX ? h('form', { onsubmit: function (e) {
+        e.preventDefault();
+        act(function () { if (!dd.value) throw new Error('Choose a date.'); return commit(function (x) { A.addDate(x, p.id, { label: dl.value, monthDay: dd.value.slice(5), year: dy.checked ? dd.value.slice(0, 4) : undefined }); }, 'social date add').then(function () { setNotice('ok', 'Date added.'); render(); }); });
+      } }, field('Label (for example birthday)', dl), field('Date', dd), h('label', { class: 'field check' }, dy, h('span', { text: 'Remember the year too' })), h('button', { type: 'submit', class: 'btn', id: 'soc-d-add', text: 'Add date' })) : null);
+    // facts
+    var fl = h('input', { type: 'text', id: 'soc-f-label', maxlength: String(A.FACT_LABEL_MAX), autocomplete: 'off' }), ft = h('input', { type: 'text', id: 'soc-f-text', maxlength: String(A.FACT_TEXT_MAX), autocomplete: 'off' });
+    var facts = A.factsOf(p);
+    var factsCard = h('div', { class: 'card', id: 'soc-facts' }, h('h2', { text: 'Facts (' + facts.length + ' of ' + A.FACTS_MAX + ')' }),
+      h('p', { class: 'mut small', text: 'Stay in this vault. Never shown outside the Social view. Do not enter ID numbers, account numbers or passwords.' }),
+      facts.map(function (f) {
+        return h('div', { class: 'item soc-fact', 'data-label': f.label }, h('div', null, h('span', { class: 'entry-t', text: f.label }), h('span', { class: 'mut small', text: ' added ' + f.addedOn }), h('p', { class: 'small', text: f.text })),
+          btn('Remove', function () { actDo({ run: function (x) { A.removeFact(x, p.id, f.id); }, audit: 'social fact remove' }, 'Fact removed.'); }, 'sm bad soc-fact-del', { 'aria-label': 'Remove the fact ' + f.label }));
+      }),
+      facts.length < A.FACTS_MAX ? h('form', { onsubmit: function (e) { e.preventDefault(); act(function () { return commit(function (x) { A.addFact(x, p.id, { label: fl.value, text: ft.value }, t); }, 'social fact add').then(function () { setNotice('ok', 'Fact added.'); render(); }); }); } },
+        field('Label (up to ' + A.FACT_LABEL_MAX + ' characters)', fl), field('Fact (up to ' + A.FACT_TEXT_MAX + ' characters)', ft), h('button', { type: 'submit', class: 'btn', id: 'soc-f-add', text: 'Add fact' })) : h('p', { class: 'mut small', text: 'This person has the most facts that can be kept. Remove one to add another.' }));
+    // work links
+    var pipe = (s.pipeline || []).filter(function (x) { return p.pipelineIds.indexOf(x.id) >= 0; }), projs = (s.projects || []).filter(function (x) { return p.projectIds.indexOf(x.id) >= 0; });
+    function linkPicker(coll, linkedIds, label, fn, text) {
+      var avail = coll.filter(function (x) { return linkedIds.indexOf(x.id) < 0; });
+      if (!avail.length) return null;
+      var pick = sel(null, avail.map(function (x) { return { v: x.id, t: text(x) }; }), avail[0].id);
+      pick.setAttribute('aria-label', 'Choose a ' + label + ' to link');
+      return h('div', { class: 'row' }, pick, btn('Link ' + label, function () { actDo({ run: function (x) { fn(x, p.id, pick.value); }, audit: 'person link' }, 'Linked.'); }, 'sm soc-link-' + (label === 'project' ? 'project' : 'pipeline'), { 'aria-label': 'Link the chosen ' + label }));
+    }
+    var workCard = h('div', { class: 'card', id: 'soc-work' }, h('h2', { text: 'Work links' }),
+      h('p', { class: 'mut small', text: 'Unlinking never deletes the pipeline item or the project.' }),
+      h('h3', { text: 'Pipeline items (' + pipe.length + ')' }),
+      pipe.map(function (x) { return h('div', { class: 'item soc-pipe', 'data-title': x.title }, h('div', null, h('span', { class: 'entry-t', text: x.title }), h('span', { class: 'mut small', text: ' ' + x.stage })), btn('Unlink', function () { actDo({ run: function (y) { A.unlinkPipeline(y, p.id, x.id); }, audit: 'person unlink' }, 'Unlinked. Nothing was deleted.'); }, 'sm soc-unlink-pipe', { 'aria-label': 'Unlink ' + x.title })); }),
+      linkPicker(s.pipeline || [], p.pipelineIds, 'pipeline item', A.linkPipeline, function (x) { return x.title; }),
+      h('h3', { text: 'Projects (' + projs.length + ')' }),
+      projs.map(function (x) { return h('div', { class: 'item soc-proj', 'data-title': x.name }, h('div', null, h('span', { class: 'entry-t', text: x.name })), btn('Unlink', function () { actDo({ run: function (y) { A.unlinkProject(y, p.id, x.id); }, audit: 'person unlink' }, 'Unlinked. Nothing was deleted.'); }, 'sm soc-unlink-proj', { 'aria-label': 'Unlink ' + x.name })); }),
+      linkPicker((s.projects || []).filter(function (x) { return !x.archived; }), p.projectIds, 'project', A.linkProject, function (x) { return x.name; }));
+    return h('div', null, btn('Back to Social', function () { view.person = null; render(); }, 'sm back', { id: 'soc-back' }), h('h1', { text: p.name }), h('div', { class: 'card', id: 'soc-person' }, head, h('div', { class: 'row' }, top)),
+      editCard, logCard, datesCard, factsCard, workCard);
+  }
+  function socialScreen(s) {
+    var A = L.social;
+    if (view.person) { var pp = personById(s, view.person); if (pp) return personScreen(s, pp); view.person = null; }
+    var t = today(), wk = L.metrics.weekStart(t);
+    if (!A.current(s)) return socialIntro(s, t);
+    var sm = A.summary(s, t), ros = A.roster(s, t);
+    var stats = h('div', { class: 'stats' }, stat('People overdue', String(sm.overdue), 'soc-overdue', sm.overdue ? 'bad-t' : ''), stat('Due in 7 days', String(sm.dueSoon), 'soc-soon'), stat('Contacts this week', String(sm.contactsWeek), 'soc-week'), stat('People', String(sm.people), 'soc-people'));
+    var od = ros.filter(function (r) { return r.state === 'overdue'; }), soon = ros.filter(function (r) { return r.state === 'soon'; }).sort(function (a, b) { return a.dueDate.localeCompare(b.dueDate) || a.name.localeCompare(b.name); });
+    var odCard = h('div', { class: 'card', id: 'soc-overdue-list' }, h('h2', { text: 'Overdue (' + od.length + ')' }), od.length ? od.map(function (r) { return socRow(s, r, t, ['reached', 'snooze', 'details']); }) : h('p', { class: 'mut', text: 'Nobody is overdue.' }));
+    var soonCard = h('div', { class: 'card', id: 'soc-soon-list' }, h('h2', { text: 'Due within 7 days (' + soon.length + ')' }), soon.length ? soon.map(function (r) { return socRow(s, r, t, ['reached', 'details']); }) : h('p', { class: 'mut', text: 'Nobody is due in the next 7 days.' }));
+    var rows = A.byGroup(s, t);
+    var groupCard = h('div', { class: 'card', id: 'soc-by-group' }, h('h2', { text: 'By group' }),
+      tbl('soc-group-table', ['Group', 'People', 'Overdue', 'Contacts per week, last 8 weeks'], rows.map(function (g) { return { cat: g.name, cells: [g.name + (g.cadenceDays ? ' (' + g.cadenceDays + ' d)' : ''), String(g.people), String(g.overdue), g.weekly.join(' ')] }; })));
+    // groups
+    var gn = h('input', { type: 'text', id: 'soc-g-name', maxlength: '100', autocomplete: 'off' }), gc = h('input', { type: 'text', id: 'soc-g-days', inputmode: 'numeric', maxlength: '4', autocomplete: 'off', value: '30' });
+    var sug = A.suggestions(s);
+    var gCard = details('soc-groups', 'Groups (' + (s.groups || []).length + ')', [
+      (s.groups || []).map(function (g) {
+        return h('div', { class: 'item soc-group-item', 'data-group': g.name }, h('div', null, h('span', { class: 'entry-t', text: g.name }), h('span', { class: 'mut small', text: ' every ' + g.cadenceDays + ' days' })),
+          h('div', { class: 'row' }, btn('Change days', function () {
+            var inp = h('input', { type: 'text', id: 'soc-gd-input', inputmode: 'numeric', maxlength: '4', autocomplete: 'off', value: String(g.cadenceDays) });
+            openDialog({ title: 'Days between contacts', yes: 'Save', body: field('Days', inp), onYes: function () { return commit(function (x) { A.updateGroup(x, g.id, { cadenceDays: inp.value }); }, 'social group').then(function () { view.open = 'soc-groups'; render(); }); } });
+          }, 'sm', { 'aria-label': 'Change days for ' + g.name }), btn('Delete', function () { view.open = 'soc-groups'; actDo({ run: function (x) { A.deleteGroup(x, g.id); }, audit: 'social group delete' }, 'Group deleted. Its people are kept.'); }, 'sm bad', { 'aria-label': 'Delete group ' + g.name })));
+      }),
+      sug.length ? h('div', { id: 'soc-suggest' }, h('p', { class: 'mut small', text: 'Suggested groups. Nothing is added until you tap one.' }), h('div', { class: 'row' }, sug.map(function (d) {
+        return btn('Add ' + d.name + ' (' + d.cadenceDays + ' days)', function () { view.open = 'soc-groups'; actDo({ run: function (x) { A.addSuggestedGroups(x, [d.name]); }, audit: 'social group add' }, d.name + ' added.'); }, 'sm soc-sug', { 'data-name': d.name });
+      }))) : null,
+      h('form', { onsubmit: function (e) { e.preventDefault(); act(function () { return commit(function (x) { A.addGroup(x, gn.value, gc.value); }, 'social group add').then(function () { view.open = 'soc-groups'; gn.value = ''; setNotice('ok', 'Group added.'); render(); }); }); } },
+        field('New group name', gn), field('Days between contacts', gc), h('button', { type: 'submit', class: 'btn', id: 'soc-g-add', text: 'Add group' }))], view.open === 'soc-groups');
+    return h('div', null, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Social' }),
+      h('p', { class: 'mut small', text: 'Dates and counts only. Nothing is logged, snoozed or archived unless you tap it.' }), stats,
+      A.ambiguousNames(s) ? h('p', { class: 'small', id: 'soc-ambiguous', text: 'Two or more people share a name, so activities naming it count for none of them. Rename one to fix this.' }) : null, odCard, soonCard, groupCard, gCard, peopleCard(s, t), unlinkedCard(s), olderCard(s));
+  }
+  function addPersonForm(s, t) {
+    var A = L.social;
+    var pn = h('input', { type: 'text', id: 'soc-p-name', maxlength: '100', autocomplete: 'off' });
+    var pg = sel('soc-p-group', [{ v: '', t: '(no group)' }].concat((s.groups || []).map(function (g) { return { v: g.id, t: g.name + ' (' + g.cadenceDays + ' days)' }; })), '');
+    var pc = h('input', { type: 'text', id: 'soc-p-cad', inputmode: 'numeric', maxlength: '4', autocomplete: 'off' });
+    var pnotes = h('textarea', { id: 'soc-p-notes', maxlength: String(A.NOTE_MAX) });
+    return h('form', { id: 'soc-add-form', onsubmit: function (e) {
+      e.preventDefault();
+      act(function () {
+        var inp = { name: pn.value, groupId: pg.value, cadenceDays: pc.value.trim() };
+        if (pnotes.value.trim()) inp.notes = pnotes.value;
+        return commit(function (x) { A.addPerson(x, inp); }, 'person add').then(function () { view.open = 'soc-add'; setNotice('ok', 'Person added.'); render(); });
+      });
+    } }, field('Name', pn), field('Group (optional)', pg), field('Own cadence in days (optional, overrides the group)', pc),
+      field('Notes (optional, up to ' + A.NOTE_MAX + ' characters)', pnotes, 'Do not enter ID numbers, account numbers or passwords.'), h('button', { type: 'submit', class: 'btn pri', id: 'soc-p-add', text: 'Add person' }));
+  }
+  function peopleCard(s, t) {
+    var A = L.social, ppl = (s.people || []).filter(function (p) { return !p.archived; }).sort(function (a, b) { return a.name.localeCompare(b.name); });
+    var arch = (s.people || []).filter(function (p) { return p.archived; }).sort(function (a, b) { return a.name.localeCompare(b.name); });
+    var results = h('div', { id: 'soc-results' });
+    var q = h('input', { type: 'search', id: 'soc-search', maxlength: '100', autocomplete: 'off', 'aria-label': 'Search people and facts' });
+    q.addEventListener('input', function () {
+      var found = L.social.search(L.store.getState(), q.value);
+      results.replaceChildren();
+      if (!q.value.trim()) return;
+      if (!found.length) { results.appendChild(h('p', { class: 'mut small', text: 'No matches.' })); return; }
+      found.forEach(function (f) {
+        var p = personById(L.store.getState(), f.personId);
+        var facts = f.hits.filter(function (x) { return x.kind === 'fact'; }).map(function (x) { var fa = p.facts.filter(function (y) { return y.id === x.id; })[0]; return fa ? fa.label + ': ' + fa.text : ''; });
+        results.appendChild(h('div', { class: 'item soc-result', 'data-person': f.name }, h('div', null, h('span', { class: 'entry-t', text: f.name }), facts.length ? h('p', { class: 'small mut', text: facts.join(' | ') }) : null),
+          btn('Details', function () { go('domain', { domain: 'social', person: f.personId }); }, 'sm', { 'aria-label': 'Details for ' + f.name })));
+      });
+    });
+    var last = A.lastContacts(s, t);
+    return h('div', { id: 'soc-people-card' }, h('div', { class: 'card' }, h('h2', { text: 'People (' + ppl.length + ')' }), field('Search names and facts', q), results,
+      ppl.map(function (p) {
+        var lc = last.get(p.id);
+        return h('div', { class: 'item soc-person-row', 'data-person': p.name }, h('div', null, h('span', { class: 'entry-t', text: p.name }), groupName(s, p) ? chipEl(groupName(s, p), 'soc-group') : null, h('span', { class: 'mut small', text: ' ' + (lc ? 'last contact ' + lc.date : 'no contact yet') })),
+          btn('Details', function () { go('domain', { domain: 'social', person: p.id }); }, 'sm', { 'aria-label': 'Details for ' + p.name }));
+      }), ppl.length ? null : h('p', { class: 'mut', text: 'No people yet.' })),
+      details('soc-add', 'Add a person', [addPersonForm(s, t)], view.open === 'soc-add' || !ppl.length),
+      arch.length ? details('soc-archived', 'Archived (' + arch.length + ')', arch.map(function (p) { return h('div', { class: 'item soc-arch', 'data-person': p.name }, h('div', null, h('span', { class: 'entry-t', text: p.name })), btn('Details', function () { go('domain', { domain: 'social', person: p.id }); }, 'sm', { 'aria-label': 'Details for ' + p.name })); })) : null);
+  }
+  function unlinkedCard(s) {
+    var un = L.social.unlinkedContacts(s);
+    if (!un.length) return null;
+    return details('soc-unlinked', 'Logged contacts without a person (' + un.length + ')', [h('p', { class: 'mut small', text: 'Kept when a person was deleted.' }), un.slice(0, 100).map(function (c) {
+      return h('div', { class: 'item soc-unlinked-item' }, h('div', null, h('span', { class: 'entry-t', text: c.date }), h('span', { class: 'mut small', text: ' ' + c.channel }), c.notes ? h('p', { class: 'small mut', text: c.notes }) : null),
+        btn('Delete', function () { view.open = 'soc-unlinked'; actDo({ run: function (x) { L.social.deleteContact(x, c.id); }, audit: 'social contact delete' }, 'Contact deleted.'); }, 'sm bad', { 'aria-label': 'Delete the contact on ' + c.date }));
+    })], view.open === 'soc-unlinked');
+  }
+  // Older contact entries (and CSV import) stay available as they were; converting them to people is an offer.
+  function olderCard(s) {
+    // Shown only while at least one entry can convert, so a tap always does something and a second tap has nothing left (audit v0.10.0).
+    var n = L.social.current(s) ? L.social.convertible(s) : 0;
+    var kids = [];
+    if (n) kids.push(h('div', { class: 'card', id: 'soc-convert' }, h('p', { class: 'small', text: n + (n === 1 ? ' older contact entry is' : ' older contact entries are') + ' not part of the people list yet.' }),
+      btn('Turn them into people and log', function () { var moved = 0; actDo({ run: function (x) { moved = L.social.convertEntries(x); }, audit: 'social convert' }, function () { return moved + (moved === 1 ? ' entry' : ' entries') + ' converted. Entries that did not fit are kept below.'; }); }, 'sm', { id: 'soc-convert-btn' })));
+    kids.push(domainScreen(s, { embed: true, noForm: true }));
+    return h('div', { id: 'soc-older' }, kids);
+  }
+  // No people yet: set up the first one, and the older numbers from entries and activities keep showing.
+  function socialIntro(s, t) {
+    var A = L.social, kids = [];
+    kids.push(h('div', { class: 'card', id: 'soc-intro' }, h('h2', { text: 'People' }), h('p', { class: 'mut small', text: 'Add the people you want to stay in touch with. Until then the older contact entries and activities below still count.' })));
+    var sug = A.suggestions(s);
+    if (sug.length || (s.groups || []).length) kids.push(h('div', { class: 'card', id: 'soc-groups-intro' }, h('h2', { text: 'Groups (' + (s.groups || []).length + ')' }), (s.groups || []).map(function (g) { return h('p', { class: 'small', text: g.name + ', every ' + g.cadenceDays + ' days' }); }),
+      sug.length ? [h('p', { class: 'mut small', id: 'soc-suggest', text: 'Suggested groups. Nothing is added until you tap one.' }), h('div', { class: 'row' }, sug.map(function (d) {
+        return btn('Add ' + d.name + ' (' + d.cadenceDays + ' days)', function () { actDo({ run: function (x) { A.addSuggestedGroups(x, [d.name]); }, audit: 'social group add' }, d.name + ' added.'); }, 'sm soc-sug', { 'data-name': d.name });
+      }))] : null));
+    var gn = h('input', { type: 'text', id: 'soc-g-name', maxlength: '100', autocomplete: 'off' }), gc = h('input', { type: 'text', id: 'soc-g-days', inputmode: 'numeric', maxlength: '4', autocomplete: 'off', value: '30' });
+    kids.push(details('soc-groups', 'Add a custom group', [h('form', { onsubmit: function (e) { e.preventDefault(); act(function () { return commit(function (x) { A.addGroup(x, gn.value, gc.value); }, 'social group add').then(function () { view.open = 'soc-groups'; setNotice('ok', 'Group added.'); render(); }); }); } },
+      field('Group name', gn), field('Days between contacts', gc), h('button', { type: 'submit', class: 'btn', id: 'soc-g-add', text: 'Add group' }))], view.open === 'soc-groups'));
+    kids.push(details('soc-add', 'Add a person', [addPersonForm(s, t)], true));
+    return h('div', null, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Social' }), kids, socialFromActivities(s, t), olderCard(s));
+  }
+  // Weekly review step: who became overdue this week, who is due next week, contacts made. Offers only.
+  function reviewSocialCard(s, wk, t) {
+    var A = L.social;
+    if (!A.current(s)) return h('p', { class: 'mut', id: 'rv-soc-none', text: 'No people yet. Add some under Social.' });
+    var r = A.reviewWeek(s, wk, t);
+    return h('div', { class: 'card', id: 'rv-social' },
+      h('p', { class: 'small', id: 'rv-soc-stats', text: 'This week: ' + r.contactsMade + (r.contactsMade === 1 ? ' contact' : ' contacts') + ' made, ' + r.overdue + ' overdue now.' }),
+      h('p', { class: 'small', id: 'rv-soc-became-h', text: 'Became overdue this week (' + r.became.length + ')' }),
+      r.became.length ? h('p', { class: 'mut small', text: 'Nothing changes until you tap it.' }) : null,
+      r.became.map(function (x) { return socRow(s, x, t, ['reached', 'snooze', 'cadence', 'archive']); }),
+      h('p', { class: 'small', id: 'rv-soc-next-h', text: 'Due next week (' + r.dueNext.length + ')' }),
+      r.dueNext.map(function (x) { return socRow(s, x, t, ['reached', 'cadence']); }));
+  }
+
   // ---------- settings ----------
   var passOnly = function (id, auto) { return h('input', { type: 'password', id: id, autocomplete: auto || 'off', minlength: '12' }); };
   function settingsScreen(s) {
@@ -2698,7 +2985,7 @@
       }, field('Restore from a backup file (64 MB max)', bf), field('Backup passphrase', ip),
         h('button', { type: 'submit', class: 'btn', text: 'Import backup' }))));
 
-    out.push(h('p', { class: 'mut small', id: 'app-version', text: 'LifeOS v0.9.0' }));
+    out.push(h('p', { class: 'mut small', id: 'app-version', text: 'LifeOS v0.10.0' }));
 
     if (L.syncUI) out.push(L.syncUI.section(syncCtx()));
 

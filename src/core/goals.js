@@ -30,6 +30,8 @@
     mk('activitiesPerMonth', 'Activities done (this month)', 'activities', 'count'),
     mk('activitySpend', 'Activity spend (this month)', 'activities', 'currency'),
     mk('avgWorthIt', 'Average worth-it rating', 'activities', 'number'),
+    mk('peopleOverdue', 'People overdue', 'social', 'count'),
+    mk('contactsPerWeek', 'Contacts per week', 'social', 'count'),
   ]);
   // Body metrics are sensitive (SEC-32): goals on them never reach a digest, prompt or rules insight.
   const BODY = Object.freeze(['weight', 'bodyFat']);
@@ -100,6 +102,8 @@
       case 'activitiesPerMonth': return L.activities.goalCount(state, asOf);
       case 'activitySpend': return L.activities.goalSpend(state, asOf);
       case 'avgWorthIt': return L.activities.goalRating(state, asOf);
+      case 'peopleOverdue': return L.social.goalOverdue(state, asOf);
+      case 'contactsPerWeek': return L.social.goalContacts(state, asOf);
       case 'pipelineWon':
         if (!(state.pipeline || []).length) return null;
         return state.pipeline.filter((x) => x.stage === 'won' && x.updatedAt <= asOf).length;

@@ -26,7 +26,7 @@ test('schema 1 to 5 migrate to 6 with no data loss; every old home/due entry sur
   const dues = base.entries.filter((e) => e.domain === 'home');
   for (const n of [1, 2, 3, 4, 5]) {
     const got = S.validateState(asSchema(n, base));
-    assert.equal(got.schema, 8); assert.equal(got.sourceSchema, n);
+    assert.equal(got.schema, 9); assert.equal(got.sourceSchema, n);
     assert.deepEqual([got.properties, got.vehicles, got.maintenance, got.documents, got.taxItems], [[], [], [], [], []]);
     assert.equal(got.settings.home.starterDone, false);
     assert.equal(got.entries.filter((e) => e.domain !== 'home' && e.type !== 'goal').length, 2, 'other entries untouched');
@@ -56,10 +56,10 @@ test('migration is persisted on unlock of stored schema 1 to 5 vaults', async ()
     const salt = V.newSalt(), key = await V.deriveKey(PASS, salt);
     ad._m.set('envelope', await V.makeEnvelope(key, salt, asSchema(n, legacyBase())));
     const st = await S.unlock(PASS);
-    assert.equal(st.schema, 8); assert.equal(st.renewals.length, 3);
+    assert.equal(st.schema, 9); assert.equal(st.renewals.length, 3);
     await S.commit((x) => { Hm.addProperty(x, { name: 'Main', kind: 'house' }); });
     const raw = await V.decrypt(key, ad._m.get('envelope'));
-    assert.equal(raw.schema, 8); assert.equal(raw.renewals.length, 3); assert.equal(raw.properties.length, 1);
+    assert.equal(raw.schema, 9); assert.equal(raw.renewals.length, 3); assert.equal(raw.properties.length, 1);
     assert.equal(raw.entries.filter((e) => e.domain === 'home').length, 1, 'only the over-long one stays an entry');
     S.lock();
   }
@@ -73,7 +73,7 @@ test('the due-entry migration respects the renewals cap: nothing beyond it is dr
 test('a v0.6.0 (schema 5) backup imports cleanly; a schema 6 backup round trips every new collection', async () => {
   const salt = V.newSalt(), key = await V.deriveKey(PASS, salt);
   const got = await V.importBackup(PASS, JSON.stringify(await V.makeEnvelope(key, salt, asSchema(5, legacyBase()))));
-  assert.equal(got.schema, 8); assert.equal(got.sourceSchema, 5); assert.equal(got.renewals.length, 3); assert.ok(!JSON.stringify(got).includes('sourceSchema'));
+  assert.equal(got.schema, 9); assert.equal(got.sourceSchema, 5); assert.equal(got.renewals.length, 3); assert.ok(!JSON.stringify(got).includes('sourceSchema'));
   const full = state((s) => {
     s.properties.push(prop({ id: 'p' })); s.vehicles.push(veh({ id: 'v', year: 2019, odometer: 41000 }));
     s.maintenance.push(maint({ id: 'm', propertyId: 'p', title: 'Gutters', cadence: 'custom', everyDays: 90, nextDue: '2026-12-01', cost: 12050, vendor: 'Joe', notes: 'n' }), maint({ id: 'm2', vehicleId: 'v', odometer: 40500, state: 'done', lastDone: '2026-10-01' }));
@@ -83,7 +83,7 @@ test('a v0.6.0 (schema 5) backup imports cleanly; a schema 6 backup round trips 
   });
   const back = await V.importBackup(PASS, await V.exportBackup(PASS, full));
   for (const k of Object.keys(COLLECTIONS)) assert.deepEqual(back[k], full[k], k);
-  assert.deepEqual(back.recurring, full.recurring); assert.deepEqual(back.settings.home, { starterDone: true }); assert.equal(back.sourceSchema, 8);
+  assert.deepEqual(back.recurring, full.recurring); assert.deepEqual(back.settings.home, { starterDone: true }); assert.equal(back.sourceSchema, 9);
 });
 
 // ---- downgrade guards (SEC-27 / SEC-28 extended to every schema 6 collection) ----
@@ -109,7 +109,7 @@ test('every schema 6 collection is protected from an older-format backup on rest
     const bk5 = await V.importBackup(PASS, JSON.stringify(await V.makeEnvelope(key, salt, asSchema(5, S.defaultState()))));
     assert.deepEqual(S.droppedData(S.getState(), bk5), [name]);
     await S.replaceState(bk5, { allowWorkLoss: true });
-    assert.equal(S.getState()[k].length, 0); assert.equal(S.getState().schema, 8);
+    assert.equal(S.getState()[k].length, 0); assert.equal(S.getState().schema, 9);
     assert.deepEqual(S.droppedData(S.getState(), bk5), [], 'nothing left to lose');
   }
   // The household flag on a Money recurring item counts as data too; a schema 6 backup is never flagged.
@@ -129,14 +129,14 @@ test('every schema 6 collection is protected from an older (schema 5) Drive copy
     await putRemote(d, asSchema(5, S.defaultState()), 3);
     const dec = await L.sync.run();
     assert.equal(dec.kind, 'download-offer'); assert.equal(dec.dropsWork, true); assert.deepEqual(dec.dropped, [name]);
-    assert.equal(dec.local.schema, 8); assert.equal(dec.remote.schema, 5);
+    assert.equal(dec.local.schema, 9); assert.equal(dec.remote.schema, 5);
     const before = JSON.stringify(ad._m.get('envelope')), w = d.writes;
     await assert.rejects(L.sync.apply(dec, 'download'), (e) => e.code === 'OLDER_FORMAT' && e.message.includes(name) && /Nothing was replaced/.test(e.message));
     await assert.rejects(L.sync.apply(dec, 'download', { allowWorkLoss: 1 }), (e) => e.code === 'OLDER_FORMAT');
     assert.equal(JSON.stringify(ad._m.get('envelope')), before); assert.equal(d.writes, w);
     assert.equal(S.getState()[k].length, 1);
     await L.sync.apply(dec, 'download', { allowWorkLoss: true });
-    assert.equal(S.getState()[k].length, 0); assert.equal(S.getState().schema, 8);
+    assert.equal(S.getState()[k].length, 0); assert.equal(S.getState().schema, 9);
     // Conflict: the older copy is blocked without the tick; keeping this device never is.
     const f = await fresh();
     await L.sync.run();
@@ -154,7 +154,7 @@ test('every schema 6 collection is protected from an older (schema 5) Drive copy
   assert.equal((await L.sync.run()).dropsWork, false, 'nothing on this device, nothing to lose');
 });
 test('a newer schema is refused and a schema 6 vault is never downgraded by the validator', () => {
-  assert.throws(() => S.validateState(Object.assign(S.defaultState(), { schema: 9 })), /schema/);
+  assert.throws(() => S.validateState(Object.assign(S.defaultState(), { schema: 10 })), /schema/);
   const s = withOne('maintenance');
   assert.equal(S.validateState(clone(s)).maintenance.length, 1);
   assert.deepEqual(S.validateState(Object.assign(clone(S.defaultState()), { schema: 6 })).renewals, []);
@@ -487,7 +487,7 @@ test('sync round trip with schema 6 Home and Admin data: ciphertext only, restor
   assert.equal((await L.sync.run()).kind, 'uploaded');
   for (const secret of ['Sync Villa', 'Sync Truck', 'Sync gutter', 'Sync Vendor', 'Sync note', 'Sync policy', 'Sync Insurer', 'Sync deed', 'Sync safe', 'Sync W2', 'Sync water']) assert.ok(!d.file.text.includes(secret), 'no plaintext on Drive: ' + secret);
   const up = await V.importBackup(PASS, d.file.text);
-  assert.equal(up.schema, 8); assert.equal(shape(up), want);
+  assert.equal(up.schema, 9); assert.equal(shape(up), want);
   const ad2 = memAdapter(); S._setAdapter(ad2); S.lock(); await S.init(PASS);
   const dec = await L.sync.run({ passphrase: PASS });
   assert.equal(dec.kind, 'download-offer'); assert.equal(dec.dropsWork, false); assert.equal(dec.remote.maintenance, 1); assert.equal(dec.remote.renewals, 1);

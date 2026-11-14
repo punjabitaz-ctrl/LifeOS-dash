@@ -110,6 +110,9 @@
       // Activities: counts, minutes-free numbers and money totals only, never a title, place, person, category or note.
       const ac = dg.activities;
       if (ac && (ac.done || ac.planned7 || ac.planned30 || ac.spendCents || ac.committedCents || ac.avgRating || ac.healthTagged || ac.socialTagged)) lines.push('- activities detail: done this week ' + ac.done + ', planned in the next 7 days ' + ac.planned7 + ', planned in the next 30 days ' + ac.planned30 + ', spend ' + fm(ac.spendCents) + ', committed ' + fm(ac.committedCents) + ', average worth-it rating ' + (ac.avgRating ? ac.avgRating : 'none rated') + ', health-tagged ' + ac.healthTagged + ', social-tagged ' + ac.socialTagged);
+      // Social: counts only, never a name, group name, date label, fact, channel or note. Groups are numbered by position.
+      const sc = dg.social;
+      if (sc && (sc.people || sc.overdue || sc.dueSoon || sc.contactsWeek)) lines.push('- social detail: people ' + sc.people + ', overdue ' + sc.overdue + ', due within 7 days ' + sc.dueSoon + ', contacts this week ' + sc.contactsWeek + (sc.byGroup.length ? ', by group ' + sc.byGroup.map((g, i) => 'group ' + (i + 1) + ': ' + g.people + ' people, ' + g.overdue + ' overdue').join('; ') : ''));
       ctx = approvedAll.filter((i) => !isBodyInsight(i)).slice(-CTX_MAX);
       lines.push('Approved insights so far:');
     } else {

@@ -2,7 +2,7 @@
   'use strict';
   const L = (globalThis.LifeOS = globalThis.LifeOS || {});
   const KEY = 'envelope';
-  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 8, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
+  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 9, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
   const HABIT_CAP = 8, HABIT_LOG_CAP = 100000, KIND_CAP = 30;
   const RENEWAL_TOTAL_CAP = 2000;
   const ENTRY_CAP = 50000, INSIGHT_CAP = 5000, REVIEW_CAP = 1000, LESSON_CAP = 30, AUDIT_CAP = 200;
@@ -304,6 +304,16 @@
       o.avgRating = num(x.avgRating, 0, 5, 'digest activities');
       out.activities = o;
     }
+    if (d.social !== undefined) {
+      if (!isObj(d.social)) fail('digest social');
+      const x = d.social, o = {};
+      for (const k of ['people', 'overdue', 'dueSoon', 'contactsWeek']) o[k] = num(x[k], 0, 1e9, 'digest social', true);
+      o.byGroup = arr(x.byGroup, 30, 'digest social').map((g) => {
+        if (!isObj(g)) fail('digest social');
+        return { people: num(g.people, 0, 1e9, 'digest social', true), overdue: num(g.overdue, 0, 1e9, 'digest social', true) };
+      });
+      out.social = o;
+    }
     for (const k of ['home', 'admin']) {
       if (d[k] === undefined) continue;
       if (!isObj(d[k])) fail('digest ' + k);
@@ -529,7 +539,7 @@
   function validateState(o) {
     if (!isObj(o)) fail('state must be an object');
     scan(o, 0, { n: 4e6 });
-    if (![1, 2, 3, 4, 5, 6, 7, SCHEMA].includes(o.schema)) fail('unsupported schema');
+    if (![1, 2, 3, 4, 5, 6, 7, 8, SCHEMA].includes(o.schema)) fail('unsupported schema');
     if (!L.metrics) fail('metrics module missing');
     const settings = cleanSettings(o.settings, o.schema), entries = cleanEntries(o.entries);
     const out = { schema: SCHEMA, settings, entries };
@@ -585,6 +595,21 @@
       out.activities = Ac.cleanActivities(m.activities, out.goals, m.entries);
       out.entries = m.entries;
     }
+    // Schema 9 adds Social (groups, people, contact log). Older formats get empty collections, and their social/contact entries
+    // become people and a contact log (see social.legacy; whatever cannot map stays as an entry). Links to pipeline items and
+    // projects that do not exist are dropped and the person is kept.
+    const So = L.social;
+    if (o.schema >= 9) {
+      out.groups = So.cleanGroups(o.groups);
+      out.people = So.cleanPeople(o.people, out.groups, out.pipeline, out.projects);
+      out.contacts = So.cleanContacts(o.contacts, out.people);
+    } else {
+      const m = So.legacy(out.entries, newId);
+      out.groups = [];
+      out.people = So.cleanPeople(m.people, out.groups, out.pipeline, out.projects);
+      out.contacts = So.cleanContacts(m.contacts, out.people);
+      out.entries = m.entries;
+    }
     out.memory = cleanMemory(o.memory);
     out.audit = cleanAudit(o.audit);
     // The schema the input was written in, so callers can tell an older-format copy (no work data) from a schema 3 one.
@@ -593,7 +618,7 @@
     return out;
   }
   // Data the live state holds that an older-format copy (`next`, marked by validateState) cannot carry.
-  // Schema 3 added projects and pipeline; schema 4 added the training cycle, daily checks, workout types and body targets; schema 5 added goals; schema 6 added Home and Admin collections; schema 7 added Learning; schema 8 added Activities.
+  // Schema 3 added projects and pipeline; schema 4 added the training cycle, daily checks, workout types and body targets; schema 5 added goals; schema 6 added Home and Admin collections; schema 7 added Learning; schema 8 added Activities; schema 9 added Social.
   const sameJson = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   function droppedData(cur, next) {
     const src = next && next.sourceSchema;
@@ -613,6 +638,9 @@
       if ((cur.activities || []).length) out.push('activities');
       if (cur.activityCategories && !sameJson(cur.activityCategories, L.activities.DEFAULT_CATEGORIES)) out.push('activity categories');
     }
+    if (src < 9) {
+      for (const [k, n] of [['groups', 'social groups'], ['people', 'people'], ['contacts', 'logged contacts']]) if ((cur[k] || []).length) out.push(n);
+    }
     if (src < 4) {
       if (cur.cycle) out.push('training cycle');
       if ((cur.habits || []).length) out.push('daily checks');
@@ -625,7 +653,7 @@
   const dropsWork = (cur, next) => droppedData(cur, next).length > 0;
   const andList = (l) => (l.length > 1 ? l.slice(0, -1).join(', ') + ' and ' + l[l.length - 1] : l.join(''));
   // Plain-language list for warnings, with counts: "3 projects and 4 pipeline items". Names only, never values.
-  const COUNTED = { properties: 'properties', vehicles: 'vehicles', 'maintenance items': 'maintenance', renewals: 'renewals', documents: 'documents', 'tax items': 'taxItems', 'learning items': 'learningItems', 'study sessions': 'studySessions', takeaways: 'takeaways', activities: 'activities' };
+  const COUNTED = { properties: 'properties', vehicles: 'vehicles', 'maintenance items': 'maintenance', renewals: 'renewals', documents: 'documents', 'tax items': 'taxItems', 'learning items': 'learningItems', 'study sessions': 'studySessions', takeaways: 'takeaways', activities: 'activities', 'social groups': 'groups', people: 'people', 'logged contacts': 'contacts' };
   function lossText(cur, next) {
     return andList(droppedData(cur, next).map((n) => (n === 'projects' ? cur.projects.length + ' projects' : n === 'pipeline items' ? cur.pipeline.length + ' pipeline items' : n === 'daily checks' ? cur.habits.length + ' daily checks' : n === 'goals' ? cur.goals.length + ' goals' : COUNTED[n] ? cur[COUNTED[n]].length + ' ' + n : 'your ' + n)));
   }
@@ -649,6 +677,7 @@
       properties: [], vehicles: [], maintenance: [], renewals: [], documents: [], taxItems: [],
       learningItems: [], studySessions: [], takeaways: [],
       activities: [], activityCategories: L.activities.DEFAULT_CATEGORIES.slice(),
+      groups: [], people: [], contacts: [],
       cycle: null, kinds: L.metrics.DEFAULT_KINDS.slice(), habits: [], habitLog: [],
       memory: { insights: [], lessons: [], reviews: [] },
       audit: [],

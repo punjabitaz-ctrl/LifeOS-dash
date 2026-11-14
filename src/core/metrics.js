@@ -565,7 +565,7 @@
       case 'work': return count(ents, ws, we, (e) => e.type === 'outcome' && e.status === 'done');
       case 'health': return workoutWeek(state, ws).sessions;
       case 'activities': return L.activities.current(state) ? L.activities.weekValue(state, we) : activeDays(ents, ws, we);
-      case 'social': return overdue(ents, we, tg.contactDays, state).n;
+      case 'social': return L.social.current(state) ? L.social.weekValue(state, we) : overdue(ents, we, tg.contactDays, state).n;
       // Study minutes once any Learning data exists (schema 7); the older count of finished items before that.
       case 'learning': return L.learning.current(state) ? L.learning.weekValue(state, we) : count(ents, ws, we, (e) => e.type === 'item' && e.status === 'done');
       case 'home': return L.home.weekValue(state, we);
@@ -592,7 +592,7 @@
     const we = addDays(ws, 6), wm = sumMoney(byDomain(state, 'money'), ws, we), nw = netWorthDetail(state, we);
     const mv = monthView(state, monthOf(we));
     const money = { income: dollars(wm.incC), spend: dollars(wm.expC), budgetUsedPct: mv.budgetCents > 0 ? r1(mv.budgetedSpentCents * 100 / mv.budgetCents) : 0, netWorth: nw.total, liabilities: nw.liabilities };
-    return { week: ws, domains, money, work: workDigest(state, ws), health: healthDigest(state, ws), activities: L.activities.digest(state, ws), goals: L.goals.digestCounts(state, ws), home: L.home.digest(state, ws), admin: L.admin.digest(state, ws), learning: L.learning.digest(state, ws) };
+    return { week: ws, domains, money, work: workDigest(state, ws), health: healthDigest(state, ws), activities: L.activities.digest(state, ws), goals: L.goals.digestCounts(state, ws), home: L.home.digest(state, ws), admin: L.admin.digest(state, ws), learning: L.learning.digest(state, ws), social: L.social.digest(state, ws) };
   }
   function series(state, domainId, n, today) {
     if (!DOMAINS.some((d) => d.id === domainId)) throw new Error('Unknown domain');
@@ -645,6 +645,7 @@
         return R('Active days this week', String(d), d, s + (s === 1 ? ' session' : ' sessions'));
       }
       case 'social': {
+        if (L.social.current(state)) return L.social.headline(state, today, R);
         const o = overdue(ents, today, tg.contactDays, state);
         return R('People overdue', String(o.n), o.n, o.total + ' tracked, over ' + tg.contactDays + ' days since contact');
       }

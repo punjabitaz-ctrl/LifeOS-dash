@@ -324,7 +324,7 @@ async function run(label, viewport) {
     await step('settings: version, and the audit log holds no titles', async () => {
       await nav('Settings');
       await page.waitForSelector('#app-version', T);
-      await expectText('#app-version', 'LifeOS v0.9.0');
+      await expectText('#app-version', 'LifeOS v0.10.0');
       const t = await text('main');
       for (const secret of ['Main house', 'Family car', 'Clean gutters', 'Acme Mutual', 'Netflix', 'Passport', 'Plate registration', 'W-2 from employer', 'Electric']) if (t.includes(secret)) throw new Error('settings page shows ' + secret);
       await layout('settings');
