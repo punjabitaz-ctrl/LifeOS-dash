@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-uTg49vetxfk5je8n0PYcdn5P+s8/QUNYPQ+Xr8M/pwE='; style-src 'sha256-AhW11rSnH8oIjKhS1vZoMCK0L0Rjw+8kHSt7Kwd2adw='; connect-src https://api.anthropic.com https://www.googleapis.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-Oqu+KlUY+IUrD8gCW5P52LUL7qEhM7taz1bVfSZiWvc='; style-src 'sha256-AhW11rSnH8oIjKhS1vZoMCK0L0Rjw+8kHSt7Kwd2adw='; connect-src https://api.anthropic.com https://www.googleapis.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>LifeOS</title>
 <style>:root{color-scheme:light dark;--bg:#f4f5f7;--card:#fff;--fg:#14171c;--mut:#5b6573;--line:#dde1e7;--acc:#2255d4;--acc-fg:#fff;--ok:#1c7a46;--warn:#9a5b00;--bad:#b42318;--r:14px;--sh:0 1px 2px rgba(0,0,0,.06);--font:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
@@ -233,8 +233,9 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   'use strict';
   const L = (globalThis.LifeOS = globalThis.LifeOS || {});
   const KEY = 'envelope';
-  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 5, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
+  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 6, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
   const HABIT_CAP = 8, HABIT_LOG_CAP = 100000, KIND_CAP = 30;
+  const RENEWAL_TOTAL_CAP = 2000;
   const ENTRY_CAP = 50000, INSIGHT_CAP = 5000, REVIEW_CAP = 1000, LESSON_CAP = 30, AUDIT_CAP = 200;
   const BLOCKED = new Set(['__proto__', 'constructor', 'prototype']);
   // Same rule as ai.isLocalUrl (ai.js loads after this file, so call it lazily).
@@ -344,6 +345,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       provider,
       sync: cleanSync(s.sync),
       health: schema >= 4 ? cleanHealthSettings(s.health) : { units: 'lb' },
+      home: schema >= 6 ? cleanHomeSettings(s.home) : { starterDone: false },
     };
   }
   // 6 decimals, like converted weights, so a unit switch round trip does not drift.
@@ -355,6 +357,11 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     for (const k of ['weightStart', 'weightTarget']) if (x[k] !== undefined && x[k] !== null) o[k] = r6(num(x[k], 1, 1000, k));
     for (const k of ['bodyFatStart', 'bodyFatTarget']) if (x[k] !== undefined && x[k] !== null) o[k] = r6(num(x[k], 1, 100, k));
     return o;
+  }
+  function cleanHomeSettings(x) {
+    if (x === undefined) return { starterDone: false };
+    if (!isObj(x)) fail('home settings');
+    return { starterDone: bool(x.starterDone, 'starterDone', false) };
   }
   function cleanCycle(x) {
     if (x === undefined || x === null) return null;
@@ -514,6 +521,15 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       out.goals = {};
       for (const k of ['active', 'ahead', 'onTrack', 'behind', 'achieved']) out.goals[k] = num(d.goals[k], 0, 1e9, 'digest goals', true);
     }
+    for (const k of ['home', 'admin']) {
+      if (d[k] === undefined) continue;
+      if (!isObj(d[k])) fail('digest ' + k);
+      const x = d[k], o = {};
+      for (const f of ['overdue', 'dueSoon', 'done']) o[f] = num(x[f], 0, 1e9, 'digest ' + k, true);
+      const money = k === 'home' ? 'ytdCostCents' : 'runRateCents';
+      o[money] = num(x[money], 0, Number.MAX_SAFE_INTEGER, 'digest ' + k, true); // 2,000 items at the per-item cap exceed 1e14
+      out[k] = o;
+    }
     return out;
   }
   function cleanMemory(m) {
@@ -587,7 +603,8 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       return {
         id, title: str(strip(x.title).trim(), 200, 'recurring title'), value: money2(x.value, 0.01, 1e9, 'recurring value'),
         category: str(strip(x.category).trim(), 40, 'recurring category', true), type: oneOf(x.type, ['income', 'expense'], 'recurring type'),
-        cadence: oneOf(x.cadence, ['weekly', 'monthly', 'yearly'], 'cadence'), nextDate: date(x.nextDate, 'nextDate'), active: bool(x.active, 'active')
+        cadence: oneOf(x.cadence, ['weekly', 'monthly', 'yearly'], 'cadence'), nextDate: date(x.nextDate, 'nextDate'), active: bool(x.active, 'active'),
+        household: bool(x.household, 'household', false)
       };
     });
   }
@@ -729,7 +746,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   function validateState(o) {
     if (!isObj(o)) fail('state must be an object');
     scan(o, 0, { n: 4e6 });
-    if (![1, 2, 3, 4, SCHEMA].includes(o.schema)) fail('unsupported schema');
+    if (![1, 2, 3, 4, 5, SCHEMA].includes(o.schema)) fail('unsupported schema');
     if (!L.metrics) fail('metrics module missing');
     const settings = cleanSettings(o.settings, o.schema), entries = cleanEntries(o.entries);
     const out = { schema: SCHEMA, settings, entries };
@@ -749,6 +766,16 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     // Schema 5 adds goals; older formats turn their goals/goal entries into goals (nothing is lost).
     if (o.schema >= 5) out.goals = cleanGoals(o.goals);
     else { const m = goalsFromEntries(entries); out.goals = cleanGoals(m.goals); out.entries = m.entries; }
+    // Schema 6 adds Home (properties, vehicles, maintenance) and Admin (renewals, documents, tax items). Older formats get
+    // empty collections, and their home/due entries become renewals (see admin.legacyDue; nothing is dropped).
+    const six = o.schema >= 6, H = L.home, A = L.admin;
+    out.properties = six ? H.cleanProperties(o.properties) : [];
+    out.vehicles = six ? H.cleanVehicles(o.vehicles) : [];
+    out.maintenance = six ? H.cleanMaintenance(o.maintenance, out.properties, out.vehicles) : [];
+    if (six) out.renewals = A.cleanRenewals(o.renewals);
+    else { const m = A.legacyDue(out.entries, RENEWAL_TOTAL_CAP, newId); out.renewals = A.cleanRenewals(m.renewals); out.entries = m.entries; }
+    out.documents = six ? A.cleanDocuments(o.documents) : [];
+    out.taxItems = six ? A.cleanTaxItems(o.taxItems) : [];
     out.memory = cleanMemory(o.memory);
     out.audit = cleanAudit(o.audit);
     // The schema the input was written in, so callers can tell an older-format copy (no work data) from a schema 3 one.
@@ -757,7 +784,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     return out;
   }
   // Data the live state holds that an older-format copy (`next`, marked by validateState) cannot carry.
-  // Schema 3 added projects and pipeline; schema 4 added the training cycle, daily checks, workout types and body targets; schema 5 added goals.
+  // Schema 3 added projects and pipeline; schema 4 added the training cycle, daily checks, workout types and body targets; schema 5 added goals; schema 6 added Home and Admin collections.
   const sameJson = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   function droppedData(cur, next) {
     const src = next && next.sourceSchema;
@@ -765,6 +792,10 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     const out = [];
     if (src < 3) { if ((cur.projects || []).length) out.push('projects'); if ((cur.pipeline || []).length) out.push('pipeline items'); }
     if (src < 5 && (cur.goals || []).length) out.push('goals');
+    if (src < 6) {
+      for (const [k, n] of [['properties', 'properties'], ['vehicles', 'vehicles'], ['maintenance', 'maintenance items'], ['renewals', 'renewals'], ['documents', 'documents'], ['taxItems', 'tax items']]) if ((cur[k] || []).length) out.push(n);
+      if ((cur.recurring || []).some((r) => r.household)) out.push('household bill flags');
+    }
     if (src < 4) {
       if (cur.cycle) out.push('training cycle');
       if ((cur.habits || []).length) out.push('daily checks');
@@ -777,8 +808,9 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   const dropsWork = (cur, next) => droppedData(cur, next).length > 0;
   const andList = (l) => (l.length > 1 ? l.slice(0, -1).join(', ') + ' and ' + l[l.length - 1] : l.join(''));
   // Plain-language list for warnings, with counts: "3 projects and 4 pipeline items". Names only, never values.
+  const COUNTED = { properties: 'properties', vehicles: 'vehicles', 'maintenance items': 'maintenance', renewals: 'renewals', documents: 'documents', 'tax items': 'taxItems' };
   function lossText(cur, next) {
-    return andList(droppedData(cur, next).map((n) => (n === 'projects' ? cur.projects.length + ' projects' : n === 'pipeline items' ? cur.pipeline.length + ' pipeline items' : n === 'daily checks' ? cur.habits.length + ' daily checks' : n === 'goals' ? cur.goals.length + ' goals' : 'your ' + n)));
+    return andList(droppedData(cur, next).map((n) => (n === 'projects' ? cur.projects.length + ' projects' : n === 'pipeline items' ? cur.pipeline.length + ' pipeline items' : n === 'daily checks' ? cur.habits.length + ' daily checks' : n === 'goals' ? cur.goals.length + ' goals' : COUNTED[n] ? cur[COUNTED[n]].length + ' ' + n : 'your ' + n)));
   }
   const nameList = (l) => (l.length > 1 ? l.slice(0, -1).join(', ') + ' or ' + l[l.length - 1] : l.join(''));
 
@@ -791,10 +823,12 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
         provider: { kind: 'none', baseUrl: '', model: '', apiKey: '' },
         sync: { clientId: '', remoteRev: -1, fp: '', fileId: '', keySalt: '' },
         health: { units: 'lb' },
+        home: { starterDone: false },
       },
       entries: [],
       accounts: [], recurring: [], budgets: [], categories: defaultCategories(),
       projects: [], pipeline: [], goals: [],
+      properties: [], vehicles: [], maintenance: [], renewals: [], documents: [], taxItems: [],
       cycle: null, kinds: L.metrics.DEFAULT_KINDS.slice(), habits: [], habitLog: [],
       memory: { insights: [], lessons: [], reviews: [] },
       audit: [],
@@ -977,6 +1011,8 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     lock();
   }
 
+  // Validation helpers shared with home.js and admin.js (same rules and messages as the rest of validateState).
+  L.validate = { fail, isObj, str, num, date, oneOf, bool, arr, strip, ts, newId };
   L.store = { _setAdapter, exists, init, unlock, lock, isUnlocked, getState, commit, changePassphrase, replaceState, wipe, validateState, newId, defaultState, getMeta, saltId, exportEnvelope, inspectEnvelope, adoptEnvelope, dropsWork, droppedData, nameList, lossText, validateGoals: cleanGoals };
 })();
 
@@ -1132,6 +1168,8 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       T('item', 'Item', [sel('status', 'Status', ['active', 'done'])]),
       T('hours', 'Hours', [num('value', 'Hours', { min: 0, max: 1000 })])] },
     { id: 'home', label: 'Home', types: [T('due', 'Due item', [dt('due', 'Due date'), sel('status', 'Status', ['open', 'done'])])] },
+    // Admin (schema 6) keeps its data in state.renewals, documents and taxItems; it has no typed entries of its own.
+    { id: 'admin', label: 'Admin', types: [] },
     { id: 'goals', label: 'Goals', types: [T('goal', 'Goal', [sel('status', 'Status', ['on-track', 'at-risk', 'off-track', 'done'])])] },
     { id: 'wellbeing', label: 'Wellbeing', types: [T('mood', 'Mood', [num('value', 'Mood (1 to 5)', { min: 1, max: 5 })])] },
   ];
@@ -1655,7 +1693,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     return n;
   }
 
-  const UNITS = { money: '%', work: 'outcomes', health: 'workouts', activities: 'days', social: 'people', learning: 'items', home: 'items', goals: '%', wellbeing: 'score' };
+  const UNITS = { money: '%', work: 'outcomes', health: 'workouts', activities: 'days', social: 'people', learning: 'items', home: 'tasks', admin: 'items', goals: '%', wellbeing: 'score' };
   function weekMetric(state, id, ws, ents) {
     const we = addDays(ws, 6);
     const tg = state.settings.targets;
@@ -1667,7 +1705,8 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       case 'activities': return activeDays(ents, ws, we);
       case 'social': return overdue(ents, we, tg.contactDays).n;
       case 'learning': return count(ents, ws, we, (e) => e.type === 'item' && e.status === 'done');
-      case 'home': return dueSoon(ents, we, 30).soon;
+      case 'home': return L.home.weekValue(state, we);
+      case 'admin': return L.admin.weekValue(state, we);
       case 'goals': {
         // Schema 5 goals when there are any (weight and body fat goals left out); the old goal entries otherwise.
         if ((state.goals || []).length) return L.goals.weekShare(state, we);
@@ -1690,7 +1729,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     const we = addDays(ws, 6), wm = sumMoney(byDomain(state, 'money'), ws, we), nw = netWorthDetail(state, we);
     const mv = monthView(state, monthOf(we));
     const money = { income: dollars(wm.incC), spend: dollars(wm.expC), budgetUsedPct: mv.budgetCents > 0 ? r1(mv.budgetedSpentCents * 100 / mv.budgetCents) : 0, netWorth: nw.total, liabilities: nw.liabilities };
-    return { week: ws, domains, money, work: workDigest(state, ws), health: healthDigest(state, ws), goals: L.goals.digestCounts(state, ws) };
+    return { week: ws, domains, money, work: workDigest(state, ws), health: healthDigest(state, ws), goals: L.goals.digestCounts(state, ws), home: L.home.digest(state, ws), admin: L.admin.digest(state, ws) };
   }
   function series(state, domainId, n, today) {
     if (!DOMAINS.some((d) => d.id === domainId)) throw new Error('Unknown domain');
@@ -1751,10 +1790,8 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
         for (const e of ents) if (e.type === 'hours' && e.date.slice(0, 7) === mon) h += e.value;
         return R('Items finished this month', String(n), n, r1(h) + ' hours logged');
       }
-      case 'home': {
-        const d = dueSoon(ents, today, 30);
-        return R('Due within 30 days', String(d.soon), d.soon, d.late ? d.late + ' overdue' : 'Nothing overdue');
-      }
+      case 'home': return L.home.headline(state, today, R);
+      case 'admin': return L.admin.headline(state, today, R);
       case 'goals': {
         if ((state.goals || []).length || !ents.length) { // legacy goal entries only show while there are no goals and some entries
           const g = L.goals.summary(state, today), v = g.share === null ? 0 : Math.round(g.share * 100);
@@ -1775,6 +1812,765 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
 
   L.metrics = { todayISO, DEFAULT_KINDS, HABIT_CAP, convertWeight, movingAverage, bodySeries, bodyMetrics, isoWeek, weekNumber, workoutWeek, trainingCycle, cycleLabel, sleepAvg, sleepSummary, habitStats, habitRate, addHabit, deleteHabit, toggleHabit, healthDigest, setWeightUnits, linkedOutcomeCount, deleteProject, liveProjects, STAGES, OPEN_STAGES, STALE_DAYS, overdueProjects, isStale, pipelineCounts, openPipeline, weekOutcomes, carryOverCandidates, carryOver, workSummary, DOMAINS, isDate, addDays, validateEntry, headline, weekStart, weeklyDigest, series, fmtMoney, cents, ACCOUNT_KINDS, LIAB_KINDS, DEFAULT_CATEGORIES, UNCAT, addMonths, monthEnd, advanceDate, netWorthDetail, netWorthHistory, monthView, cashflow, dueRecurring, confirmRecurring, skipRecurring };
   L.DOMAINS = DOMAINS;
+})();
+
+;
+(function () {
+  'use strict';
+  // Home (schema 6): properties, vehicles, maintenance, household bills. Pure functions over state; every mutator runs inside
+  // store.commit and only changes what the user tapped. Nothing here creates a recurring item on its own: finishing a recurring
+  // task only PROPOSES the next one (pendingProposals), which the user confirms. Dates are local YYYY-MM-DD strings handled as
+  // calendar days (Date.UTC is a day counter only), so a time zone or a DST change can never move a due date.
+  const L = (globalThis.LifeOS = globalThis.LifeOS || {});
+  const V = () => L.validate;
+
+  const PROPERTY_CAP = 20, VEHICLE_CAP = 20, MAINT_CAP = 2000;
+  const PROPERTY_KINDS = Object.freeze(['house', 'condo', 'rental', 'land', 'other']);
+  const CADENCES = Object.freeze(['once', 'monthly', 'quarterly', 'semiannual', 'annual', 'custom']);
+  const CADENCE_LABEL = Object.freeze({ once: 'Once', monthly: 'Monthly', quarterly: 'Quarterly', semiannual: 'Every 6 months', annual: 'Yearly', custom: 'Custom days' });
+  const MONTHS = Object.freeze({ monthly: 1, quarterly: 3, semiannual: 6, annual: 12 });
+  const MAX_CENTS = 1e11, MAX_ODO = 1e7, MAX_DAYS = 3650;
+  const MIN_DATE = '1900-01-01', MAX_DATE = '2200-12-31';
+
+  // ---- calendar-day arithmetic (no local time anywhere) ----
+  const pad = (n, w) => String(n).padStart(w || 2, '0');
+  const parts = (s) => [+s.slice(0, 4), +s.slice(5, 7), +s.slice(8, 10)];
+  const dayNo = (s) => { const p = parts(s); return Math.round(Date.UTC(p[0], p[1] - 1, p[2]) / 864e5); };
+  const fromDayNo = (n) => new Date(n * 864e5).toISOString().slice(0, 10);
+  const isDate = (s) => {
+    if (typeof s !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(s) || s < MIN_DATE || s > MAX_DATE) return false;
+    const p = parts(s), t = new Date(Date.UTC(p[0], p[1] - 1, p[2]));
+    return t.getUTCFullYear() === p[0] && t.getUTCMonth() === p[1] - 1 && t.getUTCDate() === p[2];
+  };
+  const addDays = (s, n) => fromDayNo(dayNo(s) + n);
+  const daysBetween = (a, b) => dayNo(a) - dayNo(b);
+  // Add whole months; a day that does not exist in the target month moves to that month's last day (31 Jan + 1 month = 28 or 29 Feb).
+  function addMonths(s, k) {
+    const p = parts(s), t = p[0] * 12 + (p[1] - 1) + k, y = Math.floor(t / 12), m = t % 12;
+    const last = new Date(Date.UTC(y, m + 1, 0)).getUTCDate();
+    return pad(y, 4) + '-' + pad(m + 1) + '-' + pad(Math.min(p[2], last));
+  }
+  // The date a recurring item comes round again after `from`; null for a one-off.
+  function nextDate(from, cadence, everyDays) {
+    if (!isDate(from)) throw new Error('Date must be YYYY-MM-DD');
+    let r;
+    if (cadence === 'once') return null;
+    if (MONTHS[cadence]) r = addMonths(from, MONTHS[cadence]);
+    else if (cadence === 'custom') {
+      if (!Number.isInteger(everyDays) || everyDays < 1 || everyDays > MAX_DAYS) throw new Error('Enter a repeat of 1 to ' + MAX_DAYS + ' days');
+      r = addDays(from, everyDays);
+    } else throw new Error('Unknown repeat');
+    if (r > MAX_DATE) throw new Error('That date is out of range');
+    return r;
+  }
+  const yearOf = (d) => d.slice(0, 4);
+
+  // ---- validation (rebuilds every record from whitelists, with caps) ----
+  const text = (v, max, name, empty) => {
+    if (v === undefined) v = '';
+    if (typeof v !== 'string') V().fail(name + ' must be text');
+    return V().str(V().strip(v).trim(), max, name, empty);
+  };
+  const optDate = (v, name) => { if (v === undefined || v === null || v === '') return undefined; const d = V().date(v, name); if (!isDate(d)) V().fail(name + ' is out of range'); return d; };
+  const reqDate = (v, name) => { const d = V().date(v, name); if (!isDate(d)) V().fail(name + ' is out of range'); return d; };
+  const optInt = (v, lo, hi, name) => (v === undefined || v === null || v === '' ? undefined : V().num(v, lo, hi, name, true));
+  const ident = (x, seen, name) => {
+    if (!V().isObj(x)) V().fail(name);
+    const id = V().str(x.id, 100, name + ' id');
+    if (seen.has(id)) V().fail('duplicate ' + name + ' id');
+    seen.add(id);
+    return id;
+  };
+  function cleanProperties(list) {
+    if (list === undefined) return [];
+    const seen = new Set();
+    return V().arr(list, PROPERTY_CAP, 'properties').map((x) => {
+      const id = ident(x, seen, 'property');
+      return { id, name: text(x.name, 200, 'property name'), kind: V().oneOf(x.kind, PROPERTY_KINDS, 'property kind'), archived: V().bool(x.archived, 'archived', false) };
+    });
+  }
+  function cleanVehicles(list) {
+    if (list === undefined) return [];
+    const seen = new Set();
+    return V().arr(list, VEHICLE_CAP, 'vehicles').map((x) => {
+      const id = ident(x, seen, 'vehicle');
+      const o = { id, name: text(x.name, 200, 'vehicle name') };
+      const yr = optInt(x.year, 1900, 2200, 'vehicle year'); if (yr !== undefined) o.year = yr;
+      const od = optInt(x.odometer, 0, MAX_ODO, 'odometer'); if (od !== undefined) o.odometer = od;
+      o.odometerUnit = x.odometerUnit === undefined ? 'mi' : V().oneOf(x.odometerUnit, ['mi', 'km'], 'odometer unit');
+      o.archived = V().bool(x.archived, 'archived', false);
+      return o;
+    });
+  }
+  // `every` handling shared with admin: custom needs 1 to 3650 days, other cadences carry no day count.
+  function cleanRepeat(x, cadences, name) {
+    const cadence = V().oneOf(x.cadence, cadences, name + ' repeat');
+    if (cadence !== 'custom') return { cadence };
+    if (x.everyDays === undefined || x.everyDays === null || x.everyDays === '') V().fail('repeat days are required for a custom repeat');
+    return { cadence, everyDays: V().num(x.everyDays, 1, MAX_DAYS, 'repeat days', true) };
+  }
+  // A property or vehicle link that points at nothing is dropped; the record itself is kept.
+  function cleanMaintenance(list, properties, vehicles) {
+    if (list === undefined) return [];
+    const seen = new Set(), pids = new Set((properties || []).map((p) => p.id)), vids = new Set((vehicles || []).map((v) => v.id));
+    return V().arr(list, MAINT_CAP, 'maintenance').map((x) => {
+      const id = ident(x, seen, 'maintenance item');
+      const o = { id };
+      if (typeof x.propertyId === 'string' && pids.has(x.propertyId)) o.propertyId = x.propertyId;
+      else if (x.propertyId !== undefined && x.propertyId !== null && typeof x.propertyId !== 'string') V().fail('property link must be text');
+      if (typeof x.vehicleId === 'string' && vids.has(x.vehicleId)) o.vehicleId = x.vehicleId;
+      else if (x.vehicleId !== undefined && x.vehicleId !== null && typeof x.vehicleId !== 'string') V().fail('vehicle link must be text');
+      o.title = text(x.title, 200, 'maintenance title');
+      o.area = text(x.area, 60, 'area', true);
+      Object.assign(o, cleanRepeat(x, CADENCES, 'maintenance'));
+      const ld = optDate(x.lastDone, 'last done'); if (ld) o.lastDone = ld;
+      const nd = optDate(x.nextDue, 'next due'); if (nd) o.nextDue = nd;
+      const cost = optInt(x.cost, 0, MAX_CENTS, 'cost'); if (cost !== undefined) o.cost = cost;
+      const odo = optInt(x.odometer, 0, MAX_ODO, 'odometer'); if (odo !== undefined) o.odometer = odo;
+      o.vendor = text(x.vendor, 200, 'vendor', true);
+      o.notes = text(x.notes, 2000, 'notes', true);
+      o.state = V().oneOf(x.state, ['open', 'done', 'skipped'], 'maintenance state');
+      return o;
+    });
+  }
+
+  // ---- lists ----
+  const list = (state, k) => (state && Array.isArray(state[k]) ? state[k] : []);
+  const liveProps = (state) => list(state, 'properties').filter((p) => !p.archived);
+  const liveVehicles = (state) => list(state, 'vehicles').filter((v) => !v.archived);
+  const byDue = (a, b) => (a.nextDue || '').localeCompare(b.nextDue || '') || a.title.localeCompare(b.title);
+  // Was the item still open on date D? A task finished after D counts as open on D, so past weeks keep their numbers.
+  const openOn = (m, d) => m.state === 'open' || (m.state === 'done' && !!m.lastDone && m.lastDone > d);
+  const overdueAt = (state, d) => list(state, 'maintenance').filter((m) => !!m.nextDue && m.nextDue < d && openOn(m, d)).sort(byDue);
+  const dueWithin = (state, d, days) => { const end = addDays(d, days); return list(state, 'maintenance').filter((m) => !!m.nextDue && m.nextDue >= d && m.nextDue <= end && openOn(m, d)).sort(byDue); };
+  const ytdCost = (state, today) => {
+    const from = yearOf(today) + '-01-01';
+    return list(state, 'maintenance').filter((m) => m.state === 'done' && m.lastDone && m.lastDone >= from && m.lastDone <= today && typeof m.cost === 'number').reduce((a, m) => a + m.cost, 0);
+  };
+
+  // ---- completion: records the date and cost and PROPOSES the next one ----
+  const keyOf = (m) => (m.propertyId || '') + '|' + (m.vehicleId || '') + '|' + m.title.trim().toLowerCase();
+  function proposeNext(item) {
+    if (!item || item.cadence === 'once' || !item.lastDone) return null;
+    return { fromId: item.id, title: item.title, area: item.area, cadence: item.cadence, everyDays: item.everyDays, propertyId: item.propertyId, vehicleId: item.vehicleId, vendor: item.vendor, nextDue: nextDate(item.lastDone, item.cadence, item.everyDays) };
+  }
+  // Finished recurring tasks that have no open successor yet: the latest finished item of each task, offered for confirmation.
+  function pendingProposals(state) {
+    const open = new Set(list(state, 'maintenance').filter((m) => m.state === 'open').map(keyOf)), latest = new Map();
+    for (const m of list(state, 'maintenance')) {
+      if (m.state !== 'done' || m.cadence === 'once' || !m.lastDone) continue;
+      const k = keyOf(m), cur = latest.get(k);
+      if (!cur || m.lastDone >= cur.lastDone) latest.set(k, m);
+    }
+    const out = [];
+    for (const [k, m] of latest) {
+      if (open.has(k)) continue;
+      let p = null;
+      try { p = proposeNext(m); } catch (e) { p = null; }
+      if (p) out.push(p);
+    }
+    return out.sort((a, b) => a.nextDue.localeCompare(b.nextDue) || a.title.localeCompare(b.title));
+  }
+  const find = (state, id) => { const m = list(state, 'maintenance').find((x) => x.id === id); if (!m) throw new Error('Maintenance item not found'); return m; };
+  const NUM_RE = /^\d+(\.\d{1,2})?$/;
+  // Dollars typed by the user to integer cents; blank is "none".
+  function toCents(v, name) {
+    if (v === undefined || v === null || v === '') return undefined;
+    const s = typeof v === 'number' ? String(v) : String(v).trim().replace(/^\$/, '').replace(/,/g, '');
+    if (!NUM_RE.test(s)) throw new Error((name || 'Amount') + ' must be a positive amount such as 120 or 59.99');
+    const c = Math.round(Number(s) * 100);
+    if (c > MAX_CENTS) throw new Error((name || 'Amount') + ' is too large');
+    return c;
+  }
+  function toInt(v, lo, hi, name) {
+    if (v === undefined || v === null || v === '') return undefined;
+    const s = String(v).trim();
+    if (!/^\d{1,9}$/.test(s) || +s < lo || +s > hi) throw new Error(name + ' must be a whole number from ' + lo + ' to ' + hi);
+    return +s;
+  }
+  function addMaintenance(state, input) {
+    const m = list(state, 'maintenance');
+    if (m.length >= MAINT_CAP) throw new Error('You can keep up to ' + MAINT_CAP + ' maintenance items');
+    const o = {
+      id: L.store.newId(), title: input.title, area: input.area || '', cadence: input.cadence || 'once', vendor: input.vendor || '', notes: input.notes || '', state: 'open',
+    };
+    if (typeof o.title !== 'string' || !o.title.trim()) throw new Error('Enter a title.');
+    if (input.propertyId) { if (!list(state, 'properties').some((p) => p.id === input.propertyId)) throw new Error('Property not found'); o.propertyId = input.propertyId; }
+    if (input.vehicleId) { if (!list(state, 'vehicles').some((v) => v.id === input.vehicleId)) throw new Error('Vehicle not found'); o.vehicleId = input.vehicleId; }
+    if (o.cadence === 'custom') { o.everyDays = toInt(input.everyDays, 1, MAX_DAYS, 'Repeat days'); if (o.everyDays === undefined) throw new Error('Repeat days must be a whole number from 1 to ' + MAX_DAYS); }
+    if (input.nextDue) o.nextDue = input.nextDue;
+    if (input.lastDone) o.lastDone = input.lastDone;
+    const c = toCents(input.cost, 'Cost'); if (c !== undefined) o.cost = c;
+    const od = toInt(input.odometer, 0, MAX_ODO, 'Odometer'); if (od !== undefined) o.odometer = od;
+    const clean = cleanMaintenance([o], state.properties, state.vehicles)[0];
+    if (o.cadence !== 'once' && !clean.nextDue && !clean.lastDone) throw new Error('A repeating task needs a next due date.');
+    m.push(clean);
+    state.maintenance = m;
+    return clean;
+  }
+  // Marks an open item done on `doneDate` (never in the future relative to `today` when given). Returns the proposal, if any.
+  function completeMaintenance(state, id, input, today) {
+    const m = find(state, id);
+    if (m.state !== 'open') throw new Error('That task is already closed');
+    const d = (input && input.doneDate) || today;
+    if (!isDate(d)) throw new Error('Date must be a valid date');
+    if (today && d > today) throw new Error('The done date cannot be in the future');
+    const c = toCents(input && input.cost, 'Cost'), od = toInt(input && input.odometer, 0, MAX_ODO, 'Odometer'); // validate everything before changing anything
+    m.lastDone = d; m.state = 'done';
+    if (c !== undefined) m.cost = c;
+    if (od !== undefined) {
+      m.odometer = od;
+      const v = m.vehicleId && list(state, 'vehicles').find((x) => x.id === m.vehicleId);
+      if (v && (v.odometer === undefined || od > v.odometer)) v.odometer = od;
+    }
+    return proposeNext(m);
+  }
+  // Creates the proposed next task after the user's confirmation. `nextDue` lets the user adjust the date first.
+  function confirmNext(state, fromId, nextDueOverride) {
+    const p = pendingProposals(state).find((x) => x.fromId === fromId);
+    if (!p) throw new Error('There is nothing to confirm for that task');
+    const src = find(state, fromId);
+    let due = p.nextDue;
+    if (nextDueOverride) { if (!isDate(nextDueOverride)) throw new Error('Date must be a valid date'); due = nextDueOverride; }
+    if (list(state, 'maintenance').length >= MAINT_CAP) throw new Error('You can keep up to ' + MAINT_CAP + ' maintenance items');
+    const o = { id: L.store.newId(), title: src.title, area: src.area, cadence: src.cadence, vendor: src.vendor, notes: src.notes, state: 'open', nextDue: due, lastDone: src.lastDone };
+    if (src.everyDays !== undefined) o.everyDays = src.everyDays;
+    if (src.propertyId) o.propertyId = src.propertyId;
+    if (src.vehicleId) o.vehicleId = src.vehicleId;
+    const clean = cleanMaintenance([o], state.properties, state.vehicles)[0];
+    state.maintenance.push(clean);
+    return clean;
+  }
+  // The user does not want this task to repeat: it becomes a one-off record and the proposal goes away.
+  function stopRepeating(state, fromId) {
+    const m = find(state, fromId);
+    m.cadence = 'once'; delete m.everyDays;
+    return m;
+  }
+  function skipMaintenance(state, id) { const m = find(state, id); if (m.state !== 'open') throw new Error('That task is already closed'); m.state = 'skipped'; return m; }
+  function deleteMaintenance(state, id) { find(state, id); state.maintenance = state.maintenance.filter((x) => x.id !== id); }
+
+  // ---- properties and vehicles ----
+  function addProperty(state, input) {
+    if (list(state, 'properties').length >= PROPERTY_CAP) throw new Error('You can keep up to ' + PROPERTY_CAP + ' properties');
+    const o = cleanProperties([{ id: L.store.newId(), name: input.name, kind: input.kind || 'house', archived: false }])[0];
+    state.properties = list(state, 'properties').concat([o]);
+    return o;
+  }
+  function addVehicle(state, input) {
+    if (list(state, 'vehicles').length >= VEHICLE_CAP) throw new Error('You can keep up to ' + VEHICLE_CAP + ' vehicles');
+    const raw = { id: L.store.newId(), name: input.name, odometerUnit: input.odometerUnit || 'mi', archived: false };
+    const yr = toInt(input.year, 1900, 2200, 'Year'); if (yr !== undefined) raw.year = yr;
+    const od = toInt(input.odometer, 0, MAX_ODO, 'Odometer'); if (od !== undefined) raw.odometer = od;
+    const o = cleanVehicles([raw])[0];
+    state.vehicles = list(state, 'vehicles').concat([o]);
+    return o;
+  }
+  // Deleting a property or vehicle keeps its maintenance items and unlinks them. Returns how many were unlinked.
+  function deleteProperty(state, id) {
+    if (!list(state, 'properties').some((p) => p.id === id)) throw new Error('Property not found');
+    let n = 0;
+    for (const m of list(state, 'maintenance')) if (m.propertyId === id) { delete m.propertyId; n++; }
+    state.properties = state.properties.filter((p) => p.id !== id);
+    return n;
+  }
+  function deleteVehicle(state, id) {
+    if (!list(state, 'vehicles').some((v) => v.id === id)) throw new Error('Vehicle not found');
+    let n = 0;
+    for (const m of list(state, 'maintenance')) if (m.vehicleId === id) { delete m.vehicleId; n++; }
+    state.vehicles = state.vehicles.filter((v) => v.id !== id);
+    return n;
+  }
+  const linkedCount = (state, k, id) => list(state, 'maintenance').filter((m) => m[k] === id).length;
+  function setArchived(state, coll, id, flag) {
+    const x = list(state, coll).find((y) => y.id === id);
+    if (!x) throw new Error('Not found');
+    x.archived = !!flag;
+  }
+  function setOdometer(state, id, value) {
+    const v = list(state, 'vehicles').find((x) => x.id === id);
+    if (!v) throw new Error('Vehicle not found');
+    const od = toInt(value, 0, MAX_ODO, 'Odometer');
+    if (od === undefined) delete v.odometer; else v.odometer = od;
+  }
+  // Latest finished service per vehicle (by date, then odometer).
+  function vehicleSummary(state) {
+    return liveVehicles(state).map((v) => {
+      const done = list(state, 'maintenance').filter((m) => m.vehicleId === v.id && m.state === 'done' && m.lastDone).sort((a, b) => b.lastDone.localeCompare(a.lastDone) || (b.odometer || 0) - (a.odometer || 0));
+      const last = done[0] || null;
+      return { id: v.id, name: v.name, year: v.year, odometer: v.odometer, unit: v.odometerUnit, services: done.length, last: last ? { date: last.lastDone, odometer: last.odometer, title: last.title } : null };
+    });
+  }
+
+  // ---- household bills: Money recurring items carrying a `household` flag (no second store) ----
+  // Monthly equivalent in integer cents: weekly x 52 / 12, yearly / 12, summed exactly then rounded once.
+  function householdBills(state) {
+    const items = list(state, 'recurring').filter((r) => r.household && r.active && r.type === 'expense');
+    let twelfths = 0;
+    const rows = items.map((r) => {
+      const c = Math.round(r.value * 100), f = r.cadence === 'weekly' ? 52 : r.cadence === 'monthly' ? 12 : 1;
+      twelfths += c * f;
+      return { id: r.id, title: r.title, cadence: r.cadence, cents: c, monthlyCents: Math.round(c * f / 12), nextDate: r.nextDate };
+    }).sort((a, b) => a.title.localeCompare(b.title));
+    return { items: rows, totalMonthlyCents: Math.round(twelfths / 12) };
+  }
+  function setHousehold(state, recurringId, flag) {
+    const r = list(state, 'recurring').find((x) => x.id === recurringId);
+    if (!r) throw new Error('Recurring item not found');
+    r.household = !!flag;
+    return r;
+  }
+
+  // ---- seasonal starter checklist: suggestions only, offered once, nothing is added until the user picks ----
+  const STARTER = Object.freeze([
+    { id: 'smoke-batteries', title: 'Test smoke and CO alarms', area: 'Safety', cadence: 'semiannual', month: 3 },
+    { id: 'hvac-filter', title: 'Replace HVAC filter', area: 'Heating and cooling', cadence: 'quarterly', month: 1 },
+    { id: 'gutters-fall', title: 'Clean gutters', area: 'Exterior', cadence: 'semiannual', month: 10 },
+    { id: 'furnace', title: 'Furnace service', area: 'Heating and cooling', cadence: 'annual', month: 9 },
+    { id: 'ac-service', title: 'Air conditioner service', area: 'Heating and cooling', cadence: 'annual', month: 4 },
+    { id: 'water-heater', title: 'Flush water heater', area: 'Plumbing', cadence: 'annual', month: 6 },
+    { id: 'dryer-vent', title: 'Clean dryer vent', area: 'Appliances', cadence: 'annual', month: 5 },
+    { id: 'chimney', title: 'Chimney inspection', area: 'Exterior', cadence: 'annual', month: 9 },
+    { id: 'faucets', title: 'Shut off outdoor faucets', area: 'Plumbing', cadence: 'annual', month: 10 },
+    { id: 'roof', title: 'Roof check', area: 'Exterior', cadence: 'annual', month: 4 },
+    { id: 'sump', title: 'Test sump pump', area: 'Plumbing', cadence: 'semiannual', month: 3 },
+    { id: 'deck', title: 'Seal or stain deck', area: 'Exterior', cadence: 'annual', month: 5 },
+  ]);
+  // The first first-of-month in the item's month on or after `today`.
+  function starterDue(month, today) {
+    const y = +today.slice(0, 4), t = y + '-' + pad(month) + '-01';
+    return t >= today ? t : (y + 1) + '-' + pad(month) + '-01';
+  }
+  const starterOffer = (state) => (state && state.settings && state.settings.home && state.settings.home.starterDone ? [] : STARTER.slice());
+  function addStarter(state, ids, today) {
+    if (!Array.isArray(ids)) throw new Error('Choose the tasks to add');
+    if (!isDate(today)) throw new Error('today must be YYYY-MM-DD');
+    const picked = [...new Set(ids)].map((id) => STARTER.find((x) => x.id === id) || null);
+    if (picked.some((x) => !x)) throw new Error('Unknown checklist item');
+    const live = liveProps(state), made = [];
+    for (const s of picked) {
+      made.push(addMaintenance(state, { title: s.title, area: s.area, cadence: s.cadence, nextDue: starterDue(s.month, today), propertyId: live.length === 1 ? live[0].id : undefined }));
+    }
+    state.settings.home = { starterDone: true };
+    return made;
+  }
+  function dismissStarter(state) { state.settings.home = { starterDone: true }; }
+
+  // ---- summaries ----
+  function summary(state, today) {
+    if (!isDate(today)) throw new Error('today must be YYYY-MM-DD');
+    const bills = householdBills(state);
+    return {
+      overdue: overdueAt(state, today), due30: dueWithin(state, today, 30), ytdCostCents: ytdCost(state, today),
+      vehicles: vehicleSummary(state), bills, proposals: pendingProposals(state), starter: starterOffer(state),
+      hasData: hasData(state),
+    };
+  }
+  const hasData = (state) => list(state, 'properties').length + list(state, 'vehicles').length + list(state, 'maintenance').length > 0;
+  // Old home/due entries that the schema 6 upgrade kept (see admin.legacyDue) still count until the user deletes them.
+  const legacyOpen = (state) => list(state, 'entries').filter((e) => e.domain === 'home' && e.type === 'due' && e.status !== 'done');
+  function legacyCounts(state, from, days) {
+    const end = addDays(from, days);
+    let soon = 0, late = 0;
+    for (const e of legacyOpen(state)) { if (e.due < from) late++; else if (e.due <= end) soon++; }
+    return { soon, late };
+  }
+  function headline(state, today, R, fmt) {
+    if (!hasData(state) && legacyOpen(state).length) { // only old due entries: the old tile
+      const d = legacyCounts(state, today, 30);
+      return R('Due within 30 days', String(d.soon), d.soon, d.late ? d.late + ' overdue' : 'Nothing overdue');
+    }
+    const od = overdueAt(state, today).length, soon = dueWithin(state, today, 30).length;
+    return R('Tasks overdue', String(od), od, soon + ' due in 30 days');
+  }
+  // Number for the week ending `we` (digest and sparkline): maintenance tasks overdue on that day.
+  function weekValue(state, we) {
+    if (!hasData(state) && legacyOpen(state).length) return legacyCounts(state, we, 30).soon;
+    return overdueAt(state, we).length;
+  }
+  // Counts and totals only: never a title, vendor, area, note or name.
+  function digest(state, ws) {
+    const we = addDays(ws, 6);
+    return {
+      overdue: overdueAt(state, we).length, dueSoon: dueWithin(state, we, 30).length,
+      done: list(state, 'maintenance').filter((m) => m.state === 'done' && m.lastDone && m.lastDone >= ws && m.lastDone <= we).length,
+      ytdCostCents: ytdCost(state, we),
+    };
+  }
+  // Weekly review step: what came due in the week, what is due the week after, and finished tasks awaiting a decision.
+  function reviewWeek(state, ws) {
+    const we = addDays(ws, 6), nws = addDays(ws, 7), nwe = addDays(ws, 13), ms = list(state, 'maintenance');
+    return {
+      cameDue: ms.filter((m) => m.state === 'open' && m.nextDue && m.nextDue >= ws && m.nextDue <= we).sort(byDue),
+      overdue: ms.filter((m) => m.state === 'open' && m.nextDue && m.nextDue < ws).sort(byDue),
+      dueNext: ms.filter((m) => m.state === 'open' && m.nextDue && m.nextDue >= nws && m.nextDue <= nwe).sort(byDue),
+      proposals: pendingProposals(state),
+    };
+  }
+  // Linked goal metric: tasks overdue on a date; null when there are no maintenance items at all.
+  const overdueValue = (state, asOf) => (list(state, 'maintenance').length ? overdueAt(state, asOf).length : null);
+
+  L.home = {
+    PROPERTY_KINDS, CADENCES, CADENCE_LABEL, STARTER, PROPERTY_CAP, VEHICLE_CAP, MAINT_CAP,
+    dates: { isDate, addDays, addMonths, daysBetween, dayNo, fromDayNo, MAX_DATE },
+    nextDate, cleanProperties, cleanVehicles, cleanMaintenance, cleanRepeat, text, optDate, reqDate, optInt, ident, toCents, toInt,
+    liveProps, liveVehicles, overdueAt, dueWithin, ytdCost, proposeNext, pendingProposals, addMaintenance, completeMaintenance, confirmNext, stopRepeating,
+    skipMaintenance, deleteMaintenance, addProperty, addVehicle, deleteProperty, deleteVehicle, linkedCount, setArchived, setOdometer, vehicleSummary,
+    householdBills, setHousehold, starterOffer, starterDue, addStarter, dismissStarter, summary, headline, weekValue, digest, reviewWeek, overdueValue, hasData,
+  };
+})();
+
+;
+(function () {
+  'use strict';
+  // Admin (schema 6): renewals, subscriptions, a document index, tax checklist and the 30/60/90 day timeline.
+  // Same rules as home.js: pure functions, mutators run inside store.commit, completing a recurring renewal only PROPOSES the next one.
+  // The document index is a list of where things are kept, never the documents themselves: obvious secrets are refused.
+  const L = (globalThis.LifeOS = globalThis.LifeOS || {});
+  const V = () => L.validate;
+  const H = () => L.home;
+  const D = () => L.home.dates;
+
+  const RENEWAL_CAP = 2000, DOC_CAP = 1000, TAX_CAP = 1000;
+  const KINDS = Object.freeze(['insurance', 'registration', 'license', 'subscription', 'membership', 'warranty', 'tax', 'legal', 'other']);
+  const KIND_LABEL = Object.freeze({ insurance: 'Insurance', registration: 'Registration', license: 'License', subscription: 'Subscription', membership: 'Membership', warranty: 'Warranty', tax: 'Tax', legal: 'Legal', other: 'Other' });
+  const CADENCES = Object.freeze(['once', 'monthly', 'annual', 'custom']);
+  const CADENCE_LABEL = Object.freeze({ once: 'Once', monthly: 'Monthly', annual: 'Yearly', custom: 'Custom days' });
+  const TAX_STATES = Object.freeze(['needed', 'received', 'filed']);
+  const MAX_CENTS = 1e11;
+
+  const list = (state, k) => (state && Array.isArray(state[k]) ? state[k] : []);
+
+  // ---- secrets: the document index must never hold an ID number, card number or password ----
+  const SECRET_MESSAGE = 'That looks like an ID number or a card number. This index only records where a document is kept. Do not enter ID numbers, account numbers or passwords.';
+  function luhn(digits) {
+    let sum = 0, alt = false;
+    for (let i = digits.length - 1; i >= 0; i--) {
+      let n = digits.charCodeAt(i) - 48;
+      if (alt) { n *= 2; if (n > 9) n -= 9; }
+      sum += n; alt = !alt;
+    }
+    return sum % 10 === 0;
+  }
+  const YEAR = /^(19|20|21)\d\d$/;
+  // Before matching, fold what a paste can hide a number behind: compatibility forms (full-width digits), any script's decimal
+  // digits, invisible format characters (zero-width and bidi), any space (no-break, thin, ideographic) and any dash.
+  function digitOf(ch) {
+    let cp = ch.codePointAt(0), zero = cp;
+    while (zero > 0 && /\p{Nd}/u.test(String.fromCodePoint(zero - 1))) zero--;
+    return String((cp - zero) % 10);
+  }
+  function fold(s) {
+    return s.normalize('NFKC').replace(/\p{Cf}/gu, '').replace(/\p{Nd}/gu, (c) => (c >= '0' && c <= '9' ? c : digitOf(c)))
+      .replace(/[\p{Zs}\t]/gu, ' ').replace(/\p{Pd}|\u2212/gu, '-');
+  }
+  // One separator between digit groups: a space, dash or dot, with optional spaces around it ("4111 - 1111", "4111  1111").
+  const SEP = '(?: *[-.] *| +)';
+  const SSN_RE = new RegExp('(?<!\\d' + SEP + '?)\\d{3}' + SEP + '\\d{2}' + SEP + '\\d{4}(?!' + SEP + '?\\d)');
+  const CARD4_RE = new RegExp('(?<!\\d)(\\d{4})' + SEP + '(\\d{4})' + SEP + '(\\d{4})' + SEP + '(\\d{1,7})(?!\\d)', 'g');
+  const CARD465_RE = new RegExp('(?<!\\d)(\\d{4})' + SEP + '(\\d{6})' + SEP + '(\\d{4,5})(?!\\d)', 'g');
+  // True for: a 9-digit SSN shape (123-45-6789, 123 45 6789, 123.45.6789, 123456789), or a 13 to 19 digit number that passes the
+  // Luhn check, either run together or grouped like a card (4-4-4-4, 4-6-5) with spaces, dashes or dots. Years, dates, phone
+  // numbers and amounts do not match.
+  function looksSecret(s0) {
+    if (typeof s0 !== 'string' || !s0) return false;
+    const s = fold(s0);
+    if (SSN_RE.test(s)) return true;
+    if (/(?<![\d.,])\d{9}(?!\d|[.,]\d)/.test(s)) return true;
+    for (const m of s.matchAll(/(?<!\d)\d{13,19}(?!\d)/g)) if (luhn(m[0])) return true;
+    for (const m of s.matchAll(CARD4_RE)) {
+      const digits = m[1] + m[2] + m[3] + m[4];
+      if (digits.length >= 13 && digits.length <= 19 && !(YEAR.test(m[1]) && YEAR.test(m[2]) && YEAR.test(m[3]) && YEAR.test(m[4])) && luhn(digits)) return true;
+    }
+    for (const m of s.matchAll(CARD465_RE)) if (luhn(m[1] + m[2] + m[3])) return true;
+    return false;
+  }
+  const SECRET_MESSAGE_FIELD = 'That looks like an ID number or a card number. Do not enter ID numbers, account numbers or passwords here.';
+  const checkNoSecrets = (fields, msg) => { for (const f of fields) if (looksSecret(f)) throw new Error(msg || SECRET_MESSAGE); };
+
+  // ---- validation ----
+  const T = (v, max, name, empty) => H().text(v, max, name, empty);
+  function cleanRenewals(list_) {
+    if (list_ === undefined) return [];
+    const seen = new Set();
+    return V().arr(list_, RENEWAL_CAP, 'renewals').map((x) => {
+      const id = H().ident(x, seen, 'renewal');
+      const o = { id, title: T(x.title, 200, 'renewal title'), kind: V().oneOf(x.kind, KINDS, 'renewal kind'), provider: T(x.provider, 200, 'provider', true), dueDate: H().reqDate(x.dueDate, 'due date') };
+      Object.assign(o, H().cleanRepeat(x, CADENCES, 'renewal'));
+      const amt = H().optInt(x.amount, 0, MAX_CENTS, 'amount'); if (amt !== undefined) o.amount = amt;
+      o.autoRenews = V().bool(x.autoRenews, 'autoRenews', false);
+      o.state = V().oneOf(x.state, ['open', 'done', 'cancelled'], 'renewal state');
+      o.notes = T(x.notes, 2000, 'notes', true);
+      const rv = H().optDate(x.reviewedOn, 'reviewed date'); if (rv) o.reviewedOn = rv;
+      const dn = H().optDate(x.doneOn, 'done date'); if (dn) o.doneOn = dn;
+      if (x.createdAt !== undefined && x.createdAt !== null) o.createdAt = V().ts(x.createdAt, 'createdAt');
+      return o;
+    });
+  }
+  function cleanDocuments(list_) {
+    if (list_ === undefined) return [];
+    const seen = new Set();
+    return V().arr(list_, DOC_CAP, 'documents').map((x) => {
+      const id = H().ident(x, seen, 'document');
+      const o = { id, title: T(x.title, 200, 'document title'), kind: T(x.kind, 60, 'document kind', true), whereKept: T(x.whereKept, 200, 'where kept', true) };
+      const ex = H().optDate(x.expires, 'expiry date'); if (ex) o.expires = ex;
+      o.notes = T(x.notes, 2000, 'notes', true);
+      if (looksSecret(o.title) || looksSecret(o.kind) || looksSecret(o.whereKept) || looksSecret(o.notes)) V().fail('a document entry looks like it holds an ID or card number');
+      return o;
+    });
+  }
+  function cleanTaxItems(list_) {
+    if (list_ === undefined) return [];
+    const seen = new Set();
+    return V().arr(list_, TAX_CAP, 'tax items').map((x) => {
+      const id = H().ident(x, seen, 'tax item');
+      const o = { id, year: V().num(x.year, 1990, 2200, 'tax year', true), title: T(x.title, 200, 'tax item title'), state: V().oneOf(x.state, TAX_STATES, 'tax item state') };
+      const dd = H().optDate(x.dueDate, 'due date'); if (dd) o.dueDate = dd;
+      o.notes = T(x.notes, 2000, 'notes', true);
+      return o;
+    });
+  }
+
+  // ---- renewals ----
+  const keyOf = (r) => r.kind + '|' + r.title.trim().toLowerCase() + '|' + r.provider.trim().toLowerCase();
+  const find = (state, id) => { const r = list(state, 'renewals').find((x) => x.id === id); if (!r) throw new Error('Renewal not found'); return r; };
+  function addRenewal(state, input, today) {
+    if (list(state, 'renewals').length >= RENEWAL_CAP) throw new Error('You can keep up to ' + RENEWAL_CAP + ' renewals');
+    if (!input || typeof input.title !== 'string' || !input.title.trim()) throw new Error('Enter a title.');
+    if (!D().isDate(input.dueDate)) throw new Error('Enter a valid due date.');
+    checkNoSecrets([input.title, input.provider, input.notes], SECRET_MESSAGE_FIELD); // a licence, policy card or payment card number pasted here is refused too
+    const o = {
+      id: L.store.newId(), title: input.title, kind: input.kind || 'other', provider: input.provider || '', dueDate: input.dueDate,
+      cadence: input.cadence || 'once', autoRenews: !!input.autoRenews, state: 'open', notes: input.notes || '',
+    };
+    if (o.cadence === 'custom') { o.everyDays = H().toInt(input.everyDays, 1, 3650, 'Repeat days'); if (o.everyDays === undefined) throw new Error('Repeat days must be a whole number from 1 to 3650'); }
+    const c = H().toCents(input.amount, 'Amount'); if (c !== undefined) o.amount = c;
+    if (today && D().isDate(today)) { o.reviewedOn = today; o.createdAt = new Date().toISOString(); }
+    const clean = cleanRenewals([o])[0];
+    state.renewals = list(state, 'renewals').concat([clean]);
+    return clean;
+  }
+  // Monthly and yearly renewals keep their day of the month: a renewal due on the 31st falls on the 28th in February and goes back to
+  // the 31st in March (not the 28th for ever). The day comes from the earlier renewals of the same chain (same kind, title and
+  // provider): walking back while each one sat on the last day of its month, the largest day seen is the anchor.
+  const lastDay = (d) => new Date(Date.UTC(+d.slice(0, 4), +d.slice(5, 7), 0)).getUTCDate();
+  const isLastDay = (d) => +d.slice(8, 10) === lastDay(d);
+  function anchorDay(chain, r) {
+    if ((r.cadence !== 'monthly' && r.cadence !== 'annual') || !isLastDay(r.dueDate)) return undefined;
+    let anchor = +r.dueDate.slice(8, 10);
+    const before = (chain || []).filter((x) => x !== r && x.dueDate < r.dueDate).sort((a, b) => b.dueDate.localeCompare(a.dueDate));
+    for (const x of before) {
+      anchor = Math.max(anchor, +x.dueDate.slice(8, 10));
+      if (!isLastDay(x.dueDate)) break;
+    }
+    return anchor;
+  }
+  const chainOf = (state, r) => list(state, 'renewals').filter((x) => keyOf(x) === keyOf(r));
+  function proposeNext(r, anchor) {
+    if (!r || r.cadence === 'once') return null;
+    let due = H().nextDate(r.dueDate, r.cadence, r.everyDays);
+    if (anchor) due = due.slice(0, 8) + String(Math.min(anchor, lastDay(due))).padStart(2, '0');
+    return { fromId: r.id, title: r.title, kind: r.kind, provider: r.provider, cadence: r.cadence, everyDays: r.everyDays, amount: r.amount, autoRenews: r.autoRenews, dueDate: due };
+  }
+  function pendingRenewals(state) {
+    const open = new Set(list(state, 'renewals').filter((r) => r.state === 'open').map(keyOf)), latest = new Map(), chains = new Map();
+    for (const r of list(state, 'renewals')) {
+      const k = keyOf(r);
+      if (!chains.has(k)) chains.set(k, []);
+      chains.get(k).push(r);
+      if (r.state !== 'done' || r.cadence === 'once') continue;
+      const cur = latest.get(k);
+      if (!cur || r.dueDate >= cur.dueDate) latest.set(k, r);
+    }
+    const out = [];
+    for (const [k, r] of latest) {
+      if (open.has(k)) continue;
+      let p = null;
+      try { p = proposeNext(r, anchorDay(chains.get(k), r)); } catch (e) { p = null; }
+      if (p) out.push(p);
+    }
+    return out.sort((a, b) => a.dueDate.localeCompare(b.dueDate) || a.title.localeCompare(b.title));
+  }
+  function completeRenewal(state, id, doneOn, today) {
+    const r = find(state, id);
+    if (r.state !== 'open') throw new Error('That renewal is already closed');
+    const d = doneOn || today;
+    if (!D().isDate(d)) throw new Error('Date must be a valid date');
+    if (today && d > today) throw new Error('The done date cannot be in the future');
+    r.state = 'done'; r.doneOn = d;
+    return proposeNext(r, anchorDay(chainOf(state, r), r));
+  }
+  // Creates the proposed next renewal after the user's confirmation.
+  function confirmRenewal(state, fromId, dueOverride) {
+    const p = pendingRenewals(state).find((x) => x.fromId === fromId);
+    if (!p) throw new Error('There is nothing to confirm for that renewal');
+    const src = find(state, fromId);
+    let due = p.dueDate;
+    if (dueOverride) { if (!D().isDate(dueOverride)) throw new Error('Date must be a valid date'); due = dueOverride; }
+    if (list(state, 'renewals').length >= RENEWAL_CAP) throw new Error('You can keep up to ' + RENEWAL_CAP + ' renewals');
+    const o = { id: L.store.newId(), title: src.title, kind: src.kind, provider: src.provider, dueDate: due, cadence: src.cadence, autoRenews: src.autoRenews, state: 'open', notes: src.notes, createdAt: new Date().toISOString() };
+    if (src.everyDays !== undefined) o.everyDays = src.everyDays;
+    if (src.amount !== undefined) o.amount = src.amount;
+    if (src.reviewedOn) o.reviewedOn = src.reviewedOn;
+    const clean = cleanRenewals([o])[0];
+    state.renewals.push(clean);
+    return clean;
+  }
+  function stopRenewing(state, id) { const r = find(state, id); r.cadence = 'once'; delete r.everyDays; return r; }
+  function cancelRenewal(state, id) { const r = find(state, id); if (r.state !== 'open') throw new Error('That renewal is already closed'); r.state = 'cancelled'; return r; }
+  function markReviewed(state, id, today) { const r = find(state, id); if (!D().isDate(today)) throw new Error('today must be YYYY-MM-DD'); r.reviewedOn = today; return r; }
+  function deleteRenewal(state, id) { find(state, id); state.renewals = state.renewals.filter((x) => x.id !== id); }
+
+  // ---- subscriptions: monthly and annual run-rate in integer cents ----
+  // Annual cost of one subscription from its amount and repeat; null for a one-off or when no amount is given.
+  function annualCents(r) {
+    if (typeof r.amount !== 'number') return null;
+    if (r.cadence === 'monthly') return r.amount * 12;
+    if (r.cadence === 'annual') return r.amount;
+    if (r.cadence === 'custom') return Math.round(r.amount * 365 / r.everyDays);
+    return null;
+  }
+  function subscriptions(state, today) {
+    if (!D().isDate(today)) throw new Error('today must be YYYY-MM-DD');
+    const items = list(state, 'renewals').filter((r) => r.kind === 'subscription' && r.state === 'open').map((r) => {
+      const a = annualCents(r);
+      return {
+        id: r.id, title: r.title, provider: r.provider, cadence: r.cadence, amount: r.amount === undefined ? null : r.amount, dueDate: r.dueDate, autoRenews: r.autoRenews,
+        annualCents: a, monthlyCents: a === null ? null : Math.round(a / 12), reviewedOn: r.reviewedOn || null,
+        stale: !r.reviewedOn || D().addMonths(r.reviewedOn, 12) < today,
+      };
+    }).sort((a, b) => a.title.localeCompare(b.title));
+    const annual = items.reduce((s, x) => s + (x.annualCents || 0), 0);
+    return { items, annualCents: annual, monthlyCents: Math.round(annual / 12), staleCount: items.filter((x) => x.stale).length };
+  }
+
+  // ---- document index ----
+  function addDocument(state, input) {
+    if (list(state, 'documents').length >= DOC_CAP) throw new Error('You can keep up to ' + DOC_CAP + ' documents');
+    if (!input || typeof input.title !== 'string' || !input.title.trim()) throw new Error('Enter a title.');
+    checkNoSecrets([input.title, input.kind, input.whereKept, input.notes]);
+    const o = { id: L.store.newId(), title: input.title, kind: input.kind || '', whereKept: input.whereKept || '', notes: input.notes || '' };
+    if (input.expires) o.expires = input.expires;
+    const clean = cleanDocuments([o])[0];
+    state.documents = list(state, 'documents').concat([clean]);
+    return clean;
+  }
+  function deleteDocument(state, id) {
+    if (!list(state, 'documents').some((x) => x.id === id)) throw new Error('Document not found');
+    state.documents = state.documents.filter((x) => x.id !== id);
+  }
+
+  // ---- tax checklist (no tax advice, no computed tax) ----
+  function addTaxItem(state, input) {
+    if (list(state, 'taxItems').length >= TAX_CAP) throw new Error('You can keep up to ' + TAX_CAP + ' tax items');
+    if (!input || typeof input.title !== 'string' || !input.title.trim()) throw new Error('Enter a title.');
+    checkNoSecrets([input.title, input.notes], SECRET_MESSAGE_FIELD); // an SSN or card number pasted into a tax note is refused too
+    const yr = H().toInt(input.year, 1990, 2200, 'Tax year');
+    if (yr === undefined) throw new Error('Enter a tax year.');
+    const o = { id: L.store.newId(), year: yr, title: input.title, state: input.state || 'needed', notes: input.notes || '' };
+    if (input.dueDate) o.dueDate = input.dueDate;
+    const clean = cleanTaxItems([o])[0];
+    state.taxItems = list(state, 'taxItems').concat([clean]);
+    return clean;
+  }
+  function setTaxState(state, id, to) {
+    const t = list(state, 'taxItems').find((x) => x.id === id);
+    if (!t) throw new Error('Tax item not found');
+    if (!TAX_STATES.includes(to)) throw new Error('Unknown tax item state');
+    t.state = to;
+    return t;
+  }
+  function deleteTaxItem(state, id) {
+    if (!list(state, 'taxItems').some((x) => x.id === id)) throw new Error('Tax item not found');
+    state.taxItems = state.taxItems.filter((x) => x.id !== id);
+  }
+  function taxByYear(state) {
+    const m = new Map();
+    for (const t of list(state, 'taxItems')) { if (!m.has(t.year)) m.set(t.year, []); m.get(t.year).push(t); }
+    return [...m.entries()].sort((a, b) => b[0] - a[0]).map(([year, items]) => ({
+      year, items: items.slice().sort((a, b) => (a.dueDate || '9999').localeCompare(b.dueDate || '9999') || a.title.localeCompare(b.title)),
+      needed: items.filter((x) => x.state === 'needed').length, received: items.filter((x) => x.state === 'received').length, filed: items.filter((x) => x.state === 'filed').length,
+    }));
+  }
+
+  // ---- legacy: home/due entries from before schema 6 become renewals; nothing is dropped ----
+  // Title, due date, status, the entry's own date, its notes and its createdAt carry over. When the notes would not fit in
+  // 2,000 characters, or past the renewals cap, the original entry is kept as it was and listed under Admin (read only).
+  function legacyDue(entries, cap, newId) {
+    const renewals = [], gone = new Set();
+    const sorted = entries.filter((e) => e.domain === 'home' && e.type === 'due');
+    for (const e of sorted) {
+      if (renewals.length >= cap) break;
+      const notes = 'Imported from a Home due item dated ' + e.date + '.' + (e.notes ? ' ' + e.notes : '');
+      if (notes.length > 2000 || typeof e.due !== 'string' || !D().isDate(e.due)) continue;
+      const r = { id: typeof e.id === 'string' && e.id && e.id.length <= 100 ? e.id : newId(), title: e.title, kind: 'other', provider: '', dueDate: e.due, cadence: 'once', autoRenews: false, state: e.status === 'done' ? 'done' : 'open', notes };
+      if (e.createdAt !== undefined) r.createdAt = e.createdAt;
+      renewals.push(r); gone.add(e);
+    }
+    return { renewals, entries: entries.filter((e) => !gone.has(e)) };
+  }
+  const legacyEntries = (state) => list(state, 'entries').filter((e) => e.domain === 'home' && e.type === 'due').sort((a, b) => a.due.localeCompare(b.due) || a.title.localeCompare(b.title));
+
+  // ---- everything with a date, for the timeline, the digest, the tile and the goal metric ----
+  // `closed` is the date an item stopped counting: null while open, '' when closed with no known date, else the day it closed.
+  function dated(state) {
+    const out = [];
+    for (const r of list(state, 'renewals')) out.push({ src: 'renewal', id: r.id, title: r.title, kind: r.kind, date: r.dueDate, closed: r.state === 'open' ? null : r.state === 'done' && r.doneOn ? r.doneOn : '' });
+    for (const t of list(state, 'taxItems')) if (t.dueDate) out.push({ src: 'tax', id: t.id, title: t.title, kind: 'tax ' + t.year, date: t.dueDate, closed: t.state === 'filed' ? '' : null });
+    for (const d of list(state, 'documents')) if (d.expires) out.push({ src: 'document', id: d.id, title: d.title, kind: 'expires', date: d.expires, closed: null });
+    for (const e of legacyEntries(state)) out.push({ src: 'legacy', id: e.id, title: e.title, kind: 'older due item', date: e.due, closed: e.status === 'done' ? '' : null });
+    return out;
+  }
+  const openOn = (x, d) => x.closed === null || (x.closed !== '' && x.closed > d);
+  const order = (a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title);
+  const overdueAt = (state, d) => dated(state).filter((x) => x.date < d && openOn(x, d)).sort(order);
+  const dueWithin = (state, d, days) => { const end = D().addDays(d, days); return dated(state).filter((x) => x.date >= d && x.date <= end && openOn(x, d)).sort(order); };
+  function timeline(state, today) {
+    if (!D().isDate(today)) throw new Error('today must be YYYY-MM-DD');
+    const e30 = D().addDays(today, 30), e60 = D().addDays(today, 60), e90 = D().addDays(today, 90);
+    const open = dated(state).filter((x) => openOn(x, today)).sort(order);
+    const t = { overdue: [], d30: [], d60: [], d90: [] };
+    for (const x of open) {
+      if (x.date < today) t.overdue.push(x);
+      else if (x.date <= e30) t.d30.push(x);
+      else if (x.date <= e60) t.d60.push(x);
+      else if (x.date <= e90) t.d90.push(x);
+    }
+    return t;
+  }
+  const hasData = (state) => list(state, 'renewals').length + list(state, 'documents').length + list(state, 'taxItems').length + legacyEntries(state).length > 0;
+  function headline(state, today, R) {
+    const od = overdueAt(state, today).length, soon = dueWithin(state, today, 30).length;
+    return R('Due within 30 days', String(soon), soon, od + ' overdue');
+  }
+  const weekValue = (state, we) => dueWithin(state, we, 30).length;
+  // Counts and totals only: never a title, provider, location or note.
+  function digest(state, ws) {
+    const we = D().addDays(ws, 6);
+    return {
+      overdue: overdueAt(state, we).length, dueSoon: dueWithin(state, we, 30).length,
+      done: list(state, 'renewals').filter((r) => r.state === 'done' && r.doneOn && r.doneOn >= ws && r.doneOn <= we).length,
+      runRateCents: subscriptions(state, we).monthlyCents,
+    };
+  }
+  function reviewWeek(state, ws) {
+    const we = D().addDays(ws, 6), nws = D().addDays(ws, 7), nwe = D().addDays(ws, 13), all = dated(state).filter((x) => openOn(x, we));
+    return {
+      cameDue: all.filter((x) => x.date >= ws && x.date <= we).sort(order),
+      overdue: all.filter((x) => x.date < ws).sort(order),
+      dueNext: all.filter((x) => x.date >= nws && x.date <= nwe).sort(order),
+      proposals: pendingRenewals(state),
+    };
+  }
+  // Linked goal metric: admin items overdue on a date; null when nothing is tracked.
+  const overdueValue = (state, asOf) => (hasData(state) ? overdueAt(state, asOf).length : null);
+
+  L.admin = {
+    KINDS, KIND_LABEL, CADENCES, CADENCE_LABEL, TAX_STATES, RENEWAL_CAP, DOC_CAP, TAX_CAP, SECRET_MESSAGE, SECRET_MESSAGE_FIELD,
+    looksSecret, luhn, checkNoSecrets, anchorDay, cleanRenewals, cleanDocuments, cleanTaxItems, addRenewal, proposeNext, pendingRenewals, completeRenewal, confirmRenewal,
+    stopRenewing, cancelRenewal, markReviewed, deleteRenewal, annualCents, subscriptions, addDocument, deleteDocument, addTaxItem, setTaxState, deleteTaxItem, taxByYear,
+    legacyDue, legacyEntries, dated, overdueAt, dueWithin, timeline, headline, weekValue, digest, reviewWeek, overdueValue, hasData,
+  };
 })();
 
 ;
@@ -1802,6 +2598,8 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     mk('habitRate', 'Daily checks completed (7 days)', 'health', 'percent'),
     mk('outcomesPerWeek', 'Outcomes done per week', 'work', 'count'),
     mk('pipelineWon', 'Pipeline items won', 'work', 'count'),
+    mk('maintenanceOverdue', 'Maintenance tasks overdue', 'home', 'count'),
+    mk('adminOverdue', 'Admin items overdue', 'admin', 'count'),
   ]);
   // Body metrics are sensitive (SEC-32): goals on them never reach a digest, prompt or rules insight.
   const BODY = Object.freeze(['weight', 'bodyFat']);
@@ -1860,6 +2658,8 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       case 'outcomesPerWeek':
         if (!ents.some((e) => e.type === 'outcome' && e.date <= asOf)) return null;
         return m.weekOutcomes(state, m.weekStart(asOf)).filter((e) => e.status === 'done').length;
+      case 'maintenanceOverdue': return L.home.overdueValue(state, asOf);
+      case 'adminOverdue': return L.admin.overdueValue(state, asOf);
       case 'pipelineWon':
         if (!(state.pipeline || []).length) return null;
         return state.pipeline.filter((x) => x.stage === 'won' && x.updatedAt <= asOf).length;
@@ -2192,6 +2992,12 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
           if (prev > 0 && now !== prev) text = 'Average mood is ' + dir + ' from ' + prev + ' to ' + now + '.';
           else if (prev === 0) text = 'Average mood this week is ' + now + ' out of 5.';
           break;
+        case 'home':
+          text = 'Maintenance tasks overdue: ' + now + ' (last week ' + prev + ').';
+          break;
+        case 'admin':
+          text = 'Admin items due within 30 days: ' + now + ' (last week ' + prev + ').';
+          break;
         case 'goals':
           if (now === 0 && prev === 0) break;
           if (now !== prev) text = 'Share of goals on track moved ' + dir + ' from ' + prev + '% to ' + now + '%.';
@@ -2240,6 +3046,10 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       // Goals: counts only, never titles, notes or values; weight and body fat goals are not counted at all (SEC-32).
       const gc = dg.goals;
       if (gc && (gc.active > 0 || gc.achieved > 0)) lines.push('- goals detail: active ' + gc.active + ', ahead ' + gc.ahead + ', on track ' + gc.onTrack + ', behind ' + gc.behind + ', achieved this week ' + gc.achieved);
+      // Home and Admin: counts and money totals only, never a title, vendor, provider, name, location or note.
+      const hm = dg.home, ad = dg.admin, cur = state.settings.currency, fm = (c) => L.metrics.fmtMoney(c / 100, cur);
+      if (hm && (hm.overdue || hm.dueSoon || hm.done || hm.ytdCostCents)) lines.push('- home detail: maintenance overdue ' + hm.overdue + ', due within 30 days ' + hm.dueSoon + ', done this week ' + hm.done + ', year-to-date maintenance cost ' + fm(hm.ytdCostCents));
+      if (ad && (ad.overdue || ad.dueSoon || ad.done || ad.runRateCents)) lines.push('- admin detail: overdue ' + ad.overdue + ', due within 30 days ' + ad.dueSoon + ', done this week ' + ad.done + ', subscription run-rate per month ' + fm(ad.runRateCents));
       ctx = approvedAll.filter((i) => !isBodyInsight(i)).slice(-CTX_MAX);
       lines.push('Approved insights so far:');
     } else {
@@ -2652,7 +3462,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     return Array.from(new Uint8Array(d), (x) => x.toString(16).padStart(2, '0')).join('');
   }
   const count = (a) => (Array.isArray(a) ? a.length : 0);
-  const summary = (meta, state, schema) => ({ rev: meta.rev, updatedAt: meta.updatedAt, entries: count(state.entries), projects: count(state.projects), pipeline: count(state.pipeline), goals: count(state.goals), habits: count(state.habits), cycle: !!state.cycle, schema });
+  const summary = (meta, state, schema) => ({ rev: meta.rev, updatedAt: meta.updatedAt, entries: count(state.entries), projects: count(state.projects), pipeline: count(state.pipeline), goals: count(state.goals), maintenance: count(state.maintenance), renewals: count(state.renewals), habits: count(state.habits), cycle: !!state.cycle, schema });
 
   async function inspect(text, passphrase) {
     let envObj;
@@ -3007,7 +3817,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     var s = st();
     var body;
     try {
-      body = view.name === 'domain' ? (view.domain === 'money' ? moneyScreen(s) : view.domain === 'assets' ? assetsScreen(s) : view.domain === 'work' ? workScreen(s) : view.domain === 'health' ? healthScreen(s) : view.domain === 'goals' ? goalsScreen(s) : domainScreen(s))
+      body = view.name === 'domain' ? (view.domain === 'money' ? moneyScreen(s) : view.domain === 'assets' ? assetsScreen(s) : view.domain === 'work' ? workScreen(s) : view.domain === 'health' ? healthScreen(s) : view.domain === 'goals' ? goalsScreen(s) : view.domain === 'home' ? homeScreen(s) : view.domain === 'admin' ? adminScreen(s) : domainScreen(s))
         : view.name === 'review' ? reviewScreen(s)
         : view.name === 'memory' ? memoryScreen(s)
         : view.name === 'settings' ? settingsScreen(s)
@@ -3443,12 +4253,13 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     fillCats();
     var rCad = sel('rc-cadence', [{ v: 'weekly', t: 'Weekly' }, { v: 'monthly', t: 'Monthly' }, { v: 'yearly', t: 'Yearly' }], 'monthly');
     var rNext = h('input', { type: 'date', id: 'rc-next', value: t, required: true });
+    var rHouse = h('input', { type: 'checkbox', id: 'rc-household' });
     var recurring = details('recurring', 'Recurring items (' + s.recurring.length + ')', [
       h('p', { class: 'mut small', text: 'These only create a proposal on the due date. You confirm each one.' }),
       s.recurring.map(function (r) {
         return h('div', { class: 'item' },
           h('div', null, h('div', { class: 'entry-t', text: r.title }),
-            h('div', { class: 'mut small', text: (r.type === 'income' ? 'Income ' : 'Expense ') + moneyFmt(L.metrics.cents(r.value), cur) + ' | ' + r.cadence + ' | next ' + r.nextDate + (r.active ? '' : ' | paused') })),
+            h('div', { class: 'mut small', text: (r.type === 'income' ? 'Income ' : 'Expense ') + moneyFmt(L.metrics.cents(r.value), cur) + ' | ' + r.cadence + ' | next ' + r.nextDate + (r.active ? '' : ' | paused') + (r.household ? ' | household' : '') })),
           h('div', { class: 'row' },
             btn(r.active ? 'Pause' : 'Resume', function () { act(function () { return commit(function (x) { x.recurring.forEach(function (z) { if (z.id === r.id) z.active = !z.active; }); }, 'recurring toggle').then(function () { view.open = 'recurring'; render(); }); }); }, 'sm', { 'aria-label': (r.active ? 'Pause ' : 'Resume ') + r.title }),
             btn('Delete', function () { act(function () { return commit(function (x) { x.recurring = x.recurring.filter(function (z) { return z.id !== r.id; }); }, 'recurring delete').then(function () { view.open = 'recurring'; render(); }); }); }, 'sm bad', { 'aria-label': 'Delete ' + r.title })));
@@ -3457,12 +4268,12 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
         onsubmit: function (e) {
           e.preventDefault();
           act(function () {
-            var item = { id: L.store.newId(), title: rT.value.trim(), value: parseAmount(rA.value), category: rCat.value, type: rType.value, cadence: rCad.value, nextDate: rNext.value, active: true };
+            var item = { id: L.store.newId(), title: rT.value.trim(), value: parseAmount(rA.value), category: rCat.value, type: rType.value, cadence: rCad.value, nextDate: rNext.value, active: true, household: rType.value === 'expense' && rHouse.checked };
             if (!item.title) throw new Error('Enter a title.');
             return commit(function (x) { x.recurring.push(item); }, 'recurring add').then(function () { view.open = 'recurring'; setNotice('ok', 'Recurring item added.'); render(); });
           });
         }
-      }, field('Title', rT), field('Amount', rA), field('Type', rType), field('Category', rCat), field('Repeats', rCad), field('Next date', rNext), h('button', { type: 'submit', class: 'btn pri', text: 'Add recurring' })),
+      }, field('Title', rT), field('Amount', rA), field('Type', rType), field('Category', rCat), field('Repeats', rCad), field('Next date', rNext), h('label', { class: 'field check' }, rHouse, h('span', { text: 'Household bill (expenses only; shown under Home)' })), h('button', { type: 'submit', class: 'btn pri', text: 'Add recurring' })),
     ], view.open === 'recurring');
 
     // categories
@@ -3739,7 +4550,9 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       carryCard(s, wk, render),
       h('h2', { text: '3. Goals' }),
       reviewGoalsCard(s, wk, t),
-      h('h2', { text: '4. Your three priorities' }),
+      h('h2', { text: '4. Home and Admin' }),
+      reviewHomeAdminCard(s, wk),
+      h('h2', { text: '5. Your three priorities' }),
       h('form', {
         class: 'card',
         onsubmit: function (e) {
@@ -4429,6 +5242,354 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     return h('div', { class: 'card', id: 'rv-goals' }, kids);
   }
 
+  // ---------- home and admin (v0.7.0) ----------
+  // Nothing here creates a recurring item by itself: finishing a recurring task or renewal shows a proposal that needs a tap.
+  var CAD_OPTS = function (map, order) { return order.map(function (k) { return { v: k, t: map[k] }; }); };
+  var PROP_LABEL = { house: 'House', condo: 'Condo', rental: 'Rental', land: 'Land', other: 'Other' };
+  function homeName(s, m) {
+    var parts = [];
+    var live = L.home.liveProps(s);
+    if (m.propertyId && live.length > 1) { var p = (s.properties || []).filter(function (x) { return x.id === m.propertyId; })[0]; if (p) parts.push(p.name); }
+    if (m.vehicleId) { var v = (s.vehicles || []).filter(function (x) { return x.id === m.vehicleId; })[0]; if (v) parts.push(v.name); }
+    return parts.join(', ');
+  }
+  function dateField(id, label, val, req) { return field(label, h('input', { type: 'date', id: id, value: val || '', required: req ? true : null })); }
+  function markDoneDialog(s, m) {
+    var d = h('input', { type: 'date', id: 'md-date', value: today() });
+    var cost = h('input', { type: 'text', id: 'md-cost', inputmode: 'decimal', autocomplete: 'off', maxlength: '14' });
+    var odo = m.vehicleId ? h('input', { type: 'text', id: 'md-odo', inputmode: 'numeric', autocomplete: 'off', maxlength: '9' }) : null;
+    openDialog({
+      title: 'Mark this task done', yes: 'Mark done',
+      body: [h('p', { class: 'mut', text: m.title }), field('Date done', d), field('Cost (optional)', cost), odo ? field('Odometer reading (optional)', odo) : null,
+        m.cadence !== 'once' ? h('p', { class: 'small', text: 'The next one is only proposed. You confirm it before anything is created.' }) : null],
+      onYes: function () {
+        var prop;
+        return commit(function (x) { prop = L.home.completeMaintenance(x, m.id, { doneDate: d.value, cost: cost.value, odometer: odo ? odo.value : '' }, today()); }, 'maintenance done').then(function () {
+          setNotice('ok', prop ? 'Marked done. The next one is proposed below.' : 'Marked done.'); render();
+        });
+      }
+    });
+  }
+  function maintRow(s, m, cls) {
+    var sub = [];
+    if (m.nextDue) sub.push('due ' + m.nextDue);
+    if (m.cadence !== 'once') sub.push(L.home.CADENCE_LABEL[m.cadence] + (m.everyDays ? ' ' + m.everyDays + ' days' : ''));
+    if (m.area) sub.push(m.area);
+    var nm = homeName(s, m); if (nm) sub.push(nm);
+    return h('div', { class: 'item mt-row' + (cls ? ' ' + cls : ''), 'data-title': m.title },
+      h('div', null, h('div', { class: 'entry-t', text: m.title }), h('div', { class: 'mut small', text: sub.join(' | ') })),
+      h('div', { class: 'row' },
+        btn('Done', function () { markDoneDialog(s, m); }, 'sm pri mt-done', { 'aria-label': 'Mark ' + m.title + ' done' }),
+        btn('Skip', function () { act(function () { return commit(function (x) { L.home.skipMaintenance(x, m.id); }, 'maintenance skip').then(render); }); }, 'sm', { 'aria-label': 'Skip ' + m.title }),
+        btn('Delete', function () { act(function () { return commit(function (x) { L.home.deleteMaintenance(x, m.id); }, 'maintenance delete').then(render); }); }, 'sm bad', { 'aria-label': 'Delete ' + m.title })));
+  }
+  function proposalsCard(s, items, kind) {
+    if (!items.length) return null;
+    var isHome = kind === 'home';
+    return h('div', { class: 'card', id: isHome ? 'hm-proposals' : 'ad-proposals' },
+      h('h2', { text: 'Proposed next ' + (isHome ? 'tasks' : 'renewals') + ' (' + items.length + ')' }),
+      h('p', { class: 'mut small', text: 'Nothing is created until you confirm it.' }),
+      items.map(function (p) {
+        var due = h('input', { type: 'date', value: isHome ? p.nextDue : p.dueDate, 'aria-label': 'Next date for ' + p.title, class: 'prop-date' });
+        return h('div', { class: 'item prop-row', 'data-title': p.title },
+          h('div', null, h('div', { class: 'entry-t', text: p.title }), h('div', { class: 'mut small', text: 'Next due ' + (isHome ? p.nextDue : p.dueDate) })),
+          h('div', { class: 'row' }, due,
+            btn('Confirm', function () {
+              act(function () {
+                return commit(function (x) { if (isHome) L.home.confirmNext(x, p.fromId, due.value); else L.admin.confirmRenewal(x, p.fromId, due.value); }, isHome ? 'maintenance next confirmed' : 'renewal next confirmed')
+                  .then(function () { setNotice('ok', 'Created the next one.'); render(); });
+              });
+            }, 'sm pri prop-confirm', { 'aria-label': 'Confirm next ' + p.title }),
+            btn('Stop repeating', function () {
+              act(function () { return commit(function (x) { if (isHome) L.home.stopRepeating(x, p.fromId); else L.admin.stopRenewing(x, p.fromId); }, 'stop repeating').then(render); });
+            }, 'sm prop-stop', { 'aria-label': 'Stop repeating ' + p.title })));
+      }));
+  }
+  function homeScreen(s) {
+    var t = today(), H = L.home, cur = s.settings.currency, sum = H.summary(s, t);
+    var live = H.liveProps(s), vehicles = H.liveVehicles(s);
+    var stats = h('div', { class: 'stats' },
+      stat('Tasks overdue', String(sum.overdue.length), 'hm-overdue', sum.overdue.length ? 'bad-t' : ''),
+      stat('Due in 30 days', String(sum.due30.length), 'hm-due30'),
+      stat('Maintenance cost this year', moneyFmt(sum.ytdCostCents, cur), 'hm-ytd'),
+      stat('Household bills per month', moneyFmt(sum.bills.totalMonthlyCents, cur), 'hm-bills-total'));
+
+    // starter checklist (offered once; nothing is added until the user ticks and taps)
+    var starter = null;
+    if (sum.starter.length) {
+      var boxes = sum.starter.map(function (x) {
+        return h('label', { class: 'field check' }, h('input', { type: 'checkbox', 'data-starter': x.id }), h('span', { text: x.title + ' (' + H.CADENCE_LABEL[x.cadence].toLowerCase() + ')' }));
+      });
+      starter = h('div', { class: 'card', id: 'hm-starter' }, h('h2', { text: 'Seasonal checklist' }),
+        h('p', { class: 'mut small', text: 'A starting list. Nothing is added unless you tick it. This is offered once.' }), boxes,
+        h('div', { class: 'row' },
+          btn('Add ticked tasks', function () {
+            act(function () {
+              var ids = [];
+              boxes.forEach(function (b) { var i = b.querySelector('input'); if (i.checked) ids.push(i.getAttribute('data-starter')); });
+              if (!ids.length) throw new Error('Tick at least one task, or choose No thanks.');
+              return commit(function (x) { H.addStarter(x, ids, t); }, 'starter checklist').then(function () { setNotice('ok', 'Added ' + ids.length + (ids.length === 1 ? ' task.' : ' tasks.')); render(); });
+            });
+          }, 'sm pri', { id: 'hm-starter-go' }),
+          btn('No thanks', function () { act(function () { return commit(function (x) { H.dismissStarter(x); }, 'starter dismissed').then(render); }); }, 'sm', { id: 'hm-starter-skip' })));
+    }
+
+    var overdueCard = h('div', { class: 'card', id: 'hm-overdue-list' }, h('h2', { text: 'Overdue (' + sum.overdue.length + ')' }),
+      sum.overdue.length ? sum.overdue.map(function (m) { return maintRow(s, m); }) : h('p', { class: 'mut', text: 'Nothing overdue.' }));
+    var dueCard2 = h('div', { class: 'card', id: 'hm-due30-list' }, h('h2', { text: 'Due in the next 30 days (' + sum.due30.length + ')' }),
+      sum.due30.length ? sum.due30.map(function (m) { return maintRow(s, m); }) : h('p', { class: 'mut', text: 'Nothing due in the next 30 days.' }));
+
+    var shown = {};
+    sum.overdue.concat(sum.due30).forEach(function (m) { shown[m.id] = true; });
+    var later = (s.maintenance || []).filter(function (m) { return m.state === 'open' && !shown[m.id]; }).sort(function (a, b) { return (a.nextDue || '9999').localeCompare(b.nextDue || '9999') || a.title.localeCompare(b.title); });
+    var laterCard = h('div', { class: 'card', id: 'hm-later' }, h('h2', { text: 'Later and undated (' + later.length + ')' }),
+      later.length ? later.map(function (m) { return maintRow(s, m); }) : h('p', { class: 'mut', text: 'Nothing else is scheduled.' }));
+
+    // add a task
+    var mT = h('input', { type: 'text', id: 'mt-title', maxlength: '200', autocomplete: 'off' });
+    var mArea = h('input', { type: 'text', id: 'mt-area', maxlength: '60', autocomplete: 'off' });
+    var mProp = live.length > 1 ? sel('mt-prop', [{ v: '', t: '(none)' }].concat(live.map(function (p) { return { v: p.id, t: p.name }; })), '') : null;
+    var mVeh = vehicles.length ? sel('mt-veh', [{ v: '', t: '(none)' }].concat(vehicles.map(function (v) { return { v: v.id, t: v.name }; })), '') : null;
+    var mCad = sel('mt-cadence', CAD_OPTS(H.CADENCE_LABEL, H.CADENCES), 'once');
+    var mEvery = h('input', { type: 'text', id: 'mt-every', inputmode: 'numeric', maxlength: '4', autocomplete: 'off' });
+    var mDue = h('input', { type: 'date', id: 'mt-due' });
+    var mVendor = h('input', { type: 'text', id: 'mt-vendor', maxlength: '200', autocomplete: 'off' });
+    var mNotes = h('textarea', { id: 'mt-notes', maxlength: '2000' });
+    var addForm = details('hm-add', 'Add a task', [h('form', {
+      onsubmit: function (e) {
+        e.preventDefault();
+        act(function () {
+          var input = { title: mT.value, area: mArea.value, cadence: mCad.value, everyDays: mEvery.value, nextDue: mDue.value, vendor: mVendor.value, notes: mNotes.value,
+            propertyId: mProp ? mProp.value : (live.length === 1 ? live[0].id : ''), vehicleId: mVeh ? mVeh.value : '' };
+          return commit(function (x) { H.addMaintenance(x, input); }, 'maintenance add').then(function () { view.open = 'hm-add'; setNotice('ok', 'Task added.'); render(); });
+        });
+      }
+    }, field('Task', mT), field('Area (optional)', mArea), mProp ? field('Property', mProp) : null, mVeh ? field('Vehicle (optional)', mVeh) : null,
+      field('Repeats', mCad), field('Days between (custom repeat only)', mEvery), field('Next due date', mDue), field('Vendor (optional)', mVendor), field('Notes (optional)', mNotes),
+      h('button', { type: 'submit', class: 'btn pri', id: 'mt-add', text: 'Add task' }))], view.open === 'hm-add' || (!(s.maintenance || []).length && !sum.starter.length));
+
+    // properties
+    var pName = h('input', { type: 'text', id: 'pr-name', maxlength: '200', autocomplete: 'off' });
+    var pKind = sel('pr-kind', CAD_OPTS(PROP_LABEL, H.PROPERTY_KINDS), 'house');
+    var props = details('hm-props', 'Properties (' + (s.properties || []).length + ')', [
+      (s.properties || []).map(function (p) {
+        return h('div', { class: 'item pr-row' }, h('div', null, h('span', { class: 'entry-t', text: p.name }), h('span', { class: 'mut small', text: ' ' + PROP_LABEL[p.kind] + (p.archived ? ', archived' : '') })),
+          h('div', { class: 'row' },
+            btn(p.archived ? 'Restore' : 'Archive', function () { act(function () { return commit(function (x) { H.setArchived(x, 'properties', p.id, !p.archived); }, 'property archive').then(function () { view.open = 'hm-props'; render(); }); }); }, 'sm'),
+            btn('Delete', function () {
+              var n = H.linkedCount(s, 'propertyId', p.id);
+              openDialog({ title: 'Delete this property?', yes: 'Delete property', danger: true,
+                body: [h('p', { class: 'mut', text: p.name }), h('p', { class: 'small', text: n + (n === 1 ? ' task is' : ' tasks are') + ' kept and unlinked from this property.' })],
+                onYes: function () { return commit(function (x) { H.deleteProperty(x, p.id); }, 'property delete').then(function () { view.open = 'hm-props'; render(); }); } });
+            }, 'sm bad', { 'aria-label': 'Delete ' + p.name })));
+      }),
+      h('form', { onsubmit: function (e) { e.preventDefault(); act(function () { return commit(function (x) { H.addProperty(x, { name: pName.value, kind: pKind.value }); }, 'property add').then(function () { view.open = 'hm-props'; setNotice('ok', 'Property added.'); render(); }); }); } },
+        field('Name', pName), field('Kind', pKind), h('button', { type: 'submit', class: 'btn pri', id: 'pr-add', text: 'Add property' }))],
+      view.open === 'hm-props' || !(s.properties || []).length);
+
+    // vehicles
+    var vName = h('input', { type: 'text', id: 'vh-name', maxlength: '200', autocomplete: 'off' });
+    var vYear = h('input', { type: 'text', id: 'vh-year', inputmode: 'numeric', maxlength: '4', autocomplete: 'off' });
+    var vOdo = h('input', { type: 'text', id: 'vh-odo', inputmode: 'numeric', maxlength: '9', autocomplete: 'off' });
+    var vUnit = sel('vh-unit', [{ v: 'mi', t: 'Miles' }, { v: 'km', t: 'Kilometres' }], 'mi');
+    var vehCard = details('hm-vehicles', 'Vehicles (' + (s.vehicles || []).length + ')', [
+      sum.vehicles.map(function (v) {
+        return h('div', { class: 'item vh-row', 'data-name': v.name },
+          h('div', null, h('span', { class: 'entry-t', text: v.name + (v.year ? ' (' + v.year + ')' : '') }),
+            h('div', { class: 'mut small', text: (v.odometer !== undefined ? v.odometer + ' ' + v.unit : 'no odometer reading') + ' | ' + (v.last ? 'last service ' + v.last.date + (v.last.odometer !== undefined ? ' at ' + v.last.odometer + ' ' + v.unit : '') : 'no service recorded') })),
+          btn('Delete', function () {
+            var n = H.linkedCount(s, 'vehicleId', v.id);
+            openDialog({ title: 'Delete this vehicle?', yes: 'Delete vehicle', danger: true,
+              body: [h('p', { class: 'mut', text: v.name }), h('p', { class: 'small', text: n + (n === 1 ? ' service record is' : ' service records are') + ' kept and unlinked from this vehicle.' })],
+              onYes: function () { return commit(function (x) { H.deleteVehicle(x, v.id); }, 'vehicle delete').then(function () { view.open = 'hm-vehicles'; render(); }); } });
+          }, 'sm bad', { 'aria-label': 'Delete ' + v.name }));
+      }),
+      h('form', { onsubmit: function (e) { e.preventDefault(); act(function () { return commit(function (x) { H.addVehicle(x, { name: vName.value, year: vYear.value, odometer: vOdo.value, odometerUnit: vUnit.value }); }, 'vehicle add').then(function () { view.open = 'hm-vehicles'; setNotice('ok', 'Vehicle added.'); render(); }); }); } },
+        field('Name', vName), field('Year (optional)', vYear), field('Odometer (optional)', vOdo), field('Unit', vUnit), h('button', { type: 'submit', class: 'btn pri', id: 'vh-add', text: 'Add vehicle' }))],
+      view.open === 'hm-vehicles' || !(s.vehicles || []).length);
+
+    // household bills: Money recurring items with a household flag
+    var others = (s.recurring || []).filter(function (r) { return !r.household && r.type === 'expense'; });
+    var pick = others.length ? sel('hb-pick', others.map(function (r) { return { v: r.id, t: r.title }; }), others[0].id) : null;
+    var billsCard = h('div', { class: 'card', id: 'hm-bills' }, h('h2', { text: 'Household bills' }),
+      h('p', { class: 'mut small', text: 'These are your Money recurring items flagged as household. There is no second list. Weekly counts 52 a year, yearly counts once.' }),
+      sum.bills.items.length ? sum.bills.items.map(function (b) {
+        return h('div', { class: 'item hb-row', 'data-title': b.title }, h('div', null, h('span', { class: 'entry-t', text: b.title }), h('span', { class: 'mut small', text: ' ' + moneyFmt(b.cents, cur) + ' ' + b.cadence + ', ' + moneyFmt(b.monthlyCents, cur) + ' per month' })),
+          btn('Remove flag', function () { act(function () { return commit(function (x) { H.setHousehold(x, b.id, false); }, 'household flag off').then(render); }); }, 'sm', { 'aria-label': 'Remove ' + b.title + ' from household bills' }));
+      }) : h('p', { class: 'mut', text: 'No household bills flagged yet.' }),
+      pick ? h('div', { class: 'row' }, pick, btn('Flag as household', function () { act(function () { return commit(function (x) { H.setHousehold(x, pick.value, true); }, 'household flag on').then(render); }); }, 'sm pri', { id: 'hb-add' })) : h('p', { class: 'mut small', text: 'Add recurring expenses under Money to flag them here.' }));
+
+    var done = (s.maintenance || []).filter(function (m) { return m.state === 'done'; }).sort(function (a, b) { return (b.lastDone || '').localeCompare(a.lastDone || ''); }).slice(0, 50);
+    var hist = details('hm-history', 'Recent history (' + done.length + ')', done.length ? done.map(function (m) {
+      return h('div', { class: 'item hist-row' }, h('div', null, h('span', { class: 'entry-t', text: m.title }), h('div', { class: 'mut small', text: 'done ' + m.lastDone + (typeof m.cost === 'number' ? ' | ' + moneyFmt(m.cost, cur) : '') + (m.vendor ? ' | ' + m.vendor : '') })));
+    }) : h('p', { class: 'mut', text: 'Nothing finished yet.' }), false);
+
+    return h('div', null, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Home' }),
+      h('p', { class: 'mut small', text: 'Dates and costs are your own numbers. Nothing repeats unless you confirm it.' }),
+      stats, proposalsCard(s, sum.proposals, 'home'), starter, overdueCard, dueCard2, laterCard, addForm, billsCard,
+      h('div', { class: 'card', id: 'hm-vehicle-card' }, h('h2', { text: 'Vehicles' }),
+        sum.vehicles.length ? sum.vehicles.map(function (v) { return h('p', { class: 'small vh-sum' }, v.name + ': ' + (v.last ? 'last service ' + v.last.date : 'no service recorded')); }) : h('p', { class: 'mut', text: 'No vehicles yet.' })),
+      vehCard, props, hist);
+  }
+
+  function renewalRow(s, r) {
+    var cur = s.settings.currency;
+    var sub = [L.admin.KIND_LABEL[r.kind], 'due ' + r.dueDate];
+    if (r.cadence !== 'once') sub.push(L.admin.CADENCE_LABEL[r.cadence] + (r.everyDays ? ' ' + r.everyDays + ' days' : ''));
+    if (typeof r.amount === 'number') sub.push(moneyFmt(r.amount, cur));
+    if (r.provider) sub.push(r.provider);
+    if (r.autoRenews) sub.push('auto renews');
+    return h('div', { class: 'item rn-row', 'data-title': r.title },
+      h('div', null, h('div', { class: 'entry-t', text: r.title }), h('div', { class: 'mut small', text: sub.join(' | ') })),
+      h('div', { class: 'row' },
+        btn('Done', function () {
+          var d = h('input', { type: 'date', id: 'rd-date', value: today() });
+          openDialog({ title: 'Mark this renewal done', yes: 'Mark done',
+            body: [h('p', { class: 'mut', text: r.title }), field('Date done', d), r.cadence !== 'once' ? h('p', { class: 'small', text: 'The next one is only proposed. You confirm it before anything is created.' }) : null],
+            onYes: function () { var p; return commit(function (x) { p = L.admin.completeRenewal(x, r.id, d.value, today()); }, 'renewal done').then(function () { setNotice('ok', p ? 'Marked done. The next one is proposed.' : 'Marked done.'); render(); }); } });
+        }, 'sm pri rn-done', { 'aria-label': 'Mark ' + r.title + ' done' }),
+        btn('Cancel it', function () { act(function () { return commit(function (x) { L.admin.cancelRenewal(x, r.id); }, 'renewal cancel').then(render); }); }, 'sm', { 'aria-label': 'Mark ' + r.title + ' cancelled' }),
+        btn('Delete', function () { act(function () { return commit(function (x) { L.admin.deleteRenewal(x, r.id); }, 'renewal delete').then(render); }); }, 'sm bad', { 'aria-label': 'Delete ' + r.title })));
+  }
+  function tlItem(x) {
+    return h('div', { class: 'item tl-row', 'data-title': x.title }, h('div', null, h('span', { class: 'entry-t', text: x.title }), h('span', { class: 'mut small', text: ' ' + x.date + ' | ' + (x.kind in L.admin.KIND_LABEL ? L.admin.KIND_LABEL[x.kind] : x.kind) })));
+  }
+  function adminScreen(s) {
+    var t = today(), A = L.admin, cur = s.settings.currency, tl = A.timeline(s, t), subs = A.subscriptions(s, t);
+    var stats = h('div', { class: 'stats' },
+      stat('Due in 30 days', String(tl.d30.length), 'ad-due30'),
+      stat('Overdue', String(tl.overdue.length), 'ad-overdue', tl.overdue.length ? 'bad-t' : ''),
+      stat('Subscriptions per month', moneyFmt(subs.monthlyCents, cur), 'ad-sub-month'),
+      stat('Subscriptions per year', moneyFmt(subs.annualCents, cur), 'ad-sub-year'));
+    var group = function (id, title, items) {
+      return h('div', { id: id }, h('h3', { text: title + ' (' + items.length + ')' }), items.length ? items.map(tlItem) : h('p', { class: 'mut small', text: 'Nothing.' }));
+    };
+    var tlCard = h('div', { class: 'card', id: 'ad-timeline' }, h('h2', { text: 'Timeline' }),
+      h('p', { class: 'mut small', text: 'Renewals, tax items with a due date and document expiries. Overdue first.' }),
+      group('ad-tl-overdue', 'Overdue', tl.overdue), group('ad-tl-30', 'Within 30 days', tl.d30), group('ad-tl-60', '31 to 60 days', tl.d60), group('ad-tl-90', '61 to 90 days', tl.d90));
+
+    var open = (s.renewals || []).filter(function (r) { return r.state === 'open'; }).sort(function (a, b) { return a.dueDate.localeCompare(b.dueDate) || a.title.localeCompare(b.title); });
+    var rT = h('input', { type: 'text', id: 'rn-title', maxlength: '200', autocomplete: 'off' });
+    var rKind = sel('rn-kind', CAD_OPTS(A.KIND_LABEL, A.KINDS), 'insurance');
+    var rProv = h('input', { type: 'text', id: 'rn-provider', maxlength: '200', autocomplete: 'off' });
+    var rDue = h('input', { type: 'date', id: 'rn-due', required: true });
+    var rCad = sel('rn-cadence', CAD_OPTS(A.CADENCE_LABEL, A.CADENCES), 'annual');
+    var rEvery = h('input', { type: 'text', id: 'rn-every', inputmode: 'numeric', maxlength: '4', autocomplete: 'off' });
+    var rAmt = h('input', { type: 'text', id: 'rn-amount', inputmode: 'decimal', autocomplete: 'off', maxlength: '14' });
+    var rAuto = h('input', { type: 'checkbox', id: 'rn-auto' });
+    var rNotes = h('textarea', { id: 'rn-notes', maxlength: '2000' });
+    var renewals = details('ad-renewals', 'Renewals (' + open.length + ' open)', [
+      open.length ? open.map(function (r) { return renewalRow(s, r); }) : h('p', { class: 'mut', text: 'No open renewals.' }),
+      h('form', {
+        onsubmit: function (e) {
+          e.preventDefault();
+          act(function () {
+            var input = { title: rT.value, kind: rKind.value, provider: rProv.value, dueDate: rDue.value, cadence: rCad.value, everyDays: rEvery.value, amount: rAmt.value, autoRenews: rAuto.checked, notes: rNotes.value };
+            return commit(function (x) { A.addRenewal(x, input, t); }, 'renewal add').then(function () { view.open = 'ad-renewals'; setNotice('ok', 'Renewal added.'); render(); });
+          });
+        }
+      }, h('h3', { text: 'Add a renewal or subscription' }), field('Title', rT), field('Kind', rKind), field('Provider (optional)', rProv), field('Due date', rDue), field('Repeats', rCad),
+        field('Days between (custom repeat only)', rEvery), field('Amount per payment (optional)', rAmt), h('label', { class: 'field check' }, rAuto, h('span', { text: 'Renews automatically' })),
+        field('Notes (optional)', rNotes, 'Do not enter ID numbers, account numbers or passwords.'), h('button', { type: 'submit', class: 'btn pri', id: 'rn-add', text: 'Add renewal' }))], view.open === 'ad-renewals' || !(s.renewals || []).length);
+
+    var subCard = h('div', { class: 'card', id: 'ad-subs' }, h('h2', { text: 'Subscriptions (' + subs.items.length + ')' }),
+      h('p', { class: 'mut small', text: 'Per month and per year from the amounts you entered. A flag means no review recorded in the last 12 months.' }),
+      subs.items.length ? subs.items.map(function (x) {
+        return h('div', { class: 'item sub-row', 'data-title': x.title },
+          h('div', null, h('span', { class: 'entry-t', text: x.title }),
+            h('div', { class: 'mut small', text: (x.monthlyCents === null ? 'no amount' : moneyFmt(x.monthlyCents, cur) + ' per month, ' + moneyFmt(x.annualCents, cur) + ' per year') + ' | ' + (x.reviewedOn ? 'reviewed ' + x.reviewedOn : 'never reviewed') }),
+            x.stale ? h('span', { class: 'chip bad sub-stale', text: 'Not reviewed in 12 months' }) : null),
+          btn('Mark reviewed', function () { act(function () { return commit(function (z) { A.markReviewed(z, x.id, t); }, 'subscription reviewed').then(render); }); }, 'sm', { 'aria-label': 'Mark ' + x.title + ' reviewed' }));
+      }) : h('p', { class: 'mut', text: 'No subscriptions yet. Add a renewal with the kind Subscription.' }),
+      h('p', { class: 'small', id: 'ad-sub-stale', text: subs.staleCount + (subs.staleCount === 1 ? ' subscription has' : ' subscriptions have') + ' not been reviewed in 12 months.' }));
+
+    // documents (an index, not a store)
+    var dT = h('input', { type: 'text', id: 'doc-title', maxlength: '200', autocomplete: 'off' });
+    var dKind = h('input', { type: 'text', id: 'doc-kind', maxlength: '60', autocomplete: 'off' });
+    var dWhere = h('input', { type: 'text', id: 'doc-where', maxlength: '200', autocomplete: 'off' });
+    var dExp = h('input', { type: 'date', id: 'doc-expires' });
+    var dNotes = h('textarea', { id: 'doc-notes', maxlength: '2000' });
+    var docs = (s.documents || []).slice().sort(function (a, b) { return a.title.localeCompare(b.title); });
+    var docCard = details('ad-docs', 'Document index (' + docs.length + ')', [
+      h('p', { class: 'warn', id: 'doc-warning', text: 'This is an index of where documents are kept, not a place to store them. Do not enter ID numbers, account numbers or passwords.' }),
+      docs.map(function (d) {
+        return h('div', { class: 'item doc-row', 'data-title': d.title },
+          h('div', null, h('div', { class: 'entry-t', text: d.title }), h('div', { class: 'mut small', text: [d.kind, d.whereKept ? 'kept: ' + d.whereKept : '', d.expires ? 'expires ' + d.expires : ''].filter(Boolean).join(' | ') })),
+          btn('Delete', function () { act(function () { return commit(function (x) { A.deleteDocument(x, d.id); }, 'document delete').then(function () { view.open = 'ad-docs'; render(); }); }); }, 'sm bad', { 'aria-label': 'Delete ' + d.title }));
+      }),
+      h('form', {
+        onsubmit: function (e) {
+          e.preventDefault();
+          act(function () {
+            var input = { title: dT.value, kind: dKind.value, whereKept: dWhere.value, expires: dExp.value, notes: dNotes.value };
+            return commit(function (x) { A.addDocument(x, input); }, 'document add').then(function () { view.open = 'ad-docs'; setNotice('ok', 'Document added to the index.'); render(); });
+          });
+        }
+      }, field('Title', dT), field('Kind (optional)', dKind), field('Where it is kept', dWhere), field('Expires (optional)', dExp), field('Notes (optional)', dNotes),
+        h('button', { type: 'submit', class: 'btn pri', id: 'doc-add', text: 'Add to index' }))], view.open === 'ad-docs' || !docs.length);
+
+    // tax checklist
+    var xYear = h('input', { type: 'text', id: 'tx-year', inputmode: 'numeric', maxlength: '4', autocomplete: 'off', value: String(Number(t.slice(0, 4)) - 1) });
+    var xT = h('input', { type: 'text', id: 'tx-title', maxlength: '200', autocomplete: 'off' });
+    var xDue = h('input', { type: 'date', id: 'tx-due' });
+    var years = A.taxByYear(s);
+    var taxCard = details('ad-tax', 'Tax checklist (' + (s.taxItems || []).length + ')', [
+      h('p', { class: 'mut small', text: 'A checklist of items by tax year. It records what you need, have received or have filed. It does not compute anything.' }),
+      years.map(function (y) {
+        return h('div', { class: 'tx-year', 'data-year': String(y.year) }, h('h3', { text: y.year + ' (' + y.needed + ' needed, ' + y.received + ' received, ' + y.filed + ' filed)' }),
+          y.items.map(function (it) {
+            return h('div', { class: 'item tx-row', 'data-title': it.title },
+              h('div', null, h('span', { class: 'entry-t' + (it.state === 'filed' ? ' done-t' : ''), text: it.title }), h('div', { class: 'mut small', text: it.state + (it.dueDate ? ' | due ' + it.dueDate : '') })),
+              h('div', { class: 'row' },
+                sel('tx-state-' + it.id, A.TAX_STATES.map(function (v) { return { v: v, t: v }; }), it.state, function (e) { var v = e.target.value; act(function () { return commit(function (x) { A.setTaxState(x, it.id, v); }, 'tax item state').then(function () { view.open = 'ad-tax'; render(); }); }); }),
+                btn('Delete', function () { act(function () { return commit(function (x) { A.deleteTaxItem(x, it.id); }, 'tax item delete').then(function () { view.open = 'ad-tax'; render(); }); }); }, 'sm bad', { 'aria-label': 'Delete ' + it.title })));
+          }));
+      }),
+      h('form', {
+        onsubmit: function (e) {
+          e.preventDefault();
+          act(function () {
+            var input = { year: xYear.value, title: xT.value, dueDate: xDue.value };
+            return commit(function (x) { A.addTaxItem(x, input); }, 'tax item add').then(function () { view.open = 'ad-tax'; setNotice('ok', 'Tax item added.'); render(); });
+          });
+        }
+      }, field('Tax year', xYear), field('Item', xT, 'Do not enter ID numbers, account numbers or passwords.'), field('Due date (optional)', xDue), h('button', { type: 'submit', class: 'btn pri', id: 'tx-add', text: 'Add tax item' }))], view.open === 'ad-tax' || !(s.taxItems || []).length);
+
+    // Older home/due entries the upgrade could not turn into renewals (notes too long, or past the cap). They count in the timeline,
+    // so each can be deleted after a confirm; the list shows the 200 soonest.
+    var legacy = A.legacyEntries(s), legacyShown = legacy.slice(0, 200);
+    var legacyCard = legacy.length ? details('ad-legacy', 'Older due items (' + legacy.length + (legacy.length > legacyShown.length ? ', soonest ' + legacyShown.length + ' shown' : '') + ')', [h('p', { class: 'mut small', text: 'Kept exactly as entered. They count in the timeline until you delete them.' }), legacyShown.map(function (e) {
+      return h('div', { class: 'item g-legacy' }, h('div', null, h('span', { class: 'entry-t', text: e.title }), h('span', { class: 'mut small', text: ' due ' + e.due + ', ' + (e.status || 'open') + ', entered ' + e.date }), e.notes ? h('p', { class: 'small mut', text: e.notes }) : null),
+        btn('Delete', function () {
+          openDialog({ title: 'Delete this older due item?', yes: 'Delete', danger: true, body: [h('p', { class: 'mut', text: e.title }), h('p', { class: 'small', text: 'Its title, dates and notes are removed from the vault.' })],
+            onYes: function () { return commit(function (x) { x.entries = x.entries.filter(function (z) { return z.id !== e.id; }); }, 'older due item delete').then(function () { view.open = 'ad-legacy'; render(); }); } });
+        }, 'sm bad leg-del', { 'aria-label': 'Delete ' + e.title }));
+    })], view.open === 'ad-legacy') : null;
+
+    return h('div', null, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Admin' }),
+      h('p', { class: 'mut small', text: 'Dates and amounts are your own numbers. Nothing repeats unless you confirm it.' }),
+      stats, tlCard, proposalsCard(s, A.pendingRenewals(s), 'admin'), subCard, renewals, docCard, taxCard, legacyCard);
+  }
+  // Weekly review step: what came due this week, what is overdue, what is due next week, and proposals waiting for a tap.
+  function reviewHomeAdminCard(s, wk) {
+    var Hm = L.home.reviewWeek(s, wk), Ad = L.admin.reviewWeek(s, wk);
+    var line = function (title, date, extra) { return h('div', { class: 'item rv-ha', 'data-title': title }, h('div', null, h('span', { class: 'entry-t', text: title }), h('span', { class: 'mut small', text: ' ' + date + (extra ? ' | ' + extra : '') }))); };
+    var kids = [];
+    kids.push(h('p', { class: 'small', id: 'rv-ha-came-h', text: 'Came due this week (' + (Hm.cameDue.length + Ad.cameDue.length) + ')' }));
+    Hm.cameDue.forEach(function (m) { kids.push(maintRow(s, m, 'rv-ha rv-maint')); });
+    Ad.cameDue.forEach(function (x) { kids.push(line(x.title, x.date, x.kind)); });
+    if (Hm.overdue.length || Ad.overdue.length) {
+      kids.push(h('p', { class: 'small', id: 'rv-ha-overdue-h', text: 'Still overdue (' + (Hm.overdue.length + Ad.overdue.length) + ')' }));
+      Hm.overdue.forEach(function (m) { kids.push(maintRow(s, m, 'rv-ha rv-maint')); });
+      Ad.overdue.forEach(function (x) { kids.push(line(x.title, x.date, x.kind)); });
+    }
+    kids.push(h('p', { class: 'small', id: 'rv-ha-next-h', text: 'Due next week (' + (Hm.dueNext.length + Ad.dueNext.length) + ')' }));
+    Hm.dueNext.forEach(function (m) { kids.push(line(m.title, m.nextDue, 'Home')); });
+    Ad.dueNext.forEach(function (x) { kids.push(line(x.title, x.date, x.kind)); });
+    var pr = [proposalsCard(s, Hm.proposals, 'home'), proposalsCard(s, Ad.proposals, 'admin')];
+    return h('div', { class: 'card', id: 'rv-homeadmin' }, kids, pr);
+  }
+
   // ---------- memory ----------
   function memoryScreen(s) {
     var t = today(), mp = monthPeriod(t), qp = quarterPeriod(t);
@@ -4574,6 +5735,8 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
                     h('li', { text: 'Accounts: ' + (state.accounts || []).length }),
                     h('li', { text: 'Projects: ' + (state.projects || []).length + ', pipeline items: ' + (state.pipeline || []).length }),
                     h('li', { text: 'Goals: ' + (state.goals || []).length }),
+                    h('li', { text: 'Home: ' + (state.properties || []).length + ' properties, ' + (state.vehicles || []).length + ' vehicles, ' + (state.maintenance || []).length + ' maintenance items' }),
+                    h('li', { text: 'Admin: ' + (state.renewals || []).length + ' renewals, ' + (state.documents || []).length + ' documents, ' + (state.taxItems || []).length + ' tax items' }),
                     h('li', { text: 'Daily checks: ' + (state.habits || []).length + ', training cycle: ' + (state.cycle ? 'set' : 'not set') }),
                     h('li', { text: 'Approved insights: ' + nAppr }),
                     h('li', { text: 'Lessons: ' + state.memory.lessons.length }),
@@ -4594,7 +5757,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       }, field('Restore from a backup file (64 MB max)', bf), field('Backup passphrase', ip),
         h('button', { type: 'submit', class: 'btn', text: 'Import backup' }))));
 
-    out.push(h('p', { class: 'mut small', id: 'app-version', text: 'LifeOS v0.6.0' }));
+    out.push(h('p', { class: 'mut small', id: 'app-version', text: 'LifeOS v0.7.0' }));
 
     if (L.syncUI) out.push(L.syncUI.section(syncCtx()));
 
@@ -4646,7 +5809,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   function sumList(c, label, s) {
     return c.h('div', { class: 'small' },
       c.h('strong', { text: label }),
-      c.h('div', { class: 'mut', text: 'Revision ' + s.rev + ', saved ' + when(s.updatedAt) + ', ' + s.entries + ' entries, ' + (s.schema < 3 ? 'older version (no projects, pipeline or health data)' : s.projects + ' projects, ' + s.pipeline + ' pipeline items' + (s.schema < 4 ? ', older version (no cycle, daily checks or workout types)' : ', ' + (s.habits || 0) + ' daily checks, ' + (s.cycle ? 'training cycle set' : 'no training cycle') + (s.schema < 5 ? ', older version (no goals)' : ', ' + (s.goals || 0) + ' goals'))) }));
+      c.h('div', { class: 'mut', text: 'Revision ' + s.rev + ', saved ' + when(s.updatedAt) + ', ' + s.entries + ' entries, ' + (s.schema < 3 ? 'older version (no projects, pipeline or health data)' : s.projects + ' projects, ' + s.pipeline + ' pipeline items' + (s.schema < 4 ? ', older version (no cycle, daily checks or workout types)' : ', ' + (s.habits || 0) + ' daily checks, ' + (s.cycle ? 'training cycle set' : 'no training cycle') + (s.schema < 5 ? ', older version (no goals)' : ', ' + (s.goals || 0) + ' goals') + (s.schema < 6 ? ', older version (no Home or Admin data)' : ', ' + (s.maintenance || 0) + ' maintenance items, ' + (s.renewals || 0) + ' renewals'))) }));
   }
 
   // c is the context app.js passes in: { h, field, btn, openDialog, commit, download, setNotice, render }

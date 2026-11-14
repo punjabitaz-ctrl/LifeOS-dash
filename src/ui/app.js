@@ -243,7 +243,7 @@
     var s = st();
     var body;
     try {
-      body = view.name === 'domain' ? (view.domain === 'money' ? moneyScreen(s) : view.domain === 'assets' ? assetsScreen(s) : view.domain === 'work' ? workScreen(s) : view.domain === 'health' ? healthScreen(s) : view.domain === 'goals' ? goalsScreen(s) : domainScreen(s))
+      body = view.name === 'domain' ? (view.domain === 'money' ? moneyScreen(s) : view.domain === 'assets' ? assetsScreen(s) : view.domain === 'work' ? workScreen(s) : view.domain === 'health' ? healthScreen(s) : view.domain === 'goals' ? goalsScreen(s) : view.domain === 'home' ? homeScreen(s) : view.domain === 'admin' ? adminScreen(s) : domainScreen(s))
         : view.name === 'review' ? reviewScreen(s)
         : view.name === 'memory' ? memoryScreen(s)
         : view.name === 'settings' ? settingsScreen(s)
@@ -679,12 +679,13 @@
     fillCats();
     var rCad = sel('rc-cadence', [{ v: 'weekly', t: 'Weekly' }, { v: 'monthly', t: 'Monthly' }, { v: 'yearly', t: 'Yearly' }], 'monthly');
     var rNext = h('input', { type: 'date', id: 'rc-next', value: t, required: true });
+    var rHouse = h('input', { type: 'checkbox', id: 'rc-household' });
     var recurring = details('recurring', 'Recurring items (' + s.recurring.length + ')', [
       h('p', { class: 'mut small', text: 'These only create a proposal on the due date. You confirm each one.' }),
       s.recurring.map(function (r) {
         return h('div', { class: 'item' },
           h('div', null, h('div', { class: 'entry-t', text: r.title }),
-            h('div', { class: 'mut small', text: (r.type === 'income' ? 'Income ' : 'Expense ') + moneyFmt(L.metrics.cents(r.value), cur) + ' | ' + r.cadence + ' | next ' + r.nextDate + (r.active ? '' : ' | paused') })),
+            h('div', { class: 'mut small', text: (r.type === 'income' ? 'Income ' : 'Expense ') + moneyFmt(L.metrics.cents(r.value), cur) + ' | ' + r.cadence + ' | next ' + r.nextDate + (r.active ? '' : ' | paused') + (r.household ? ' | household' : '') })),
           h('div', { class: 'row' },
             btn(r.active ? 'Pause' : 'Resume', function () { act(function () { return commit(function (x) { x.recurring.forEach(function (z) { if (z.id === r.id) z.active = !z.active; }); }, 'recurring toggle').then(function () { view.open = 'recurring'; render(); }); }); }, 'sm', { 'aria-label': (r.active ? 'Pause ' : 'Resume ') + r.title }),
             btn('Delete', function () { act(function () { return commit(function (x) { x.recurring = x.recurring.filter(function (z) { return z.id !== r.id; }); }, 'recurring delete').then(function () { view.open = 'recurring'; render(); }); }); }, 'sm bad', { 'aria-label': 'Delete ' + r.title })));
@@ -693,12 +694,12 @@
         onsubmit: function (e) {
           e.preventDefault();
           act(function () {
-            var item = { id: L.store.newId(), title: rT.value.trim(), value: parseAmount(rA.value), category: rCat.value, type: rType.value, cadence: rCad.value, nextDate: rNext.value, active: true };
+            var item = { id: L.store.newId(), title: rT.value.trim(), value: parseAmount(rA.value), category: rCat.value, type: rType.value, cadence: rCad.value, nextDate: rNext.value, active: true, household: rType.value === 'expense' && rHouse.checked };
             if (!item.title) throw new Error('Enter a title.');
             return commit(function (x) { x.recurring.push(item); }, 'recurring add').then(function () { view.open = 'recurring'; setNotice('ok', 'Recurring item added.'); render(); });
           });
         }
-      }, field('Title', rT), field('Amount', rA), field('Type', rType), field('Category', rCat), field('Repeats', rCad), field('Next date', rNext), h('button', { type: 'submit', class: 'btn pri', text: 'Add recurring' })),
+      }, field('Title', rT), field('Amount', rA), field('Type', rType), field('Category', rCat), field('Repeats', rCad), field('Next date', rNext), h('label', { class: 'field check' }, rHouse, h('span', { text: 'Household bill (expenses only; shown under Home)' })), h('button', { type: 'submit', class: 'btn pri', text: 'Add recurring' })),
     ], view.open === 'recurring');
 
     // categories
@@ -975,7 +976,9 @@
       carryCard(s, wk, render),
       h('h2', { text: '3. Goals' }),
       reviewGoalsCard(s, wk, t),
-      h('h2', { text: '4. Your three priorities' }),
+      h('h2', { text: '4. Home and Admin' }),
+      reviewHomeAdminCard(s, wk),
+      h('h2', { text: '5. Your three priorities' }),
       h('form', {
         class: 'card',
         onsubmit: function (e) {
@@ -1665,6 +1668,354 @@
     return h('div', { class: 'card', id: 'rv-goals' }, kids);
   }
 
+  // ---------- home and admin (v0.7.0) ----------
+  // Nothing here creates a recurring item by itself: finishing a recurring task or renewal shows a proposal that needs a tap.
+  var CAD_OPTS = function (map, order) { return order.map(function (k) { return { v: k, t: map[k] }; }); };
+  var PROP_LABEL = { house: 'House', condo: 'Condo', rental: 'Rental', land: 'Land', other: 'Other' };
+  function homeName(s, m) {
+    var parts = [];
+    var live = L.home.liveProps(s);
+    if (m.propertyId && live.length > 1) { var p = (s.properties || []).filter(function (x) { return x.id === m.propertyId; })[0]; if (p) parts.push(p.name); }
+    if (m.vehicleId) { var v = (s.vehicles || []).filter(function (x) { return x.id === m.vehicleId; })[0]; if (v) parts.push(v.name); }
+    return parts.join(', ');
+  }
+  function dateField(id, label, val, req) { return field(label, h('input', { type: 'date', id: id, value: val || '', required: req ? true : null })); }
+  function markDoneDialog(s, m) {
+    var d = h('input', { type: 'date', id: 'md-date', value: today() });
+    var cost = h('input', { type: 'text', id: 'md-cost', inputmode: 'decimal', autocomplete: 'off', maxlength: '14' });
+    var odo = m.vehicleId ? h('input', { type: 'text', id: 'md-odo', inputmode: 'numeric', autocomplete: 'off', maxlength: '9' }) : null;
+    openDialog({
+      title: 'Mark this task done', yes: 'Mark done',
+      body: [h('p', { class: 'mut', text: m.title }), field('Date done', d), field('Cost (optional)', cost), odo ? field('Odometer reading (optional)', odo) : null,
+        m.cadence !== 'once' ? h('p', { class: 'small', text: 'The next one is only proposed. You confirm it before anything is created.' }) : null],
+      onYes: function () {
+        var prop;
+        return commit(function (x) { prop = L.home.completeMaintenance(x, m.id, { doneDate: d.value, cost: cost.value, odometer: odo ? odo.value : '' }, today()); }, 'maintenance done').then(function () {
+          setNotice('ok', prop ? 'Marked done. The next one is proposed below.' : 'Marked done.'); render();
+        });
+      }
+    });
+  }
+  function maintRow(s, m, cls) {
+    var sub = [];
+    if (m.nextDue) sub.push('due ' + m.nextDue);
+    if (m.cadence !== 'once') sub.push(L.home.CADENCE_LABEL[m.cadence] + (m.everyDays ? ' ' + m.everyDays + ' days' : ''));
+    if (m.area) sub.push(m.area);
+    var nm = homeName(s, m); if (nm) sub.push(nm);
+    return h('div', { class: 'item mt-row' + (cls ? ' ' + cls : ''), 'data-title': m.title },
+      h('div', null, h('div', { class: 'entry-t', text: m.title }), h('div', { class: 'mut small', text: sub.join(' | ') })),
+      h('div', { class: 'row' },
+        btn('Done', function () { markDoneDialog(s, m); }, 'sm pri mt-done', { 'aria-label': 'Mark ' + m.title + ' done' }),
+        btn('Skip', function () { act(function () { return commit(function (x) { L.home.skipMaintenance(x, m.id); }, 'maintenance skip').then(render); }); }, 'sm', { 'aria-label': 'Skip ' + m.title }),
+        btn('Delete', function () { act(function () { return commit(function (x) { L.home.deleteMaintenance(x, m.id); }, 'maintenance delete').then(render); }); }, 'sm bad', { 'aria-label': 'Delete ' + m.title })));
+  }
+  function proposalsCard(s, items, kind) {
+    if (!items.length) return null;
+    var isHome = kind === 'home';
+    return h('div', { class: 'card', id: isHome ? 'hm-proposals' : 'ad-proposals' },
+      h('h2', { text: 'Proposed next ' + (isHome ? 'tasks' : 'renewals') + ' (' + items.length + ')' }),
+      h('p', { class: 'mut small', text: 'Nothing is created until you confirm it.' }),
+      items.map(function (p) {
+        var due = h('input', { type: 'date', value: isHome ? p.nextDue : p.dueDate, 'aria-label': 'Next date for ' + p.title, class: 'prop-date' });
+        return h('div', { class: 'item prop-row', 'data-title': p.title },
+          h('div', null, h('div', { class: 'entry-t', text: p.title }), h('div', { class: 'mut small', text: 'Next due ' + (isHome ? p.nextDue : p.dueDate) })),
+          h('div', { class: 'row' }, due,
+            btn('Confirm', function () {
+              act(function () {
+                return commit(function (x) { if (isHome) L.home.confirmNext(x, p.fromId, due.value); else L.admin.confirmRenewal(x, p.fromId, due.value); }, isHome ? 'maintenance next confirmed' : 'renewal next confirmed')
+                  .then(function () { setNotice('ok', 'Created the next one.'); render(); });
+              });
+            }, 'sm pri prop-confirm', { 'aria-label': 'Confirm next ' + p.title }),
+            btn('Stop repeating', function () {
+              act(function () { return commit(function (x) { if (isHome) L.home.stopRepeating(x, p.fromId); else L.admin.stopRenewing(x, p.fromId); }, 'stop repeating').then(render); });
+            }, 'sm prop-stop', { 'aria-label': 'Stop repeating ' + p.title })));
+      }));
+  }
+  function homeScreen(s) {
+    var t = today(), H = L.home, cur = s.settings.currency, sum = H.summary(s, t);
+    var live = H.liveProps(s), vehicles = H.liveVehicles(s);
+    var stats = h('div', { class: 'stats' },
+      stat('Tasks overdue', String(sum.overdue.length), 'hm-overdue', sum.overdue.length ? 'bad-t' : ''),
+      stat('Due in 30 days', String(sum.due30.length), 'hm-due30'),
+      stat('Maintenance cost this year', moneyFmt(sum.ytdCostCents, cur), 'hm-ytd'),
+      stat('Household bills per month', moneyFmt(sum.bills.totalMonthlyCents, cur), 'hm-bills-total'));
+
+    // starter checklist (offered once; nothing is added until the user ticks and taps)
+    var starter = null;
+    if (sum.starter.length) {
+      var boxes = sum.starter.map(function (x) {
+        return h('label', { class: 'field check' }, h('input', { type: 'checkbox', 'data-starter': x.id }), h('span', { text: x.title + ' (' + H.CADENCE_LABEL[x.cadence].toLowerCase() + ')' }));
+      });
+      starter = h('div', { class: 'card', id: 'hm-starter' }, h('h2', { text: 'Seasonal checklist' }),
+        h('p', { class: 'mut small', text: 'A starting list. Nothing is added unless you tick it. This is offered once.' }), boxes,
+        h('div', { class: 'row' },
+          btn('Add ticked tasks', function () {
+            act(function () {
+              var ids = [];
+              boxes.forEach(function (b) { var i = b.querySelector('input'); if (i.checked) ids.push(i.getAttribute('data-starter')); });
+              if (!ids.length) throw new Error('Tick at least one task, or choose No thanks.');
+              return commit(function (x) { H.addStarter(x, ids, t); }, 'starter checklist').then(function () { setNotice('ok', 'Added ' + ids.length + (ids.length === 1 ? ' task.' : ' tasks.')); render(); });
+            });
+          }, 'sm pri', { id: 'hm-starter-go' }),
+          btn('No thanks', function () { act(function () { return commit(function (x) { H.dismissStarter(x); }, 'starter dismissed').then(render); }); }, 'sm', { id: 'hm-starter-skip' })));
+    }
+
+    var overdueCard = h('div', { class: 'card', id: 'hm-overdue-list' }, h('h2', { text: 'Overdue (' + sum.overdue.length + ')' }),
+      sum.overdue.length ? sum.overdue.map(function (m) { return maintRow(s, m); }) : h('p', { class: 'mut', text: 'Nothing overdue.' }));
+    var dueCard2 = h('div', { class: 'card', id: 'hm-due30-list' }, h('h2', { text: 'Due in the next 30 days (' + sum.due30.length + ')' }),
+      sum.due30.length ? sum.due30.map(function (m) { return maintRow(s, m); }) : h('p', { class: 'mut', text: 'Nothing due in the next 30 days.' }));
+
+    var shown = {};
+    sum.overdue.concat(sum.due30).forEach(function (m) { shown[m.id] = true; });
+    var later = (s.maintenance || []).filter(function (m) { return m.state === 'open' && !shown[m.id]; }).sort(function (a, b) { return (a.nextDue || '9999').localeCompare(b.nextDue || '9999') || a.title.localeCompare(b.title); });
+    var laterCard = h('div', { class: 'card', id: 'hm-later' }, h('h2', { text: 'Later and undated (' + later.length + ')' }),
+      later.length ? later.map(function (m) { return maintRow(s, m); }) : h('p', { class: 'mut', text: 'Nothing else is scheduled.' }));
+
+    // add a task
+    var mT = h('input', { type: 'text', id: 'mt-title', maxlength: '200', autocomplete: 'off' });
+    var mArea = h('input', { type: 'text', id: 'mt-area', maxlength: '60', autocomplete: 'off' });
+    var mProp = live.length > 1 ? sel('mt-prop', [{ v: '', t: '(none)' }].concat(live.map(function (p) { return { v: p.id, t: p.name }; })), '') : null;
+    var mVeh = vehicles.length ? sel('mt-veh', [{ v: '', t: '(none)' }].concat(vehicles.map(function (v) { return { v: v.id, t: v.name }; })), '') : null;
+    var mCad = sel('mt-cadence', CAD_OPTS(H.CADENCE_LABEL, H.CADENCES), 'once');
+    var mEvery = h('input', { type: 'text', id: 'mt-every', inputmode: 'numeric', maxlength: '4', autocomplete: 'off' });
+    var mDue = h('input', { type: 'date', id: 'mt-due' });
+    var mVendor = h('input', { type: 'text', id: 'mt-vendor', maxlength: '200', autocomplete: 'off' });
+    var mNotes = h('textarea', { id: 'mt-notes', maxlength: '2000' });
+    var addForm = details('hm-add', 'Add a task', [h('form', {
+      onsubmit: function (e) {
+        e.preventDefault();
+        act(function () {
+          var input = { title: mT.value, area: mArea.value, cadence: mCad.value, everyDays: mEvery.value, nextDue: mDue.value, vendor: mVendor.value, notes: mNotes.value,
+            propertyId: mProp ? mProp.value : (live.length === 1 ? live[0].id : ''), vehicleId: mVeh ? mVeh.value : '' };
+          return commit(function (x) { H.addMaintenance(x, input); }, 'maintenance add').then(function () { view.open = 'hm-add'; setNotice('ok', 'Task added.'); render(); });
+        });
+      }
+    }, field('Task', mT), field('Area (optional)', mArea), mProp ? field('Property', mProp) : null, mVeh ? field('Vehicle (optional)', mVeh) : null,
+      field('Repeats', mCad), field('Days between (custom repeat only)', mEvery), field('Next due date', mDue), field('Vendor (optional)', mVendor), field('Notes (optional)', mNotes),
+      h('button', { type: 'submit', class: 'btn pri', id: 'mt-add', text: 'Add task' }))], view.open === 'hm-add' || (!(s.maintenance || []).length && !sum.starter.length));
+
+    // properties
+    var pName = h('input', { type: 'text', id: 'pr-name', maxlength: '200', autocomplete: 'off' });
+    var pKind = sel('pr-kind', CAD_OPTS(PROP_LABEL, H.PROPERTY_KINDS), 'house');
+    var props = details('hm-props', 'Properties (' + (s.properties || []).length + ')', [
+      (s.properties || []).map(function (p) {
+        return h('div', { class: 'item pr-row' }, h('div', null, h('span', { class: 'entry-t', text: p.name }), h('span', { class: 'mut small', text: ' ' + PROP_LABEL[p.kind] + (p.archived ? ', archived' : '') })),
+          h('div', { class: 'row' },
+            btn(p.archived ? 'Restore' : 'Archive', function () { act(function () { return commit(function (x) { H.setArchived(x, 'properties', p.id, !p.archived); }, 'property archive').then(function () { view.open = 'hm-props'; render(); }); }); }, 'sm'),
+            btn('Delete', function () {
+              var n = H.linkedCount(s, 'propertyId', p.id);
+              openDialog({ title: 'Delete this property?', yes: 'Delete property', danger: true,
+                body: [h('p', { class: 'mut', text: p.name }), h('p', { class: 'small', text: n + (n === 1 ? ' task is' : ' tasks are') + ' kept and unlinked from this property.' })],
+                onYes: function () { return commit(function (x) { H.deleteProperty(x, p.id); }, 'property delete').then(function () { view.open = 'hm-props'; render(); }); } });
+            }, 'sm bad', { 'aria-label': 'Delete ' + p.name })));
+      }),
+      h('form', { onsubmit: function (e) { e.preventDefault(); act(function () { return commit(function (x) { H.addProperty(x, { name: pName.value, kind: pKind.value }); }, 'property add').then(function () { view.open = 'hm-props'; setNotice('ok', 'Property added.'); render(); }); }); } },
+        field('Name', pName), field('Kind', pKind), h('button', { type: 'submit', class: 'btn pri', id: 'pr-add', text: 'Add property' }))],
+      view.open === 'hm-props' || !(s.properties || []).length);
+
+    // vehicles
+    var vName = h('input', { type: 'text', id: 'vh-name', maxlength: '200', autocomplete: 'off' });
+    var vYear = h('input', { type: 'text', id: 'vh-year', inputmode: 'numeric', maxlength: '4', autocomplete: 'off' });
+    var vOdo = h('input', { type: 'text', id: 'vh-odo', inputmode: 'numeric', maxlength: '9', autocomplete: 'off' });
+    var vUnit = sel('vh-unit', [{ v: 'mi', t: 'Miles' }, { v: 'km', t: 'Kilometres' }], 'mi');
+    var vehCard = details('hm-vehicles', 'Vehicles (' + (s.vehicles || []).length + ')', [
+      sum.vehicles.map(function (v) {
+        return h('div', { class: 'item vh-row', 'data-name': v.name },
+          h('div', null, h('span', { class: 'entry-t', text: v.name + (v.year ? ' (' + v.year + ')' : '') }),
+            h('div', { class: 'mut small', text: (v.odometer !== undefined ? v.odometer + ' ' + v.unit : 'no odometer reading') + ' | ' + (v.last ? 'last service ' + v.last.date + (v.last.odometer !== undefined ? ' at ' + v.last.odometer + ' ' + v.unit : '') : 'no service recorded') })),
+          btn('Delete', function () {
+            var n = H.linkedCount(s, 'vehicleId', v.id);
+            openDialog({ title: 'Delete this vehicle?', yes: 'Delete vehicle', danger: true,
+              body: [h('p', { class: 'mut', text: v.name }), h('p', { class: 'small', text: n + (n === 1 ? ' service record is' : ' service records are') + ' kept and unlinked from this vehicle.' })],
+              onYes: function () { return commit(function (x) { H.deleteVehicle(x, v.id); }, 'vehicle delete').then(function () { view.open = 'hm-vehicles'; render(); }); } });
+          }, 'sm bad', { 'aria-label': 'Delete ' + v.name }));
+      }),
+      h('form', { onsubmit: function (e) { e.preventDefault(); act(function () { return commit(function (x) { H.addVehicle(x, { name: vName.value, year: vYear.value, odometer: vOdo.value, odometerUnit: vUnit.value }); }, 'vehicle add').then(function () { view.open = 'hm-vehicles'; setNotice('ok', 'Vehicle added.'); render(); }); }); } },
+        field('Name', vName), field('Year (optional)', vYear), field('Odometer (optional)', vOdo), field('Unit', vUnit), h('button', { type: 'submit', class: 'btn pri', id: 'vh-add', text: 'Add vehicle' }))],
+      view.open === 'hm-vehicles' || !(s.vehicles || []).length);
+
+    // household bills: Money recurring items with a household flag
+    var others = (s.recurring || []).filter(function (r) { return !r.household && r.type === 'expense'; });
+    var pick = others.length ? sel('hb-pick', others.map(function (r) { return { v: r.id, t: r.title }; }), others[0].id) : null;
+    var billsCard = h('div', { class: 'card', id: 'hm-bills' }, h('h2', { text: 'Household bills' }),
+      h('p', { class: 'mut small', text: 'These are your Money recurring items flagged as household. There is no second list. Weekly counts 52 a year, yearly counts once.' }),
+      sum.bills.items.length ? sum.bills.items.map(function (b) {
+        return h('div', { class: 'item hb-row', 'data-title': b.title }, h('div', null, h('span', { class: 'entry-t', text: b.title }), h('span', { class: 'mut small', text: ' ' + moneyFmt(b.cents, cur) + ' ' + b.cadence + ', ' + moneyFmt(b.monthlyCents, cur) + ' per month' })),
+          btn('Remove flag', function () { act(function () { return commit(function (x) { H.setHousehold(x, b.id, false); }, 'household flag off').then(render); }); }, 'sm', { 'aria-label': 'Remove ' + b.title + ' from household bills' }));
+      }) : h('p', { class: 'mut', text: 'No household bills flagged yet.' }),
+      pick ? h('div', { class: 'row' }, pick, btn('Flag as household', function () { act(function () { return commit(function (x) { H.setHousehold(x, pick.value, true); }, 'household flag on').then(render); }); }, 'sm pri', { id: 'hb-add' })) : h('p', { class: 'mut small', text: 'Add recurring expenses under Money to flag them here.' }));
+
+    var done = (s.maintenance || []).filter(function (m) { return m.state === 'done'; }).sort(function (a, b) { return (b.lastDone || '').localeCompare(a.lastDone || ''); }).slice(0, 50);
+    var hist = details('hm-history', 'Recent history (' + done.length + ')', done.length ? done.map(function (m) {
+      return h('div', { class: 'item hist-row' }, h('div', null, h('span', { class: 'entry-t', text: m.title }), h('div', { class: 'mut small', text: 'done ' + m.lastDone + (typeof m.cost === 'number' ? ' | ' + moneyFmt(m.cost, cur) : '') + (m.vendor ? ' | ' + m.vendor : '') })));
+    }) : h('p', { class: 'mut', text: 'Nothing finished yet.' }), false);
+
+    return h('div', null, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Home' }),
+      h('p', { class: 'mut small', text: 'Dates and costs are your own numbers. Nothing repeats unless you confirm it.' }),
+      stats, proposalsCard(s, sum.proposals, 'home'), starter, overdueCard, dueCard2, laterCard, addForm, billsCard,
+      h('div', { class: 'card', id: 'hm-vehicle-card' }, h('h2', { text: 'Vehicles' }),
+        sum.vehicles.length ? sum.vehicles.map(function (v) { return h('p', { class: 'small vh-sum' }, v.name + ': ' + (v.last ? 'last service ' + v.last.date : 'no service recorded')); }) : h('p', { class: 'mut', text: 'No vehicles yet.' })),
+      vehCard, props, hist);
+  }
+
+  function renewalRow(s, r) {
+    var cur = s.settings.currency;
+    var sub = [L.admin.KIND_LABEL[r.kind], 'due ' + r.dueDate];
+    if (r.cadence !== 'once') sub.push(L.admin.CADENCE_LABEL[r.cadence] + (r.everyDays ? ' ' + r.everyDays + ' days' : ''));
+    if (typeof r.amount === 'number') sub.push(moneyFmt(r.amount, cur));
+    if (r.provider) sub.push(r.provider);
+    if (r.autoRenews) sub.push('auto renews');
+    return h('div', { class: 'item rn-row', 'data-title': r.title },
+      h('div', null, h('div', { class: 'entry-t', text: r.title }), h('div', { class: 'mut small', text: sub.join(' | ') })),
+      h('div', { class: 'row' },
+        btn('Done', function () {
+          var d = h('input', { type: 'date', id: 'rd-date', value: today() });
+          openDialog({ title: 'Mark this renewal done', yes: 'Mark done',
+            body: [h('p', { class: 'mut', text: r.title }), field('Date done', d), r.cadence !== 'once' ? h('p', { class: 'small', text: 'The next one is only proposed. You confirm it before anything is created.' }) : null],
+            onYes: function () { var p; return commit(function (x) { p = L.admin.completeRenewal(x, r.id, d.value, today()); }, 'renewal done').then(function () { setNotice('ok', p ? 'Marked done. The next one is proposed.' : 'Marked done.'); render(); }); } });
+        }, 'sm pri rn-done', { 'aria-label': 'Mark ' + r.title + ' done' }),
+        btn('Cancel it', function () { act(function () { return commit(function (x) { L.admin.cancelRenewal(x, r.id); }, 'renewal cancel').then(render); }); }, 'sm', { 'aria-label': 'Mark ' + r.title + ' cancelled' }),
+        btn('Delete', function () { act(function () { return commit(function (x) { L.admin.deleteRenewal(x, r.id); }, 'renewal delete').then(render); }); }, 'sm bad', { 'aria-label': 'Delete ' + r.title })));
+  }
+  function tlItem(x) {
+    return h('div', { class: 'item tl-row', 'data-title': x.title }, h('div', null, h('span', { class: 'entry-t', text: x.title }), h('span', { class: 'mut small', text: ' ' + x.date + ' | ' + (x.kind in L.admin.KIND_LABEL ? L.admin.KIND_LABEL[x.kind] : x.kind) })));
+  }
+  function adminScreen(s) {
+    var t = today(), A = L.admin, cur = s.settings.currency, tl = A.timeline(s, t), subs = A.subscriptions(s, t);
+    var stats = h('div', { class: 'stats' },
+      stat('Due in 30 days', String(tl.d30.length), 'ad-due30'),
+      stat('Overdue', String(tl.overdue.length), 'ad-overdue', tl.overdue.length ? 'bad-t' : ''),
+      stat('Subscriptions per month', moneyFmt(subs.monthlyCents, cur), 'ad-sub-month'),
+      stat('Subscriptions per year', moneyFmt(subs.annualCents, cur), 'ad-sub-year'));
+    var group = function (id, title, items) {
+      return h('div', { id: id }, h('h3', { text: title + ' (' + items.length + ')' }), items.length ? items.map(tlItem) : h('p', { class: 'mut small', text: 'Nothing.' }));
+    };
+    var tlCard = h('div', { class: 'card', id: 'ad-timeline' }, h('h2', { text: 'Timeline' }),
+      h('p', { class: 'mut small', text: 'Renewals, tax items with a due date and document expiries. Overdue first.' }),
+      group('ad-tl-overdue', 'Overdue', tl.overdue), group('ad-tl-30', 'Within 30 days', tl.d30), group('ad-tl-60', '31 to 60 days', tl.d60), group('ad-tl-90', '61 to 90 days', tl.d90));
+
+    var open = (s.renewals || []).filter(function (r) { return r.state === 'open'; }).sort(function (a, b) { return a.dueDate.localeCompare(b.dueDate) || a.title.localeCompare(b.title); });
+    var rT = h('input', { type: 'text', id: 'rn-title', maxlength: '200', autocomplete: 'off' });
+    var rKind = sel('rn-kind', CAD_OPTS(A.KIND_LABEL, A.KINDS), 'insurance');
+    var rProv = h('input', { type: 'text', id: 'rn-provider', maxlength: '200', autocomplete: 'off' });
+    var rDue = h('input', { type: 'date', id: 'rn-due', required: true });
+    var rCad = sel('rn-cadence', CAD_OPTS(A.CADENCE_LABEL, A.CADENCES), 'annual');
+    var rEvery = h('input', { type: 'text', id: 'rn-every', inputmode: 'numeric', maxlength: '4', autocomplete: 'off' });
+    var rAmt = h('input', { type: 'text', id: 'rn-amount', inputmode: 'decimal', autocomplete: 'off', maxlength: '14' });
+    var rAuto = h('input', { type: 'checkbox', id: 'rn-auto' });
+    var rNotes = h('textarea', { id: 'rn-notes', maxlength: '2000' });
+    var renewals = details('ad-renewals', 'Renewals (' + open.length + ' open)', [
+      open.length ? open.map(function (r) { return renewalRow(s, r); }) : h('p', { class: 'mut', text: 'No open renewals.' }),
+      h('form', {
+        onsubmit: function (e) {
+          e.preventDefault();
+          act(function () {
+            var input = { title: rT.value, kind: rKind.value, provider: rProv.value, dueDate: rDue.value, cadence: rCad.value, everyDays: rEvery.value, amount: rAmt.value, autoRenews: rAuto.checked, notes: rNotes.value };
+            return commit(function (x) { A.addRenewal(x, input, t); }, 'renewal add').then(function () { view.open = 'ad-renewals'; setNotice('ok', 'Renewal added.'); render(); });
+          });
+        }
+      }, h('h3', { text: 'Add a renewal or subscription' }), field('Title', rT), field('Kind', rKind), field('Provider (optional)', rProv), field('Due date', rDue), field('Repeats', rCad),
+        field('Days between (custom repeat only)', rEvery), field('Amount per payment (optional)', rAmt), h('label', { class: 'field check' }, rAuto, h('span', { text: 'Renews automatically' })),
+        field('Notes (optional)', rNotes, 'Do not enter ID numbers, account numbers or passwords.'), h('button', { type: 'submit', class: 'btn pri', id: 'rn-add', text: 'Add renewal' }))], view.open === 'ad-renewals' || !(s.renewals || []).length);
+
+    var subCard = h('div', { class: 'card', id: 'ad-subs' }, h('h2', { text: 'Subscriptions (' + subs.items.length + ')' }),
+      h('p', { class: 'mut small', text: 'Per month and per year from the amounts you entered. A flag means no review recorded in the last 12 months.' }),
+      subs.items.length ? subs.items.map(function (x) {
+        return h('div', { class: 'item sub-row', 'data-title': x.title },
+          h('div', null, h('span', { class: 'entry-t', text: x.title }),
+            h('div', { class: 'mut small', text: (x.monthlyCents === null ? 'no amount' : moneyFmt(x.monthlyCents, cur) + ' per month, ' + moneyFmt(x.annualCents, cur) + ' per year') + ' | ' + (x.reviewedOn ? 'reviewed ' + x.reviewedOn : 'never reviewed') }),
+            x.stale ? h('span', { class: 'chip bad sub-stale', text: 'Not reviewed in 12 months' }) : null),
+          btn('Mark reviewed', function () { act(function () { return commit(function (z) { A.markReviewed(z, x.id, t); }, 'subscription reviewed').then(render); }); }, 'sm', { 'aria-label': 'Mark ' + x.title + ' reviewed' }));
+      }) : h('p', { class: 'mut', text: 'No subscriptions yet. Add a renewal with the kind Subscription.' }),
+      h('p', { class: 'small', id: 'ad-sub-stale', text: subs.staleCount + (subs.staleCount === 1 ? ' subscription has' : ' subscriptions have') + ' not been reviewed in 12 months.' }));
+
+    // documents (an index, not a store)
+    var dT = h('input', { type: 'text', id: 'doc-title', maxlength: '200', autocomplete: 'off' });
+    var dKind = h('input', { type: 'text', id: 'doc-kind', maxlength: '60', autocomplete: 'off' });
+    var dWhere = h('input', { type: 'text', id: 'doc-where', maxlength: '200', autocomplete: 'off' });
+    var dExp = h('input', { type: 'date', id: 'doc-expires' });
+    var dNotes = h('textarea', { id: 'doc-notes', maxlength: '2000' });
+    var docs = (s.documents || []).slice().sort(function (a, b) { return a.title.localeCompare(b.title); });
+    var docCard = details('ad-docs', 'Document index (' + docs.length + ')', [
+      h('p', { class: 'warn', id: 'doc-warning', text: 'This is an index of where documents are kept, not a place to store them. Do not enter ID numbers, account numbers or passwords.' }),
+      docs.map(function (d) {
+        return h('div', { class: 'item doc-row', 'data-title': d.title },
+          h('div', null, h('div', { class: 'entry-t', text: d.title }), h('div', { class: 'mut small', text: [d.kind, d.whereKept ? 'kept: ' + d.whereKept : '', d.expires ? 'expires ' + d.expires : ''].filter(Boolean).join(' | ') })),
+          btn('Delete', function () { act(function () { return commit(function (x) { A.deleteDocument(x, d.id); }, 'document delete').then(function () { view.open = 'ad-docs'; render(); }); }); }, 'sm bad', { 'aria-label': 'Delete ' + d.title }));
+      }),
+      h('form', {
+        onsubmit: function (e) {
+          e.preventDefault();
+          act(function () {
+            var input = { title: dT.value, kind: dKind.value, whereKept: dWhere.value, expires: dExp.value, notes: dNotes.value };
+            return commit(function (x) { A.addDocument(x, input); }, 'document add').then(function () { view.open = 'ad-docs'; setNotice('ok', 'Document added to the index.'); render(); });
+          });
+        }
+      }, field('Title', dT), field('Kind (optional)', dKind), field('Where it is kept', dWhere), field('Expires (optional)', dExp), field('Notes (optional)', dNotes),
+        h('button', { type: 'submit', class: 'btn pri', id: 'doc-add', text: 'Add to index' }))], view.open === 'ad-docs' || !docs.length);
+
+    // tax checklist
+    var xYear = h('input', { type: 'text', id: 'tx-year', inputmode: 'numeric', maxlength: '4', autocomplete: 'off', value: String(Number(t.slice(0, 4)) - 1) });
+    var xT = h('input', { type: 'text', id: 'tx-title', maxlength: '200', autocomplete: 'off' });
+    var xDue = h('input', { type: 'date', id: 'tx-due' });
+    var years = A.taxByYear(s);
+    var taxCard = details('ad-tax', 'Tax checklist (' + (s.taxItems || []).length + ')', [
+      h('p', { class: 'mut small', text: 'A checklist of items by tax year. It records what you need, have received or have filed. It does not compute anything.' }),
+      years.map(function (y) {
+        return h('div', { class: 'tx-year', 'data-year': String(y.year) }, h('h3', { text: y.year + ' (' + y.needed + ' needed, ' + y.received + ' received, ' + y.filed + ' filed)' }),
+          y.items.map(function (it) {
+            return h('div', { class: 'item tx-row', 'data-title': it.title },
+              h('div', null, h('span', { class: 'entry-t' + (it.state === 'filed' ? ' done-t' : ''), text: it.title }), h('div', { class: 'mut small', text: it.state + (it.dueDate ? ' | due ' + it.dueDate : '') })),
+              h('div', { class: 'row' },
+                sel('tx-state-' + it.id, A.TAX_STATES.map(function (v) { return { v: v, t: v }; }), it.state, function (e) { var v = e.target.value; act(function () { return commit(function (x) { A.setTaxState(x, it.id, v); }, 'tax item state').then(function () { view.open = 'ad-tax'; render(); }); }); }),
+                btn('Delete', function () { act(function () { return commit(function (x) { A.deleteTaxItem(x, it.id); }, 'tax item delete').then(function () { view.open = 'ad-tax'; render(); }); }); }, 'sm bad', { 'aria-label': 'Delete ' + it.title })));
+          }));
+      }),
+      h('form', {
+        onsubmit: function (e) {
+          e.preventDefault();
+          act(function () {
+            var input = { year: xYear.value, title: xT.value, dueDate: xDue.value };
+            return commit(function (x) { A.addTaxItem(x, input); }, 'tax item add').then(function () { view.open = 'ad-tax'; setNotice('ok', 'Tax item added.'); render(); });
+          });
+        }
+      }, field('Tax year', xYear), field('Item', xT, 'Do not enter ID numbers, account numbers or passwords.'), field('Due date (optional)', xDue), h('button', { type: 'submit', class: 'btn pri', id: 'tx-add', text: 'Add tax item' }))], view.open === 'ad-tax' || !(s.taxItems || []).length);
+
+    // Older home/due entries the upgrade could not turn into renewals (notes too long, or past the cap). They count in the timeline,
+    // so each can be deleted after a confirm; the list shows the 200 soonest.
+    var legacy = A.legacyEntries(s), legacyShown = legacy.slice(0, 200);
+    var legacyCard = legacy.length ? details('ad-legacy', 'Older due items (' + legacy.length + (legacy.length > legacyShown.length ? ', soonest ' + legacyShown.length + ' shown' : '') + ')', [h('p', { class: 'mut small', text: 'Kept exactly as entered. They count in the timeline until you delete them.' }), legacyShown.map(function (e) {
+      return h('div', { class: 'item g-legacy' }, h('div', null, h('span', { class: 'entry-t', text: e.title }), h('span', { class: 'mut small', text: ' due ' + e.due + ', ' + (e.status || 'open') + ', entered ' + e.date }), e.notes ? h('p', { class: 'small mut', text: e.notes }) : null),
+        btn('Delete', function () {
+          openDialog({ title: 'Delete this older due item?', yes: 'Delete', danger: true, body: [h('p', { class: 'mut', text: e.title }), h('p', { class: 'small', text: 'Its title, dates and notes are removed from the vault.' })],
+            onYes: function () { return commit(function (x) { x.entries = x.entries.filter(function (z) { return z.id !== e.id; }); }, 'older due item delete').then(function () { view.open = 'ad-legacy'; render(); }); } });
+        }, 'sm bad leg-del', { 'aria-label': 'Delete ' + e.title }));
+    })], view.open === 'ad-legacy') : null;
+
+    return h('div', null, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Admin' }),
+      h('p', { class: 'mut small', text: 'Dates and amounts are your own numbers. Nothing repeats unless you confirm it.' }),
+      stats, tlCard, proposalsCard(s, A.pendingRenewals(s), 'admin'), subCard, renewals, docCard, taxCard, legacyCard);
+  }
+  // Weekly review step: what came due this week, what is overdue, what is due next week, and proposals waiting for a tap.
+  function reviewHomeAdminCard(s, wk) {
+    var Hm = L.home.reviewWeek(s, wk), Ad = L.admin.reviewWeek(s, wk);
+    var line = function (title, date, extra) { return h('div', { class: 'item rv-ha', 'data-title': title }, h('div', null, h('span', { class: 'entry-t', text: title }), h('span', { class: 'mut small', text: ' ' + date + (extra ? ' | ' + extra : '') }))); };
+    var kids = [];
+    kids.push(h('p', { class: 'small', id: 'rv-ha-came-h', text: 'Came due this week (' + (Hm.cameDue.length + Ad.cameDue.length) + ')' }));
+    Hm.cameDue.forEach(function (m) { kids.push(maintRow(s, m, 'rv-ha rv-maint')); });
+    Ad.cameDue.forEach(function (x) { kids.push(line(x.title, x.date, x.kind)); });
+    if (Hm.overdue.length || Ad.overdue.length) {
+      kids.push(h('p', { class: 'small', id: 'rv-ha-overdue-h', text: 'Still overdue (' + (Hm.overdue.length + Ad.overdue.length) + ')' }));
+      Hm.overdue.forEach(function (m) { kids.push(maintRow(s, m, 'rv-ha rv-maint')); });
+      Ad.overdue.forEach(function (x) { kids.push(line(x.title, x.date, x.kind)); });
+    }
+    kids.push(h('p', { class: 'small', id: 'rv-ha-next-h', text: 'Due next week (' + (Hm.dueNext.length + Ad.dueNext.length) + ')' }));
+    Hm.dueNext.forEach(function (m) { kids.push(line(m.title, m.nextDue, 'Home')); });
+    Ad.dueNext.forEach(function (x) { kids.push(line(x.title, x.date, x.kind)); });
+    var pr = [proposalsCard(s, Hm.proposals, 'home'), proposalsCard(s, Ad.proposals, 'admin')];
+    return h('div', { class: 'card', id: 'rv-homeadmin' }, kids, pr);
+  }
+
   // ---------- memory ----------
   function memoryScreen(s) {
     var t = today(), mp = monthPeriod(t), qp = quarterPeriod(t);
@@ -1810,6 +2161,8 @@
                     h('li', { text: 'Accounts: ' + (state.accounts || []).length }),
                     h('li', { text: 'Projects: ' + (state.projects || []).length + ', pipeline items: ' + (state.pipeline || []).length }),
                     h('li', { text: 'Goals: ' + (state.goals || []).length }),
+                    h('li', { text: 'Home: ' + (state.properties || []).length + ' properties, ' + (state.vehicles || []).length + ' vehicles, ' + (state.maintenance || []).length + ' maintenance items' }),
+                    h('li', { text: 'Admin: ' + (state.renewals || []).length + ' renewals, ' + (state.documents || []).length + ' documents, ' + (state.taxItems || []).length + ' tax items' }),
                     h('li', { text: 'Daily checks: ' + (state.habits || []).length + ', training cycle: ' + (state.cycle ? 'set' : 'not set') }),
                     h('li', { text: 'Approved insights: ' + nAppr }),
                     h('li', { text: 'Lessons: ' + state.memory.lessons.length }),
@@ -1830,7 +2183,7 @@
       }, field('Restore from a backup file (64 MB max)', bf), field('Backup passphrase', ip),
         h('button', { type: 'submit', class: 'btn', text: 'Import backup' }))));
 
-    out.push(h('p', { class: 'mut small', id: 'app-version', text: 'LifeOS v0.6.0' }));
+    out.push(h('p', { class: 'mut small', id: 'app-version', text: 'LifeOS v0.7.0' }));
 
     if (L.syncUI) out.push(L.syncUI.section(syncCtx()));
 

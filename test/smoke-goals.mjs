@@ -83,7 +83,7 @@ async function run(label, viewport) {
     await expectText('.tile[data-domain="goals"] .tile-value', want.value);
     const t = await text('.tile[data-domain="goals"]');
     if (!t.includes(want.sub)) throw new Error(where + ' goals tile: ' + t);
-    if ((await page.locator('.tile').count()) !== 10) throw new Error('expected 10 tiles');
+    if ((await page.locator('.tile').count()) !== 11) throw new Error('expected 11 tiles');
     await layout(where + ' dashboard');
   }
   const openGoals = async () => { await nav('Home'); await page.click('.tile[data-domain="goals"]'); await page.waitForSelector('#goal-ladder', T); };
@@ -240,7 +240,7 @@ async function run(label, viewport) {
     await step('settings: version and audit log hold no goal text', async () => {
       await nav('Settings');
       await page.waitForSelector('#app-version', T);
-      await expectText('#app-version', 'LifeOS v0.6.0');
+      await expectText('#app-version', 'LifeOS v0.7.0');
       const t = await text('main');
       for (const secret of ['Grow net worth', 'Save 10k', 'Train four', 'Read 12']) if (t.includes(secret)) throw new Error('settings page shows ' + secret);
       await layout('settings');

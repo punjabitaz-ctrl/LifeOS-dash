@@ -6,7 +6,7 @@
   function sumList(c, label, s) {
     return c.h('div', { class: 'small' },
       c.h('strong', { text: label }),
-      c.h('div', { class: 'mut', text: 'Revision ' + s.rev + ', saved ' + when(s.updatedAt) + ', ' + s.entries + ' entries, ' + (s.schema < 3 ? 'older version (no projects, pipeline or health data)' : s.projects + ' projects, ' + s.pipeline + ' pipeline items' + (s.schema < 4 ? ', older version (no cycle, daily checks or workout types)' : ', ' + (s.habits || 0) + ' daily checks, ' + (s.cycle ? 'training cycle set' : 'no training cycle') + (s.schema < 5 ? ', older version (no goals)' : ', ' + (s.goals || 0) + ' goals'))) }));
+      c.h('div', { class: 'mut', text: 'Revision ' + s.rev + ', saved ' + when(s.updatedAt) + ', ' + s.entries + ' entries, ' + (s.schema < 3 ? 'older version (no projects, pipeline or health data)' : s.projects + ' projects, ' + s.pipeline + ' pipeline items' + (s.schema < 4 ? ', older version (no cycle, daily checks or workout types)' : ', ' + (s.habits || 0) + ' daily checks, ' + (s.cycle ? 'training cycle set' : 'no training cycle') + (s.schema < 5 ? ', older version (no goals)' : ', ' + (s.goals || 0) + ' goals') + (s.schema < 6 ? ', older version (no Home or Admin data)' : ', ' + (s.maintenance || 0) + ' maintenance items, ' + (s.renewals || 0) + ' renewals'))) }));
   }
 
   // c is the context app.js passes in: { h, field, btn, openDialog, commit, download, setNotice, render }

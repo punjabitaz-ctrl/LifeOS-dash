@@ -207,7 +207,7 @@
     return Array.from(new Uint8Array(d), (x) => x.toString(16).padStart(2, '0')).join('');
   }
   const count = (a) => (Array.isArray(a) ? a.length : 0);
-  const summary = (meta, state, schema) => ({ rev: meta.rev, updatedAt: meta.updatedAt, entries: count(state.entries), projects: count(state.projects), pipeline: count(state.pipeline), goals: count(state.goals), habits: count(state.habits), cycle: !!state.cycle, schema });
+  const summary = (meta, state, schema) => ({ rev: meta.rev, updatedAt: meta.updatedAt, entries: count(state.entries), projects: count(state.projects), pipeline: count(state.pipeline), goals: count(state.goals), maintenance: count(state.maintenance), renewals: count(state.renewals), habits: count(state.habits), cycle: !!state.cycle, schema });
 
   async function inspect(text, passphrase) {
     let envObj;

@@ -82,7 +82,7 @@ async function run(label, viewport) {
     await page.waitForSelector('.tile', T);
     await expectText('.tile[data-domain="health"] .tile-value', WANT.tile.value);
     if (!(await text('.tile[data-domain="health"]')).includes(WANT.tile.sub)) throw new Error('tile text: ' + await text('.tile[data-domain="health"]'));
-    if ((await page.locator('.tile').count()) !== 10) throw new Error('expected 10 tiles');
+    if ((await page.locator('.tile').count()) !== 11) throw new Error('expected 11 tiles');
     await layout(where + ' dashboard');
   }
 

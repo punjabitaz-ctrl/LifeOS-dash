@@ -1,6 +1,6 @@
 # LifeOS
 
-LifeOS (Living Independent and Free Everyday Operating System) is a single-file, offline, local-first life dashboard. It tracks ten areas (money, assets, work, health and more), builds weekly reviews, and keeps a memory of insights you approve. Vanilla JS, no dependencies.
+LifeOS (Living Independent and Free Everyday Operating System) is a single-file, offline, local-first life dashboard. It tracks eleven areas (money, assets, work, health and more), builds weekly reviews, and keeps a memory of insights you approve. Vanilla JS, no dependencies.
 
 ## Open it
 
@@ -33,6 +33,12 @@ Build, then open `dist/lifeos.html` in a browser (double-click works, it needs n
 - Goals view: goals on horizons from weekly to 10 years, a ladder of parents and children, progress computed live from your own numbers (net worth, savings rate, spending, weight, body fat, workouts, sleep, daily checks, outcomes, pipeline wins, or a typed value) and an arithmetic pace (ahead, on track, behind). Achieving, dropping and rolling over are always your tap. The weekly review gains a Goals step and the dashboard a Goals tile.
 - Vault schema 5, migrated from schema 1 to 4 with no data loss (old goal entries become goals and keep their full history). CSV import now maps workout type, minutes and effort; daily checks hold up to 100,000 ticks.
 - `node test/smoke-goals.mjs` runs the Goals flow. Audited: goal titles, notes and body-metric goals never reach the AI provider. See the v0.6.0 audit in docs/SECURITY.md.
+
+## v0.7.0: Home and Admin
+
+- Home view: maintenance tasks for your home and vehicles (overdue, due in 30 days, cost this year), vehicles with last service and odometer, a one-time seasonal starter checklist you pick from, and household bills taken from Money recurring items you flag (no second list).
+- Admin view (new dashboard tile, 11 in all): renewals and subscriptions with monthly and yearly run-rate, a document index of where things are kept (it refuses ID and card numbers), a tax checklist by year, and a 30/60/90 day timeline. Finishing a recurring task or renewal only proposes the next one. The weekly review gains a Home and Admin step.
+- Vault schema 6, migrated from schema 1 to 5 with no data loss (old Home due items become renewals with their full text). `node test/smoke-home-admin.mjs` runs the flow. Audited: see the v0.7.0 audit in docs/SECURITY.md.
 
 ## Security model
 

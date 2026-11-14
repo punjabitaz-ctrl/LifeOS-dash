@@ -1,6 +1,6 @@
 # LifeOS handoff
 
-Updated 13 Nov 2026. Read this first in any new session, then SPEC.md and docs/SECURITY.md.
+Updated 14 Nov 2026. Read this first in any new session, then SPEC.md and docs/SECURITY.md.
 
 ## What it is
 LifeOS (Living Independent and Free Everyday Operating System): one offline-capable HTML file, vanilla JS, no dependencies. All data sits in one passphrase-encrypted envelope in the browser's IndexedDB. Optional AI (Anthropic key, local model, or copy/paste into Claude) only ever sees weekly numbers. Owner: Taz Abbas. Proprietary licence (see LICENSE).
@@ -21,8 +21,9 @@ LifeOS (Living Independent and Free Everyday Operating System): one offline-capa
 | 0.4.0 | Work: projects, weekly outcomes, pipeline | pushed |
 | 0.5.0 | Health: body metrics, workouts, training cycle, sleep, daily checks; project delete | pushed |
 | 0.6.0 | Goals: linked metrics, pace, ladder, review step, tile; CSV workout fields; 100,000 tick cap | audited, not yet committed |
+| 0.7.0 | Home and Admin, schema 6: Home (properties, vehicles, maintenance, household bills) and Admin (renewals, subscriptions, document index, tax checklist, 30/60/90 timeline); Admin tile | audited (SEC-44 to SEC-48 fixed), not yet committed |
 
-Schema: 5 as of v0.6.0. Every schema change needs a tested migration and the downgrade guards (SEC-27/28) extended to the new collections.
+Schema: 6 as of v0.7.0. Every schema change needs a tested migration and the downgrade guards (SEC-27/28) extended to the new collections.
 
 ## How each build cycle runs
 1. Owner picks the next domain and answers scope questions.
@@ -57,8 +58,8 @@ Haiku is used for short, capped research only. Keep prompts lean and cap reply l
 
 ## Roadmap
 1. Goals deep (done in v0.6.0).
-2. Home deep (next).
-3. Admin deep (Home/Admin is one thin domain today; splitting it needs a migration).
+2. Home and Admin deep (done in v0.7.0, one cycle).
+3. Recommended before more building: a first real run on phone and PC (owner's to-do 2), since nothing has yet run on a real device.
 4. Still thin after that: Activities, Social, Learning, Wellbeing.
 5. NAS sync to replace Google Drive once the NAS is rebuilt.
 6. Possible later: independent re-audit of the whole codebase, real-device test pass, custom domain.
@@ -69,4 +70,4 @@ Haiku is used for short, capped research only. Keep prompts lean and cap reply l
 - Local model (Ollama) may be unreachable from the hosted HTTPS copy in some browsers; untested.
 
 ## Current step
-v0.6.0 Goals is audited (SEC-40 to SEC-43 fixed, SEC-37 to SEC-39 closed); the orchestrator re-runs tests and smokes, commits and pushes. Next is Home (deep).
+v0.7.0 Home and Admin is audited (SEC-44 to SEC-48 fixed, all Low; see docs/SECURITY.md). The orchestrator re-runs tests and smokes, commits and pushes. Next: a first real run on phone and PC, then the next thin domain (Activities, Social, Learning or Wellbeing) as the owner chooses.

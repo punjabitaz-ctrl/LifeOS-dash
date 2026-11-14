@@ -15,7 +15,7 @@ test('weekStart returns Monday', () => {
 });
 test('DOMAINS shape and alias', () => {
   assert.equal(L.DOMAINS, M.DOMAINS);
-  assert.deepEqual(M.DOMAINS.map((d) => d.id), ['money', 'assets', 'work', 'health', 'activities', 'social', 'learning', 'home', 'goals', 'wellbeing']);
+  assert.deepEqual(M.DOMAINS.map((d) => d.id), ['money', 'assets', 'work', 'health', 'activities', 'social', 'learning', 'home', 'admin', 'goals', 'wellbeing']);
   for (const d of M.DOMAINS) for (const t of d.types) assert.ok(Array.isArray(t.fields));
 });
 test('validateEntry', () => {
@@ -112,7 +112,7 @@ test('weeklyDigest now vs prev with units', () => {
   assert.deepEqual(d.domains.health, { now: 2, prev: 1, unit: 'workouts' });
   assert.deepEqual(d.domains.wellbeing, { now: 4, prev: 0, unit: 'score' });
   assert.equal(d.domains.assets.unit, 'USD');
-  assert.deepEqual(Object.keys(d.domains).length, 10);
+  assert.deepEqual(Object.keys(d.domains).length, 11);
   assert.ok(!JSON.stringify(d).includes('t0'));
 });
 test('series returns n weekly points ending this week', () => {

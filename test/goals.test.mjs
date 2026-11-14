@@ -52,7 +52,7 @@ test('schema 1, 2, 3 and 4 migrate to 5 with no data loss; old goal entries beco
   base.cycle = { startDate: '2026-01-05', sprintDays: 14, sprintsPerCycle: 2, restDays: 7, alternateHeavyLight: true, firstWeek: 'heavy' };
   for (const n of [1, 2, 3, 4]) {
     const got = S.validateState(asSchema(n, base));
-    assert.equal(got.schema, 5); assert.equal(got.sourceSchema, n);
+    assert.equal(got.schema, 6); assert.equal(got.sourceSchema, n);
     assert.equal(got.entries.length, nonGoal(base), 'every non-goal entry is kept, the goal entries moved into goals');
     assert.ok(!got.entries.some((e) => e.type === 'goal'));
     assert.equal(got.goals.length, 3, 'one goal per distinct title (case-insensitive)');
@@ -82,20 +82,20 @@ test('migration is persisted on unlock of stored schema 1 to 4 vaults', async ()
     const salt = V.newSalt(), key = await V.deriveKey(PASS, salt);
     ad._m.set('envelope', await V.makeEnvelope(key, salt, asSchema(n, legacyBase())));
     const st = await S.unlock(PASS);
-    assert.equal(st.schema, 5); assert.equal(st.goals.length, 3);
+    assert.equal(st.schema, 6); assert.equal(st.goals.length, 3);
     await S.commit((x) => { G.addGoal(x, { title: 'New one', horizon: 'monthly', targetValue: 3 }, TODAY); });
     const raw = await V.decrypt(key, ad._m.get('envelope'));
-    assert.equal(raw.schema, 5); assert.equal(raw.goals.length, 4); assert.equal(raw.entries.filter((e) => e.type === 'goal').length, 0);
+    assert.equal(raw.schema, 6); assert.equal(raw.goals.length, 4); assert.equal(raw.entries.filter((e) => e.type === 'goal').length, 0);
     S.lock();
   }
 });
 test('a v0.5.0 (schema 4) backup imports cleanly and a schema 5 backup round trips goals', async () => {
   const salt = V.newSalt(), key = await V.deriveKey(PASS, salt);
   const got = await V.importBackup(PASS, JSON.stringify(await V.makeEnvelope(key, salt, asSchema(4, legacyBase()))));
-  assert.equal(got.schema, 5); assert.equal(got.sourceSchema, 4); assert.equal(got.goals.length, 3); assert.ok(!JSON.stringify(got).includes('sourceSchema'));
+  assert.equal(got.schema, 6); assert.equal(got.sourceSchema, 4); assert.equal(got.goals.length, 3); assert.ok(!JSON.stringify(got).includes('sourceSchema'));
   const s5 = stateWith(goal({ id: 'a', title: 'Alpha', parentId: 'b' , horizon: 'monthly' }), goal({ id: 'b', title: 'Beta', horizon: 'annual', manualValue: 5, statusOverride: 'behind' }));
   const back = await V.importBackup(PASS, await V.exportBackup(PASS, s5));
-  assert.deepEqual(back.goals, s5.goals); assert.equal(back.sourceSchema, 5);
+  assert.deepEqual(back.goals, s5.goals); assert.equal(back.sourceSchema, 6);
 });
 
 // ---- downgrade guards (SEC-27 / SEC-28 extended to schema 5 goals) ----
@@ -149,7 +149,7 @@ test('goals are protected from older-format backups on restore and named with a 
   const bk4 = await V.importBackup(PASS, JSON.stringify(await V.makeEnvelope(key, salt, asSchema(4, S.defaultState()))));
   assert.deepEqual(S.droppedData(S.getState(), bk4), ['goals']);
   await S.replaceState(bk4, { allowWorkLoss: true });
-  assert.equal(S.getState().goals.length, 0); assert.equal(S.getState().schema, 5);
+  assert.equal(S.getState().goals.length, 0); assert.equal(S.getState().schema, 6);
   // Nothing to lose, nothing flagged; a schema 5 backup is never an older format.
   assert.deepEqual(S.droppedData(S.getState(), bk4), []);
   await S.commit(addGoals);
@@ -169,14 +169,14 @@ test('goals are protected from an older (schema 4) Drive copy in a download offe
   await putRemote(d, asSchema(4, S.defaultState()), 3);
   const dec = await L.sync.run();
   assert.equal(dec.kind, 'download-offer'); assert.equal(dec.dropsWork, true); assert.deepEqual(dec.dropped, ['goals']);
-  assert.deepEqual([dec.remote.schema, dec.local.schema, dec.local.goals], [4, 5, 2]);
+  assert.deepEqual([dec.remote.schema, dec.local.schema, dec.local.goals], [4, 6, 2]);
   const before = JSON.stringify(ad._m.get('envelope')), w = d.writes;
   await assert.rejects(L.sync.apply(dec, 'download'), (e) => e.code === 'OLDER_FORMAT' && /goals/.test(e.message) && /Nothing was replaced/.test(e.message));
   await assert.rejects(L.sync.apply(dec, 'download', { allowWorkLoss: 1 }), (e) => e.code === 'OLDER_FORMAT');
   assert.equal(JSON.stringify(ad._m.get('envelope')), before); assert.equal(d.writes, w);
   assert.equal(S.getState().goals.length, 2);
   await L.sync.apply(dec, 'download', { allowWorkLoss: true });
-  assert.equal(S.getState().goals.length, 0); assert.equal(S.getState().schema, 5);
+  assert.equal(S.getState().goals.length, 0); assert.equal(S.getState().schema, 6);
   // Conflict: choosing the older copy is blocked without the tick, keeping this device never is.
   const f = await fresh();
   await L.sync.run();
@@ -194,7 +194,7 @@ test('goals are protected from an older (schema 4) Drive copy in a download offe
   assert.equal((await L.sync.run()).dropsWork, false);
 });
 test('a newer schema is refused and a schema 5 vault is never downgraded by the validator', () => {
-  assert.throws(() => S.validateState(Object.assign(S.defaultState(), { schema: 6 })), /schema/);
+  assert.throws(() => S.validateState(Object.assign(S.defaultState(), { schema: 7 })), /schema/);
   assert.throws(() => S.validateState(Object.assign(S.defaultState(), { schema: 0 })), /schema/);
   const s = stateWith(goal({ title: 'Keep me' }));
   assert.equal(S.validateState(clone(s)).goals.length, 1);
@@ -627,7 +627,7 @@ test('sync round trip with schema 5 goals: ciphertext only, restores on another 
   assert.equal((await L.sync.run()).kind, 'uploaded');
   for (const secret of ['SyncParent', 'SyncChild', 'SyncNote']) assert.ok(!d.file.text.includes(secret), 'no plaintext on Drive');
   const up = await V.importBackup(PASS, d.file.text);
-  assert.equal(up.schema, 5); assert.equal(goalShape(up), want);
+  assert.equal(up.schema, 6); assert.equal(goalShape(up), want);
   const ad2 = memAdapter(); S._setAdapter(ad2); S.lock(); await S.init(PASS);
   const dec = await L.sync.run({ passphrase: PASS });
   assert.equal(dec.kind, 'download-offer'); assert.equal(dec.dropsWork, false); assert.equal(dec.remote.goals, 2);

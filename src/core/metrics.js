@@ -27,6 +27,8 @@
       T('item', 'Item', [sel('status', 'Status', ['active', 'done'])]),
       T('hours', 'Hours', [num('value', 'Hours', { min: 0, max: 1000 })])] },
     { id: 'home', label: 'Home', types: [T('due', 'Due item', [dt('due', 'Due date'), sel('status', 'Status', ['open', 'done'])])] },
+    // Admin (schema 6) keeps its data in state.renewals, documents and taxItems; it has no typed entries of its own.
+    { id: 'admin', label: 'Admin', types: [] },
     { id: 'goals', label: 'Goals', types: [T('goal', 'Goal', [sel('status', 'Status', ['on-track', 'at-risk', 'off-track', 'done'])])] },
     { id: 'wellbeing', label: 'Wellbeing', types: [T('mood', 'Mood', [num('value', 'Mood (1 to 5)', { min: 1, max: 5 })])] },
   ];
@@ -550,7 +552,7 @@
     return n;
   }
 
-  const UNITS = { money: '%', work: 'outcomes', health: 'workouts', activities: 'days', social: 'people', learning: 'items', home: 'items', goals: '%', wellbeing: 'score' };
+  const UNITS = { money: '%', work: 'outcomes', health: 'workouts', activities: 'days', social: 'people', learning: 'items', home: 'tasks', admin: 'items', goals: '%', wellbeing: 'score' };
   function weekMetric(state, id, ws, ents) {
     const we = addDays(ws, 6);
     const tg = state.settings.targets;
@@ -562,7 +564,8 @@
       case 'activities': return activeDays(ents, ws, we);
       case 'social': return overdue(ents, we, tg.contactDays).n;
       case 'learning': return count(ents, ws, we, (e) => e.type === 'item' && e.status === 'done');
-      case 'home': return dueSoon(ents, we, 30).soon;
+      case 'home': return L.home.weekValue(state, we);
+      case 'admin': return L.admin.weekValue(state, we);
       case 'goals': {
         // Schema 5 goals when there are any (weight and body fat goals left out); the old goal entries otherwise.
         if ((state.goals || []).length) return L.goals.weekShare(state, we);
@@ -585,7 +588,7 @@
     const we = addDays(ws, 6), wm = sumMoney(byDomain(state, 'money'), ws, we), nw = netWorthDetail(state, we);
     const mv = monthView(state, monthOf(we));
     const money = { income: dollars(wm.incC), spend: dollars(wm.expC), budgetUsedPct: mv.budgetCents > 0 ? r1(mv.budgetedSpentCents * 100 / mv.budgetCents) : 0, netWorth: nw.total, liabilities: nw.liabilities };
-    return { week: ws, domains, money, work: workDigest(state, ws), health: healthDigest(state, ws), goals: L.goals.digestCounts(state, ws) };
+    return { week: ws, domains, money, work: workDigest(state, ws), health: healthDigest(state, ws), goals: L.goals.digestCounts(state, ws), home: L.home.digest(state, ws), admin: L.admin.digest(state, ws) };
   }
   function series(state, domainId, n, today) {
     if (!DOMAINS.some((d) => d.id === domainId)) throw new Error('Unknown domain');
@@ -646,10 +649,8 @@
         for (const e of ents) if (e.type === 'hours' && e.date.slice(0, 7) === mon) h += e.value;
         return R('Items finished this month', String(n), n, r1(h) + ' hours logged');
       }
-      case 'home': {
-        const d = dueSoon(ents, today, 30);
-        return R('Due within 30 days', String(d.soon), d.soon, d.late ? d.late + ' overdue' : 'Nothing overdue');
-      }
+      case 'home': return L.home.headline(state, today, R);
+      case 'admin': return L.admin.headline(state, today, R);
       case 'goals': {
         if ((state.goals || []).length || !ents.length) { // legacy goal entries only show while there are no goals and some entries
           const g = L.goals.summary(state, today), v = g.share === null ? 0 : Math.round(g.share * 100);

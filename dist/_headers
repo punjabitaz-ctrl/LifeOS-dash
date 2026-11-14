@@ -1,5 +1,5 @@
 /*
-  Content-Security-Policy: default-src 'none'; script-src 'sha256-uTg49vetxfk5je8n0PYcdn5P+s8/QUNYPQ+Xr8M/pwE='; style-src 'sha256-AhW11rSnH8oIjKhS1vZoMCK0L0Rjw+8kHSt7Kwd2adw='; connect-src https://api.anthropic.com https://www.googleapis.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'none'; script-src 'sha256-Oqu+KlUY+IUrD8gCW5P52LUL7qEhM7taz1bVfSZiWvc='; style-src 'sha256-AhW11rSnH8oIjKhS1vZoMCK0L0Rjw+8kHSt7Kwd2adw='; connect-src https://api.anthropic.com https://www.googleapis.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
   Strict-Transport-Security: max-age=63072000
   X-Content-Type-Options: nosniff
   Referrer-Policy: no-referrer

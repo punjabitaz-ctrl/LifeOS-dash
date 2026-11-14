@@ -35,7 +35,7 @@ try {
     await page.fill('#pass', PASS); await page.fill('#pass2', PASS);
     await page.click('button:has-text("Create vault")');
     await page.waitForSelector('.tile', { timeout: 30000 });
-    if ((await page.locator('.tile').count()) !== 10) throw new Error('expected 10 tiles');
+    if ((await page.locator('.tile').count()) !== 11) throw new Error('expected 11 tiles');
     await layout('dashboard');
   });
   await step('expense', async () => {
@@ -55,7 +55,7 @@ try {
     await page.waitForSelector('.entry:has-text("Run")');
     await page.click('.nav button:has-text("Home")');
     await page.waitForSelector('.tile');
-    if ((await page.locator('.tile').count()) !== 10) throw new Error('tiles missing');
+    if ((await page.locator('.tile').count()) !== 11) throw new Error('tiles missing');
   });
   await step('review', async () => {
     await page.click('.nav button:has-text("Review")');
@@ -128,7 +128,7 @@ try {
   await step('backup-export', async () => {
     await page.click('.nav button:has-text("Settings")');
     await layout('settings');
-    if (!/v0\.6\.0/.test(await page.textContent('#app-version'))) throw new Error('version missing');
+    if (!/v0\.7\.0/.test(await page.textContent('#app-version'))) throw new Error('version missing');
     await page.selectOption('#p-kind', 'local');
     await page.fill('#p-base', 'http://localhost:11434/v1');
     if (!/sent to: http:\/\/localhost:11434\/v1\/chat\/completions/.test(await page.textContent('#p-url'))) throw new Error('url preview wrong');

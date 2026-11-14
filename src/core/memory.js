@@ -46,6 +46,12 @@
           if (prev > 0 && now !== prev) text = 'Average mood is ' + dir + ' from ' + prev + ' to ' + now + '.';
           else if (prev === 0) text = 'Average mood this week is ' + now + ' out of 5.';
           break;
+        case 'home':
+          text = 'Maintenance tasks overdue: ' + now + ' (last week ' + prev + ').';
+          break;
+        case 'admin':
+          text = 'Admin items due within 30 days: ' + now + ' (last week ' + prev + ').';
+          break;
         case 'goals':
           if (now === 0 && prev === 0) break;
           if (now !== prev) text = 'Share of goals on track moved ' + dir + ' from ' + prev + '% to ' + now + '%.';
@@ -94,6 +100,10 @@
       // Goals: counts only, never titles, notes or values; weight and body fat goals are not counted at all (SEC-32).
       const gc = dg.goals;
       if (gc && (gc.active > 0 || gc.achieved > 0)) lines.push('- goals detail: active ' + gc.active + ', ahead ' + gc.ahead + ', on track ' + gc.onTrack + ', behind ' + gc.behind + ', achieved this week ' + gc.achieved);
+      // Home and Admin: counts and money totals only, never a title, vendor, provider, name, location or note.
+      const hm = dg.home, ad = dg.admin, cur = state.settings.currency, fm = (c) => L.metrics.fmtMoney(c / 100, cur);
+      if (hm && (hm.overdue || hm.dueSoon || hm.done || hm.ytdCostCents)) lines.push('- home detail: maintenance overdue ' + hm.overdue + ', due within 30 days ' + hm.dueSoon + ', done this week ' + hm.done + ', year-to-date maintenance cost ' + fm(hm.ytdCostCents));
+      if (ad && (ad.overdue || ad.dueSoon || ad.done || ad.runRateCents)) lines.push('- admin detail: overdue ' + ad.overdue + ', due within 30 days ' + ad.dueSoon + ', done this week ' + ad.done + ', subscription run-rate per month ' + fm(ad.runRateCents));
       ctx = approvedAll.filter((i) => !isBodyInsight(i)).slice(-CTX_MAX);
       lines.push('Approved insights so far:');
     } else {

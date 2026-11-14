@@ -22,6 +22,8 @@
     mk('habitRate', 'Daily checks completed (7 days)', 'health', 'percent'),
     mk('outcomesPerWeek', 'Outcomes done per week', 'work', 'count'),
     mk('pipelineWon', 'Pipeline items won', 'work', 'count'),
+    mk('maintenanceOverdue', 'Maintenance tasks overdue', 'home', 'count'),
+    mk('adminOverdue', 'Admin items overdue', 'admin', 'count'),
   ]);
   // Body metrics are sensitive (SEC-32): goals on them never reach a digest, prompt or rules insight.
   const BODY = Object.freeze(['weight', 'bodyFat']);
@@ -80,6 +82,8 @@
       case 'outcomesPerWeek':
         if (!ents.some((e) => e.type === 'outcome' && e.date <= asOf)) return null;
         return m.weekOutcomes(state, m.weekStart(asOf)).filter((e) => e.status === 'done').length;
+      case 'maintenanceOverdue': return L.home.overdueValue(state, asOf);
+      case 'adminOverdue': return L.admin.overdueValue(state, asOf);
       case 'pipelineWon':
         if (!(state.pipeline || []).length) return null;
         return state.pipeline.filter((x) => x.stage === 'won' && x.updatedAt <= asOf).length;

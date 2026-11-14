@@ -171,3 +171,26 @@ Manual entry, phone first. Schema 5 with tested migrations from 1 to 4 (no data 
 - Dashboard Goals tile: share of active goals on track or ahead; sub line: behind count and next due date.
 - Privacy: goal titles and notes never reach a prompt, the digest or the audit log. The digest gains counts only (active, ahead, on track, behind, achieved this week). Goals whose metric is weight or body fat are excluded from every prompt and from rules insights text that would reveal the value (SEC-32 applies).
 - No advice wording; pace labels are arithmetic facts.
+
+## v0.7.0 addendum: Home and Admin (one cycle)
+Manual entry, phone first. Schema 6 with tested migrations from 1 to 5 (no data loss). The thin `home` domain splits into `home` and `admin`: existing `home/due` entries are kept and shown under Admin as renewals (their text, dates and status preserved in full; if a field cannot map, keep the original entry visible rather than dropping anything, as in SEC-40). Downgrade guards extended to every schema 6 collection. Dashboard gains an Admin tile (11 tiles); nav stays usable at 390 px.
+
+### Home
+- `properties:[{id,name,kind:'house'|'condo'|'rental'|'land'|'other',archived}]` cap 20. The UI is built for one property but the data model allows several; with one property, no picker is shown.
+- `maintenance:[{id,propertyId?,vehicleId?,title,area,cadence:'once'|'monthly'|'quarterly'|'semiannual'|'annual'|'custom',everyDays?,lastDone?,nextDue?,cost?,vendor,notes,state:'open'|'done'|'skipped'}]` cap 2000. Marking done records the date and cost and, for recurring tasks, proposes the next due date for one-tap confirmation (never auto-created). Seasonal starter checklist offered once as suggestions the user picks from (never auto-added).
+- `vehicles:[{id,name,year?,odometer?,odometerUnit:'mi'|'km',archived}]` cap 20, with service history as maintenance items linked by vehicleId and optional odometer reading.
+- Household bills: reuse Money recurring items via a `household` flag rather than a second store; Home view lists them with monthly total in integer cents. No duplicate data.
+- Home view: overdue and due-in-30-days maintenance, year-to-date maintenance cost, vehicles with last service, household bills total. Tile headline: tasks overdue; sub line: due in 30 days.
+
+### Admin
+- `renewals:[{id,title,kind:'insurance'|'registration'|'license'|'subscription'|'membership'|'warranty'|'tax'|'legal'|'other',provider,dueDate,cadence:'once'|'monthly'|'annual'|'custom',everyDays?,amount?,autoRenews:bool,state:'open'|'done'|'cancelled',notes}]` cap 2000. Completing a recurring renewal proposes the next one for confirmation. Subscriptions view shows monthly and annual run-rate in integer cents and flags those not reviewed in 12 months (a numeric fact, no advice wording).
+- `documents:[{id,title,kind,whereKept,expires?,notes}]` cap 1000. This is an index of where documents live, NOT a document store: no file uploads, and the form must state plainly not to enter ID numbers, account numbers or passwords. Validation rejects obvious secrets patterns in these fields with a clear message (for example 9-digit SSN shapes, 13 to 19 digit card numbers passing a Luhn check).
+- Tax checklist: `taxItems:[{id,year,title,state:'needed'|'received'|'filed',dueDate?,notes}]` cap 1000, grouped by tax year; no tax advice, no computed tax.
+- Admin view: timeline of what is due in the next 30, 60 and 90 days across renewals, tax items and document expiries; overdue first. Tile headline: items due within 30 days; sub line: overdue count.
+
+### Cross-cutting
+- Weekly review gains a Home and Admin step listing what came due this week and what is due next week, with the propose-then-confirm actions.
+- Goals: add linked metrics "maintenance tasks overdue" and "admin items overdue" (direction down).
+- weeklyDigest gains counts and totals only (overdue, due soon, done this week, YTD maintenance cost, subscription run-rate). Never titles, providers, vendors, vehicle or property names, document locations or notes; adversarial-string tests required.
+- All dates local YYYY-MM-DD; due maths tested in New York and Auckland time zones and across DST and month ends (monthly cadence from the 31st).
+- No advice wording anywhere (no legal, tax, insurance or financial recommendations); state numeric and date facts only.
