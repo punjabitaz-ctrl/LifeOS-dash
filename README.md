@@ -47,3 +47,10 @@ Build, then open `dist/lifeos.html` in a browser (double-click works, it needs n
 - The AI only proposes insights; nothing becomes approved without your explicit tap, and backup restores can re-queue approved insights for review.
 - The model sees only a numeric weekly digest plus a few approved insights and lessons, never raw entries or names.
 - All imported data (CSV, backups, AI replies) is validated. Details and findings: [docs/SECURITY.md](docs/SECURITY.md).
+
+## v0.8.0: Learning
+
+- Learning items (course, book, certification, skill, project, other) with percent or units progress, target dates and pace (the same arithmetic as Goals), study sessions, takeaways with plain substring search, and a weekly study-minutes target with a streak of weeks at target.
+- A certification's expiry date shows in the Admin 30/60/90 timeline as a computed row; no renewal is stored. Goals gain study minutes per week, items finished and linked-item progress. The weekly review gains a Learning step with offer-only actions.
+- Vault schema 7, migrated from schema 1 to 6 with no data loss (old learning items and whole-minute hours become items and sessions; anything that does not fit stays as a visible, deletable entry). `node test/smoke-learning.mjs` runs the flow.
+- A study session note holds up to 200 characters, so Learning at its caps stays under the 64 MB backup and sync limit; a vault that is larger anyway is refused by export and sync with a clear message, never cut. Audited: titles, providers, notes and takeaways never reach the AI provider, the digest or the audit log. See the v0.8.0 audit in docs/SECURITY.md.

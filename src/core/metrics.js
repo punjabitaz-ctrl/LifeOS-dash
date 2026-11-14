@@ -563,7 +563,8 @@
       case 'health': return count(ents, ws, we, (e) => e.type === 'workout');
       case 'activities': return activeDays(ents, ws, we);
       case 'social': return overdue(ents, we, tg.contactDays).n;
-      case 'learning': return count(ents, ws, we, (e) => e.type === 'item' && e.status === 'done');
+      // Study minutes once any Learning data exists (schema 7); the older count of finished items before that.
+      case 'learning': return L.learning.current(state) ? L.learning.weekValue(state, we) : count(ents, ws, we, (e) => e.type === 'item' && e.status === 'done');
       case 'home': return L.home.weekValue(state, we);
       case 'admin': return L.admin.weekValue(state, we);
       case 'goals': {
@@ -575,7 +576,7 @@
     }
     throw new Error('Unknown domain');
   }
-  const unitOf = (state, id) => (id === 'assets' ? state.settings.currency : UNITS[id]);
+  const unitOf = (state, id) => (id === 'assets' ? state.settings.currency : id === 'learning' && L.learning.current(state) ? 'minutes' : UNITS[id]);
   const byDomain = (state, id) => state.entries.filter((e) => e.domain === id);
 
   function weeklyDigest(state, weekStartISO) {
@@ -588,7 +589,7 @@
     const we = addDays(ws, 6), wm = sumMoney(byDomain(state, 'money'), ws, we), nw = netWorthDetail(state, we);
     const mv = monthView(state, monthOf(we));
     const money = { income: dollars(wm.incC), spend: dollars(wm.expC), budgetUsedPct: mv.budgetCents > 0 ? r1(mv.budgetedSpentCents * 100 / mv.budgetCents) : 0, netWorth: nw.total, liabilities: nw.liabilities };
-    return { week: ws, domains, money, work: workDigest(state, ws), health: healthDigest(state, ws), goals: L.goals.digestCounts(state, ws), home: L.home.digest(state, ws), admin: L.admin.digest(state, ws) };
+    return { week: ws, domains, money, work: workDigest(state, ws), health: healthDigest(state, ws), goals: L.goals.digestCounts(state, ws), home: L.home.digest(state, ws), admin: L.admin.digest(state, ws), learning: L.learning.digest(state, ws) };
   }
   function series(state, domainId, n, today) {
     if (!DOMAINS.some((d) => d.id === domainId)) throw new Error('Unknown domain');
@@ -644,6 +645,7 @@
         return R('People overdue', String(o.n), o.n, o.total + ' tracked, over ' + tg.contactDays + ' days since contact');
       }
       case 'learning': {
+        if (L.learning.current(state)) return L.learning.headline(state, today, R);
         const n = count(ents, mon + '-01', mon + '-31', (e) => e.type === 'item' && e.status === 'done');
         let h = 0;
         for (const e of ents) if (e.type === 'hours' && e.date.slice(0, 7) === mon) h += e.value;

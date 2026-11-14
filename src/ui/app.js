@@ -243,7 +243,7 @@
     var s = st();
     var body;
     try {
-      body = view.name === 'domain' ? (view.domain === 'money' ? moneyScreen(s) : view.domain === 'assets' ? assetsScreen(s) : view.domain === 'work' ? workScreen(s) : view.domain === 'health' ? healthScreen(s) : view.domain === 'goals' ? goalsScreen(s) : view.domain === 'home' ? homeScreen(s) : view.domain === 'admin' ? adminScreen(s) : domainScreen(s))
+      body = view.name === 'domain' ? (view.domain === 'money' ? moneyScreen(s) : view.domain === 'assets' ? assetsScreen(s) : view.domain === 'work' ? workScreen(s) : view.domain === 'health' ? healthScreen(s) : view.domain === 'goals' ? goalsScreen(s) : view.domain === 'home' ? homeScreen(s) : view.domain === 'admin' ? adminScreen(s) : view.domain === 'learning' ? learningScreen(s) : domainScreen(s))
         : view.name === 'review' ? reviewScreen(s)
         : view.name === 'memory' ? memoryScreen(s)
         : view.name === 'settings' ? settingsScreen(s)
@@ -337,7 +337,7 @@
     } else pr.appendChild(h('p', { class: 'mut', text: 'No priorities yet. Run your weekly review to set three.' }));
     if (!rv || rv.weekOf !== wk) pr.appendChild(btn('Start weekly review', function () { go('review'); }, 'pri'));
     var due = L.metrics.dueRecurring(s, t).length;
-    return h('div', null, h('div', { class: 'row sp' }, h('h1', { text: 'Dashboard' }), btn('Quick add', quickAdd, 'pri qa-btn', { id: 'quick-add' })),
+    return h('div', null, h('div', { class: 'row sp' }, h('h1', { text: 'Dashboard' }), h('div', { class: 'row' }, btn('Log study', function () { studyDialog(''); }, 'qa-btn', { id: 'quick-study' }), btn('Quick add', quickAdd, 'pri qa-btn', { id: 'quick-add' }))),
       due ? h('div', { class: 'warn' }, due + (due === 1 ? ' recurring item is' : ' recurring items are') + ' due. ', btn('Review', function () { go('domain', { domain: 'money' }); }, 'sm', { id: 'due-review' })) : null,
       pr, h('div', { class: 'grid' }, tiles));
   }
@@ -978,7 +978,9 @@
       reviewGoalsCard(s, wk, t),
       h('h2', { text: '4. Home and Admin' }),
       reviewHomeAdminCard(s, wk),
-      h('h2', { text: '5. Your three priorities' }),
+      h('h2', { text: '5. Learning' }),
+      reviewLearningCard(s, wk, t),
+      h('h2', { text: '6. Your three priorities' }),
       h('form', {
         class: 'card',
         onsubmit: function (e) {
@@ -1891,7 +1893,7 @@
       return h('div', { id: id }, h('h3', { text: title + ' (' + items.length + ')' }), items.length ? items.map(tlItem) : h('p', { class: 'mut small', text: 'Nothing.' }));
     };
     var tlCard = h('div', { class: 'card', id: 'ad-timeline' }, h('h2', { text: 'Timeline' }),
-      h('p', { class: 'mut small', text: 'Renewals, tax items with a due date and document expiries. Overdue first.' }),
+      h('p', { class: 'mut small', text: 'Renewals, tax items with a due date, document expiries and certification expiries. Overdue first.' }),
       group('ad-tl-overdue', 'Overdue', tl.overdue), group('ad-tl-30', 'Within 30 days', tl.d30), group('ad-tl-60', '31 to 60 days', tl.d60), group('ad-tl-90', '61 to 90 days', tl.d90));
 
     var open = (s.renewals || []).filter(function (r) { return r.state === 'open'; }).sort(function (a, b) { return a.dueDate.localeCompare(b.dueDate) || a.title.localeCompare(b.title); });
@@ -2016,6 +2018,243 @@
     return h('div', { class: 'card', id: 'rv-homeadmin' }, kids, pr);
   }
 
+  // ---------- learning (v0.8.0) ----------
+  // Review actions (pause, drop, new target date) are offered and only taken on a tap.
+  function itemOptions(s, none) {
+    var live = (s.learningItems || []).filter(function (i) { return i.state !== 'dropped'; }).sort(function (a, b) { return a.title.localeCompare(b.title); });
+    return [{ v: '', t: none || '(none)' }].concat(live.map(function (i) { return { v: i.id, t: i.title }; }));
+  }
+  function goalOptions(s) {
+    return [{ v: '', t: '(none)' }].concat((s.goals || []).filter(function (g) { return g.state === 'active'; }).map(function (g) { return { v: g.id, t: g.title }; }));
+  }
+  // One tap logs a session: choose an item, tap a minutes chip, save. A typed number works too.
+  function studyDialog(itemId) {
+    var s = st(), mins = '';
+    var item = sel('sd-item', itemOptions(s), itemId || '');
+    var custom = h('input', { type: 'text', id: 'sd-min', inputmode: 'numeric', maxlength: '4', autocomplete: 'off', 'aria-label': 'Minutes' });
+    var dateIn = h('input', { type: 'date', id: 'sd-date', value: today(), required: true, 'aria-label': 'Date' });
+    var note = h('input', { type: 'text', id: 'sd-note', maxlength: String(L.learning.SESSION_NOTE_MAX), autocomplete: 'off', 'aria-label': 'Note (optional)' });
+    var chips = h('div', { class: 'chips', id: 'sd-chips', role: 'group', 'aria-label': 'Minutes' });
+    function paint() {
+      chips.replaceChildren.apply(chips, [15, 30, 45, 60].map(function (n) {
+        return h('button', { type: 'button', class: 'chipbtn', 'aria-pressed': String(n) === mins ? 'true' : 'false', text: String(n), onclick: function () { mins = String(n); custom.value = String(n); paint(); } });
+      }));
+    }
+    custom.addEventListener('input', function () { mins = custom.value.trim(); paint(); });
+    paint();
+    openDialog({
+      title: 'Log study time', yes: 'Save',
+      body: [field('Item (optional)', item), h('span', { class: 'lbl', text: 'Minutes' }), chips, field('Or type minutes', custom), field('Date', dateIn), field('Note (optional)', note)],
+      onYes: function () {
+        return commit(function (x) { L.learning.addSession(x, { itemId: item.value, date: dateIn.value, minutes: custom.value, notes: note.value }, today()); }, 'study session add')
+          .then(function () { setNotice('ok', 'Study time logged.'); render(); });
+      }
+    });
+  }
+  function progressDialog(s, it) {
+    var pct = h('input', { type: 'text', id: 'pd-pct', inputmode: 'decimal', maxlength: '6', autocomplete: 'off', value: typeof it.progressPct === 'number' ? String(it.progressPct) : '' });
+    var done = h('input', { type: 'text', id: 'pd-done', inputmode: 'numeric', maxlength: '7', autocomplete: 'off', value: typeof it.doneUnits === 'number' ? String(it.doneUnits) : '' });
+    var total = h('input', { type: 'text', id: 'pd-total', inputmode: 'numeric', maxlength: '7', autocomplete: 'off', value: typeof it.totalUnits === 'number' ? String(it.totalUnits) : '' });
+    var unit = h('input', { type: 'text', id: 'pd-unit', maxlength: '30', autocomplete: 'off', value: it.unitLabel || '' });
+    openDialog({
+      title: 'Update progress', yes: 'Save',
+      body: [h('p', { class: 'mut', text: it.title }), h('p', { class: 'small', text: 'Enter a percent, or units done out of a total. Not both. Leave all blank to clear.' }),
+        field('Percent done', pct), field('Units done', done), field('Total units', total), field('Unit name (for example chapters)', unit)],
+      onYes: function () {
+        var patch = pct.value.trim() ? { progressPct: pct.value } : { progressPct: '', totalUnits: total.value, doneUnits: done.value, unitLabel: unit.value };
+        return commit(function (x) { L.learning.updateItem(x, it.id, patch); }, 'learning progress').then(function () { setNotice('ok', 'Progress saved.'); render(); });
+      }
+    });
+  }
+  function editItemDialog(s, it) {
+    var title = h('input', { type: 'text', id: 'ei-title', maxlength: '200', autocomplete: 'off', value: it.title });
+    var tdate = h('input', { type: 'date', id: 'ei-target', value: it.targetDate || '' });
+    var exam = h('input', { type: 'date', id: 'ei-exam', value: it.examDate || '' });
+    var expires = it.kind === 'certification' ? h('input', { type: 'date', id: 'ei-expires', value: it.expiresOn || '' }) : null;
+    var goal = sel('ei-goal', goalOptions(s), it.goalId || '');
+    openDialog({
+      title: 'Edit item', yes: 'Save',
+      body: [field('Title', title), field('Target date', tdate), field('Exam date', exam), expires ? field('Certification expires', expires) : null, field('Linked goal', goal)],
+      onYes: function () {
+        var patch = { title: title.value, targetDate: tdate.value, examDate: exam.value, goalId: goal.value };
+        if (expires) patch.expiresOn = expires.value;
+        return commit(function (x) { L.learning.updateItem(x, it.id, patch); }, 'learning edit').then(function () { setNotice('ok', 'Item saved.'); render(); });
+      }
+    });
+  }
+  function askDeleteItem(s, it) {
+    var n = L.learning.linkedCount(s, it.id);
+    openDialog({
+      title: 'Delete this item?', yes: 'Delete', danger: true,
+      body: [h('p', { class: 'mut', text: it.title }), h('p', { class: 'small', id: 'ln-del-count', text: n.sessions + (n.sessions === 1 ? ' study session' : ' study sessions') + ' and ' + n.takeaways + (n.takeaways === 1 ? ' takeaway are' : ' takeaways are') + ' kept and unlinked.' })],
+      onYes: function () { return commit(function (x) { L.learning.deleteItem(x, it.id); }, 'learning item delete').then(function () { setNotice('ok', 'Item deleted. Its sessions and takeaways are kept.'); render(); }); }
+    });
+  }
+  function itemRow(s, it, t) {
+    var Ln = L.learning, pace = it.state === 'active' ? Ln.paceOf(it, t) : 'no-data', p = Ln.progressOf(it);
+    var sub = [Ln.KIND_LABEL[it.kind]];
+    if (it.provider) sub.push(it.provider);
+    if (it.targetDate) sub.push('target ' + it.targetDate);
+    if (it.examDate) { var dd = L.home.dates.daysBetween(it.examDate, t); sub.push('exam ' + it.examDate + (dd > 0 ? ' (in ' + dd + (dd === 1 ? ' day)' : ' days)') : dd === 0 ? ' (today)' : '')); }
+    if (it.expiresOn) sub.push('expires ' + it.expiresOn);
+    var chips = [h('span', { class: 'chip ln-state', text: Ln.STATE_LABEL[it.state] })];
+    if (pace !== 'no-data') chips.push(h('span', { class: 'chip ln-pace ' + STATUS_CHIP[pace], text: L.goals.PACE_LABEL[pace] }));
+    var kids = [h('div', { class: 'row sp' }, h('strong', { class: 'entry-t', text: it.title }), h('span', null, chips)),
+      h('p', { class: 'mut small', text: sub.join(' | ') }),
+      h('p', { class: 'small ln-progress', text: Ln.fmtProgress(it) + (Ln.unitsText(it) ? ' (' + Ln.unitsText(it) + ')' : '') })];
+    if (p !== null) kids.push(svgBar(Math.round(p), pace === 'behind' ? 'bar-over' : 'bar-fill'));
+    var acts = [];
+    if (it.state === 'active' || it.state === 'planned') acts.push(btn('Log time', function () { studyDialog(it.id); }, 'sm pri ln-logitem', { 'aria-label': 'Log time for ' + it.title }));
+    acts.push(btn('Progress', function () { progressDialog(s, it); }, 'sm ln-progbtn', { 'aria-label': 'Update progress for ' + it.title }));
+    if (it.state !== 'done') acts.push(btn('Mark done', function () { act(function () { return commit(function (x) { Ln.setState(x, it.id, 'done', t); }, 'learning done').then(function () { setNotice('ok', 'Marked done.'); render(); }); }); }, 'sm ln-done', { 'aria-label': 'Mark ' + it.title + ' done' }));
+    if (it.state === 'active') acts.push(btn('Pause', function () { act(function () { return commit(function (x) { Ln.pauseItem(x, it.id); }, 'learning pause').then(render); }); }, 'sm', { 'aria-label': 'Pause ' + it.title }));
+    if (it.state === 'paused' || it.state === 'planned' || it.state === 'done' || it.state === 'dropped') acts.push(btn(it.state === 'planned' ? 'Start' : 'Reopen', function () { act(function () { return commit(function (x) { Ln.setState(x, it.id, 'active', t); }, 'learning reopen').then(render); }); }, 'sm', { 'aria-label': 'Make ' + it.title + ' active' }));
+    if (it.state !== 'dropped') acts.push(btn('Drop', function () { act(function () { return commit(function (x) { Ln.dropItem(x, it.id); }, 'learning drop').then(render); }); }, 'sm', { 'aria-label': 'Drop ' + it.title }));
+    acts.push(btn('Edit', function () { editItemDialog(s, it); }, 'sm', { 'aria-label': 'Edit ' + it.title }));
+    acts.push(btn('Delete', function () { askDeleteItem(s, it); }, 'sm bad ln-delete', { 'aria-label': 'Delete ' + it.title }));
+    kids.push(h('div', { class: 'row' }, acts));
+    return h('div', { class: 'goal ln-item', 'data-title': it.title, 'data-state': it.state }, kids);
+  }
+  function learningScreen(s) {
+    var t = today(), Ln = L.learning, sum = Ln.summary(s, t), w = sum.week, info = Ln.weekInfo(t);
+    var stats = h('div', { class: 'stats' },
+      stat('Study minutes this week', w.target > 0 ? w.minutes + ' of ' + w.target : String(w.minutes), 'ln-minutes'),
+      stat('Sessions this week', String(w.sessions), 'ln-sessions'),
+      stat('Days studied this week', String(w.days), 'ln-days'),
+      stat('Weeks in a row at target', w.target > 0 ? String(sum.streak) : 'n/a', 'ln-streak'));
+    var tg = h('input', { type: 'text', id: 'ln-target', inputmode: 'numeric', maxlength: '5', autocomplete: 'off', value: w.target ? String(w.target) : '' });
+    var targetCard = h('form', {
+      class: 'card', id: 'ln-target-card',
+      onsubmit: function (e) {
+        e.preventDefault();
+        act(function () { return commit(function (x) { L.learning.setWeeklyTarget(x, tg.value); }, 'study target').then(function () { setNotice('ok', 'Study target saved.'); render(); }); });
+      }
+    }, h('h2', { text: 'Week ' + info.week + ' of ' + info.year }),
+      h('p', { class: 'mut small', id: 'ln-week', text: w.week + ' to ' + L.metrics.addDays(w.week, 6) + (w.target > 0 ? '. ' + (w.met ? 'Target met.' : (w.target - w.minutes) + ' minutes to the target.') : '. No weekly target set.') }),
+      field('Study minutes per week (0 for none)', tg),
+      h('div', { class: 'row' }, h('button', { type: 'submit', class: 'btn pri', id: 'ln-target-save', text: 'Save target' }), btn('Log study time', function () { studyDialog(''); }, '', { id: 'ln-log' })));
+
+    var active = Ln.activeItems(s);
+    var activeCard = h('div', { class: 'card', id: 'ln-active' }, h('h2', { text: 'Active (' + active.length + ')' }),
+      sum.stalled.length ? h('p', { class: 'small', id: 'ln-stalled', text: sum.stalled.length + (sum.stalled.length === 1 ? ' active item has' : ' active items have') + ' no session in ' + Ln.STALL_DAYS + ' days.' }) : null,
+      active.length ? active.map(function (i) { return itemRow(s, i, t); }) : h('p', { class: 'mut', text: 'Nothing active. Add an item below.' }));
+    var exams = sum.exams;
+    var examCard = h('div', { class: 'card', id: 'ln-exams' }, h('h2', { text: 'Upcoming exams (' + exams.length + ')' }),
+      exams.length ? exams.map(function (x) { return h('div', { class: 'item ln-exam', 'data-title': x.title }, h('div', null, h('span', { class: 'entry-t', text: x.title }), h('span', { class: 'mut small', text: ' ' + x.date + ', ' + (x.days === 0 ? 'today' : 'in ' + x.days + (x.days === 1 ? ' day' : ' days')) }))); }) : h('p', { class: 'mut', text: 'No exam dates ahead.' }));
+    var fin = Ln.recentlyFinished(s, 5);
+    var finCard = h('div', { class: 'card', id: 'ln-finished' }, h('h2', { text: 'Recently finished (' + fin.length + ')' }),
+      fin.length ? fin.map(function (i) { return h('div', { class: 'item ln-fin', 'data-title': i.title }, h('div', null, h('span', { class: 'entry-t', text: i.title }), h('span', { class: 'mut small', text: ' ' + (i.finishedDate || '') })), btn('Reopen', function () { act(function () { return commit(function (x) { Ln.setState(x, i.id, 'active', t); }, 'learning reopen').then(render); }); }, 'sm', { 'aria-label': 'Reopen ' + i.title })); }) : h('p', { class: 'mut', text: 'Nothing finished yet.' }));
+    var others = (s.learningItems || []).filter(function (i) { return i.state === 'planned' || i.state === 'paused' || i.state === 'dropped'; }).sort(function (a, b) { return a.title.localeCompare(b.title); });
+    var otherCard = others.length ? details('ln-other', 'Planned, paused and dropped (' + others.length + ')', others.map(function (i) { return itemRow(s, i, t); }), view.open === 'ln-other') : null;
+
+    // add an item
+    var f = {
+      title: h('input', { type: 'text', id: 'ln-title', maxlength: '200', autocomplete: 'off', required: true }),
+      kind: sel('ln-kind', L.learning.KINDS.map(function (k) { return { v: k, t: Ln.KIND_LABEL[k] }; }), 'course'),
+      provider: h('input', { type: 'text', id: 'ln-provider', maxlength: '200', autocomplete: 'off' }),
+      pct: h('input', { type: 'text', id: 'ln-pct', inputmode: 'decimal', maxlength: '6', autocomplete: 'off' }),
+      total: h('input', { type: 'text', id: 'ln-total', inputmode: 'numeric', maxlength: '7', autocomplete: 'off' }),
+      done: h('input', { type: 'text', id: 'ln-done-units', inputmode: 'numeric', maxlength: '7', autocomplete: 'off' }),
+      unit: h('input', { type: 'text', id: 'ln-unit', maxlength: '30', autocomplete: 'off' }),
+      start: h('input', { type: 'date', id: 'ln-start', value: t }),
+      target: h('input', { type: 'date', id: 'ln-tdate' }),
+      exam: h('input', { type: 'date', id: 'ln-exam' }),
+      expires: h('input', { type: 'date', id: 'ln-expires' }),
+      goal: sel('ln-goal', goalOptions(s), ''),
+      notes: h('textarea', { id: 'ln-notes', maxlength: '2000' })
+    };
+    var certBox = h('div', { id: 'ln-cert-box', class: 'hidden' }, field('Exam date (optional)', f.exam), field('Certification expires (optional)', f.expires));
+    f.kind.addEventListener('change', function () { certBox.setAttribute('class', f.kind.value === 'certification' ? '' : 'hidden'); });
+    var addForm = details('ln-add', 'Add a learning item', [h('form', {
+      id: 'ln-form',
+      onsubmit: function (e) {
+        e.preventDefault();
+        act(function () {
+          var input = { title: f.title.value, kind: f.kind.value, provider: f.provider.value, progressPct: f.pct.value, totalUnits: f.total.value, doneUnits: f.done.value, unitLabel: f.unit.value,
+            startDate: f.start.value, targetDate: f.target.value, goalId: f.goal.value, notes: f.notes.value };
+          if (f.kind.value === 'certification') { input.examDate = f.exam.value; input.expiresOn = f.expires.value; }
+          return commit(function (x) { L.learning.addItem(x, input, t); }, 'learning item add').then(function () { view.open = 'ln-add'; setNotice('ok', 'Item added.'); render(); });
+        });
+      }
+    }, field('Title', f.title), field('Kind', f.kind), field('Provider (optional)', f.provider),
+      h('p', { class: 'mut small', text: 'Progress is a percent or units done out of a total, not both.' }),
+      field('Percent done (optional)', f.pct), field('Total units (optional)', f.total), field('Units done', f.done), field('Unit name (for example chapters)', f.unit),
+      field('Start date', f.start), field('Target date (optional)', f.target), certBox, field('Linked goal (optional)', f.goal),
+      field('Notes (optional)', f.notes, 'Do not enter ID numbers, account numbers or passwords.'),
+      h('button', { type: 'submit', class: 'btn pri', id: 'ln-add-btn', text: 'Add item' }))], view.open === 'ln-add' || !(s.learningItems || []).length);
+
+    // takeaways with plain substring search
+    var tkItem = sel('ln-tk-item', itemOptions(s), '');
+    var tkText = h('textarea', { id: 'ln-tk-text', maxlength: '1000' });
+    var q = h('input', { type: 'text', id: 'ln-search', maxlength: '100', autocomplete: 'off', 'aria-label': 'Search takeaways' });
+    var results = h('div', { id: 'ln-results' });
+    function showResults() {
+      var qs = q.value.trim(), found = Ln.search(s, qs), shown = qs ? found : (s.takeaways || []).slice().sort(function (a, b) { return b.date.localeCompare(a.date); }).slice(0, 10).map(function (x) { return { takeaway: x, itemTitle: x.itemId ? ((s.learningItems || []).filter(function (i) { return i.id === x.itemId; })[0] || {}).title || '' : '' }; });
+      results.replaceChildren.apply(results, shown.length ? shown.slice(0, 50).map(function (r) {
+        return h('div', { class: 'item ln-tk', 'data-title': r.takeaway.text.slice(0, 40) },
+          h('div', null, h('div', { class: 'entry-t', text: r.takeaway.text }), h('div', { class: 'mut small', text: r.takeaway.date + (r.itemTitle ? ' | ' + r.itemTitle : '') })),
+          btn('Delete', function () { act(function () { return commit(function (x) { Ln.deleteTakeaway(x, r.takeaway.id); }, 'takeaway delete').then(function () { view.open = 'ln-tk'; render(); }); }); }, 'sm bad', { 'aria-label': 'Delete takeaway' }));
+      }) : [h('p', { class: 'mut', id: 'ln-no-results', text: qs ? 'No takeaways match.' : 'No takeaways yet.' })]);
+    }
+    q.addEventListener('input', showResults);
+    showResults();
+    var tkCard = details('ln-tk', 'Takeaways (' + (s.takeaways || []).length + ')', [
+      h('form', {
+        onsubmit: function (e) {
+          e.preventDefault();
+          act(function () { return commit(function (x) { L.learning.addTakeaway(x, { itemId: tkItem.value, text: tkText.value }, t); }, 'takeaway add').then(function () { view.open = 'ln-tk'; setNotice('ok', 'Takeaway added.'); render(); }); });
+        }
+      }, field('Item (optional)', tkItem), field('What did you learn?', tkText, 'Do not enter ID numbers, account numbers or passwords.'), h('button', { type: 'submit', class: 'btn pri', id: 'ln-tk-add', text: 'Add takeaway' })),
+      field('Search takeaways', q, 'Matches the exact text you type.'), results], view.open === 'ln-tk' || !(s.takeaways || []).length);
+
+    // recent sessions
+    var titles = new Map(); (s.learningItems || []).forEach(function (i) { titles.set(i.id, i.title); });
+    var recent = (s.studySessions || []).slice().sort(function (a, b) { return b.date.localeCompare(a.date); }).slice(0, 10);
+    var sessCard = details('ln-sessions-card', 'Recent sessions (' + (s.studySessions || []).length + ')', recent.length ? recent.map(function (x) {
+      return h('div', { class: 'item ln-sess', 'data-title': x.date },
+        h('div', null, h('span', { class: 'entry-t', text: x.minutes + ' min' }), h('span', { class: 'mut small', text: ' ' + x.date + (x.itemId && titles.has(x.itemId) ? ' | ' + titles.get(x.itemId) : '') }), x.notes ? h('p', { class: 'small mut', text: x.notes }) : null),
+        btn('Delete', function () { act(function () { return commit(function (z) { Ln.deleteSession(z, x.id); }, 'study session delete').then(function () { view.open = 'ln-sessions-card'; render(); }); }); }, 'sm bad', { 'aria-label': 'Delete session of ' + x.minutes + ' minutes on ' + x.date }));
+    }) : h('p', { class: 'mut', text: 'No sessions yet.' }), view.open === 'ln-sessions-card');
+
+    // Older learning entries the upgrade could not turn into items or sessions: kept as entered, each deletable after a confirm.
+    var legacy = Ln.legacyEntries(s), legacyShown = legacy.slice(0, 200);
+    var legacyCard = legacy.length ? details('ln-legacy', 'Older learning entries (' + legacy.length + (legacy.length > legacyShown.length ? ', newest ' + legacyShown.length + ' shown' : '') + ')', [h('p', { class: 'mut small', text: 'Kept exactly as entered.' }), legacyShown.map(function (e) {
+      return h('div', { class: 'item g-legacy' }, h('div', null, h('span', { class: 'entry-t', text: e.title }), h('span', { class: 'mut small', text: ' ' + e.date + ', ' + (e.type === 'hours' ? e.value + ' hours' : (e.status || '')) }), e.notes ? h('p', { class: 'small mut', text: e.notes }) : null),
+        btn('Delete', function () {
+          openDialog({ title: 'Delete this older entry?', yes: 'Delete', danger: true, body: [h('p', { class: 'mut', text: e.title }), h('p', { class: 'small', text: 'Its title, date and notes are removed from the vault.' })],
+            onYes: function () { return commit(function (x) { x.entries = x.entries.filter(function (z) { return z.id !== e.id; }); }, 'older learning entry delete').then(function () { view.open = 'ln-legacy'; render(); }); } });
+        }, 'sm bad leg-del', { 'aria-label': 'Delete ' + e.title }));
+    })], view.open === 'ln-legacy') : null;
+
+    return h('div', null, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Learning' }),
+      h('p', { class: 'mut small', text: 'Minutes, progress and pace come from your own numbers. Nothing is paused, dropped or finished unless you tap it.' }),
+      stats, targetCard, activeCard, examCard, finCard, otherCard, addForm, tkCard, sessCard, legacyCard);
+  }
+  // Weekly review step: minutes vs target, items that moved, items with no session in 14 days. Actions are offered; a tap takes them.
+  function reviewLearningCard(s, wk, t) {
+    var Ln = L.learning, r = Ln.reviewWeek(s, wk, t), w = r.week;
+    if (!Ln.hasData(s)) return h('p', { class: 'mut', id: 'rv-ln-none', text: 'No learning data yet. Add items under Learning.' });
+    var kids = [];
+    kids.push(h('p', { class: 'small', id: 'rv-ln-minutes', text: 'Study minutes: ' + w.minutes + (w.target > 0 ? ' of ' + w.target : ' (no weekly target set)') + '. ' + w.sessions + (w.sessions === 1 ? ' session' : ' sessions') + ' on ' + w.days + (w.days === 1 ? ' day.' : ' days.') }));
+    kids.push(h('p', { class: 'small', id: 'rv-ln-moved-h', text: 'Items that moved (' + r.moved.length + ')' }));
+    r.moved.forEach(function (m) { kids.push(h('div', { class: 'item rv-ln-moved', 'data-title': m.item.title }, h('div', null, h('span', { class: 'entry-t', text: m.item.title }), h('span', { class: 'mut small', text: ' ' + m.minutes + ' min' + (m.item.state === 'done' ? ', finished' : '') })))); });
+    kids.push(h('p', { class: 'small', id: 'rv-ln-stalled-h', text: 'No session in ' + Ln.STALL_DAYS + ' days (' + r.stalled.length + ')' }));
+    if (r.stalled.length) kids.push(h('p', { class: 'mut small', text: 'Nothing changes until you tap it.' }));
+    r.stalled.forEach(function (i) {
+      var nd = h('input', { type: 'date', class: 'rv-ln-date', 'aria-label': 'New target date for ' + i.title, value: i.targetDate || '' });
+      kids.push(h('div', { class: 'item rv-ln-stalled', 'data-title': i.title }, h('div', null, h('span', { class: 'entry-t', text: i.title }), h('span', { class: 'mut small', text: ' last session ' + (Ln.lastSession(s, i.id, r.asOf) || 'none') })),
+        h('div', { class: 'row' }, nd,
+          btn('Set target date', function () { act(function () { return commit(function (x) { Ln.setTargetDate(x, i.id, nd.value); }, 'learning target date').then(function () { setNotice('ok', 'Target date set.'); render(); }); }); }, 'sm rv-ln-date-btn', { 'aria-label': 'Set target date for ' + i.title }),
+          btn('Pause', function () { act(function () { return commit(function (x) { Ln.pauseItem(x, i.id); }, 'learning pause').then(render); }); }, 'sm rv-ln-pause', { 'aria-label': 'Pause ' + i.title }),
+          btn('Drop', function () { act(function () { return commit(function (x) { Ln.dropItem(x, i.id); }, 'learning drop').then(render); }); }, 'sm rv-ln-drop', { 'aria-label': 'Drop ' + i.title }))));
+    });
+    if (r.exams.length) {
+      kids.push(h('p', { class: 'small', id: 'rv-ln-exams-h', text: 'Exams in the next 28 days (' + r.exams.length + ')' }));
+      r.exams.forEach(function (x) { kids.push(h('div', { class: 'item', 'data-title': x.title }, h('div', null, h('span', { class: 'entry-t', text: x.title }), h('span', { class: 'mut small', text: ' ' + x.date + ', in ' + x.days + (x.days === 1 ? ' day' : ' days') })))); });
+    }
+    return h('div', { class: 'card', id: 'rv-learning' }, kids);
+  }
+
   // ---------- memory ----------
   function memoryScreen(s) {
     var t = today(), mp = monthPeriod(t), qp = quarterPeriod(t);
@@ -2084,6 +2323,7 @@
     var cd = h('input', { type: 'number', id: 't-cd', min: '1', max: '365', step: '1', value: tg.contactDays });
     var sr = h('input', { type: 'number', id: 't-sr', min: '0', max: '100', step: '1', value: Math.round(tg.savingsRate * 100) });
     var cur = h('input', { type: 'text', id: 't-cur', maxlength: '3', value: set.currency });
+    var study = h('input', { type: 'text', id: 't-study', inputmode: 'numeric', maxlength: '5', autocomplete: 'off', value: String((set.learning && set.learning.weeklyMinutes) || 0) });
     var al = sel('t-al', [1, 5, 15, 30, 60].map(function (n) { return { v: String(n), t: n + ' min' }; }), String(set.autoLockMin));
     out.push(h('form', {
       class: 'card',
@@ -2096,10 +2336,10 @@
           if (!(r >= 0 && r <= 100)) throw new Error('Savings rate must be 0 to 100.');
           if (!/^[A-Z]{3}$/.test(cu)) throw new Error('Currency must be a three letter code.');
           var m = Number(al.value);
-          return commit(function (x) { x.settings.targets = { workoutsPerWeek: w, contactDays: c, savingsRate: r / 100 }; x.settings.currency = cu; x.settings.autoLockMin = m; }).then(function () { resetIdle(); setNotice('ok', 'Settings saved.'); });
+          return commit(function (x) { x.settings.targets = { workoutsPerWeek: w, contactDays: c, savingsRate: r / 100 }; x.settings.currency = cu; x.settings.autoLockMin = m; L.learning.setWeeklyTarget(x, study.value); }).then(function () { resetIdle(); setNotice('ok', 'Settings saved.'); });
         });
       }
-    }, h('h2', { text: 'Targets and preferences' }), field('Workouts per week', wpw), field('Days between contacts', cd), field('Savings rate target (%)', sr), field('Currency code', cur), field('Auto-lock after idle', al),
+    }, h('h2', { text: 'Targets and preferences' }), field('Workouts per week', wpw), field('Days between contacts', cd), field('Savings rate target (%)', sr), field('Study minutes per week (0 for none)', study), field('Currency code', cur), field('Auto-lock after idle', al),
       h('button', { type: 'submit', class: 'btn pri', text: 'Save settings' })));
 
     // passphrase
@@ -2183,7 +2423,7 @@
       }, field('Restore from a backup file (64 MB max)', bf), field('Backup passphrase', ip),
         h('button', { type: 'submit', class: 'btn', text: 'Import backup' }))));
 
-    out.push(h('p', { class: 'mut small', id: 'app-version', text: 'LifeOS v0.7.0' }));
+    out.push(h('p', { class: 'mut small', id: 'app-version', text: 'LifeOS v0.8.0' }));
 
     if (L.syncUI) out.push(L.syncUI.section(syncCtx()));
 

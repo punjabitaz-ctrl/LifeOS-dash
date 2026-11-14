@@ -53,14 +53,14 @@ test('SEC-27 an older-format Drive copy cannot replace schema 3 work data withou
   const dec = await L.sync.run();
   assert.equal(dec.kind, 'download-offer');
   assert.equal(dec.dropsWork, true);
-  assert.deepEqual([dec.remote.schema, dec.local.schema, dec.local.projects, dec.local.pipeline], [2, 6, 1, 1]);
+  assert.deepEqual([dec.remote.schema, dec.local.schema, dec.local.projects, dec.local.pipeline], [2, 7, 1, 1]);
   const before = JSON.stringify(ad._m.get('envelope')), w = d.writes;
   await assert.rejects(L.sync.apply(dec, 'download'), (e) => e.code === 'OLDER_FORMAT' && /Nothing was replaced/.test(e.message));
   await assert.rejects(L.sync.apply(dec, 'download', { allowWorkLoss: 'yes' }), (e) => e.code === 'OLDER_FORMAT');
   assert.equal(JSON.stringify(ad._m.get('envelope')), before, 'stored vault untouched');
   assert.equal(S.getState().projects.length, 1); assert.equal(d.writes, w);
   await L.sync.apply(dec, 'download', { allowWorkLoss: true });
-  assert.equal(S.getState().projects.length, 0); assert.equal(S.getState().schema, 6);
+  assert.equal(S.getState().projects.length, 0); assert.equal(S.getState().schema, 7);
   // Keeping this device is never blocked, and an older remote with no local work data is not flagged.
   const f2 = await fresh();
   await L.sync.run();
@@ -81,7 +81,7 @@ test('SEC-28 an older-format backup cannot replace schema 3 work data without an
   await S.commit(addWork);
   const salt = V.newSalt(), key = await V.deriveKey(PASS, salt);
   const bk = await V.importBackup(PASS, JSON.stringify(await V.makeEnvelope(key, salt, schema2())));
-  assert.equal(bk.sourceSchema, 2); assert.equal(bk.schema, 6);
+  assert.equal(bk.sourceSchema, 2); assert.equal(bk.schema, 7);
   assert.ok(!Object.keys(bk).includes('sourceSchema') && !JSON.stringify(bk).includes('sourceSchema'), 'marker is never stored');
   const before = JSON.stringify(ad._m.get('envelope'));
   await assert.rejects(S.replaceState(bk), (e) => e.code === 'OLDER_FORMAT');
@@ -90,7 +90,7 @@ test('SEC-28 an older-format backup cannot replace schema 3 work data without an
   assert.equal(S.getState().projects.length, 1);
   // A schema 3 backup restores normally; the marker never reaches the stored vault.
   const bk3 = await V.importBackup(PASS, await V.exportBackup(PASS, S.getState()));
-  assert.equal(bk3.sourceSchema, 6);
+  assert.equal(bk3.sourceSchema, 7);
   await S.replaceState(bk3);
   assert.ok(!('sourceSchema' in (await stored(ad))));
   await S.replaceState(bk, { allowWorkLoss: true });
@@ -103,7 +103,7 @@ test('a newer schema is refused everywhere and nothing is overwritten', async ()
   const { ad, d } = await fresh();
   await S.commit(addWork);
   await L.sync.run();
-  const s4 = Object.assign(clone(S.getState()), { schema: 7, futureField: [1] });
+  const s4 = Object.assign(clone(S.getState()), { schema: 8, futureField: [1] });
   await putRemote(d, s4, 1);
   const remote = d.file.text, w = d.writes, before = JSON.stringify(ad._m.get('envelope'));
   await assert.rejects(L.sync.run(), (e) => e.code === 'REMOTE_INVALID');

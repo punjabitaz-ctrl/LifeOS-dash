@@ -295,6 +295,8 @@
     for (const r of list(state, 'renewals')) out.push({ src: 'renewal', id: r.id, title: r.title, kind: r.kind, date: r.dueDate, closed: r.state === 'open' ? null : r.state === 'done' && r.doneOn ? r.doneOn : '' });
     for (const t of list(state, 'taxItems')) if (t.dueDate) out.push({ src: 'tax', id: t.id, title: t.title, kind: 'tax ' + t.year, date: t.dueDate, closed: t.state === 'filed' ? '' : null });
     for (const d of list(state, 'documents')) if (d.expires) out.push({ src: 'document', id: d.id, title: d.title, kind: 'expires', date: d.expires, closed: null });
+    // Certification expiry is computed from the Learning item, never stored as a renewal.
+    if (L.learning) for (const x of L.learning.expiries(state)) out.push({ src: 'learning', id: x.id, title: x.title, kind: 'certification expires', date: x.date, closed: null });
     for (const e of legacyEntries(state)) out.push({ src: 'legacy', id: e.id, title: e.title, kind: 'older due item', date: e.due, closed: e.status === 'done' ? '' : null });
     return out;
   }
@@ -315,7 +317,7 @@
     }
     return t;
   }
-  const hasData = (state) => list(state, 'renewals').length + list(state, 'documents').length + list(state, 'taxItems').length + legacyEntries(state).length > 0;
+  const hasData = (state) => list(state, 'renewals').length + list(state, 'documents').length + list(state, 'taxItems').length + legacyEntries(state).length + (L.learning ? L.learning.expiries(state).length : 0) > 0;
   function headline(state, today, R) {
     const od = overdueAt(state, today).length, soon = dueWithin(state, today, 30).length;
     return R('Due within 30 days', String(soon), soon, od + ' overdue');

@@ -231,7 +231,7 @@ test('schema 2: accounts, budgets, recurring and categories survive upload and d
   const want = money(L.store.getState());
   assert.equal((await L.sync.run()).kind, 'uploaded');
   const up = await L.vault.importBackup(PASS, d.file.text);
-  assert.equal(up.schema, 6); assert.equal(money(up), want);
+  assert.equal(up.schema, 7); assert.equal(money(up), want);
   // This device goes back to the older copy, then downloads.
   await ad.set('envelope', old); L.store.lock(); await L.store.unlock(PASS);
   const dec = await L.sync.run();
@@ -255,7 +255,7 @@ test('schema 1 device (empty) downloads a schema 2 remote', async () => {
   // New device: a schema 1 vault with the same passphrase (own salt), never synced.
   const s1 = await schema1Envelope(PASS, []);
   await ad.set('envelope', s1.env); L.store.lock(); await L.store.unlock(PASS);
-  assert.equal(L.store.getState().schema, 6);
+  assert.equal(L.store.getState().schema, 7);
   await assert.rejects(L.sync.run(), (e) => e.code === 'NEED_PASSPHRASE');
   const dec = await L.sync.run({ passphrase: PASS });
   assert.equal(dec.kind, 'download-offer'); assert.equal(dec.passphraseDiffers, true);

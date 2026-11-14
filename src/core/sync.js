@@ -169,7 +169,7 @@
     return r;
   }
   async function upload(file, text, etag) {
-    if (text.length > MAX_REMOTE) throw err('TOO_LARGE', 'The vault is larger than 64 MB and cannot be synced.');
+    if (text.length > MAX_REMOTE) throw err('TOO_LARGE', 'The vault is larger than 64 MB, so nothing was uploaded. Your data on this device is unchanged. Delete old entries, study sessions, takeaways or long notes, then sync again.');
     if (!file) {
       const b = 'lifeos' + newNonce();
       const body = '--' + b + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' +

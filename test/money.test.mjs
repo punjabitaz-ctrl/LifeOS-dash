@@ -21,7 +21,7 @@ function schema1() {
 }
 test('schema 1 migrates to current without losing entries; accounts derived from balance titles', () => {
   const m = S.validateState(JSON.parse(JSON.stringify(schema1())));
-  assert.equal(m.schema, 6);
+  assert.equal(m.schema, 7);
   assert.equal(m.entries.length, 4);
   assert.equal(m.accounts.length, 2);
   const chk = m.accounts.find((a) => a.name === 'Checking'), visa = m.accounts.find((a) => a.name === 'Visa');
@@ -42,12 +42,12 @@ test('a v0.2.0 backup imports cleanly and unlock migrates a stored schema 1 vaul
   const V = L.vault, salt = V.newSalt(), key = await V.deriveKey('old backup passphrase', salt);
   const env = JSON.stringify(await V.makeEnvelope(key, salt, schema1()));
   const got = await V.importBackup('old backup passphrase', env);
-  assert.equal(got.schema, 6); assert.equal(got.entries.length, 4); assert.equal(got.accounts.length, 2);
+  assert.equal(got.schema, 7); assert.equal(got.entries.length, 4); assert.equal(got.accounts.length, 2);
   const ad = memAdapter(); S._setAdapter(ad);
   const k2 = await V.deriveKey(PASS, salt);
   ad._m.set('envelope', await V.makeEnvelope(k2, salt, schema1()));
   const s = await S.unlock(PASS);
-  assert.equal(s.schema, 6);
+  assert.equal(s.schema, 7);
   await S.commit(() => {});
   S.lock();
   assert.equal((await S.unlock(PASS)).accounts.length, 2);
@@ -56,7 +56,7 @@ test('a v0.2.0 backup imports cleanly and unlock migrates a stored schema 1 vaul
 test('schema 1 data that would break the new schema is still rejected, unknown schemas too', () => {
   const s = schema1(); s.entries[0].value = 'x';
   assert.throws(() => S.validateState(s));
-  assert.throws(() => S.validateState(Object.assign(S.defaultState(), { schema: 7 })));
+  assert.throws(() => S.validateState(Object.assign(S.defaultState(), { schema: 8 })));
 });
 
 // ---- accounts and net worth ----

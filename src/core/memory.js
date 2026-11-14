@@ -104,6 +104,9 @@
       const hm = dg.home, ad = dg.admin, cur = state.settings.currency, fm = (c) => L.metrics.fmtMoney(c / 100, cur);
       if (hm && (hm.overdue || hm.dueSoon || hm.done || hm.ytdCostCents)) lines.push('- home detail: maintenance overdue ' + hm.overdue + ', due within 30 days ' + hm.dueSoon + ', done this week ' + hm.done + ', year-to-date maintenance cost ' + fm(hm.ytdCostCents));
       if (ad && (ad.overdue || ad.dueSoon || ad.done || ad.runRateCents)) lines.push('- admin detail: overdue ' + ad.overdue + ', due within 30 days ' + ad.dueSoon + ', done this week ' + ad.done + ', subscription run-rate per month ' + fm(ad.runRateCents));
+      // Learning: counts and minutes only, never a title, provider, note or takeaway.
+      const ln = dg.learning;
+      if (ln && (ln.minutes || ln.sessions || ln.days || ln.active || ln.finished || ln.stalled)) lines.push('- learning detail: study minutes ' + ln.minutes + ', sessions ' + ln.sessions + ', days studied ' + ln.days + ', active items ' + ln.active + ', finished this week ' + ln.finished + ', stalled items ' + ln.stalled);
       ctx = approvedAll.filter((i) => !isBodyInsight(i)).slice(-CTX_MAX);
       lines.push('Approved insights so far:');
     } else {

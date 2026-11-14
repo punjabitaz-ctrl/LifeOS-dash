@@ -33,7 +33,7 @@ function schema1() {
 test('schema 1 and 2 migrate to 3 with no data loss', () => {
   for (const make of [schema1, schema2]) {
     const src = make(), m = S.validateState(clone(src));
-    assert.equal(m.schema, 6);
+    assert.equal(m.schema, 7);
     assert.deepEqual(m.projects, []); assert.deepEqual(m.pipeline, []);
     assert.deepEqual(m.entries.map((e) => e.title), src.entries.map((e) => e.title));
     assert.equal(m.entries.find((e) => e.title === 'Old outcome').status, 'done');
@@ -51,17 +51,17 @@ test('migration runs on unlock of stored schema 1 and 2 vaults', async () => {
     const salt = V.newSalt(), key = await V.deriveKey(PASS, salt);
     ad._m.set('envelope', await V.makeEnvelope(key, salt, make()));
     const st = await S.unlock(PASS);
-    assert.equal(st.schema, 6); assert.equal(st.entries.length, 2);
+    assert.equal(st.schema, 7); assert.equal(st.entries.length, 2);
     await S.commit((x) => { x.projects.push(proj({ name: 'New' })); });
     const raw = await V.decrypt(key, ad._m.get('envelope'));
-    assert.equal(raw.schema, 6); assert.equal(raw.projects.length, 1);
+    assert.equal(raw.schema, 7); assert.equal(raw.projects.length, 1);
   }
 });
 test('a v0.3.0 backup (schema 2) imports cleanly', async () => {
   const salt = V.newSalt(), key = await V.deriveKey(PASS, salt);
   const text = JSON.stringify(await V.makeEnvelope(key, salt, schema2()));
   const got = await V.importBackup(PASS, text);
-  assert.equal(got.schema, 6); assert.equal(got.entries.length, 2); assert.equal(got.accounts.length, 1); assert.deepEqual(got.projects, []);
+  assert.equal(got.schema, 7); assert.equal(got.entries.length, 2); assert.equal(got.accounts.length, 1); assert.deepEqual(got.projects, []);
 });
 test('a schema 3 backup round trips projects and pipeline', async () => {
   const s = withWork((x) => { x.projects.push(proj({ id: 'p1', name: 'Alpha' })); x.pipeline.push(item({ id: 'i1', title: 'Role' })); });
@@ -75,15 +75,15 @@ test('a schema 3 vault is never downgraded by an older backup or an unknown newe
   await S.commit((x) => { x.projects.push(proj({ name: 'Keep' })); });
   const salt = V.newSalt(), key = await V.deriveKey(PASS, salt);
   const bk = await V.importBackup(PASS, JSON.stringify(await V.makeEnvelope(key, salt, schema2())));
-  assert.equal(bk.schema, 6);
+  assert.equal(bk.schema, 7);
   // SEC-28: an older-format backup would drop the project, so it needs an explicit choice.
   await assert.rejects(S.replaceState(bk), (e) => e.code === 'OLDER_FORMAT');
   assert.equal(S.getState().projects.length, 1);
   await S.replaceState(bk, { allowWorkLoss: true });
-  assert.equal(S.getState().schema, 6);
+  assert.equal(S.getState().schema, 7);
   const k3 = await V.deriveKey(PASS, V.parseEnvelope(ad._m.get('envelope')).salt);
-  assert.equal((await V.decrypt(k3, ad._m.get('envelope'))).schema, 6);
-  assert.throws(() => S.validateState(Object.assign(S.defaultState(), { schema: 7 })), /schema/);
+  assert.equal((await V.decrypt(k3, ad._m.get('envelope'))).schema, 7);
+  assert.throws(() => S.validateState(Object.assign(S.defaultState(), { schema: 8 })), /schema/);
   assert.throws(() => S.validateState(Object.assign(S.defaultState(), { schema: 2.5 })));
 });
 
@@ -280,7 +280,7 @@ test('sync round trip with schema 3 data: ciphertext only, restores on another d
   assert.equal((await L.sync.run()).kind, 'uploaded');
   for (const secret of ['SyncProject', 'SyncRole', 'SyncOrg', 'SyncOutcome']) assert.ok(!d.file.text.includes(secret), 'no plaintext on Drive');
   const up = await V.importBackup(PASS, d.file.text);
-  assert.equal(up.schema, 6); assert.equal(workShape(up), want);
+  assert.equal(up.schema, 7); assert.equal(workShape(up), want);
   // Second device, same passphrase, empty vault.
   const ad2 = memAdapter(); S._setAdapter(ad2); S.lock(); await S.init(PASS);
   const dec = await L.sync.run({ passphrase: PASS });
@@ -302,14 +302,14 @@ test('a schema 2 device downloads a schema 3 remote, migrates, and stays at sche
   const salt = V.newSalt(), key = await V.deriveKey(PASS, salt);
   ad2._m.set('envelope', await V.makeEnvelope(key, salt, Object.assign(clone(S.defaultState()), { schema: 2, projects: undefined, pipeline: undefined })));
   const b = await S.unlock(PASS);
-  assert.equal(b.schema, 6);
+  assert.equal(b.schema, 7);
   const dec = await L.sync.run({ passphrase: PASS });
   assert.equal(dec.kind, 'download-offer');
   await L.sync.apply(dec, 'download');
-  assert.equal(S.getState().schema, 6); assert.equal(workShape(S.getState()), want);
+  assert.equal(S.getState().schema, 7); assert.equal(workShape(S.getState()), want);
   assert.equal(d.file.text, remote, 'a download never writes to Drive');
   const stored = ad2._m.get('envelope');
-  assert.equal((await V.decrypt(await V.deriveKey(PASS, V.parseEnvelope(stored).salt), stored)).schema, 6);
+  assert.equal((await V.decrypt(await V.deriveKey(PASS, V.parseEnvelope(stored).salt), stored)).schema, 7);
 });
 test('an older (schema 2) remote cannot roll a schema 3 vault back', async () => {
   const { ad, d } = await fresh();
@@ -318,12 +318,12 @@ test('an older (schema 2) remote cannot roll a schema 3 vault back', async () =>
   const old = d.file.text;
   await S.commit(addWork);
   await L.sync.run();
-  assert.equal((await V.importBackup(PASS, d.file.text)).schema, 6);
+  assert.equal((await V.importBackup(PASS, d.file.text)).schema, 7);
   d.put(old);
   await assert.rejects(L.sync.run(), (e) => e.code === 'ROLLBACK');
-  assert.equal(S.getState().projects.length, 1); assert.equal(S.getState().schema, 6);
+  assert.equal(S.getState().projects.length, 1); assert.equal(S.getState().schema, 7);
   const raw = ad._m.get('envelope');
-  assert.equal((await V.decrypt(await V.deriveKey(PASS, V.parseEnvelope(raw).salt), raw)).schema, 6);
+  assert.equal((await V.decrypt(await V.deriveKey(PASS, V.parseEnvelope(raw).salt), raw)).schema, 7);
 });
 test('conflict with a schema 2 remote keeps both copies and ends at schema 3', async () => {
   const { d } = await fresh();
@@ -346,7 +346,7 @@ test('conflict with a schema 2 remote keeps both copies and ends at schema 3', a
   await assert.rejects(L.sync.apply(dec, 'remote', { saveBackup: async (t) => saved.push(t) }), (e) => e.code === 'OLDER_FORMAT');
   assert.equal(S.getState().projects.length, 1); assert.equal(saved.length, 0);
   await L.sync.apply(dec, 'remote', { saveBackup: async (t) => saved.push(t), allowWorkLoss: true });
-  assert.equal(S.getState().schema, 6); assert.equal(S.getState().entries.length, 2);
+  assert.equal(S.getState().schema, 7); assert.equal(S.getState().entries.length, 2);
   const lost = await V.importBackup(PASS, saved[0]);
   assert.equal(lost.projects.length, 1, 'the losing schema 3 copy is restorable');
 });

@@ -194,3 +194,17 @@ Manual entry, phone first. Schema 6 with tested migrations from 1 to 5 (no data 
 - weeklyDigest gains counts and totals only (overdue, due soon, done this week, YTD maintenance cost, subscription run-rate). Never titles, providers, vendors, vehicle or property names, document locations or notes; adversarial-string tests required.
 - All dates local YYYY-MM-DD; due maths tested in New York and Auckland time zones and across DST and month ends (monthly cadence from the 31st).
 - No advice wording anywhere (no legal, tax, insurance or financial recommendations); state numeric and date facts only.
+
+## v0.8.0 addendum: Learning
+Manual entry, phone first. Schema 7 with tested migrations from 1 to 6 (no data loss; existing `learning/item` and `learning/hours` entries are kept in full, following the SEC-40 rule: if anything cannot map, keep the original visible and deletable, never drop it). Downgrade guards extended to schema 7 collections.
+- `learningItems:[{id,title,kind:'course'|'book'|'certification'|'skill'|'project'|'other',provider,state:'planned'|'active'|'paused'|'done'|'dropped',progressPct?,totalUnits?,doneUnits?,unitLabel?,startDate?,targetDate?,finishedDate?,examDate?,expiresOn?,goalId?,notes,createdAt}]` cap 1000. Progress is either typed percent or doneUnits/totalUnits (chapters, modules, lessons), never both; no divide by zero.
+- `studySessions:[{id,itemId?,date,minutes,notes}]` cap 20000; quick log in one tap from the Learning view and the dashboard quick-add. Deleting an item keeps its sessions and unlinks them (confirm shows the count).
+- Settings target: study minutes per week. Week view: minutes vs target, sessions, days studied, current streak of weeks meeting the target.
+- Certifications: exam date countdown; `expiresOn` shows in the Admin 30/60/90 timeline as a computed row (no duplicate renewal record is created).
+- Takeaways: `takeaways:[{id,itemId?,date,text}]` cap 5000, short notes of what was learned, searchable by plain substring inside the unlocked app.
+- Learning view at 390 px: active items with progress bars and target dates (behind / on pace by the same arithmetic as Goals pace), this week's study time, upcoming exams, recently finished. Tile headline: study minutes this week vs target; sub line: active items and next exam date.
+- Goals: new linked metrics "study minutes per week", "learning items finished" and a per-item progress metric via `goalId`.
+- Weekly review gains a Learning step: minutes vs target, items that moved, items with no session in 14 days (a numeric fact), with offer-only actions (pause, drop, set new target date).
+- weeklyDigest gains numbers only (minutes, sessions, days studied, active count, finished this week, stalled count). Never titles, providers, takeaway text or notes; adversarial-string tests required. Takeaways never reach any prompt.
+- The secrets-pattern guard (SEC-44/45) applies to typed notes and takeaway text.
+- No advice wording; arithmetic and date facts only.

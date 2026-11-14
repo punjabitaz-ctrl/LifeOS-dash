@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-Oqu+KlUY+IUrD8gCW5P52LUL7qEhM7taz1bVfSZiWvc='; style-src 'sha256-AhW11rSnH8oIjKhS1vZoMCK0L0Rjw+8kHSt7Kwd2adw='; connect-src https://api.anthropic.com https://www.googleapis.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-Bp28kV7sQXrZymMZepngd7h2T/WmEEjDql5abl53NI4='; style-src 'sha256-AhW11rSnH8oIjKhS1vZoMCK0L0Rjw+8kHSt7Kwd2adw='; connect-src https://api.anthropic.com https://www.googleapis.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>LifeOS</title>
 <style>:root{color-scheme:light dark;--bg:#f4f5f7;--card:#fff;--fg:#14171c;--mut:#5b6573;--line:#dde1e7;--acc:#2255d4;--acc-fg:#fff;--ok:#1c7a46;--warn:#9a5b00;--bad:#b42318;--r:14px;--sh:0 1px 2px rgba(0,0,0,.06);--font:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
@@ -213,7 +213,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     const salt = newSalt();
     const key = await deriveKey(passphrase, salt);
     const out = JSON.stringify(await makeEnvelope(key, salt, clean));
-    if (out.length > MAX_BACKUP) throw new Error('Backup would be larger than 64 MB. Delete old entries and try again.');
+    if (out.length > MAX_BACKUP) throw new Error('The backup would be larger than 64 MB, so no file was made. Your data on this device is unchanged. Delete old entries, study sessions, takeaways or long notes, then try again.');
     return out;
   }
   async function importBackup(passphrase, text) {
@@ -233,7 +233,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   'use strict';
   const L = (globalThis.LifeOS = globalThis.LifeOS || {});
   const KEY = 'envelope';
-  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 6, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
+  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 7, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
   const HABIT_CAP = 8, HABIT_LOG_CAP = 100000, KIND_CAP = 30;
   const RENEWAL_TOTAL_CAP = 2000;
   const ENTRY_CAP = 50000, INSIGHT_CAP = 5000, REVIEW_CAP = 1000, LESSON_CAP = 30, AUDIT_CAP = 200;
@@ -346,6 +346,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       sync: cleanSync(s.sync),
       health: schema >= 4 ? cleanHealthSettings(s.health) : { units: 'lb' },
       home: schema >= 6 ? cleanHomeSettings(s.home) : { starterDone: false },
+      learning: schema >= 7 ? L.learning.cleanSettings(s.learning) : { weeklyMinutes: 0 },
     };
   }
   // 6 decimals, like converted weights, so a unit switch round trip does not drift.
@@ -520,6 +521,11 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       if (!isObj(d.goals)) fail('digest goals');
       out.goals = {};
       for (const k of ['active', 'ahead', 'onTrack', 'behind', 'achieved']) out.goals[k] = num(d.goals[k], 0, 1e9, 'digest goals', true);
+    }
+    if (d.learning !== undefined) {
+      if (!isObj(d.learning)) fail('digest learning');
+      out.learning = {};
+      for (const k of ['minutes', 'sessions', 'days', 'active', 'finished', 'stalled']) out.learning[k] = num(d.learning[k], 0, 1e9, 'digest learning', true);
     }
     for (const k of ['home', 'admin']) {
       if (d[k] === undefined) continue;
@@ -746,7 +752,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   function validateState(o) {
     if (!isObj(o)) fail('state must be an object');
     scan(o, 0, { n: 4e6 });
-    if (![1, 2, 3, 4, 5, SCHEMA].includes(o.schema)) fail('unsupported schema');
+    if (![1, 2, 3, 4, 5, 6, SCHEMA].includes(o.schema)) fail('unsupported schema');
     if (!L.metrics) fail('metrics module missing');
     const settings = cleanSettings(o.settings, o.schema), entries = cleanEntries(o.entries);
     const out = { schema: SCHEMA, settings, entries };
@@ -776,6 +782,20 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     else { const m = A.legacyDue(out.entries, RENEWAL_TOTAL_CAP, newId); out.renewals = A.cleanRenewals(m.renewals); out.entries = m.entries; }
     out.documents = six ? A.cleanDocuments(o.documents) : [];
     out.taxItems = six ? A.cleanTaxItems(o.taxItems) : [];
+    // Schema 7 adds Learning (items, study sessions, takeaways). Older formats get empty collections, and their learning/item and
+    // learning/hours entries become items and sessions (see learning.legacy; whatever cannot map stays as an entry).
+    const Ln = L.learning;
+    if (o.schema >= 7) {
+      out.learningItems = Ln.cleanItems(o.learningItems, out.goals);
+      out.studySessions = Ln.cleanSessions(o.studySessions, out.learningItems);
+      out.takeaways = Ln.cleanTakeaways(o.takeaways, out.learningItems);
+    } else {
+      const m = Ln.legacy(out.entries, newId);
+      out.learningItems = Ln.cleanItems(m.items, out.goals);
+      out.studySessions = Ln.cleanSessions(m.sessions, out.learningItems);
+      out.takeaways = [];
+      out.entries = m.entries;
+    }
     out.memory = cleanMemory(o.memory);
     out.audit = cleanAudit(o.audit);
     // The schema the input was written in, so callers can tell an older-format copy (no work data) from a schema 3 one.
@@ -784,7 +804,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     return out;
   }
   // Data the live state holds that an older-format copy (`next`, marked by validateState) cannot carry.
-  // Schema 3 added projects and pipeline; schema 4 added the training cycle, daily checks, workout types and body targets; schema 5 added goals; schema 6 added Home and Admin collections.
+  // Schema 3 added projects and pipeline; schema 4 added the training cycle, daily checks, workout types and body targets; schema 5 added goals; schema 6 added Home and Admin collections; schema 7 added Learning.
   const sameJson = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   function droppedData(cur, next) {
     const src = next && next.sourceSchema;
@@ -795,6 +815,10 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     if (src < 6) {
       for (const [k, n] of [['properties', 'properties'], ['vehicles', 'vehicles'], ['maintenance', 'maintenance items'], ['renewals', 'renewals'], ['documents', 'documents'], ['taxItems', 'tax items']]) if ((cur[k] || []).length) out.push(n);
       if ((cur.recurring || []).some((r) => r.household)) out.push('household bill flags');
+    }
+    if (src < 7) {
+      for (const [k, n] of [['learningItems', 'learning items'], ['studySessions', 'study sessions'], ['takeaways', 'takeaways']]) if ((cur[k] || []).length) out.push(n);
+      if (cur.settings && cur.settings.learning && cur.settings.learning.weeklyMinutes > 0) out.push('study target');
     }
     if (src < 4) {
       if (cur.cycle) out.push('training cycle');
@@ -808,7 +832,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   const dropsWork = (cur, next) => droppedData(cur, next).length > 0;
   const andList = (l) => (l.length > 1 ? l.slice(0, -1).join(', ') + ' and ' + l[l.length - 1] : l.join(''));
   // Plain-language list for warnings, with counts: "3 projects and 4 pipeline items". Names only, never values.
-  const COUNTED = { properties: 'properties', vehicles: 'vehicles', 'maintenance items': 'maintenance', renewals: 'renewals', documents: 'documents', 'tax items': 'taxItems' };
+  const COUNTED = { properties: 'properties', vehicles: 'vehicles', 'maintenance items': 'maintenance', renewals: 'renewals', documents: 'documents', 'tax items': 'taxItems', 'learning items': 'learningItems', 'study sessions': 'studySessions', takeaways: 'takeaways' };
   function lossText(cur, next) {
     return andList(droppedData(cur, next).map((n) => (n === 'projects' ? cur.projects.length + ' projects' : n === 'pipeline items' ? cur.pipeline.length + ' pipeline items' : n === 'daily checks' ? cur.habits.length + ' daily checks' : n === 'goals' ? cur.goals.length + ' goals' : COUNTED[n] ? cur[COUNTED[n]].length + ' ' + n : 'your ' + n)));
   }
@@ -824,11 +848,13 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
         sync: { clientId: '', remoteRev: -1, fp: '', fileId: '', keySalt: '' },
         health: { units: 'lb' },
         home: { starterDone: false },
+        learning: { weeklyMinutes: 0 },
       },
       entries: [],
       accounts: [], recurring: [], budgets: [], categories: defaultCategories(),
       projects: [], pipeline: [], goals: [],
       properties: [], vehicles: [], maintenance: [], renewals: [], documents: [], taxItems: [],
+      learningItems: [], studySessions: [], takeaways: [],
       cycle: null, kinds: L.metrics.DEFAULT_KINDS.slice(), habits: [], habitLog: [],
       memory: { insights: [], lessons: [], reviews: [] },
       audit: [],
@@ -1704,7 +1730,8 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       case 'health': return count(ents, ws, we, (e) => e.type === 'workout');
       case 'activities': return activeDays(ents, ws, we);
       case 'social': return overdue(ents, we, tg.contactDays).n;
-      case 'learning': return count(ents, ws, we, (e) => e.type === 'item' && e.status === 'done');
+      // Study minutes once any Learning data exists (schema 7); the older count of finished items before that.
+      case 'learning': return L.learning.current(state) ? L.learning.weekValue(state, we) : count(ents, ws, we, (e) => e.type === 'item' && e.status === 'done');
       case 'home': return L.home.weekValue(state, we);
       case 'admin': return L.admin.weekValue(state, we);
       case 'goals': {
@@ -1716,7 +1743,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     }
     throw new Error('Unknown domain');
   }
-  const unitOf = (state, id) => (id === 'assets' ? state.settings.currency : UNITS[id]);
+  const unitOf = (state, id) => (id === 'assets' ? state.settings.currency : id === 'learning' && L.learning.current(state) ? 'minutes' : UNITS[id]);
   const byDomain = (state, id) => state.entries.filter((e) => e.domain === id);
 
   function weeklyDigest(state, weekStartISO) {
@@ -1729,7 +1756,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     const we = addDays(ws, 6), wm = sumMoney(byDomain(state, 'money'), ws, we), nw = netWorthDetail(state, we);
     const mv = monthView(state, monthOf(we));
     const money = { income: dollars(wm.incC), spend: dollars(wm.expC), budgetUsedPct: mv.budgetCents > 0 ? r1(mv.budgetedSpentCents * 100 / mv.budgetCents) : 0, netWorth: nw.total, liabilities: nw.liabilities };
-    return { week: ws, domains, money, work: workDigest(state, ws), health: healthDigest(state, ws), goals: L.goals.digestCounts(state, ws), home: L.home.digest(state, ws), admin: L.admin.digest(state, ws) };
+    return { week: ws, domains, money, work: workDigest(state, ws), health: healthDigest(state, ws), goals: L.goals.digestCounts(state, ws), home: L.home.digest(state, ws), admin: L.admin.digest(state, ws), learning: L.learning.digest(state, ws) };
   }
   function series(state, domainId, n, today) {
     if (!DOMAINS.some((d) => d.id === domainId)) throw new Error('Unknown domain');
@@ -1785,6 +1812,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
         return R('People overdue', String(o.n), o.n, o.total + ' tracked, over ' + tg.contactDays + ' days since contact');
       }
       case 'learning': {
+        if (L.learning.current(state)) return L.learning.headline(state, today, R);
         const n = count(ents, mon + '-01', mon + '-31', (e) => e.type === 'item' && e.status === 'done');
         let h = 0;
         for (const e of ents) if (e.type === 'hours' && e.date.slice(0, 7) === mon) h += e.value;
@@ -2518,6 +2546,8 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     for (const r of list(state, 'renewals')) out.push({ src: 'renewal', id: r.id, title: r.title, kind: r.kind, date: r.dueDate, closed: r.state === 'open' ? null : r.state === 'done' && r.doneOn ? r.doneOn : '' });
     for (const t of list(state, 'taxItems')) if (t.dueDate) out.push({ src: 'tax', id: t.id, title: t.title, kind: 'tax ' + t.year, date: t.dueDate, closed: t.state === 'filed' ? '' : null });
     for (const d of list(state, 'documents')) if (d.expires) out.push({ src: 'document', id: d.id, title: d.title, kind: 'expires', date: d.expires, closed: null });
+    // Certification expiry is computed from the Learning item, never stored as a renewal.
+    if (L.learning) for (const x of L.learning.expiries(state)) out.push({ src: 'learning', id: x.id, title: x.title, kind: 'certification expires', date: x.date, closed: null });
     for (const e of legacyEntries(state)) out.push({ src: 'legacy', id: e.id, title: e.title, kind: 'older due item', date: e.due, closed: e.status === 'done' ? '' : null });
     return out;
   }
@@ -2538,7 +2568,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     }
     return t;
   }
-  const hasData = (state) => list(state, 'renewals').length + list(state, 'documents').length + list(state, 'taxItems').length + legacyEntries(state).length > 0;
+  const hasData = (state) => list(state, 'renewals').length + list(state, 'documents').length + list(state, 'taxItems').length + legacyEntries(state).length + (L.learning ? L.learning.expiries(state).length : 0) > 0;
   function headline(state, today, R) {
     const od = overdueAt(state, today).length, soon = dueWithin(state, today, 30).length;
     return R('Due within 30 days', String(soon), soon, od + ' overdue');
@@ -2576,6 +2606,394 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
 ;
 (function () {
   'use strict';
+  // Learning (schema 7): learning items, study sessions, takeaways and a weekly study target. Pure functions over state; every
+  // mutator runs inside store.commit and changes only what the user tapped. Review actions (pause, drop, new target date) are
+  // only offered, never taken. Dates are local YYYY-MM-DD strings handled as calendar days, so a time zone or DST change can
+  // never move a week. Titles, providers, notes and takeaways never leave the vault: the digest holds numbers only.
+  const L = (globalThis.LifeOS = globalThis.LifeOS || {});
+  const V = () => L.validate;
+  const H = () => L.home;
+  const D = () => L.home.dates;
+
+  const ITEM_CAP = 1000, SESSION_CAP = 20000, TAKEAWAY_CAP = 5000;
+  const MAX_SESSION_MIN = 1440, SESSION_NOTE_MAX = 200, MAX_WEEK_MIN = 10080, MAX_UNITS = 1e6, TAKEAWAY_MAX = 1000, STALL_DAYS = 14, SEARCH_MAX = 100;
+  const KINDS = Object.freeze(['course', 'book', 'certification', 'skill', 'project', 'other']);
+  const KIND_LABEL = Object.freeze({ course: 'Course', book: 'Book', certification: 'Certification', skill: 'Skill', project: 'Project', other: 'Other' });
+  const STATES = Object.freeze(['planned', 'active', 'paused', 'done', 'dropped']);
+  const STATE_LABEL = Object.freeze({ planned: 'Planned', active: 'Active', paused: 'Paused', done: 'Done', dropped: 'Dropped' });
+  const SECRET_MESSAGE = 'That looks like an ID number or a card number. Do not enter ID numbers, account numbers or passwords here.';
+
+  const list = (state, k) => (state && Array.isArray(state[k]) ? state[k] : []);
+  const T = (v, max, name, empty) => H().text(v, max, name, empty);
+  const r2 = (x) => Math.round(x * 100) / 100;
+  const given = (v) => v !== undefined && v !== null && v !== '';
+  const weekStart = (d) => L.metrics.weekStart(d);
+
+  // ---- validation (rebuilds every record from whitelists, with caps) ----
+  function cleanSettings(x) {
+    if (x === undefined) return { weeklyMinutes: 0 };
+    if (!V().isObj(x)) V().fail('learning settings');
+    return { weeklyMinutes: x.weeklyMinutes === undefined ? 0 : V().num(x.weeklyMinutes, 0, MAX_WEEK_MIN, 'weekly study minutes', true) };
+  }
+  // A goal link that points at nothing is dropped and the item kept; a non-text link refuses the state.
+  function cleanItems(list_, goals) {
+    if (list_ === undefined) return [];
+    const seen = new Set(), gids = new Set((goals || []).map((g) => g.id));
+    return V().arr(list_, ITEM_CAP, 'learning items').map((x) => {
+      const id = H().ident(x, seen, 'learning item');
+      const o = { id, title: T(x.title, 200, 'item title'), kind: V().oneOf(x.kind, KINDS, 'item kind'), provider: T(x.provider, 200, 'provider', true), state: V().oneOf(x.state, STATES, 'item state') };
+      const hasPct = given(x.progressPct), hasTot = given(x.totalUnits), hasDone = given(x.doneUnits);
+      if (hasPct && (hasTot || hasDone)) V().fail('progress is a percent or units, not both');
+      if (hasPct) o.progressPct = r2(V().num(x.progressPct, 0, 100, 'progress'));
+      else if (hasTot || hasDone) {
+        if (!hasTot) V().fail('units need a total');
+        o.totalUnits = V().num(x.totalUnits, 0, MAX_UNITS, 'total units', true);
+        o.doneUnits = hasDone ? V().num(x.doneUnits, 0, MAX_UNITS, 'done units', true) : 0;
+        if (o.doneUnits > o.totalUnits) V().fail('done units are more than the total');
+        o.unitLabel = T(x.unitLabel, 30, 'unit label', true);
+      }
+      for (const [k, name] of [['startDate', 'start date'], ['targetDate', 'target date'], ['finishedDate', 'finished date'], ['examDate', 'exam date'], ['expiresOn', 'expiry date']]) {
+        const d = H().optDate(x[k], name); if (d) o[k] = d;
+      }
+      if (typeof x.goalId === 'string' && x.goalId) { if (gids.has(x.goalId)) o.goalId = x.goalId; }
+      else if (given(x.goalId)) V().fail('goal link must be text');
+      o.notes = T(x.notes, 2000, 'notes', true);
+      if (x.createdAt !== undefined && x.createdAt !== null) o.createdAt = V().ts(x.createdAt, 'createdAt');
+      return o;
+    });
+  }
+  function itemLink(x, ids) {
+    if (typeof x.itemId === 'string' && x.itemId) return ids.has(x.itemId) ? x.itemId : undefined;
+    if (given(x.itemId)) V().fail('item link must be text');
+    return undefined;
+  }
+  function cleanSessions(list_, items) {
+    if (list_ === undefined) return [];
+    const seen = new Set(), ids = new Set((items || []).map((i) => i.id));
+    return V().arr(list_, SESSION_CAP, 'study sessions').map((x) => {
+      const id = H().ident(x, seen, 'study session'), o = { id }, link = itemLink(x, ids);
+      if (link) o.itemId = link;
+      o.date = H().reqDate(x.date, 'session date');
+      o.minutes = V().num(x.minutes, 1, MAX_SESSION_MIN, 'session minutes', true);
+      o.notes = T(x.notes, 2000, 'notes', true);
+      return o;
+    });
+  }
+  function cleanTakeaways(list_, items) {
+    if (list_ === undefined) return [];
+    const seen = new Set(), ids = new Set((items || []).map((i) => i.id));
+    return V().arr(list_, TAKEAWAY_CAP, 'takeaways').map((x) => {
+      const id = H().ident(x, seen, 'takeaway'), o = { id }, link = itemLink(x, ids);
+      if (link) o.itemId = link;
+      o.date = H().reqDate(x.date, 'takeaway date');
+      o.text = T(x.text, TAKEAWAY_MAX, 'takeaway');
+      return o;
+    });
+  }
+
+  // ---- progress and pace ----
+  // Percent 0 to 100, or null when nothing is set. A zero total has no progress to show (never a divide by zero, never NaN).
+  function progressOf(item) {
+    if (!item) return null;
+    if (typeof item.progressPct === 'number') return Math.max(0, Math.min(100, item.progressPct));
+    if (typeof item.totalUnits === 'number' && item.totalUnits > 0) return Math.max(0, Math.min(100, (item.doneUnits || 0) / item.totalUnits * 100));
+    return null;
+  }
+  // Same arithmetic as Goals pace: progress minus the elapsed share of startDate to targetDate, 10 point tolerance.
+  function paceOf(item, asOf) {
+    const p = progressOf(item);
+    if (p === null || !item.startDate || !item.targetDate) return 'no-data';
+    return L.goals.paceOf(p / 100, L.goals.elapsedShare({ startDate: item.startDate, dueDate: item.targetDate }, asOf));
+  }
+  const fmtProgress = (item) => { const p = progressOf(item); return p === null ? 'no progress set' : (Math.round(p * 10) / 10) + '%'; };
+  const unitsText = (item) => (typeof item.totalUnits === 'number' && item.totalUnits > 0 ? item.doneUnits + ' of ' + item.totalUnits + (item.unitLabel ? ' ' + item.unitLabel : '') : '');
+
+  // ---- weeks ----
+  // ISO 8601 week of a date: {year, week}; the week belongs to the year that holds its Thursday.
+  function weekInfo(d) {
+    const ws = weekStart(d), thu = D().addDays(ws, 3);
+    return { year: +thu.slice(0, 4), week: Math.floor(D().daysBetween(thu, thu.slice(0, 4) + '-01-01') / 7) + 1 };
+  }
+  const target = (state) => (state && state.settings && state.settings.learning && state.settings.learning.weeklyMinutes) || 0;
+  function studyWeek(state, ws, asOf) {
+    ws = weekStart(ws);
+    const we = D().addDays(ws, 6), end = asOf && asOf < we ? asOf : we, days = new Set();
+    let minutes = 0, sessions = 0;
+    for (const s of list(state, 'studySessions')) if (s.date >= ws && s.date <= end) { minutes += s.minutes; sessions++; days.add(s.date); }
+    const tg = target(state);
+    return { week: ws, minutes, sessions, days: days.size, target: tg, met: tg > 0 ? minutes >= tg : null };
+  }
+  // Weeks in a row that met the target, counting back from this week. The week in progress counts once met and never breaks a run.
+  function streak(state, today) {
+    const tg = target(state);
+    if (!(tg > 0)) return 0;
+    const byWeek = new Map();
+    for (const s of list(state, 'studySessions')) if (s.date <= today) { const k = weekStart(s.date); byWeek.set(k, (byWeek.get(k) || 0) + s.minutes); }
+    let ws = weekStart(today), n = 0;
+    if ((byWeek.get(ws) || 0) >= tg) n = 1;
+    ws = D().addDays(ws, -7);
+    for (let i = 0; i < 1040 && (byWeek.get(ws) || 0) >= tg; i++) { n++; ws = D().addDays(ws, -7); }
+    return n;
+  }
+
+  // ---- items ----
+  const byTitle = (a, b) => a.title.localeCompare(b.title);
+  const activeItems = (state) => list(state, 'learningItems').filter((i) => i.state === 'active').sort((a, b) => (a.targetDate || '9999').localeCompare(b.targetDate || '9999') || byTitle(a, b));
+  function lastSession(state, id, asOf) {
+    let last = '';
+    for (const s of list(state, 'studySessions')) if (s.itemId === id && s.date <= asOf && s.date > last) last = s.date;
+    return last;
+  }
+  // Active items with no session in 14 days: the last session, else the start date; an item with neither counts. A numeric fact.
+  function stalled(state, asOf) {
+    const latest = new Map();
+    for (const s of list(state, 'studySessions')) if (s.itemId && s.date <= asOf && s.date > (latest.get(s.itemId) || '')) latest.set(s.itemId, s.date);
+    return activeItems(state).filter((i) => {
+      const anchor = latest.get(i.id) || i.startDate || '';
+      if (i.startDate && i.startDate > asOf && !latest.get(i.id)) return false;
+      return !anchor || D().daysBetween(asOf, anchor) >= STALL_DAYS;
+    });
+  }
+  function upcomingExams(state, today) {
+    return list(state, 'learningItems').filter((i) => i.examDate && i.examDate >= today && i.state !== 'dropped' && i.state !== 'done')
+      .map((i) => ({ id: i.id, title: i.title, date: i.examDate, days: D().daysBetween(i.examDate, today) }))
+      .sort((a, b) => a.date.localeCompare(b.date) || byTitle(a, b));
+  }
+  const recentlyFinished = (state, n) => list(state, 'learningItems').filter((i) => i.state === 'done').sort((a, b) => (b.finishedDate || '').localeCompare(a.finishedDate || '') || byTitle(a, b)).slice(0, n || 5);
+  const finishedBy = (state, asOf) => list(state, 'learningItems').filter((i) => i.state === 'done' && i.finishedDate && i.finishedDate <= asOf).length;
+  // Certification expiry as a computed Admin timeline row (admin.dated reads this; nothing is stored twice).
+  const expiries = (state) => list(state, 'learningItems').filter((i) => i.kind === 'certification' && i.expiresOn && i.state !== 'dropped').map((i) => ({ id: i.id, title: i.title, date: i.expiresOn }));
+  // Linked goal metric: mean progress of the items that point at this goal and have a progress set; null when there are none.
+  function goalProgress(state, goalId) {
+    const ps = list(state, 'learningItems').filter((i) => i.goalId === goalId && i.state !== 'dropped').map(progressOf).filter((p) => p !== null);
+    return ps.length ? r2(ps.reduce((a, b) => a + b, 0) / ps.length) : null;
+  }
+  const hasData = (state) => list(state, 'learningItems').length + list(state, 'studySessions').length + list(state, 'takeaways').length > 0 || target(state) > 0;
+  // Study minutes drive the tile, digest and series once there is Learning data or no older learning entries; until then the older count of finished items.
+  const current = (state) => hasData(state) || !list(state, 'entries').some((e) => e.domain === 'learning');
+  const legacyEntries = (state) => list(state, 'entries').filter((e) => e.domain === 'learning').sort((a, b) => b.date.localeCompare(a.date) || a.title.localeCompare(b.title));
+  const linkedCount = (state, id) => ({ sessions: list(state, 'studySessions').filter((s) => s.itemId === id).length, takeaways: list(state, 'takeaways').filter((t) => t.itemId === id).length });
+
+  // ---- summaries ----
+  function summary(state, today) {
+    const w = studyWeek(state, today, today), ex = upcomingExams(state, today);
+    return { week: w, streak: streak(state, today), active: activeItems(state).length, stalled: stalled(state, today), nextExam: ex[0] || null, exams: ex };
+  }
+  function headline(state, today, R) {
+    const s = summary(state, today), w = s.week;
+    const sub = s.active + (s.active === 1 ? ' active item' : ' active items') + ', ' + (s.nextExam ? 'next exam ' + s.nextExam.date : 'no exam dated');
+    return R('Study minutes this week', w.target > 0 ? w.minutes + ' of ' + w.target : String(w.minutes), w.minutes, sub);
+  }
+  const weekValue = (state, we) => studyWeek(state, we, we).minutes;
+  // Numbers only: never a title, provider, note or takeaway.
+  function digest(state, ws) {
+    const we = D().addDays(ws, 6), w = studyWeek(state, ws);
+    return { minutes: w.minutes, sessions: w.sessions, days: w.days, active: activeItems(state).length, finished: list(state, 'learningItems').filter((i) => i.state === 'done' && i.finishedDate && i.finishedDate >= ws && i.finishedDate <= we).length, stalled: stalled(state, we).length };
+  }
+  function reviewWeek(state, wk, today) {
+    const ws = weekStart(wk), we = D().addDays(ws, 6), now = today && today < we ? today : we, w = studyWeek(state, ws, now);
+    const per = new Map();
+    for (const s of list(state, 'studySessions')) if (s.itemId && s.date >= ws && s.date <= now) per.set(s.itemId, (per.get(s.itemId) || 0) + s.minutes);
+    const moved = list(state, 'learningItems').filter((i) => per.has(i.id) || (i.state === 'done' && i.finishedDate && i.finishedDate >= ws && i.finishedDate <= now))
+      .map((i) => ({ item: i, minutes: per.get(i.id) || 0 })).sort((a, b) => b.minutes - a.minutes || byTitle(a.item, b.item));
+    return { week: w, moved, stalled: stalled(state, now), exams: upcomingExams(state, now).filter((e) => e.days <= 28), asOf: now };
+  }
+
+  // ---- search: plain substring, never a RegExp built from what was typed ----
+  function search(state, q) {
+    if (typeof q !== 'string') return [];
+    const needle = q.trim().toLowerCase();
+    if (!needle || needle.length > SEARCH_MAX) return [];
+    const titles = new Map(list(state, 'learningItems').map((i) => [i.id, i.title]));
+    return list(state, 'takeaways').filter((t) => t.text.toLowerCase().includes(needle))
+      .sort((a, b) => b.date.localeCompare(a.date) || a.text.localeCompare(b.text)).map((t) => ({ takeaway: t, itemTitle: t.itemId ? titles.get(t.itemId) || '' : '' }));
+  }
+
+  // ---- mutators (run inside store.commit; nothing here is called automatically) ----
+  const checkText = (...fields) => { for (const f of fields) if (L.admin.looksSecret(f)) throw new Error(SECRET_MESSAGE); };
+  const findItem = (state, id) => { const i = list(state, 'learningItems').find((x) => x.id === id); if (!i) throw new Error('Learning item not found'); return i; };
+  const PCT_RE = /^\d{1,3}(\.\d{1,2})?$/;
+  function toPct(v) {
+    if (!given(v)) return undefined;
+    const s = String(v).trim().replace(/%$/, '');
+    if (!PCT_RE.test(s) || +s > 100) throw new Error('Progress must be a percent from 0 to 100');
+    return +s;
+  }
+  function toUnits(v, name) {
+    if (!given(v)) return undefined;
+    const s = String(v).trim();
+    if (!/^\d{1,7}$/.test(s) || +s > MAX_UNITS) throw new Error(name + ' must be a whole number from 0 to ' + MAX_UNITS);
+    return +s;
+  }
+  const dateOrNone = (v, name) => { if (!given(v)) return undefined; if (!D().isDate(v)) throw new Error(name + ' must be a valid date'); return v; };
+  // Fields shared by add and update; returns the cleaned record, or throws without touching state.
+  function build(state, base, input) {
+    const o = Object.assign({}, base);
+    if ('title' in input) { if (typeof input.title !== 'string' || !input.title.trim()) throw new Error('Enter a title.'); o.title = input.title; }
+    if (input.kind !== undefined) o.kind = input.kind;
+    if ('provider' in input) o.provider = input.provider || '';
+    if ('notes' in input) { o.notes = input.notes || ''; checkText(o.notes); }
+    for (const [k, name] of [['startDate', 'Start date'], ['targetDate', 'Target date'], ['examDate', 'Exam date'], ['expiresOn', 'Expiry date']]) {
+      if (k in input) { const d = dateOrNone(input[k], name); if (d) o[k] = d; else delete o[k]; }
+    }
+    if ('goalId' in input) {
+      if (!given(input.goalId)) delete o.goalId;
+      else if (!list(state, 'goals').some((g) => g.id === input.goalId)) throw new Error('Goal not found');
+      else o.goalId = input.goalId;
+    }
+    const pct = 'progressPct' in input ? toPct(input.progressPct) : undefined;
+    const tot = 'totalUnits' in input ? toUnits(input.totalUnits, 'Total') : undefined, dn = 'doneUnits' in input ? toUnits(input.doneUnits, 'Done') : undefined;
+    if (pct !== undefined && (tot !== undefined || dn !== undefined)) throw new Error('Enter a percent or units done, not both.');
+    if (pct !== undefined) { o.progressPct = pct; delete o.totalUnits; delete o.doneUnits; delete o.unitLabel; }
+    else if (tot !== undefined || dn !== undefined) {
+      if (tot !== undefined) o.totalUnits = tot;
+      if (o.totalUnits === undefined) throw new Error('Enter the total before the units done.');
+      o.doneUnits = dn !== undefined ? dn : (o.doneUnits || 0);
+      if (o.doneUnits > o.totalUnits) throw new Error('Units done cannot be more than the total.');
+      delete o.progressPct;
+    }
+    if ('unitLabel' in input && o.totalUnits !== undefined) o.unitLabel = input.unitLabel || '';
+    if (('progressPct' in input && !given(input.progressPct)) && ('totalUnits' in input && !given(input.totalUnits)) && !given(input.doneUnits)) { delete o.progressPct; delete o.totalUnits; delete o.doneUnits; delete o.unitLabel; }
+    return o;
+  }
+  function addItem(state, input, today) {
+    if (!V().isObj(input)) throw new Error('Item must be an object');
+    if (list(state, 'learningItems').length >= ITEM_CAP) throw new Error('You can keep up to ' + ITEM_CAP + ' learning items');
+    const t = D().isDate(today) ? today : L.metrics.todayISO();
+    const base = { id: L.store.newId(), title: '', kind: KINDS.includes(input.kind) ? input.kind : 'course', provider: '', state: STATES.includes(input.state) ? input.state : 'active', startDate: t, notes: '', createdAt: new Date().toISOString() };
+    if (input.kind !== undefined && !KINDS.includes(input.kind)) throw new Error('Unknown kind');
+    if (input.state !== undefined && !STATES.includes(input.state)) throw new Error('Unknown state');
+    const o = build(state, base, Object.assign({ title: input.title }, input));
+    if (o.state === 'done') o.finishedDate = t;
+    const clean = cleanItems([o], state.goals)[0];
+    state.learningItems = list(state, 'learningItems').concat([clean]);
+    return clean;
+  }
+  const EDITABLE = ['title', 'kind', 'provider', 'notes', 'startDate', 'targetDate', 'examDate', 'expiresOn', 'goalId', 'progressPct', 'totalUnits', 'doneUnits', 'unitLabel'];
+  function updateItem(state, id, patch) {
+    const i = findItem(state, id);
+    if (!V().isObj(patch)) throw new Error('Nothing to change');
+    for (const k of Object.keys(patch)) if (!EDITABLE.includes(k)) throw new Error('That field cannot be changed');
+    if ('kind' in patch && !KINDS.includes(patch.kind)) throw new Error('Unknown kind');
+    const clean = cleanItems([build(state, i, patch)], state.goals)[0];
+    for (const k of Object.keys(i)) delete i[k];
+    Object.assign(i, clean);
+    return i;
+  }
+  // Moving between states is always a tap: done records the finish date, reopening clears it.
+  function setState(state, id, to, today) {
+    const i = findItem(state, id);
+    if (!STATES.includes(to)) throw new Error('Unknown state');
+    const t = D().isDate(today) ? today : L.metrics.todayISO();
+    i.state = to;
+    if (to === 'done') i.finishedDate = i.finishedDate || t; else delete i.finishedDate;
+    return i;
+  }
+  const pauseItem = (state, id) => setState(state, id, 'paused');
+  const dropItem = (state, id) => setState(state, id, 'dropped');
+  function setTargetDate(state, id, date) {
+    if (!D().isDate(date)) throw new Error('Target date must be a valid date');
+    const i = findItem(state, id);
+    i.targetDate = date;
+    return i;
+  }
+  // Deleting an item keeps its sessions and takeaways and unlinks them. Returns how many of each.
+  function deleteItem(state, id) {
+    findItem(state, id);
+    const n = linkedCount(state, id);
+    for (const s of list(state, 'studySessions')) if (s.itemId === id) delete s.itemId;
+    for (const t of list(state, 'takeaways')) if (t.itemId === id) delete t.itemId;
+    state.learningItems = state.learningItems.filter((x) => x.id !== id);
+    return n;
+  }
+  function addSession(state, input, today) {
+    if (!V().isObj(input)) throw new Error('Session must be an object');
+    if (list(state, 'studySessions').length >= SESSION_CAP) throw new Error('You can keep up to ' + SESSION_CAP + ' study sessions');
+    const t = D().isDate(today) ? today : L.metrics.todayISO(), date = given(input.date) ? input.date : t;
+    if (!D().isDate(date)) throw new Error('Date must be a valid date');
+    const s = String(given(input.minutes) ? input.minutes : '').trim();
+    if (!/^\d{1,4}$/.test(s) || +s < 1 || +s > MAX_SESSION_MIN) throw new Error('Minutes must be a whole number from 1 to ' + MAX_SESSION_MIN);
+    const o = { id: L.store.newId(), date, minutes: +s, notes: typeof input.notes === 'string' ? input.notes : '' };
+    // A typed session note is a short line (SEC-49): 20,000 sessions of 2,000 characters alone would pass the 64 MB backup and sync
+    // limit. validateState still accepts 2,000 characters so notes carried over from older hours entries keep their full text.
+    if (o.notes.trim().length > SESSION_NOTE_MAX) throw new Error('A session note can be up to ' + SESSION_NOTE_MAX + ' characters');
+    if (given(input.itemId)) { findItem(state, input.itemId); o.itemId = input.itemId; }
+    checkText(o.notes);
+    const clean = cleanSessions([o], state.learningItems)[0];
+    state.studySessions = list(state, 'studySessions').concat([clean]);
+    return clean;
+  }
+  function deleteSession(state, id) {
+    if (!list(state, 'studySessions').some((x) => x.id === id)) throw new Error('Session not found');
+    state.studySessions = state.studySessions.filter((x) => x.id !== id);
+  }
+  function addTakeaway(state, input, today) {
+    if (!V().isObj(input)) throw new Error('Takeaway must be an object');
+    if (list(state, 'takeaways').length >= TAKEAWAY_CAP) throw new Error('You can keep up to ' + TAKEAWAY_CAP + ' takeaways');
+    const t = D().isDate(today) ? today : L.metrics.todayISO(), date = given(input.date) ? input.date : t;
+    if (!D().isDate(date)) throw new Error('Date must be a valid date');
+    if (typeof input.text !== 'string' || !input.text.trim()) throw new Error('Enter what you learned.');
+    if (input.text.trim().length > TAKEAWAY_MAX) throw new Error('A takeaway can be up to ' + TAKEAWAY_MAX + ' characters');
+    checkText(input.text);
+    const o = { id: L.store.newId(), date, text: input.text };
+    if (given(input.itemId)) { findItem(state, input.itemId); o.itemId = input.itemId; }
+    const clean = cleanTakeaways([o], state.learningItems)[0];
+    state.takeaways = list(state, 'takeaways').concat([clean]);
+    return clean;
+  }
+  function deleteTakeaway(state, id) {
+    if (!list(state, 'takeaways').some((x) => x.id === id)) throw new Error('Takeaway not found');
+    state.takeaways = state.takeaways.filter((x) => x.id !== id);
+  }
+  function setWeeklyTarget(state, v) {
+    const s = String(given(v) ? v : '0').trim();
+    if (!/^\d{1,5}$/.test(s) || +s > MAX_WEEK_MIN) throw new Error('Study minutes per week must be a whole number from 0 to ' + MAX_WEEK_MIN);
+    if (!state.settings) throw new Error('No settings');
+    state.settings.learning = { weeklyMinutes: +s };
+    return +s;
+  }
+
+  // ---- legacy: learning/item and learning/hours entries from before schema 7 become items and sessions ----
+  // An item entry keeps its title, status, date, notes and createdAt (the date and notes are written into the item's notes). An
+  // hours entry becomes a session when it is an exact whole number of minutes from 1 to 1440; its title, hours and notes go into
+  // the session's notes. Anything that does not fit (notes over 2,000 characters, a fractional minute, past a cap) keeps its
+  // original entry, which stays visible and deletable under Learning. Nothing is dropped.
+  function legacy(entries, newId, caps) {
+    const items = [], sessions = [], gone = new Set(), ic = (caps && caps.items) || ITEM_CAP, sc = (caps && caps.sessions) || SESSION_CAP;
+    for (const e of entries) {
+      if (e.domain !== 'learning') continue;
+      const id = typeof e.id === 'string' && e.id && e.id.length <= 100 ? e.id : newId();
+      if (e.type === 'item') {
+        if (items.length >= ic) continue;
+        const notes = 'Imported from a Learning item dated ' + e.date + '.' + (e.notes ? ' ' + e.notes : '');
+        if (notes.length > 2000) continue;
+        const done = e.status === 'done', o = { id, title: e.title, kind: 'other', provider: '', state: done ? 'done' : 'active', notes };
+        if (done) o.finishedDate = e.date; else o.startDate = e.date;
+        if (e.createdAt !== undefined) o.createdAt = e.createdAt;
+        items.push(o); gone.add(e);
+      } else if (e.type === 'hours') {
+        if (sessions.length >= sc || typeof e.value !== 'number') continue;
+        const m = e.value * 60, min = Math.round(m);
+        if (Math.abs(m - min) > 1e-6 || min < 1 || min > MAX_SESSION_MIN) continue;
+        const notes = 'Imported from Learning hours "' + e.title + '" (' + e.value + ' hours).' + (e.notes ? ' ' + e.notes : '');
+        if (notes.length > 2000) continue;
+        sessions.push({ id, date: e.date, minutes: min, notes }); gone.add(e);
+      }
+    }
+    return { items, sessions, entries: entries.filter((e) => !gone.has(e)) };
+  }
+
+  L.learning = {
+    ITEM_CAP, SESSION_CAP, TAKEAWAY_CAP, SESSION_NOTE_MAX, STALL_DAYS, KINDS, KIND_LABEL, STATES, STATE_LABEL, SECRET_MESSAGE,
+    cleanSettings, cleanItems, cleanSessions, cleanTakeaways, progressOf, paceOf, fmtProgress, unitsText, weekInfo, studyWeek, streak, activeItems, lastSession, stalled,
+    upcomingExams, recentlyFinished, finishedBy, expiries, goalProgress, hasData, current, legacyEntries, linkedCount, summary, headline, weekValue, digest, reviewWeek, search,
+    addItem, updateItem, setState, pauseItem, dropItem, setTargetDate, deleteItem, addSession, deleteSession, addTakeaway, deleteTakeaway, setWeeklyTarget, legacy, target,
+  };
+})();
+
+;
+(function () {
+  'use strict';
   // Goals (schema 5). Pure functions over state: progress and pace are derived live from the other domains, never stored.
   // Every mutator takes the state inside store.commit and only changes a goal's lifecycle (achieved, dropped, rolled over)
   // when called, which only happens after an explicit user tap.
@@ -2600,6 +3018,9 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     mk('pipelineWon', 'Pipeline items won', 'work', 'count'),
     mk('maintenanceOverdue', 'Maintenance tasks overdue', 'home', 'count'),
     mk('adminOverdue', 'Admin items overdue', 'admin', 'count'),
+    mk('studyMinutes', 'Study minutes per week', 'learning', 'count'),
+    mk('learningFinished', 'Learning items finished', 'learning', 'count'),
+    mk('itemProgress', 'Progress of linked learning items', 'learning', 'percent'),
   ]);
   // Body metrics are sensitive (SEC-32): goals on them never reach a digest, prompt or rules insight.
   const BODY = Object.freeze(['weight', 'bodyFat']);
@@ -2626,6 +3047,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     const m = M();
     if (goal.metric === 'manual') return typeof goal.manualValue === 'number' ? goal.manualValue : null;
     if (!m.isDate(asOf)) throw new Error('Date must be YYYY-MM-DD');
+    if (goal.metric === 'itemProgress') return L.learning.goalProgress(state, goal.id); // depends on the goal, so it is never memoised by metric
     if (memo) {
       const k = goal.metric + '|' + asOf;
       if (!memo.has(k)) memo.set(k, linkedValue(state, goal.metric, asOf));
@@ -2660,6 +3082,12 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
         return m.weekOutcomes(state, m.weekStart(asOf)).filter((e) => e.status === 'done').length;
       case 'maintenanceOverdue': return L.home.overdueValue(state, asOf);
       case 'adminOverdue': return L.admin.overdueValue(state, asOf);
+      case 'studyMinutes':
+        if (!(state.studySessions || []).some((x) => x.date <= asOf)) return null;
+        return L.learning.studyWeek(state, m.weekStart(asOf), asOf).minutes;
+      case 'learningFinished':
+        if (!(state.learningItems || []).length) return null;
+        return L.learning.finishedBy(state, asOf);
       case 'pipelineWon':
         if (!(state.pipeline || []).length) return null;
         return state.pipeline.filter((x) => x.stage === 'won' && x.updatedAt <= asOf).length;
@@ -2923,6 +3351,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     find(state, id);
     let n = 0;
     for (const g of state.goals) if (g.parentId === id) { delete g.parentId; n++; }
+    for (const i of state.learningItems || []) if (i.goalId === id) delete i.goalId;
     state.goals = state.goals.filter((g) => g.id !== id);
     return n;
   }
@@ -3050,6 +3479,9 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       const hm = dg.home, ad = dg.admin, cur = state.settings.currency, fm = (c) => L.metrics.fmtMoney(c / 100, cur);
       if (hm && (hm.overdue || hm.dueSoon || hm.done || hm.ytdCostCents)) lines.push('- home detail: maintenance overdue ' + hm.overdue + ', due within 30 days ' + hm.dueSoon + ', done this week ' + hm.done + ', year-to-date maintenance cost ' + fm(hm.ytdCostCents));
       if (ad && (ad.overdue || ad.dueSoon || ad.done || ad.runRateCents)) lines.push('- admin detail: overdue ' + ad.overdue + ', due within 30 days ' + ad.dueSoon + ', done this week ' + ad.done + ', subscription run-rate per month ' + fm(ad.runRateCents));
+      // Learning: counts and minutes only, never a title, provider, note or takeaway.
+      const ln = dg.learning;
+      if (ln && (ln.minutes || ln.sessions || ln.days || ln.active || ln.finished || ln.stalled)) lines.push('- learning detail: study minutes ' + ln.minutes + ', sessions ' + ln.sessions + ', days studied ' + ln.days + ', active items ' + ln.active + ', finished this week ' + ln.finished + ', stalled items ' + ln.stalled);
       ctx = approvedAll.filter((i) => !isBodyInsight(i)).slice(-CTX_MAX);
       lines.push('Approved insights so far:');
     } else {
@@ -3424,7 +3856,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     return r;
   }
   async function upload(file, text, etag) {
-    if (text.length > MAX_REMOTE) throw err('TOO_LARGE', 'The vault is larger than 64 MB and cannot be synced.');
+    if (text.length > MAX_REMOTE) throw err('TOO_LARGE', 'The vault is larger than 64 MB, so nothing was uploaded. Your data on this device is unchanged. Delete old entries, study sessions, takeaways or long notes, then sync again.');
     if (!file) {
       const b = 'lifeos' + newNonce();
       const body = '--' + b + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' +
@@ -3817,7 +4249,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     var s = st();
     var body;
     try {
-      body = view.name === 'domain' ? (view.domain === 'money' ? moneyScreen(s) : view.domain === 'assets' ? assetsScreen(s) : view.domain === 'work' ? workScreen(s) : view.domain === 'health' ? healthScreen(s) : view.domain === 'goals' ? goalsScreen(s) : view.domain === 'home' ? homeScreen(s) : view.domain === 'admin' ? adminScreen(s) : domainScreen(s))
+      body = view.name === 'domain' ? (view.domain === 'money' ? moneyScreen(s) : view.domain === 'assets' ? assetsScreen(s) : view.domain === 'work' ? workScreen(s) : view.domain === 'health' ? healthScreen(s) : view.domain === 'goals' ? goalsScreen(s) : view.domain === 'home' ? homeScreen(s) : view.domain === 'admin' ? adminScreen(s) : view.domain === 'learning' ? learningScreen(s) : domainScreen(s))
         : view.name === 'review' ? reviewScreen(s)
         : view.name === 'memory' ? memoryScreen(s)
         : view.name === 'settings' ? settingsScreen(s)
@@ -3911,7 +4343,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     } else pr.appendChild(h('p', { class: 'mut', text: 'No priorities yet. Run your weekly review to set three.' }));
     if (!rv || rv.weekOf !== wk) pr.appendChild(btn('Start weekly review', function () { go('review'); }, 'pri'));
     var due = L.metrics.dueRecurring(s, t).length;
-    return h('div', null, h('div', { class: 'row sp' }, h('h1', { text: 'Dashboard' }), btn('Quick add', quickAdd, 'pri qa-btn', { id: 'quick-add' })),
+    return h('div', null, h('div', { class: 'row sp' }, h('h1', { text: 'Dashboard' }), h('div', { class: 'row' }, btn('Log study', function () { studyDialog(''); }, 'qa-btn', { id: 'quick-study' }), btn('Quick add', quickAdd, 'pri qa-btn', { id: 'quick-add' }))),
       due ? h('div', { class: 'warn' }, due + (due === 1 ? ' recurring item is' : ' recurring items are') + ' due. ', btn('Review', function () { go('domain', { domain: 'money' }); }, 'sm', { id: 'due-review' })) : null,
       pr, h('div', { class: 'grid' }, tiles));
   }
@@ -4552,7 +4984,9 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       reviewGoalsCard(s, wk, t),
       h('h2', { text: '4. Home and Admin' }),
       reviewHomeAdminCard(s, wk),
-      h('h2', { text: '5. Your three priorities' }),
+      h('h2', { text: '5. Learning' }),
+      reviewLearningCard(s, wk, t),
+      h('h2', { text: '6. Your three priorities' }),
       h('form', {
         class: 'card',
         onsubmit: function (e) {
@@ -5465,7 +5899,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       return h('div', { id: id }, h('h3', { text: title + ' (' + items.length + ')' }), items.length ? items.map(tlItem) : h('p', { class: 'mut small', text: 'Nothing.' }));
     };
     var tlCard = h('div', { class: 'card', id: 'ad-timeline' }, h('h2', { text: 'Timeline' }),
-      h('p', { class: 'mut small', text: 'Renewals, tax items with a due date and document expiries. Overdue first.' }),
+      h('p', { class: 'mut small', text: 'Renewals, tax items with a due date, document expiries and certification expiries. Overdue first.' }),
       group('ad-tl-overdue', 'Overdue', tl.overdue), group('ad-tl-30', 'Within 30 days', tl.d30), group('ad-tl-60', '31 to 60 days', tl.d60), group('ad-tl-90', '61 to 90 days', tl.d90));
 
     var open = (s.renewals || []).filter(function (r) { return r.state === 'open'; }).sort(function (a, b) { return a.dueDate.localeCompare(b.dueDate) || a.title.localeCompare(b.title); });
@@ -5590,6 +6024,243 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     return h('div', { class: 'card', id: 'rv-homeadmin' }, kids, pr);
   }
 
+  // ---------- learning (v0.8.0) ----------
+  // Review actions (pause, drop, new target date) are offered and only taken on a tap.
+  function itemOptions(s, none) {
+    var live = (s.learningItems || []).filter(function (i) { return i.state !== 'dropped'; }).sort(function (a, b) { return a.title.localeCompare(b.title); });
+    return [{ v: '', t: none || '(none)' }].concat(live.map(function (i) { return { v: i.id, t: i.title }; }));
+  }
+  function goalOptions(s) {
+    return [{ v: '', t: '(none)' }].concat((s.goals || []).filter(function (g) { return g.state === 'active'; }).map(function (g) { return { v: g.id, t: g.title }; }));
+  }
+  // One tap logs a session: choose an item, tap a minutes chip, save. A typed number works too.
+  function studyDialog(itemId) {
+    var s = st(), mins = '';
+    var item = sel('sd-item', itemOptions(s), itemId || '');
+    var custom = h('input', { type: 'text', id: 'sd-min', inputmode: 'numeric', maxlength: '4', autocomplete: 'off', 'aria-label': 'Minutes' });
+    var dateIn = h('input', { type: 'date', id: 'sd-date', value: today(), required: true, 'aria-label': 'Date' });
+    var note = h('input', { type: 'text', id: 'sd-note', maxlength: String(L.learning.SESSION_NOTE_MAX), autocomplete: 'off', 'aria-label': 'Note (optional)' });
+    var chips = h('div', { class: 'chips', id: 'sd-chips', role: 'group', 'aria-label': 'Minutes' });
+    function paint() {
+      chips.replaceChildren.apply(chips, [15, 30, 45, 60].map(function (n) {
+        return h('button', { type: 'button', class: 'chipbtn', 'aria-pressed': String(n) === mins ? 'true' : 'false', text: String(n), onclick: function () { mins = String(n); custom.value = String(n); paint(); } });
+      }));
+    }
+    custom.addEventListener('input', function () { mins = custom.value.trim(); paint(); });
+    paint();
+    openDialog({
+      title: 'Log study time', yes: 'Save',
+      body: [field('Item (optional)', item), h('span', { class: 'lbl', text: 'Minutes' }), chips, field('Or type minutes', custom), field('Date', dateIn), field('Note (optional)', note)],
+      onYes: function () {
+        return commit(function (x) { L.learning.addSession(x, { itemId: item.value, date: dateIn.value, minutes: custom.value, notes: note.value }, today()); }, 'study session add')
+          .then(function () { setNotice('ok', 'Study time logged.'); render(); });
+      }
+    });
+  }
+  function progressDialog(s, it) {
+    var pct = h('input', { type: 'text', id: 'pd-pct', inputmode: 'decimal', maxlength: '6', autocomplete: 'off', value: typeof it.progressPct === 'number' ? String(it.progressPct) : '' });
+    var done = h('input', { type: 'text', id: 'pd-done', inputmode: 'numeric', maxlength: '7', autocomplete: 'off', value: typeof it.doneUnits === 'number' ? String(it.doneUnits) : '' });
+    var total = h('input', { type: 'text', id: 'pd-total', inputmode: 'numeric', maxlength: '7', autocomplete: 'off', value: typeof it.totalUnits === 'number' ? String(it.totalUnits) : '' });
+    var unit = h('input', { type: 'text', id: 'pd-unit', maxlength: '30', autocomplete: 'off', value: it.unitLabel || '' });
+    openDialog({
+      title: 'Update progress', yes: 'Save',
+      body: [h('p', { class: 'mut', text: it.title }), h('p', { class: 'small', text: 'Enter a percent, or units done out of a total. Not both. Leave all blank to clear.' }),
+        field('Percent done', pct), field('Units done', done), field('Total units', total), field('Unit name (for example chapters)', unit)],
+      onYes: function () {
+        var patch = pct.value.trim() ? { progressPct: pct.value } : { progressPct: '', totalUnits: total.value, doneUnits: done.value, unitLabel: unit.value };
+        return commit(function (x) { L.learning.updateItem(x, it.id, patch); }, 'learning progress').then(function () { setNotice('ok', 'Progress saved.'); render(); });
+      }
+    });
+  }
+  function editItemDialog(s, it) {
+    var title = h('input', { type: 'text', id: 'ei-title', maxlength: '200', autocomplete: 'off', value: it.title });
+    var tdate = h('input', { type: 'date', id: 'ei-target', value: it.targetDate || '' });
+    var exam = h('input', { type: 'date', id: 'ei-exam', value: it.examDate || '' });
+    var expires = it.kind === 'certification' ? h('input', { type: 'date', id: 'ei-expires', value: it.expiresOn || '' }) : null;
+    var goal = sel('ei-goal', goalOptions(s), it.goalId || '');
+    openDialog({
+      title: 'Edit item', yes: 'Save',
+      body: [field('Title', title), field('Target date', tdate), field('Exam date', exam), expires ? field('Certification expires', expires) : null, field('Linked goal', goal)],
+      onYes: function () {
+        var patch = { title: title.value, targetDate: tdate.value, examDate: exam.value, goalId: goal.value };
+        if (expires) patch.expiresOn = expires.value;
+        return commit(function (x) { L.learning.updateItem(x, it.id, patch); }, 'learning edit').then(function () { setNotice('ok', 'Item saved.'); render(); });
+      }
+    });
+  }
+  function askDeleteItem(s, it) {
+    var n = L.learning.linkedCount(s, it.id);
+    openDialog({
+      title: 'Delete this item?', yes: 'Delete', danger: true,
+      body: [h('p', { class: 'mut', text: it.title }), h('p', { class: 'small', id: 'ln-del-count', text: n.sessions + (n.sessions === 1 ? ' study session' : ' study sessions') + ' and ' + n.takeaways + (n.takeaways === 1 ? ' takeaway are' : ' takeaways are') + ' kept and unlinked.' })],
+      onYes: function () { return commit(function (x) { L.learning.deleteItem(x, it.id); }, 'learning item delete').then(function () { setNotice('ok', 'Item deleted. Its sessions and takeaways are kept.'); render(); }); }
+    });
+  }
+  function itemRow(s, it, t) {
+    var Ln = L.learning, pace = it.state === 'active' ? Ln.paceOf(it, t) : 'no-data', p = Ln.progressOf(it);
+    var sub = [Ln.KIND_LABEL[it.kind]];
+    if (it.provider) sub.push(it.provider);
+    if (it.targetDate) sub.push('target ' + it.targetDate);
+    if (it.examDate) { var dd = L.home.dates.daysBetween(it.examDate, t); sub.push('exam ' + it.examDate + (dd > 0 ? ' (in ' + dd + (dd === 1 ? ' day)' : ' days)') : dd === 0 ? ' (today)' : '')); }
+    if (it.expiresOn) sub.push('expires ' + it.expiresOn);
+    var chips = [h('span', { class: 'chip ln-state', text: Ln.STATE_LABEL[it.state] })];
+    if (pace !== 'no-data') chips.push(h('span', { class: 'chip ln-pace ' + STATUS_CHIP[pace], text: L.goals.PACE_LABEL[pace] }));
+    var kids = [h('div', { class: 'row sp' }, h('strong', { class: 'entry-t', text: it.title }), h('span', null, chips)),
+      h('p', { class: 'mut small', text: sub.join(' | ') }),
+      h('p', { class: 'small ln-progress', text: Ln.fmtProgress(it) + (Ln.unitsText(it) ? ' (' + Ln.unitsText(it) + ')' : '') })];
+    if (p !== null) kids.push(svgBar(Math.round(p), pace === 'behind' ? 'bar-over' : 'bar-fill'));
+    var acts = [];
+    if (it.state === 'active' || it.state === 'planned') acts.push(btn('Log time', function () { studyDialog(it.id); }, 'sm pri ln-logitem', { 'aria-label': 'Log time for ' + it.title }));
+    acts.push(btn('Progress', function () { progressDialog(s, it); }, 'sm ln-progbtn', { 'aria-label': 'Update progress for ' + it.title }));
+    if (it.state !== 'done') acts.push(btn('Mark done', function () { act(function () { return commit(function (x) { Ln.setState(x, it.id, 'done', t); }, 'learning done').then(function () { setNotice('ok', 'Marked done.'); render(); }); }); }, 'sm ln-done', { 'aria-label': 'Mark ' + it.title + ' done' }));
+    if (it.state === 'active') acts.push(btn('Pause', function () { act(function () { return commit(function (x) { Ln.pauseItem(x, it.id); }, 'learning pause').then(render); }); }, 'sm', { 'aria-label': 'Pause ' + it.title }));
+    if (it.state === 'paused' || it.state === 'planned' || it.state === 'done' || it.state === 'dropped') acts.push(btn(it.state === 'planned' ? 'Start' : 'Reopen', function () { act(function () { return commit(function (x) { Ln.setState(x, it.id, 'active', t); }, 'learning reopen').then(render); }); }, 'sm', { 'aria-label': 'Make ' + it.title + ' active' }));
+    if (it.state !== 'dropped') acts.push(btn('Drop', function () { act(function () { return commit(function (x) { Ln.dropItem(x, it.id); }, 'learning drop').then(render); }); }, 'sm', { 'aria-label': 'Drop ' + it.title }));
+    acts.push(btn('Edit', function () { editItemDialog(s, it); }, 'sm', { 'aria-label': 'Edit ' + it.title }));
+    acts.push(btn('Delete', function () { askDeleteItem(s, it); }, 'sm bad ln-delete', { 'aria-label': 'Delete ' + it.title }));
+    kids.push(h('div', { class: 'row' }, acts));
+    return h('div', { class: 'goal ln-item', 'data-title': it.title, 'data-state': it.state }, kids);
+  }
+  function learningScreen(s) {
+    var t = today(), Ln = L.learning, sum = Ln.summary(s, t), w = sum.week, info = Ln.weekInfo(t);
+    var stats = h('div', { class: 'stats' },
+      stat('Study minutes this week', w.target > 0 ? w.minutes + ' of ' + w.target : String(w.minutes), 'ln-minutes'),
+      stat('Sessions this week', String(w.sessions), 'ln-sessions'),
+      stat('Days studied this week', String(w.days), 'ln-days'),
+      stat('Weeks in a row at target', w.target > 0 ? String(sum.streak) : 'n/a', 'ln-streak'));
+    var tg = h('input', { type: 'text', id: 'ln-target', inputmode: 'numeric', maxlength: '5', autocomplete: 'off', value: w.target ? String(w.target) : '' });
+    var targetCard = h('form', {
+      class: 'card', id: 'ln-target-card',
+      onsubmit: function (e) {
+        e.preventDefault();
+        act(function () { return commit(function (x) { L.learning.setWeeklyTarget(x, tg.value); }, 'study target').then(function () { setNotice('ok', 'Study target saved.'); render(); }); });
+      }
+    }, h('h2', { text: 'Week ' + info.week + ' of ' + info.year }),
+      h('p', { class: 'mut small', id: 'ln-week', text: w.week + ' to ' + L.metrics.addDays(w.week, 6) + (w.target > 0 ? '. ' + (w.met ? 'Target met.' : (w.target - w.minutes) + ' minutes to the target.') : '. No weekly target set.') }),
+      field('Study minutes per week (0 for none)', tg),
+      h('div', { class: 'row' }, h('button', { type: 'submit', class: 'btn pri', id: 'ln-target-save', text: 'Save target' }), btn('Log study time', function () { studyDialog(''); }, '', { id: 'ln-log' })));
+
+    var active = Ln.activeItems(s);
+    var activeCard = h('div', { class: 'card', id: 'ln-active' }, h('h2', { text: 'Active (' + active.length + ')' }),
+      sum.stalled.length ? h('p', { class: 'small', id: 'ln-stalled', text: sum.stalled.length + (sum.stalled.length === 1 ? ' active item has' : ' active items have') + ' no session in ' + Ln.STALL_DAYS + ' days.' }) : null,
+      active.length ? active.map(function (i) { return itemRow(s, i, t); }) : h('p', { class: 'mut', text: 'Nothing active. Add an item below.' }));
+    var exams = sum.exams;
+    var examCard = h('div', { class: 'card', id: 'ln-exams' }, h('h2', { text: 'Upcoming exams (' + exams.length + ')' }),
+      exams.length ? exams.map(function (x) { return h('div', { class: 'item ln-exam', 'data-title': x.title }, h('div', null, h('span', { class: 'entry-t', text: x.title }), h('span', { class: 'mut small', text: ' ' + x.date + ', ' + (x.days === 0 ? 'today' : 'in ' + x.days + (x.days === 1 ? ' day' : ' days')) }))); }) : h('p', { class: 'mut', text: 'No exam dates ahead.' }));
+    var fin = Ln.recentlyFinished(s, 5);
+    var finCard = h('div', { class: 'card', id: 'ln-finished' }, h('h2', { text: 'Recently finished (' + fin.length + ')' }),
+      fin.length ? fin.map(function (i) { return h('div', { class: 'item ln-fin', 'data-title': i.title }, h('div', null, h('span', { class: 'entry-t', text: i.title }), h('span', { class: 'mut small', text: ' ' + (i.finishedDate || '') })), btn('Reopen', function () { act(function () { return commit(function (x) { Ln.setState(x, i.id, 'active', t); }, 'learning reopen').then(render); }); }, 'sm', { 'aria-label': 'Reopen ' + i.title })); }) : h('p', { class: 'mut', text: 'Nothing finished yet.' }));
+    var others = (s.learningItems || []).filter(function (i) { return i.state === 'planned' || i.state === 'paused' || i.state === 'dropped'; }).sort(function (a, b) { return a.title.localeCompare(b.title); });
+    var otherCard = others.length ? details('ln-other', 'Planned, paused and dropped (' + others.length + ')', others.map(function (i) { return itemRow(s, i, t); }), view.open === 'ln-other') : null;
+
+    // add an item
+    var f = {
+      title: h('input', { type: 'text', id: 'ln-title', maxlength: '200', autocomplete: 'off', required: true }),
+      kind: sel('ln-kind', L.learning.KINDS.map(function (k) { return { v: k, t: Ln.KIND_LABEL[k] }; }), 'course'),
+      provider: h('input', { type: 'text', id: 'ln-provider', maxlength: '200', autocomplete: 'off' }),
+      pct: h('input', { type: 'text', id: 'ln-pct', inputmode: 'decimal', maxlength: '6', autocomplete: 'off' }),
+      total: h('input', { type: 'text', id: 'ln-total', inputmode: 'numeric', maxlength: '7', autocomplete: 'off' }),
+      done: h('input', { type: 'text', id: 'ln-done-units', inputmode: 'numeric', maxlength: '7', autocomplete: 'off' }),
+      unit: h('input', { type: 'text', id: 'ln-unit', maxlength: '30', autocomplete: 'off' }),
+      start: h('input', { type: 'date', id: 'ln-start', value: t }),
+      target: h('input', { type: 'date', id: 'ln-tdate' }),
+      exam: h('input', { type: 'date', id: 'ln-exam' }),
+      expires: h('input', { type: 'date', id: 'ln-expires' }),
+      goal: sel('ln-goal', goalOptions(s), ''),
+      notes: h('textarea', { id: 'ln-notes', maxlength: '2000' })
+    };
+    var certBox = h('div', { id: 'ln-cert-box', class: 'hidden' }, field('Exam date (optional)', f.exam), field('Certification expires (optional)', f.expires));
+    f.kind.addEventListener('change', function () { certBox.setAttribute('class', f.kind.value === 'certification' ? '' : 'hidden'); });
+    var addForm = details('ln-add', 'Add a learning item', [h('form', {
+      id: 'ln-form',
+      onsubmit: function (e) {
+        e.preventDefault();
+        act(function () {
+          var input = { title: f.title.value, kind: f.kind.value, provider: f.provider.value, progressPct: f.pct.value, totalUnits: f.total.value, doneUnits: f.done.value, unitLabel: f.unit.value,
+            startDate: f.start.value, targetDate: f.target.value, goalId: f.goal.value, notes: f.notes.value };
+          if (f.kind.value === 'certification') { input.examDate = f.exam.value; input.expiresOn = f.expires.value; }
+          return commit(function (x) { L.learning.addItem(x, input, t); }, 'learning item add').then(function () { view.open = 'ln-add'; setNotice('ok', 'Item added.'); render(); });
+        });
+      }
+    }, field('Title', f.title), field('Kind', f.kind), field('Provider (optional)', f.provider),
+      h('p', { class: 'mut small', text: 'Progress is a percent or units done out of a total, not both.' }),
+      field('Percent done (optional)', f.pct), field('Total units (optional)', f.total), field('Units done', f.done), field('Unit name (for example chapters)', f.unit),
+      field('Start date', f.start), field('Target date (optional)', f.target), certBox, field('Linked goal (optional)', f.goal),
+      field('Notes (optional)', f.notes, 'Do not enter ID numbers, account numbers or passwords.'),
+      h('button', { type: 'submit', class: 'btn pri', id: 'ln-add-btn', text: 'Add item' }))], view.open === 'ln-add' || !(s.learningItems || []).length);
+
+    // takeaways with plain substring search
+    var tkItem = sel('ln-tk-item', itemOptions(s), '');
+    var tkText = h('textarea', { id: 'ln-tk-text', maxlength: '1000' });
+    var q = h('input', { type: 'text', id: 'ln-search', maxlength: '100', autocomplete: 'off', 'aria-label': 'Search takeaways' });
+    var results = h('div', { id: 'ln-results' });
+    function showResults() {
+      var qs = q.value.trim(), found = Ln.search(s, qs), shown = qs ? found : (s.takeaways || []).slice().sort(function (a, b) { return b.date.localeCompare(a.date); }).slice(0, 10).map(function (x) { return { takeaway: x, itemTitle: x.itemId ? ((s.learningItems || []).filter(function (i) { return i.id === x.itemId; })[0] || {}).title || '' : '' }; });
+      results.replaceChildren.apply(results, shown.length ? shown.slice(0, 50).map(function (r) {
+        return h('div', { class: 'item ln-tk', 'data-title': r.takeaway.text.slice(0, 40) },
+          h('div', null, h('div', { class: 'entry-t', text: r.takeaway.text }), h('div', { class: 'mut small', text: r.takeaway.date + (r.itemTitle ? ' | ' + r.itemTitle : '') })),
+          btn('Delete', function () { act(function () { return commit(function (x) { Ln.deleteTakeaway(x, r.takeaway.id); }, 'takeaway delete').then(function () { view.open = 'ln-tk'; render(); }); }); }, 'sm bad', { 'aria-label': 'Delete takeaway' }));
+      }) : [h('p', { class: 'mut', id: 'ln-no-results', text: qs ? 'No takeaways match.' : 'No takeaways yet.' })]);
+    }
+    q.addEventListener('input', showResults);
+    showResults();
+    var tkCard = details('ln-tk', 'Takeaways (' + (s.takeaways || []).length + ')', [
+      h('form', {
+        onsubmit: function (e) {
+          e.preventDefault();
+          act(function () { return commit(function (x) { L.learning.addTakeaway(x, { itemId: tkItem.value, text: tkText.value }, t); }, 'takeaway add').then(function () { view.open = 'ln-tk'; setNotice('ok', 'Takeaway added.'); render(); }); });
+        }
+      }, field('Item (optional)', tkItem), field('What did you learn?', tkText, 'Do not enter ID numbers, account numbers or passwords.'), h('button', { type: 'submit', class: 'btn pri', id: 'ln-tk-add', text: 'Add takeaway' })),
+      field('Search takeaways', q, 'Matches the exact text you type.'), results], view.open === 'ln-tk' || !(s.takeaways || []).length);
+
+    // recent sessions
+    var titles = new Map(); (s.learningItems || []).forEach(function (i) { titles.set(i.id, i.title); });
+    var recent = (s.studySessions || []).slice().sort(function (a, b) { return b.date.localeCompare(a.date); }).slice(0, 10);
+    var sessCard = details('ln-sessions-card', 'Recent sessions (' + (s.studySessions || []).length + ')', recent.length ? recent.map(function (x) {
+      return h('div', { class: 'item ln-sess', 'data-title': x.date },
+        h('div', null, h('span', { class: 'entry-t', text: x.minutes + ' min' }), h('span', { class: 'mut small', text: ' ' + x.date + (x.itemId && titles.has(x.itemId) ? ' | ' + titles.get(x.itemId) : '') }), x.notes ? h('p', { class: 'small mut', text: x.notes }) : null),
+        btn('Delete', function () { act(function () { return commit(function (z) { Ln.deleteSession(z, x.id); }, 'study session delete').then(function () { view.open = 'ln-sessions-card'; render(); }); }); }, 'sm bad', { 'aria-label': 'Delete session of ' + x.minutes + ' minutes on ' + x.date }));
+    }) : h('p', { class: 'mut', text: 'No sessions yet.' }), view.open === 'ln-sessions-card');
+
+    // Older learning entries the upgrade could not turn into items or sessions: kept as entered, each deletable after a confirm.
+    var legacy = Ln.legacyEntries(s), legacyShown = legacy.slice(0, 200);
+    var legacyCard = legacy.length ? details('ln-legacy', 'Older learning entries (' + legacy.length + (legacy.length > legacyShown.length ? ', newest ' + legacyShown.length + ' shown' : '') + ')', [h('p', { class: 'mut small', text: 'Kept exactly as entered.' }), legacyShown.map(function (e) {
+      return h('div', { class: 'item g-legacy' }, h('div', null, h('span', { class: 'entry-t', text: e.title }), h('span', { class: 'mut small', text: ' ' + e.date + ', ' + (e.type === 'hours' ? e.value + ' hours' : (e.status || '')) }), e.notes ? h('p', { class: 'small mut', text: e.notes }) : null),
+        btn('Delete', function () {
+          openDialog({ title: 'Delete this older entry?', yes: 'Delete', danger: true, body: [h('p', { class: 'mut', text: e.title }), h('p', { class: 'small', text: 'Its title, date and notes are removed from the vault.' })],
+            onYes: function () { return commit(function (x) { x.entries = x.entries.filter(function (z) { return z.id !== e.id; }); }, 'older learning entry delete').then(function () { view.open = 'ln-legacy'; render(); }); } });
+        }, 'sm bad leg-del', { 'aria-label': 'Delete ' + e.title }));
+    })], view.open === 'ln-legacy') : null;
+
+    return h('div', null, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Learning' }),
+      h('p', { class: 'mut small', text: 'Minutes, progress and pace come from your own numbers. Nothing is paused, dropped or finished unless you tap it.' }),
+      stats, targetCard, activeCard, examCard, finCard, otherCard, addForm, tkCard, sessCard, legacyCard);
+  }
+  // Weekly review step: minutes vs target, items that moved, items with no session in 14 days. Actions are offered; a tap takes them.
+  function reviewLearningCard(s, wk, t) {
+    var Ln = L.learning, r = Ln.reviewWeek(s, wk, t), w = r.week;
+    if (!Ln.hasData(s)) return h('p', { class: 'mut', id: 'rv-ln-none', text: 'No learning data yet. Add items under Learning.' });
+    var kids = [];
+    kids.push(h('p', { class: 'small', id: 'rv-ln-minutes', text: 'Study minutes: ' + w.minutes + (w.target > 0 ? ' of ' + w.target : ' (no weekly target set)') + '. ' + w.sessions + (w.sessions === 1 ? ' session' : ' sessions') + ' on ' + w.days + (w.days === 1 ? ' day.' : ' days.') }));
+    kids.push(h('p', { class: 'small', id: 'rv-ln-moved-h', text: 'Items that moved (' + r.moved.length + ')' }));
+    r.moved.forEach(function (m) { kids.push(h('div', { class: 'item rv-ln-moved', 'data-title': m.item.title }, h('div', null, h('span', { class: 'entry-t', text: m.item.title }), h('span', { class: 'mut small', text: ' ' + m.minutes + ' min' + (m.item.state === 'done' ? ', finished' : '') })))); });
+    kids.push(h('p', { class: 'small', id: 'rv-ln-stalled-h', text: 'No session in ' + Ln.STALL_DAYS + ' days (' + r.stalled.length + ')' }));
+    if (r.stalled.length) kids.push(h('p', { class: 'mut small', text: 'Nothing changes until you tap it.' }));
+    r.stalled.forEach(function (i) {
+      var nd = h('input', { type: 'date', class: 'rv-ln-date', 'aria-label': 'New target date for ' + i.title, value: i.targetDate || '' });
+      kids.push(h('div', { class: 'item rv-ln-stalled', 'data-title': i.title }, h('div', null, h('span', { class: 'entry-t', text: i.title }), h('span', { class: 'mut small', text: ' last session ' + (Ln.lastSession(s, i.id, r.asOf) || 'none') })),
+        h('div', { class: 'row' }, nd,
+          btn('Set target date', function () { act(function () { return commit(function (x) { Ln.setTargetDate(x, i.id, nd.value); }, 'learning target date').then(function () { setNotice('ok', 'Target date set.'); render(); }); }); }, 'sm rv-ln-date-btn', { 'aria-label': 'Set target date for ' + i.title }),
+          btn('Pause', function () { act(function () { return commit(function (x) { Ln.pauseItem(x, i.id); }, 'learning pause').then(render); }); }, 'sm rv-ln-pause', { 'aria-label': 'Pause ' + i.title }),
+          btn('Drop', function () { act(function () { return commit(function (x) { Ln.dropItem(x, i.id); }, 'learning drop').then(render); }); }, 'sm rv-ln-drop', { 'aria-label': 'Drop ' + i.title }))));
+    });
+    if (r.exams.length) {
+      kids.push(h('p', { class: 'small', id: 'rv-ln-exams-h', text: 'Exams in the next 28 days (' + r.exams.length + ')' }));
+      r.exams.forEach(function (x) { kids.push(h('div', { class: 'item', 'data-title': x.title }, h('div', null, h('span', { class: 'entry-t', text: x.title }), h('span', { class: 'mut small', text: ' ' + x.date + ', in ' + x.days + (x.days === 1 ? ' day' : ' days') })))); });
+    }
+    return h('div', { class: 'card', id: 'rv-learning' }, kids);
+  }
+
   // ---------- memory ----------
   function memoryScreen(s) {
     var t = today(), mp = monthPeriod(t), qp = quarterPeriod(t);
@@ -5658,6 +6329,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     var cd = h('input', { type: 'number', id: 't-cd', min: '1', max: '365', step: '1', value: tg.contactDays });
     var sr = h('input', { type: 'number', id: 't-sr', min: '0', max: '100', step: '1', value: Math.round(tg.savingsRate * 100) });
     var cur = h('input', { type: 'text', id: 't-cur', maxlength: '3', value: set.currency });
+    var study = h('input', { type: 'text', id: 't-study', inputmode: 'numeric', maxlength: '5', autocomplete: 'off', value: String((set.learning && set.learning.weeklyMinutes) || 0) });
     var al = sel('t-al', [1, 5, 15, 30, 60].map(function (n) { return { v: String(n), t: n + ' min' }; }), String(set.autoLockMin));
     out.push(h('form', {
       class: 'card',
@@ -5670,10 +6342,10 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
           if (!(r >= 0 && r <= 100)) throw new Error('Savings rate must be 0 to 100.');
           if (!/^[A-Z]{3}$/.test(cu)) throw new Error('Currency must be a three letter code.');
           var m = Number(al.value);
-          return commit(function (x) { x.settings.targets = { workoutsPerWeek: w, contactDays: c, savingsRate: r / 100 }; x.settings.currency = cu; x.settings.autoLockMin = m; }).then(function () { resetIdle(); setNotice('ok', 'Settings saved.'); });
+          return commit(function (x) { x.settings.targets = { workoutsPerWeek: w, contactDays: c, savingsRate: r / 100 }; x.settings.currency = cu; x.settings.autoLockMin = m; L.learning.setWeeklyTarget(x, study.value); }).then(function () { resetIdle(); setNotice('ok', 'Settings saved.'); });
         });
       }
-    }, h('h2', { text: 'Targets and preferences' }), field('Workouts per week', wpw), field('Days between contacts', cd), field('Savings rate target (%)', sr), field('Currency code', cur), field('Auto-lock after idle', al),
+    }, h('h2', { text: 'Targets and preferences' }), field('Workouts per week', wpw), field('Days between contacts', cd), field('Savings rate target (%)', sr), field('Study minutes per week (0 for none)', study), field('Currency code', cur), field('Auto-lock after idle', al),
       h('button', { type: 'submit', class: 'btn pri', text: 'Save settings' })));
 
     // passphrase
@@ -5757,7 +6429,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       }, field('Restore from a backup file (64 MB max)', bf), field('Backup passphrase', ip),
         h('button', { type: 'submit', class: 'btn', text: 'Import backup' }))));
 
-    out.push(h('p', { class: 'mut small', id: 'app-version', text: 'LifeOS v0.7.0' }));
+    out.push(h('p', { class: 'mut small', id: 'app-version', text: 'LifeOS v0.8.0' }));
 
     if (L.syncUI) out.push(L.syncUI.section(syncCtx()));
 

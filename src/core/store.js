@@ -2,7 +2,7 @@
   'use strict';
   const L = (globalThis.LifeOS = globalThis.LifeOS || {});
   const KEY = 'envelope';
-  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 6, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
+  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 7, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
   const HABIT_CAP = 8, HABIT_LOG_CAP = 100000, KIND_CAP = 30;
   const RENEWAL_TOTAL_CAP = 2000;
   const ENTRY_CAP = 50000, INSIGHT_CAP = 5000, REVIEW_CAP = 1000, LESSON_CAP = 30, AUDIT_CAP = 200;
@@ -115,6 +115,7 @@
       sync: cleanSync(s.sync),
       health: schema >= 4 ? cleanHealthSettings(s.health) : { units: 'lb' },
       home: schema >= 6 ? cleanHomeSettings(s.home) : { starterDone: false },
+      learning: schema >= 7 ? L.learning.cleanSettings(s.learning) : { weeklyMinutes: 0 },
     };
   }
   // 6 decimals, like converted weights, so a unit switch round trip does not drift.
@@ -289,6 +290,11 @@
       if (!isObj(d.goals)) fail('digest goals');
       out.goals = {};
       for (const k of ['active', 'ahead', 'onTrack', 'behind', 'achieved']) out.goals[k] = num(d.goals[k], 0, 1e9, 'digest goals', true);
+    }
+    if (d.learning !== undefined) {
+      if (!isObj(d.learning)) fail('digest learning');
+      out.learning = {};
+      for (const k of ['minutes', 'sessions', 'days', 'active', 'finished', 'stalled']) out.learning[k] = num(d.learning[k], 0, 1e9, 'digest learning', true);
     }
     for (const k of ['home', 'admin']) {
       if (d[k] === undefined) continue;
@@ -515,7 +521,7 @@
   function validateState(o) {
     if (!isObj(o)) fail('state must be an object');
     scan(o, 0, { n: 4e6 });
-    if (![1, 2, 3, 4, 5, SCHEMA].includes(o.schema)) fail('unsupported schema');
+    if (![1, 2, 3, 4, 5, 6, SCHEMA].includes(o.schema)) fail('unsupported schema');
     if (!L.metrics) fail('metrics module missing');
     const settings = cleanSettings(o.settings, o.schema), entries = cleanEntries(o.entries);
     const out = { schema: SCHEMA, settings, entries };
@@ -545,6 +551,20 @@
     else { const m = A.legacyDue(out.entries, RENEWAL_TOTAL_CAP, newId); out.renewals = A.cleanRenewals(m.renewals); out.entries = m.entries; }
     out.documents = six ? A.cleanDocuments(o.documents) : [];
     out.taxItems = six ? A.cleanTaxItems(o.taxItems) : [];
+    // Schema 7 adds Learning (items, study sessions, takeaways). Older formats get empty collections, and their learning/item and
+    // learning/hours entries become items and sessions (see learning.legacy; whatever cannot map stays as an entry).
+    const Ln = L.learning;
+    if (o.schema >= 7) {
+      out.learningItems = Ln.cleanItems(o.learningItems, out.goals);
+      out.studySessions = Ln.cleanSessions(o.studySessions, out.learningItems);
+      out.takeaways = Ln.cleanTakeaways(o.takeaways, out.learningItems);
+    } else {
+      const m = Ln.legacy(out.entries, newId);
+      out.learningItems = Ln.cleanItems(m.items, out.goals);
+      out.studySessions = Ln.cleanSessions(m.sessions, out.learningItems);
+      out.takeaways = [];
+      out.entries = m.entries;
+    }
     out.memory = cleanMemory(o.memory);
     out.audit = cleanAudit(o.audit);
     // The schema the input was written in, so callers can tell an older-format copy (no work data) from a schema 3 one.
@@ -553,7 +573,7 @@
     return out;
   }
   // Data the live state holds that an older-format copy (`next`, marked by validateState) cannot carry.
-  // Schema 3 added projects and pipeline; schema 4 added the training cycle, daily checks, workout types and body targets; schema 5 added goals; schema 6 added Home and Admin collections.
+  // Schema 3 added projects and pipeline; schema 4 added the training cycle, daily checks, workout types and body targets; schema 5 added goals; schema 6 added Home and Admin collections; schema 7 added Learning.
   const sameJson = (a, b) => JSON.stringify(a) === JSON.stringify(b);
   function droppedData(cur, next) {
     const src = next && next.sourceSchema;
@@ -564,6 +584,10 @@
     if (src < 6) {
       for (const [k, n] of [['properties', 'properties'], ['vehicles', 'vehicles'], ['maintenance', 'maintenance items'], ['renewals', 'renewals'], ['documents', 'documents'], ['taxItems', 'tax items']]) if ((cur[k] || []).length) out.push(n);
       if ((cur.recurring || []).some((r) => r.household)) out.push('household bill flags');
+    }
+    if (src < 7) {
+      for (const [k, n] of [['learningItems', 'learning items'], ['studySessions', 'study sessions'], ['takeaways', 'takeaways']]) if ((cur[k] || []).length) out.push(n);
+      if (cur.settings && cur.settings.learning && cur.settings.learning.weeklyMinutes > 0) out.push('study target');
     }
     if (src < 4) {
       if (cur.cycle) out.push('training cycle');
@@ -577,7 +601,7 @@
   const dropsWork = (cur, next) => droppedData(cur, next).length > 0;
   const andList = (l) => (l.length > 1 ? l.slice(0, -1).join(', ') + ' and ' + l[l.length - 1] : l.join(''));
   // Plain-language list for warnings, with counts: "3 projects and 4 pipeline items". Names only, never values.
-  const COUNTED = { properties: 'properties', vehicles: 'vehicles', 'maintenance items': 'maintenance', renewals: 'renewals', documents: 'documents', 'tax items': 'taxItems' };
+  const COUNTED = { properties: 'properties', vehicles: 'vehicles', 'maintenance items': 'maintenance', renewals: 'renewals', documents: 'documents', 'tax items': 'taxItems', 'learning items': 'learningItems', 'study sessions': 'studySessions', takeaways: 'takeaways' };
   function lossText(cur, next) {
     return andList(droppedData(cur, next).map((n) => (n === 'projects' ? cur.projects.length + ' projects' : n === 'pipeline items' ? cur.pipeline.length + ' pipeline items' : n === 'daily checks' ? cur.habits.length + ' daily checks' : n === 'goals' ? cur.goals.length + ' goals' : COUNTED[n] ? cur[COUNTED[n]].length + ' ' + n : 'your ' + n)));
   }
@@ -593,11 +617,13 @@
         sync: { clientId: '', remoteRev: -1, fp: '', fileId: '', keySalt: '' },
         health: { units: 'lb' },
         home: { starterDone: false },
+        learning: { weeklyMinutes: 0 },
       },
       entries: [],
       accounts: [], recurring: [], budgets: [], categories: defaultCategories(),
       projects: [], pipeline: [], goals: [],
       properties: [], vehicles: [], maintenance: [], renewals: [], documents: [], taxItems: [],
+      learningItems: [], studySessions: [], takeaways: [],
       cycle: null, kinds: L.metrics.DEFAULT_KINDS.slice(), habits: [], habitLog: [],
       memory: { insights: [], lessons: [], reviews: [] },
       audit: [],

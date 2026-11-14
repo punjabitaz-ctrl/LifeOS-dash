@@ -24,6 +24,9 @@
     mk('pipelineWon', 'Pipeline items won', 'work', 'count'),
     mk('maintenanceOverdue', 'Maintenance tasks overdue', 'home', 'count'),
     mk('adminOverdue', 'Admin items overdue', 'admin', 'count'),
+    mk('studyMinutes', 'Study minutes per week', 'learning', 'count'),
+    mk('learningFinished', 'Learning items finished', 'learning', 'count'),
+    mk('itemProgress', 'Progress of linked learning items', 'learning', 'percent'),
   ]);
   // Body metrics are sensitive (SEC-32): goals on them never reach a digest, prompt or rules insight.
   const BODY = Object.freeze(['weight', 'bodyFat']);
@@ -50,6 +53,7 @@
     const m = M();
     if (goal.metric === 'manual') return typeof goal.manualValue === 'number' ? goal.manualValue : null;
     if (!m.isDate(asOf)) throw new Error('Date must be YYYY-MM-DD');
+    if (goal.metric === 'itemProgress') return L.learning.goalProgress(state, goal.id); // depends on the goal, so it is never memoised by metric
     if (memo) {
       const k = goal.metric + '|' + asOf;
       if (!memo.has(k)) memo.set(k, linkedValue(state, goal.metric, asOf));
@@ -84,6 +88,12 @@
         return m.weekOutcomes(state, m.weekStart(asOf)).filter((e) => e.status === 'done').length;
       case 'maintenanceOverdue': return L.home.overdueValue(state, asOf);
       case 'adminOverdue': return L.admin.overdueValue(state, asOf);
+      case 'studyMinutes':
+        if (!(state.studySessions || []).some((x) => x.date <= asOf)) return null;
+        return L.learning.studyWeek(state, m.weekStart(asOf), asOf).minutes;
+      case 'learningFinished':
+        if (!(state.learningItems || []).length) return null;
+        return L.learning.finishedBy(state, asOf);
       case 'pipelineWon':
         if (!(state.pipeline || []).length) return null;
         return state.pipeline.filter((x) => x.stage === 'won' && x.updatedAt <= asOf).length;
@@ -347,6 +357,7 @@
     find(state, id);
     let n = 0;
     for (const g of state.goals) if (g.parentId === id) { delete g.parentId; n++; }
+    for (const i of state.learningItems || []) if (i.goalId === id) delete i.goalId;
     state.goals = state.goals.filter((g) => g.id !== id);
     return n;
   }
