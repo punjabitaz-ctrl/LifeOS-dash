@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-/W6sYW7Cp7GzOh//NyGXnLiuEUby/4Z8G6p6W+UV2tQ='; style-src 'sha256-A8DP0KpzPkcWv2YiGoyKmTd29/bgmrjivHCZO3M/Gjo='; connect-src https://api.anthropic.com https://www.googleapis.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-kDeJNgJnawKEMkgA1GHE4JZ9DCDXU6NGClSSCo3Umbo='; style-src 'sha256-eBk42VC1WGbQmCXa6hP6TJ23zDzhduSVVQVNTU3gXao='; connect-src https://api.anthropic.com https://www.googleapis.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>LifeOS</title>
 <style>:root{color-scheme:light dark;--bg:#f4f5f7;--card:#fff;--fg:#14171c;--mut:#5b6573;--line:#dde1e7;--acc:#2255d4;--acc-fg:#fff;--ok:#1c7a46;--warn:#9a5b00;--bad:#b42318;--r:14px;--sh:0 1px 2px rgba(0,0,0,.06);--font:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
@@ -25,8 +25,8 @@ p{margin:.4rem 0}
 @media (min-width:560px){.grid{grid-template-columns:repeat(2,1fr)}}
 @media (min-width:820px){.grid{grid-template-columns:repeat(3,1fr)}}
 @media (min-width:1040px){.grid{grid-template-columns:repeat(4,1fr)}}
-.tile{display:flex;flex-direction:column;gap:2px;text-align:left;font:inherit;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px;cursor:pointer;box-shadow:var(--sh);min-height:132px}
-.tile:hover{border-color:var(--acc)}
+.tile,.rtile{display:flex;flex-direction:column;gap:2px;text-align:left;font:inherit;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px;cursor:pointer;box-shadow:var(--sh);min-height:132px}
+.tile:hover,.rtile:hover{border-color:var(--acc)}
 .tile-title{font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)}
 .tile-value{font-size:1.7rem;font-weight:700}
 .tile-sub{font-size:.85rem;color:var(--mut)}
@@ -155,6 +155,21 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
 .rate{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:10px;min-width:44px;min-height:44px;padding:4px 10px;cursor:pointer}
 .rate[aria-pressed=true]{background:var(--acc);color:var(--acc-fg);border-color:var(--acc);font-weight:700}
 .wb-area .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+/* v0.12.0: customizable home modules and the revenue view */
+.modgrid>.mod{min-width:0;display:flex;flex-direction:column}
+.modgrid>.mod.wide{grid-column:1/-1}
+.modgrid>.mod>.modbody{flex:1;display:flex;flex-direction:column}
+.modgrid>.mod>.modbody>.tile,.modgrid>.mod>.modbody>.rtile,.modgrid>.mod>.modbody>.card{flex:1}
+.modgrid>.mod>.modbody>.card{margin:0}
+.modgrid.editing>.mod{border:1px dashed var(--line);border-radius:var(--r);padding:8px}
+.modgrid.editing>.mod.modhidden{opacity:.55}
+.modgrid.editing>.mod.dragging{outline:2px solid var(--acc);opacity:.8}
+.modgrid.editing .modbody{pointer-events:none}
+.modbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:8px}
+.modbar .modname{flex:1 1 100%}
+.btn.drag{cursor:grab;touch-action:none;user-select:none}
+#rev-lines tr[aria-selected=true],#rev-rollups tr[aria-selected=true]{background:var(--card);outline:2px solid var(--acc)}
+#rev-lines td.c-rev,#rev-lines td.c-exp,#rev-lines td.c-net,#rev-lines td.c-margin,#rev-rollups td.c-rev,#rev-rollups td.c-exp,#rev-rollups td.c-net,#rev-rollups td.c-margin{white-space:nowrap}
 </style>
 </head>
 <body>
@@ -246,13 +261,13 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   'use strict';
   const L = (globalThis.LifeOS = globalThis.LifeOS || {});
   const KEY = 'envelope';
-  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 10, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
+  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 11, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
   const HABIT_CAP = 8, HABIT_LOG_CAP = 100000, KIND_CAP = 30;
   const RENEWAL_TOTAL_CAP = 2000;
   const ENTRY_CAP = 50000, INSIGHT_CAP = 5000, REVIEW_CAP = 1000, LESSON_CAP = 30, AUDIT_CAP = 200;
   const BLOCKED = new Set(['__proto__', 'constructor', 'prototype']);
   // Same rule as ai.isLocalUrl (ai.js loads after this file, so call it lazily).
-  const BIDI = /[\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF]/g;
+  const BIDI = /[\u061C\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF]/g;
   const strip = (v) => (typeof v === 'string' ? v.replace(BIDI, '') : v);
   let adapter = null, key = null, salt = null, state = null, queue = Promise.resolve();
   // Sync metadata (rev etc.) travels outside AND inside the ciphertext; a mismatch means tampering. Missing = rev 0.
@@ -328,9 +343,12 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     return str(v, 40, name);
   }
   function oneOf(v, list, name) { if (!list.includes(v)) fail(name + ' not allowed'); return v; }
+  // CR-2: while a merged view (public and private records together) is validated, each layer has already been held to its own cap,
+  // so the view may hold up to twice the cap; adds are still refused by the add functions, which count the view.
+  let merged = false;
   function arr(v, cap, name) {
     if (!Array.isArray(v)) fail(name + ' must be a list');
-    if (v.length > cap) fail(name + ' has too many items');
+    if (v.length > (merged ? cap * 2 : cap)) fail(name + ' has too many items');
     return v;
   }
   function domainIds() { return L.metrics.DOMAINS.map((d) => d.id); }
@@ -361,6 +379,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       home: schema >= 6 ? cleanHomeSettings(s.home) : { starterDone: false },
       learning: schema >= 7 ? L.learning.cleanSettings(s.learning) : { weeklyMinutes: 0 },
       privAutoLockSec: schema >= 10 && s.privAutoLockSec !== undefined ? num(s.privAutoLockSec, 15, 1800, 'privAutoLockSec', true) : 60,
+      layouts: schema >= 11 ? L.layout.cleanLayouts(s.layouts) : { narrow: [], wide: [] },
     };
   }
   // 6 decimals, like converted weights, so a unit switch round trip does not drift.
@@ -456,15 +475,15 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     return out;
   }
   const STAGES = ['lead', 'contacted', 'applied', 'interview', 'offer', 'won', 'lost'];
-  const PROJECT_KINDS = ['job', 'venture', 'client', 'personal'];
+  const PROJECT_KINDS = ['job', 'venture', 'client', 'personal', 'website', 'podcast'];
   const PIPELINE_KINDS = ['job', 'deal', 'partner'];
   function cleanProjects(list) {
     if (list === undefined) return [];
     const seen = new Set();
     arr(list, PROJECT_TOTAL_CAP, 'projects');
     // Archived projects do not count toward the 200 cap; a separate total cap keeps the list bounded.
-    if (list.filter((x) => !(isObj(x) && x.archived === true)).length > PROJECT_CAP) fail('projects has too many items');
-    return list.map((x) => {
+    if (list.filter((x) => !(isObj(x) && x.archived === true)).length > (merged ? PROJECT_CAP * 2 : PROJECT_CAP)) fail('projects has too many items');
+    const out = list.map((x) => {
       if (!isObj(x)) fail('project');
       const id = str(x.id, 100, 'project id');
       if (seen.has(id)) fail('duplicate project id');
@@ -477,8 +496,23 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       };
       if (x.nextDate !== undefined && x.nextDate !== '') o.nextDate = date(x.nextDate, 'nextDate');
       o.archived = bool(x.archived, 'archived', false);
+      if (x.parentId !== undefined && x.parentId !== null && x.parentId !== '') o.parentId = str(x.parentId, 100, 'project parent');
       return o;
     });
+    // v0.12.0: a line of work may sit under one parent (one level only). A parent that does not exist or is archived is dropped and
+    // the project kept; a project that is its own parent, or a parent that itself has a parent, is refused.
+    const byId = new Map(out.map((p) => [p.id, p]));
+    for (const p of out) {
+      if (p.parentId === undefined) continue;
+      const par = byId.get(p.parentId);
+      if (p.parentId === p.id) fail('a project cannot be its own parent');
+      if (!par || par.archived) { delete p.parentId; continue; }
+    }
+    // CR-2: in a merged view a public parent may have gained its own parent while the private vault was closed; the private child is
+    // then detached (kept, unlinked) instead of making the vault impossible to open.
+    if (merged) { const deep = out.filter((p) => p.parentId !== undefined && byId.get(p.parentId).parentId !== undefined); for (const p of deep) delete p.parentId; }
+    for (const p of out) if (p.parentId !== undefined && byId.get(p.parentId).parentId !== undefined) fail('projects nest one level only');
+    return out;
   }
   function cleanPipeline(list) {
     if (list === undefined) return [];
@@ -559,6 +593,14 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       });
       out.social = o;
     }
+    if (d.revenue !== undefined) {
+      if (!isObj(d.revenue)) fail('digest revenue');
+      const x = d.revenue, o = {};
+      for (const k of ['revenueWeekCents', 'expensesWeekCents', 'revenueMonthCents', 'expensesMonthCents', 'expectedNext30Cents']) o[k] = num(x[k], 0, Number.MAX_SAFE_INTEGER, 'digest revenue', true);
+      for (const k of ['netWeekCents', 'netMonthCents']) o[k] = num(x[k], -Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, 'digest revenue', true);
+      for (const k of ['overdueCount', 'lines']) o[k] = num(x[k], 0, 1e9, 'digest revenue', true);
+      out.revenue = o;
+    }
     for (const k of ['home', 'admin']) {
       if (d[k] === undefined) continue;
       if (!isObj(d[k])) fail('digest ' + k);
@@ -609,7 +651,9 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     if (!Array.isArray(a)) fail('audit');
     return a.slice(-AUDIT_CAP).map((x) => {
       if (!isObj(x)) fail('audit item');
-      return { ts: ts(x.ts, 'ts'), action: str(x.action, 100, 'action', true) };
+      // CR-4: Settings renders ts as text; a numeric timestamp (older writer or crafted backup) becomes an ISO string.
+      const t = ts(x.ts, 'ts');
+      return { ts: typeof t === 'number' ? (Math.abs(t) <= 8.64e15 ? new Date(t).toISOString() : '') : t, action: str(x.action, 100, 'action', true) };
     });
   }
   // ---- schema 2: accounts, recurring, budgets, categories ----
@@ -630,6 +674,13 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       return { id, name, kind, liability: LIAB_KINDS.includes(kind) ? true : bool(x.liability, 'liability'), archived: bool(x.archived, 'archived', false) };
     });
   }
+  // PV-4: anchorDay is kept only while nextDate is a month's last day earlier than the anchor (a clamped date), else dropped.
+  function anchorOf(x) {
+    const a = x.anchorDay;
+    if (!Number.isInteger(a) || a < 1 || a > 31 || x.cadence === 'weekly' || !isDate(x.nextDate)) return {};
+    const d = x.nextDate, day = +d.slice(8, 10), last = new Date(Date.UTC(+d.slice(0, 4), +d.slice(5, 7), 0)).getUTCDate();
+    return day === last && a > day ? { anchorDay: a } : {};
+  }
   function cleanRecurring(list) {
     if (list === undefined) return [];
     const seen = new Set();
@@ -642,7 +693,9 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
         id, title: str(strip(x.title).trim(), 200, 'recurring title'), value: money2(x.value, 0.01, 1e9, 'recurring value'),
         category: str(strip(x.category).trim(), 40, 'recurring category', true), type: oneOf(x.type, ['income', 'expense'], 'recurring type'),
         cadence: oneOf(x.cadence, ['weekly', 'monthly', 'yearly'], 'cadence'), nextDate: date(x.nextDate, 'nextDate'), active: bool(x.active, 'active'),
-        household: bool(x.household, 'household', false)
+        household: bool(x.household, 'household', false),
+        ...anchorOf(x),
+        ...(x.projectId !== undefined && x.projectId !== null && x.projectId !== '' ? { projectId: str(x.projectId, 100, 'recurring project') } : {})
       };
     });
   }
@@ -719,6 +772,11 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     if (o.direction === 'up' ? o.targetValue < o.startValue : o.targetValue > o.startValue) fail('goal target is on the wrong side of its start value');
     if (x.parentId !== undefined && x.parentId !== null && x.parentId !== '') o.parentId = str(x.parentId, 100, 'goal parent');
     if (x.manualValue !== undefined && x.manualValue !== null) o.manualValue = num(x.manualValue, -1e12, 1e12, 'goal current value');
+    if (x.projectId !== undefined && x.projectId !== null && x.projectId !== '') {
+      if (metric !== 'revenueMonth' && metric !== 'netMonth') fail('only revenue goals can be scoped to a line of work');
+      o.projectId = str(x.projectId, 100, 'goal line of work');
+      if (x.rollup !== undefined) o.rollup = bool(x.rollup, 'goal rollup', false);
+    }
     if (x.statusOverride !== undefined && x.statusOverride !== null) o.statusOverride = oneOf(x.statusOverride, ['ahead', 'on-track', 'behind'], 'goal status');
     o.state = oneOf(x.state, ['active', 'achieved', 'dropped'], 'goal state');
     if (x.closedAt !== undefined && x.closedAt !== null) o.closedAt = date(x.closedAt, 'goal closed date');
@@ -735,7 +793,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       if (g.parentId === undefined) continue;
       const p = byId.get(g.parentId);
       if (!p) { delete g.parentId; continue; } // a dangling link is dropped, the goal is kept
-      if (rank(p) <= rank(g)) fail('a goal parent must be on a longer horizon');
+      if (rank(p) <= rank(g)) { if (merged) { delete g.parentId; continue; } fail('a goal parent must be on a longer horizon'); }
     }
     for (const g of out) { // belt and braces: strictly longer parents cannot loop, but never trust a loop-free claim
       let c = g, n = 0;
@@ -783,10 +841,16 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     return { goals, entries: entries.filter((e) => !gone.has(e.id)) };
   }
   // opts.privateGoals: the caller validates a view with private records merged in, so wellbeing goal metrics are allowed (the stored main state never is).
+  // opts.merged: the input is a merged view (priv.js); caps and cross-record rules are tolerant (see arr and cleanProjects).
   function validateState(o, opts) {
+    const was = merged;
+    merged = !!(opts && opts.merged);
+    try { return validateStateRaw(o, opts); } finally { merged = was; }
+  }
+  function validateStateRaw(o, opts) {
     if (!isObj(o)) fail('state must be an object');
     scan(o, 0, { n: 4e6 });
-    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, SCHEMA].includes(o.schema)) fail('unsupported schema');
+    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, SCHEMA].includes(o.schema)) fail('unsupported schema');
     if (!L.metrics) fail('metrics module missing');
     const settings = cleanSettings(o.settings, o.schema), entries = cleanEntries(o.entries);
     const out = { schema: SCHEMA, settings, entries };
@@ -802,10 +866,16 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     out.habitLog = o.schema >= 4 ? cleanHabitLog(o.habitLog, out.habits) : [];
     // An outcome may only point at a project that exists; a dangling link is dropped, the outcome is kept.
     const pids = new Set(out.projects.map((p) => p.id));
-    for (const e of entries) if (e.projectId !== undefined && !pids.has(e.projectId)) delete e.projectId;
+    // PV-2: while private lines of work exist, a money entry saved with the vault closed may point at one of them (a ledger preview made
+    // while the vault was open and imported after it closed). The id is kept, so the line is found again once the vault opens (and the
+    // next write moves the link into the private vault); while closed it counts as Unassigned. Merged views drop it as usual.
+    const hiddenLines = !(opts && opts.merged) && isObj(o.priv) && Array.isArray(o.priv.marks) && o.priv.marks.includes('projects');
+    for (const e of entries) if (e.projectId !== undefined && !pids.has(e.projectId) && !(hiddenLines && e.domain === 'money')) delete e.projectId;
+    for (const r of out.recurring) if (r.projectId !== undefined && !pids.has(r.projectId)) delete r.projectId;
     // Schema 5 adds goals; older formats turn their goals/goal entries into goals (nothing is lost).
     if (o.schema >= 5) out.goals = cleanGoals(o.goals, !!(opts && opts.privateGoals));
     else { const m = goalsFromEntries(entries); out.goals = cleanGoals(m.goals); out.entries = m.entries; }
+    for (const g of out.goals) if (g.projectId !== undefined && !pids.has(g.projectId)) { delete g.projectId; delete g.rollup; }
     // Schema 6 adds Home (properties, vehicles, maintenance) and Admin (renewals, documents, tax items). Older formats get
     // empty collections, and their home/due entries become renewals (see admin.legacyDue; nothing is dropped).
     const six = o.schema >= 6, H = L.home, A = L.admin;
@@ -896,6 +966,15 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     if (src < 9) {
       for (const [k, n] of [['groups', 'social groups'], ['people', 'people'], ['contacts', 'logged contacts']]) if ((cur[k] || []).length) out.push(n);
     }
+    if (src < 11) {
+      // v0.12.0: lines of work (website and podcast kinds, parents), money linked to them, expected income and dashboard layouts.
+      const ps = cur.projects || [], money = (cur.entries || []).filter((e) => e.domain === 'money');
+      if (ps.some((p) => p.parentId || p.kind === 'website' || p.kind === 'podcast')) out.push('line of work kinds and parents');
+      if (money.some((e) => e.projectId) || (cur.recurring || []).some((r) => r.projectId) || (cur.goals || []).some((g) => g.projectId)) out.push('money linked to lines of work');
+      if (money.some((e) => e.status === 'expected' || e.status === 'written-off' || e.dueDate)) out.push('expected income');
+      const ls = cur.settings && cur.settings.layouts;
+      if (ls && ((ls.narrow || []).length || (ls.wide || []).length)) out.push('dashboard layouts');
+    }
     if (src < 4) {
       if (cur.cycle) out.push('training cycle');
       if ((cur.habits || []).length) out.push('daily checks');
@@ -926,6 +1005,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
         home: { starterDone: false },
         learning: { weeklyMinutes: 0 },
         privAutoLockSec: 60,
+        layouts: { narrow: [], wide: [] },
       },
       entries: [],
       accounts: [], recurring: [], budgets: [], categories: defaultCategories(),
@@ -1056,10 +1136,15 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     return serial(async () => {
       requireUnlocked();
       const st = state;
-      if (dropsWork(st, next) && !(opts && opts.allowWorkLoss === true)) {
-        const e = new Error('This backup is from an older version and has no ' + nameList(droppedData(st, next)) + '. Nothing was replaced.'); e.code = 'OLDER_FORMAT'; throw e;
-      }
+      // CR-7: validate first and judge what would be lost from the result. The format marker comes from the caller's earlier
+      // validation when present (an older backup already migrated in memory), else from this one, so it can never be missing.
       const clean = validateState(next);
+      const src = next && typeof next.sourceSchema === 'number' ? next.sourceSchema : clean.sourceSchema;
+      if (typeof src !== 'number') throw new Error('Invalid data: unknown format');
+      const probe = Object.defineProperty({ priv: clean.priv }, 'sourceSchema', { value: src, enumerable: false });
+      if (dropsWork(st, probe) && !(opts && opts.allowWorkLoss === true)) {
+        const e = new Error('This backup is from an older version and has no ' + nameList(droppedData(st, probe)) + '. Nothing was replaced.'); e.code = 'OLDER_FORMAT'; throw e;
+      }
       dropPriv();
       // A restored backup never brings its own sync bookkeeping: an older remoteRev would weaken the rollback
       // check, and a different OAuth client ID would be swapped in without the user seeing it.
@@ -1077,7 +1162,9 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   // Public identifier of the live key: its salt in base64 (the salt is not secret; it is in every envelope).
   const saltId = () => { requireUnlocked(); return btoa(String.fromCharCode.apply(null, salt)); };
   // Current stored envelope, re-sealed first if it has no rev yet or must reach at least minRev.
-  function exportEnvelope(minRev) {
+  // opts.snapshot(state): an async function run on the live state inside the same serial step, so its result describes exactly the
+  // exported content (CR-1); the call then resolves to { env, snap, saltId }.
+  function exportEnvelope(minRev, opts) {
     return serial(async () => {
       requireUnlocked();
       const a = getAdapter(), st = state, k = key, sl = salt;
@@ -1089,6 +1176,11 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
         if (state !== st || key !== k) throw new Error('LOCKED');
         await a.set(KEY, sealed.env);
         meta = sealed.m; env = sealed.env;
+      }
+      if (opts && typeof opts.snapshot === 'function') {
+        const snap = await opts.snapshot(st);
+        if (state !== st || key !== k) throw new Error('LOCKED');
+        return { env, snap, saltId: btoa(String.fromCharCode.apply(null, sl)) };
       }
       return env;
     });
@@ -1145,12 +1237,12 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   const BLOCKED = new Set(['__proto__', 'constructor', 'prototype']);
   const V = () => L.vault, S = () => L.store;
   // Validating the merged view (public and private records together): private goals may use wellbeing metrics. The stored main state is always validated without this.
-  const PRIVATE_OK = Object.freeze({ privateGoals: true });
+  const PRIVATE_OK = Object.freeze({ privateGoals: true, merged: true });
   // Collections that can hold private records. `refs`: [field, target collection, isArray]. `key` defaults to id.
   const COLL = {
     entries: { refs: [['accountId', 'accounts'], ['projectId', 'projects']] },
-    accounts: {}, recurring: {}, budgets: { key: (r) => r.category }, projects: {}, pipeline: {},
-    goals: { refs: [['parentId', 'goals']] },
+    accounts: {}, recurring: { refs: [['projectId', 'projects']] }, budgets: { key: (r) => r.category }, projects: { refs: [['parentId', 'projects']] }, pipeline: {},
+    goals: { refs: [['parentId', 'goals'], ['projectId', 'projects']] },
     maintenance: { refs: [['propertyId', 'properties'], ['vehicleId', 'vehicles']] },
     vehicles: {}, properties: {}, renewals: {}, documents: {}, taxItems: {},
     learningItems: { refs: [['goalId', 'goals']] },
@@ -1474,27 +1566,39 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       return true;
     });
   }
+  // CR-3: the private data re-encrypted is the private data stored when the change commits. If a restore or sync adoption replaced the
+  // private vault while the keys were being derived, the newer copy is decrypted (with the current passphrase) and used instead.
   async function changePassphrase(oldP, newP) {
     return pserial(async () => {
-      const st = needBase();
-      if (!st.priv) throw new Error('No private vault is set up.');
-      const { p } = await decryptBlob(st.priv, oldP);
+      if (!needBase().priv) throw new Error('No private vault is set up.');
       V().checkPassphrase(newP);
       if (await S().matchesMain(newP)) throw new Error('The private passphrase must be different from your main passphrase.');
       const salt = V().newSalt(), k = await V().deriveKey(newP, salt);
       let sb = '';
       for (const b of salt) sb += String.fromCharCode(b);
       sb = btoa(sb);
-      const next = clone(p); next.rev = p.rev + 1;
-      const blob = await sealPlain(next, k, sb);
-      close('system');
-      await S().commit((x) => {
-        x.priv = blob;
-        if (!Array.isArray(x.audit)) x.audit = [];
-        x.audit.push({ ts: new Date().toISOString(), action: 'private vault passphrase changed' });
-        while (x.audit.length > 200) x.audit.shift();
-      });
-      scrub(next); scrub(p);
+      const STALE = {};
+      for (let attempt = 0; attempt < 4; attempt++) {
+        const blob0 = needBase().priv;
+        if (!blob0) throw new Error('No private vault is set up.');
+        const { p } = await decryptBlob(blob0, oldP);
+        const next = clone(p); next.rev = p.rev + 1;
+        let blob;
+        try { blob = await sealPlain(next, k, sb); } catch (e) { scrub(next); scrub(p); throw e; }
+        close('system');
+        try {
+          await S().commit((x) => {
+            if (!x.priv || x.priv.rev !== blob0.rev || x.priv.ct !== blob0.ct || x.priv.iv !== blob0.iv) throw STALE;
+            x.priv = blob;
+            if (!Array.isArray(x.audit)) x.audit = [];
+            x.audit.push({ ts: new Date().toISOString(), action: 'private vault passphrase changed' });
+            while (x.audit.length > 200) x.audit.shift();
+          });
+        } catch (e) { scrub(next); scrub(p); if (e === STALE) continue; throw e; }
+        scrub(next); scrub(p);
+        return;
+      }
+      throw new Error('The private vault changed while the passphrase was being changed. Nothing was changed. Try again.');
     });
   }
   async function destroy() {
@@ -1622,7 +1726,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   const CHILDREN = {
     people: [['contacts', 'personId']],
     learningItems: [['studySessions', 'itemId'], ['takeaways', 'itemId']],
-    projects: [['entries', 'projectId']],
+    projects: [['entries', 'projectId'], ['recurring', 'projectId'], ['projects', 'parentId']],
     accounts: [['entries', 'accountId']],
     properties: [['maintenance', 'propertyId']],
     vehicles: [['maintenance', 'vehicleId']],
@@ -1649,7 +1753,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       if (cc === 'activities' && r0.expenseId) q.push(['entries', r0.expenseId]);
       if (cc === 'entries') for (const a of refs('activities', 'expenseId', k)) q.push(['activities', a.id]);
       if (cc === 'habits') for (const t of refs('habitLog', 'habitId', k)) q.push(['habitLog', keyOf('habitLog', t)]);
-      if (children) for (const [ch, f] of CHILDREN[cc] || []) for (const r of refs(ch, f, k)) if (ch !== 'entries' || (cc === 'accounts' ? r.type === 'balance' : r.type === 'outcome')) q.push([ch, keyOf(ch, r)]);
+      if (children) for (const [ch, f] of CHILDREN[cc] || []) for (const r of refs(ch, f, k)) if (ch !== 'entries' || (cc === 'accounts' ? r.type === 'balance' : (r.type === 'outcome' || r.type === 'income' || r.type === 'expense'))) q.push([ch, keyOf(ch, r)]);
     }
     return out;
   }
@@ -1935,13 +2039,21 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     if (m) return m[3] + '-' + m[1].padStart(2, '0') + '-' + m[2].padStart(2, '0');
     return s;
   }
-  function normNum(s) {
-    const t = s.replace(/[\s,$€£]/g, '');
-    if (t.length > 40 || !/^[+-]?(\d+(\.\d*)?|\.\d+)$/.test(t)) return NaN;
-    return Number(t);
+  // PV-3: a comma is only a thousands separator in groups of three ("1,234.5"); "12,50" or "1.234,56" (decimal comma) is rejected, never
+  // read 100 times too large. Money values (dollars and cents) allow at most two decimals.
+  function normNum(s, money) {
+    const t = s.replace(/[\s$€£]/g, '');
+    if (t.length > 40 || !/^[+-]?(?:(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d*)?|\.\d+)$/.test(t)) return NaN;
+    if (money && /\.\d{3,}$/.test(t)) return NaN;
+    return Number(t.replace(/,/g, ''));
   }
   const EXTRA = ['status', 'person', 'due', 'kind'];
   const NUMERIC = ['value', 'minutes', 'effort'];
+  // PV-7: Money fields that are not part of the thin type definitions but are exported and can be mapped back on import.
+  function moneyFields(domain, type) {
+    if (domain !== 'money') return [];
+    return type === 'income' ? ['category', 'status', 'dueDate'] : type === 'expense' ? ['category'] : [];
+  }
 
   function toEntries(parsed, opts) {
     if (!parsed || !Array.isArray(parsed.headers) || !Array.isArray(parsed.rows)) throw new Error('Nothing to import');
@@ -1951,16 +2063,16 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     // SEC-65: wellbeing lives only in the private vault, so it is never imported into the main state.
     if (domain === 'wellbeing') throw new Error('Wellbeing is kept only in the private vault and cannot be imported.');
     if (!map || typeof map !== 'object') throw new Error('Column mapping required');
-    const tfields = dom.types.find((t) => t.id === type).fields;
+    const tfields = dom.types.find((t) => t.id === type).fields, mf = moneyFields(domain, type);
     // Only fields the selected type has may be mapped; its required fields must be mapped.
-    for (const k of NUMERIC.concat(EXTRA)) {
+    for (const k of NUMERIC.concat(EXTRA, ['category', 'dueDate'])) {
       const given = !(map[k] === undefined || map[k] === null || map[k] === '');
       const f = tfields.find((x) => x.id === k);
-      if (given && !f) throw new Error('This type has no ' + k + ' field');
+      if (given && !f && !mf.includes(k)) throw new Error('This type has no ' + k + ' field');
       if (!given && f && f.required) throw new Error(f.label + ' column is required');
     }
     const idx = {};
-    for (const k of ['date', 'title', 'notes'].concat(NUMERIC, EXTRA)) {
+    for (const k of ['date', 'title', 'notes'].concat(NUMERIC, EXTRA, ['category', 'dueDate'])) {
       const m = map[k];
       if (m === undefined || m === null || m === '') continue;
       const i = typeof m === 'number' ? m : parsed.headers.indexOf(m);
@@ -1977,7 +2089,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
         const p = { domain, type, date: normDate(cell('date')), title: cell('title') };
         for (const k of NUMERIC) {
           if (idx[k] === undefined || cell(k).trim() === '') continue;
-          p[k] = normNum(cell(k));
+          p[k] = normNum(cell(k), domain === 'money' && k === 'value');
           if (Number.isNaN(p[k])) throw new Error('bad number');
         }
         if (idx.notes !== undefined) p.notes = cell('notes');
@@ -1985,6 +2097,10 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
           if (idx[k] === undefined) continue;
           p[k] = k === 'status' ? cell(k).trim().toLowerCase() : k === 'kind' ? cell(k).trim() : cell(k);
         }
+        if (idx.category !== undefined && cell('category').trim()) p.category = cell('category').trim();
+        if (idx.dueDate !== undefined && cell('dueDate').trim()) p.dueDate = normDate(cell('dueDate'));
+        // Income with no status (or "received") is received; anything else must be expected or written-off (validateEntry checks).
+        if (mf.includes('status') && p.status === 'received') delete p.status;
         entries.push(L.metrics.validateEntry(p));
       } catch (e) { rejected++; }
     }
@@ -2002,11 +2118,11 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     for (const e of rows || []) if (!(L.priv && L.priv.isPrivateRecord(e))) lines.push(cols.map((c) => q(e[c])).join(','));
     return lines.join('\r\n') + '\r\n';
   }
-  const exportEntries = (entries) => toCsv(['id', 'domain', 'type', 'date', 'title', 'value', 'status', 'person', 'due', 'notes', 'createdAt', 'kind', 'minutes', 'effort', 'projectId'], entries);
+  const exportEntries = (entries) => toCsv(['id', 'domain', 'type', 'date', 'title', 'value', 'status', 'person', 'due', 'notes', 'createdAt', 'kind', 'minutes', 'effort', 'category', 'dueDate', 'projectId'], entries);
   const exportPipeline = (items) => toCsv(['id', 'title', 'org', 'kind', 'stage', 'source', 'nextStep', 'nextDate', 'updatedAt', 'notes'], items);
   const exportProjects = (items) => toCsv(['id', 'name', 'kind', 'status', 'nextAction', 'nextDate', 'archived'], items);
 
-  L.csv = { parse, toEntries, exportEntries, exportPipeline, exportProjects };
+  L.csv = { parse, toEntries, moneyFields, exportEntries, exportPipeline, exportProjects };
 })();
 
 ;
@@ -2117,9 +2233,24 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       if (typeof p.accountId !== 'string' || !p.accountId || p.accountId.length > 100) throw new Error('Invalid account');
       out.accountId = p.accountId;
     }
-    if (ty.id === 'outcome' && !isEmpty(p.projectId)) {
+    if ((ty.id === 'outcome' || (dom.id === 'money' && (ty.id === 'income' || ty.id === 'expense'))) && !isEmpty(p.projectId)) {
       if (typeof p.projectId !== 'string' || !p.projectId || p.projectId.length > 100) throw new Error('Invalid project');
       out.projectId = p.projectId;
+    }
+    // v0.12.0: income may be expected or written off (no status means received); dueDate and importKey are optional.
+    if (dom.id === 'money' && ty.id === 'income') {
+      if (!isEmpty(p.status)) {
+        if (!['expected', 'received', 'written-off'].includes(p.status)) throw new Error('Status must be expected, received or written-off');
+        out.status = p.status;
+      }
+      if (!isEmpty(p.dueDate)) {
+        if (!isDate(p.dueDate)) throw new Error('Due date must be a valid date');
+        out.dueDate = p.dueDate;
+      }
+    }
+    if (dom.id === 'money' && (ty.id === 'income' || ty.id === 'expense') && !isEmpty(p.importKey)) {
+      if (typeof p.importKey !== 'string' || !/^[0-9a-f]{64}$/.test(p.importKey)) throw new Error('Invalid import key');
+      out.importKey = p.importKey;
     }
     const ca = p.createdAt;
     out.createdAt = (typeof ca === 'string' && ca.length <= 40 && ca) || (typeof ca === 'number' && isFinite(ca) && ca) || new Date().toISOString();
@@ -2143,9 +2274,11 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   const monthOf = (d) => d.slice(0, 7);
   const monthEnd = (m) => { const y = +m.slice(0, 4), mo = +m.slice(5, 7); return m + '-' + String(new Date(Date.UTC(y, mo, 0)).getUTCDate()).padStart(2, '0'); };
   const addMonths = (m, k) => { const t = (+m.slice(0, 4)) * 12 + (+m.slice(5, 7) - 1) + k; return String(Math.floor(t / 12)).padStart(4, '0') + '-' + String(t % 12 + 1).padStart(2, '0'); };
+  // Expected and written-off income is not an actual: it counts only once received (no status means received).
+  const counted = (e) => !e.status || e.status === 'received';
   function sumMoney(ents, a, b) {
     let inc = 0, exp = 0;
-    for (const e of ents) if (inR(e, a, b)) { if (e.type === 'income') inc += cents(e.value); else if (e.type === 'expense') exp += cents(e.value); }
+    for (const e of ents) if (inR(e, a, b)) { if (e.type === 'income') { if (counted(e)) inc += cents(e.value); } else if (e.type === 'expense') exp += cents(e.value); }
     return { incC: inc, expC: exp };
   }
   function savings(ents, a, b) {
@@ -2203,7 +2336,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     const spent = new Map();
     for (const e of ents) {
       const c = cents(e.value);
-      if (e.type === 'income') inc += c;
+      if (e.type === 'income') { if (counted(e)) inc += c; }
       else if (e.type === 'expense') { exp += c; const k = e.category || UNCAT; spent.set(k, (spent.get(k) || 0) + c); }
     }
     const budgets = new Map((state.budgets || []).map((x) => [x.category, cents(x.value)]));
@@ -2230,10 +2363,11 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   }
 
   // ---- recurring: proposes only; the user confirms each item ----
-  function advanceDate(d, cadence) {
+  // anchor: the day of the month the item is really due on (PV-4); a date clamped to a short month's end returns to it later.
+  function advanceDate(d, cadence, anchor) {
     if (!isDate(d)) throw new Error('Invalid date');
     if (cadence === 'weekly') return addDays(d, 7);
-    const y = +d.slice(0, 4), m = +d.slice(5, 7) - 1, day = +d.slice(8, 10);
+    const y = +d.slice(0, 4), m = +d.slice(5, 7) - 1, day = Number.isInteger(anchor) && anchor > +d.slice(8, 10) && anchor <= 31 ? anchor : +d.slice(8, 10);
     const t = y * 12 + m + (cadence === 'yearly' ? 12 : 1);
     const ny = Math.floor(t / 12), nm = t % 12;
     const last = new Date(Date.UTC(ny, nm + 1, 0)).getUTCDate();
@@ -2253,14 +2387,20 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   }
   function confirmRecurring(state, id, today) {
     const r = findDue(state, id, today);
-    const e = validateEntry({ domain: 'money', type: r.type, date: r.nextDate, title: r.title, value: r.value, category: r.category || undefined, notes: 'Recurring' });
+    const e = validateEntry({ domain: 'money', type: r.type, date: r.nextDate, title: r.title, value: r.value, category: r.category || undefined, projectId: r.projectId || undefined, notes: 'Recurring' });
     state.entries.push(e);
-    r.nextDate = advanceDate(r.nextDate, r.cadence);
+    advanceRecurring(r);
     return e;
+  }
+  // PV-4: keep the anchor day while the next date is clamped (the 31st becomes the 28th in February, then the 31st again in March).
+  function advanceRecurring(r) {
+    const day = +r.nextDate.slice(8, 10), anchor = Number.isInteger(r.anchorDay) && r.anchorDay > day ? r.anchorDay : day;
+    r.nextDate = advanceDate(r.nextDate, r.cadence, anchor);
+    if (r.cadence !== 'weekly' && +r.nextDate.slice(8, 10) < anchor) r.anchorDay = anchor; else delete r.anchorDay;
   }
   function skipRecurring(state, id, today) {
     const r = findDue(state, id, today);
-    r.nextDate = advanceDate(r.nextDate, r.cadence);
+    advanceRecurring(r);
   }
   // Last contact per person: manual contact entries, plus (when `state` is given) done social-tagged activities with that person. Computed, never stored twice.
   function overdue(ents, asOf, days, state) {
@@ -2563,6 +2703,10 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     if (!(state.projects || []).some((p) => p.id === id)) throw new Error('Project not found');
     let n = 0;
     for (const e of state.entries) if (e.projectId === id) { delete e.projectId; n++; }
+    // v0.12.0: recurring items, goal scopes and child lines are unlinked too; nothing is deleted with the project.
+    for (const r of state.recurring || []) if (r.projectId === id) delete r.projectId;
+    for (const g of state.goals || []) if (g.projectId === id) { delete g.projectId; delete g.rollup; }
+    for (const q of state.projects) if (q.parentId === id) delete q.parentId;
     state.projects = state.projects.filter((p) => p.id !== id);
     return n;
   }
@@ -2607,7 +2751,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     const we = addDays(ws, 6), wm = sumMoney(byDomain(state, 'money'), ws, we), nw = netWorthDetail(state, we);
     const mv = monthView(state, monthOf(we));
     const money = { income: dollars(wm.incC), spend: dollars(wm.expC), budgetUsedPct: mv.budgetCents > 0 ? r1(mv.budgetedSpentCents * 100 / mv.budgetCents) : 0, netWorth: nw.total, liabilities: nw.liabilities };
-    return { week: ws, domains, money, work: workDigest(state, ws), health: healthDigest(state, ws), activities: L.activities.digest(state, ws), goals: L.goals.digestCounts(state, ws), home: L.home.digest(state, ws), admin: L.admin.digest(state, ws), learning: L.learning.digest(state, ws), social: L.social.digest(state, ws) };
+    return { week: ws, domains, money, work: workDigest(state, ws), health: healthDigest(state, ws), activities: L.activities.digest(state, ws), goals: L.goals.digestCounts(state, ws), home: L.home.digest(state, ws), admin: L.admin.digest(state, ws), learning: L.learning.digest(state, ws), social: L.social.digest(state, ws), revenue: L.revenue.digest(state, ws) };
   }
   function series(state, domainId, n, today) {
     if (!DOMAINS.some((d) => d.id === domainId)) throw new Error('Unknown domain');
@@ -3143,7 +3287,9 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   }
   function fold(s) {
     return s.normalize('NFKC').replace(/\p{Cf}/gu, '').replace(/\p{Nd}/gu, (c) => (c >= '0' && c <= '9' ? c : digitOf(c)))
-      .replace(/[\p{Zs}\t]/gu, ' ').replace(/\p{Pd}|\u2212/gu, '-');
+      .replace(/[\p{Zs}\t]/gu, ' ').replace(/\p{Pd}|\u2212/gu, '-')
+      // PV-5: a slash, underscore or comma between digit groups is a separator too, and a run of separators counts as one.
+      .replace(/[\/_,]/g, '-').replace(/ *[-.](?: *[-.])+ */g, '-');
   }
   // One separator between digit groups: a space, dash or dot, with optional spaces around it ("4111 - 1111", "4111  1111").
   const SEP = '(?: *[-.] *| +)';
@@ -3153,11 +3299,15 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   // True for: a 9-digit SSN shape (123-45-6789, 123 45 6789, 123.45.6789, 123456789), or a 13 to 19 digit number that passes the
   // Luhn check, either run together or grouped like a card (4-4-4-4, 4-6-5) with spaces, dashes or dots. Years, dates, phone
   // numbers and amounts do not match.
-  function looksSecret(s0) {
+  // PV-10: in an imported ledger a bare 9-digit run (no separators) is an invoice, order or payout number far more often than an SSN,
+  // so there (looksSecretText) it counts only with an SSN cue in the text. Everywhere else a bare 9-digit run is refused as before.
+  const SSN_CUE = /(?<![a-z])(?:ssn|ss#|social *security|soc\.? *sec|itin|tin)(?![a-z])/i;
+  function looksSecret(s0, lenient) {
+    const strict = lenient !== 'ledger';
     if (typeof s0 !== 'string' || !s0) return false;
     const s = fold(s0);
     if (SSN_RE.test(s)) return true;
-    if (/(?<![\d.,])\d{9}(?!\d|[.,]\d)/.test(s)) return true;
+    if ((strict || SSN_CUE.test(s)) && /(?<![\d.])\d{9}(?!\d|[.,]\d)/.test(s)) return true;
     for (const m of s.matchAll(/(?<!\d)\d{13,19}(?!\d)/g)) if (luhn(m[0])) return true;
     for (const m of s.matchAll(CARD4_RE)) {
       const digits = m[1] + m[2] + m[3] + m[4];
@@ -3450,7 +3600,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
 
   L.admin = {
     KINDS, KIND_LABEL, CADENCES, CADENCE_LABEL, TAX_STATES, RENEWAL_CAP, DOC_CAP, TAX_CAP, SECRET_MESSAGE, SECRET_MESSAGE_FIELD,
-    looksSecret, luhn, checkNoSecrets, anchorDay, cleanRenewals, cleanDocuments, cleanTaxItems, addRenewal, proposeNext, pendingRenewals, completeRenewal, confirmRenewal,
+    looksSecret, looksSecretText: (x) => looksSecret(x, 'ledger'), luhn, checkNoSecrets, anchorDay, cleanRenewals, cleanDocuments, cleanTaxItems, addRenewal, proposeNext, pendingRenewals, completeRenewal, confirmRenewal,
     stopRenewing, cancelRenewal, markReviewed, deleteRenewal, annualCents, subscriptions, addDocument, deleteDocument, addTaxItem, setTaxState, deleteTaxItem, taxByYear,
     legacyDue, legacyEntries, dated, overdueAt, dueWithin, timeline, headline, weekValue, digest, reviewWeek, overdueValue, hasData,
   };
@@ -4412,7 +4562,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   const CHANNELS = Object.freeze(['call', 'message', 'in person', 'video', 'email', 'other']);
   const DEFAULT_GROUPS = Object.freeze([{ name: 'Family', cadenceDays: 14 }, { name: 'Friends', cadenceDays: 30 }, { name: 'Professional', cadenceDays: 60 }]);
   const SECRET_MESSAGE = 'That looks like an ID number or a card number. Do not enter ID numbers, account numbers or passwords here.';
-  const BIDI = /[​-‏‪-‮⁠-⁩﻿]/g;
+  const BIDI = /[؜​-‏‪-‮⁠-⁩﻿]/g;
   const MD = /^(\d{2})-(\d{2})$/;
   const DIM = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 
@@ -4958,6 +5108,581 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
 ;
 (function () {
   'use strict';
+  // v0.12.0: lines of work and the revenue tracker. Pure functions over a state-shaped object plus a few mutators that run inside a
+  // commit. Money is integer cents everywhere: amounts are parsed from text without floating point, and every total is a sum of
+  // integers. Dates are local YYYY-MM-DD strings and all day maths is calendar maths (no clock, no time zone).
+  const L = (globalThis.LifeOS = globalThis.LifeOS || {});
+  const M = () => L.metrics;
+  const STATUSES = Object.freeze(['expected', 'received', 'written-off']);
+  const KEY_RE = /^[0-9a-f]{64}$/;
+  const ENTRY_CAP = 50000, LIVE_PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000;
+  const BIDI = /[؜​-‏‪-‮⁠-⁩﻿]/g;
+
+  const isMoney = (e) => !!e && e.domain === 'money' && (e.type === 'income' || e.type === 'expense');
+  // Counted in Money actuals: expenses, and income that is received (or has no status, which means received).
+  const isCounted = (e) => isMoney(e) && (e.type === 'expense' || !e.status || e.status === 'received');
+  const isExpected = (e) => !!e && e.domain === 'money' && e.type === 'income' && e.status === 'expected';
+  const cents = (v) => Math.round(Number(v) * 100);
+  const dueOf = (e) => e.dueDate || e.date;
+  const normName = (s) => String(s == null ? '' : s).replace(BIDI, '').replace(/\s+/g, ' ').trim().toLowerCase();
+
+  // Integer rounding of a/b to the nearest, halves away from zero, exact for any size (BigInt).
+  function divRound(a, b) {
+    if (!b) return null;
+    let n = BigInt(a), d = BigInt(b), neg = false;
+    if (n < 0n) { n = -n; neg = !neg; }
+    if (d < 0n) { d = -d; neg = !neg; }
+    const q = (2n * n + d) / (2n * d);
+    return Number(neg ? -q : q);
+  }
+  // Margin in basis points (1234 = 12.34%), or null when there is no revenue (never a divide by zero).
+  const marginBp = (rev, net) => (rev > 0 ? divRound(net * 10000, rev) : null);
+  const marginText = (bp) => (bp === null || bp === undefined ? 'no data' : (bp < 0 ? '-' : '') + Math.floor(Math.abs(bp) / 100) + '.' + String(Math.abs(bp) % 100).padStart(2, '0') + '%');
+
+  // ---- lines of work ----
+  function index(state) {
+    const projects = Array.isArray(state.projects) ? state.projects : [];
+    const byId = new Map(projects.map((p) => [p.id, p]));
+    const kids = new Map();
+    for (const p of projects) if (p.parentId && byId.has(p.parentId)) { if (!kids.has(p.parentId)) kids.set(p.parentId, []); kids.get(p.parentId).push(p); }
+    return { projects, byId, kids };
+  }
+  // scope: {kind:'all'} | {kind:'line', id} | {kind:'rollup', id} (the line and its children) | {kind:'unassigned'}
+  function pred(ix, scope) {
+    if (!scope || scope.kind === 'all') return () => true;
+    if (scope.kind === 'unassigned') return (x) => !x.projectId || !ix.byId.has(x.projectId);
+    const ids = new Set([scope.id]);
+    if (scope.kind === 'rollup') for (const c of ix.kids.get(scope.id) || []) ids.add(c.id);
+    return (x) => !!x.projectId && ids.has(x.projectId);
+  }
+  const scopeOf = (projectId, rollup) => (projectId ? { kind: rollup ? 'rollup' : 'line', id: projectId } : { kind: 'all' });
+
+  // ---- periods ----
+  function periodRange(kind, today, custom) {
+    const m = M();
+    if (!m.isDate(today)) throw new Error('today must be YYYY-MM-DD');
+    const mo = today.slice(0, 7);
+    switch (kind) {
+      case 'month': return { from: mo + '-01', to: m.monthEnd(mo) };
+      case 'lastMonth': { const p = m.addMonths(mo, -1); return { from: p + '-01', to: m.monthEnd(p) }; }
+      case 'qtd': { const q = Math.floor((+today.slice(5, 7) - 1) / 3) * 3 + 1; return { from: today.slice(0, 5) + String(q).padStart(2, '0') + '-01', to: today }; }
+      case 'ytd': return { from: today.slice(0, 4) + '-01-01', to: today };
+      case 't12': return { from: m.addMonths(mo, -11) + '-01', to: today };
+      case 'custom': {
+        if (!custom || !m.isDate(custom.from) || !m.isDate(custom.to)) throw new Error('Enter a start and an end date.');
+        if (custom.to < custom.from) throw new Error('The end date is before the start date.');
+        return { from: custom.from, to: custom.to };
+      }
+    }
+    throw new Error('Unknown period');
+  }
+  const PERIODS = Object.freeze([['month', 'This month'], ['lastMonth', 'Last month'], ['qtd', 'Quarter to date'], ['ytd', 'Year to date'], ['t12', 'Trailing 12 months'], ['custom', 'Custom']]);
+
+  // ---- totals ----
+  const zero = () => ({ revenueCents: 0, expenseCents: 0 });
+  const fin = (o) => Object.assign(o, { netCents: o.revenueCents - o.expenseCents, marginBp: marginBp(o.revenueCents, o.revenueCents - o.expenseCents) });
+  // One pass over the entries: per line, per rollup, unassigned and the grand total. The grand total is the sum of the lines plus
+  // Unassigned, so it equals the Money totals for the same dates exactly.
+  function report(state, period) {
+    const ix = index(state), { from, to } = period;
+    const own = new Map(), un = zero();
+    for (const e of state.entries) {
+      if (!isCounted(e) || e.date < from || e.date > to) continue;
+      const c = cents(e.value), has = e.projectId && ix.byId.has(e.projectId);
+      let o = un;
+      if (has) { o = own.get(e.projectId); if (!o) { o = zero(); own.set(e.projectId, o); } }
+      if (e.type === 'income') o.revenueCents += c; else o.expenseCents += c;
+    }
+    const total = zero();
+    const lines = ix.projects.map((p) => {
+      const o = Object.assign(zero(), own.get(p.id) || {});
+      total.revenueCents += o.revenueCents; total.expenseCents += o.expenseCents;
+      return fin({ id: p.id, name: p.name, kind: p.kind, parentId: p.parentId || null, archived: !!p.archived, revenueCents: o.revenueCents, expenseCents: o.expenseCents });
+    });
+    total.revenueCents += un.revenueCents; total.expenseCents += un.expenseCents;
+    const byId = new Map(lines.map((x) => [x.id, x]));
+    const rollups = [];
+    for (const [pid, ch] of ix.kids) {
+      const p = byId.get(pid), r = { id: pid, name: p.name, kind: p.kind, archived: p.archived, childIds: ch.map((c) => c.id), revenueCents: p.revenueCents, expenseCents: p.expenseCents };
+      for (const c of ch) { const l = byId.get(c.id); r.revenueCents += l.revenueCents; r.expenseCents += l.expenseCents; }
+      rollups.push(fin(r));
+    }
+    return { from, to, lines, rollups, unassigned: fin(Object.assign({ id: null, name: 'Unassigned' }, un)), total: fin(total) };
+  }
+  // Month by month for one scope, ending at endMonth (YYYY-MM), n months (default 12).
+  function monthly(state, scope, endMonth, n) {
+    const m = M();
+    n = Math.max(1, Math.min(60, Math.floor(Number(n)) || 12));
+    if (typeof endMonth !== 'string' || !/^\d{4}-\d{2}$/.test(endMonth) || !m.isDate(endMonth + '-01')) throw new Error('Month must be YYYY-MM');
+    const ix = index(state), p = pred(ix, scope), map = new Map(), out = [];
+    for (let i = n - 1; i >= 0; i--) { const mo = m.addMonths(endMonth, -i), o = { month: mo, revenueCents: 0, expenseCents: 0 }; map.set(mo, o); out.push(o); }
+    for (const e of state.entries) {
+      if (!isCounted(e) || !p(e)) continue;
+      const o = map.get(e.date.slice(0, 7));
+      if (!o) continue;
+      if (e.type === 'income') o.revenueCents += cents(e.value); else o.expenseCents += cents(e.value);
+    }
+    return out.map(fin);
+  }
+  // Recurring monthly revenue: active recurring income items, each turned into a monthly amount (weekly x 52 / 12, yearly / 12).
+  function recurringMonthlyCents(state, scope) {
+    const ix = index(state), p = pred(ix, scope);
+    let sum = 0;
+    for (const r of state.recurring || []) {
+      if (!r.active || r.type !== 'income' || !p(r)) continue;
+      const c = cents(r.value);
+      sum += r.cadence === 'weekly' ? divRound(c * 52, 12) : r.cadence === 'yearly' ? divRound(c, 12) : c;
+    }
+    return sum;
+  }
+  // Expected income: windows are cumulative (next 30 days is inside next 60); overdue means the due date has passed.
+  function expected(state, scope, today) {
+    const m = M();
+    if (!m.isDate(today)) throw new Error('today must be YYYY-MM-DD');
+    const ix = index(state), p = pred(ix, scope), d30 = m.addDays(today, 30), d60 = m.addDays(today, 60), d90 = m.addDays(today, 90);
+    const o = { next30Cents: 0, next60Cents: 0, next90Cents: 0, overdueCents: 0, overdueCount: 0, overdue: [], upcoming: [] };
+    for (const e of state.entries) {
+      if (!isExpected(e) || !p(e)) continue;
+      const due = dueOf(e), c = cents(e.value), item = { id: e.id, title: e.title, cents: c, due, projectId: e.projectId || null };
+      if (due < today) { o.overdueCents += c; o.overdueCount++; o.overdue.push(item); continue; }
+      if (due <= d90) o.upcoming.push(item);
+      if (due <= d30) o.next30Cents += c;
+      if (due <= d60) o.next60Cents += c;
+      if (due <= d90) o.next90Cents += c;
+    }
+    const by = (a, b) => a.due.localeCompare(b.due) || a.title.localeCompare(b.title);
+    o.overdue.sort(by); o.upcoming.sort(by);
+    return o;
+  }
+  function totalsIn(state, scope, from, to) {
+    const ix = index(state), p = pred(ix, scope), o = zero();
+    let n = 0;
+    for (const e of state.entries) {
+      if (!isCounted(e) || e.date < from || e.date > to || !p(e)) continue;
+      n++;
+      if (e.type === 'income') o.revenueCents += cents(e.value); else o.expenseCents += cents(e.value);
+    }
+    return Object.assign(fin(o), { count: n });
+  }
+
+  // ---- digest (numbers only; main state only, the caller passes it) ----
+  function digest(state, ws) {
+    const m = M(), we = m.addDays(ws, 6), mo = we.slice(0, 7), all = { kind: 'all' };
+    const wk = totalsIn(state, all, ws, we), mn = totalsIn(state, all, mo + '-01', m.monthEnd(mo)), ex = expected(state, all, we);
+    return {
+      revenueWeekCents: wk.revenueCents, expensesWeekCents: wk.expenseCents, netWeekCents: wk.netCents,
+      revenueMonthCents: mn.revenueCents, expensesMonthCents: mn.expenseCents, netMonthCents: mn.netCents,
+      expectedNext30Cents: ex.next30Cents, overdueCount: ex.overdueCount,
+      lines: (state.projects || []).filter((p) => !p.archived).length,
+    };
+  }
+  // Goal metric (dollars): revenue or net received in the month of asOf for one line or rollup; null (no data yet) with no money in it.
+  function goalValue(state, metric, projectId, rollup, asOf) {
+    const m = M(), mo = asOf.slice(0, 7), t = totalsIn(state, scopeOf(projectId, rollup), mo + '-01', m.monthEnd(mo));
+    if (!t.count) return null;
+    return (metric === 'revenueMonth' ? t.revenueCents : t.netCents) / 100;
+  }
+
+  // ---- weekly review: received this week, overdue expected; actions are offered, never run here ----
+  function reviewWeek(state, wk, today) {
+    const m = M(), ws = m.weekStart(wk), we = m.addDays(ws, 6);
+    const t = totalsIn(state, { kind: 'all' }, ws, we);
+    const ex = expected(state, { kind: 'all' }, today && m.isDate(today) ? today : we);
+    return { week: ws, receivedCents: t.revenueCents, overdue: ex.overdue, overdueCents: ex.overdueCents };
+  }
+
+  // ---- mutators (run inside a commit; each follows one user tap) ----
+  const findExpected = (state, id) => {
+    const e = state.entries.find((x) => x.id === id);
+    if (!e) throw new Error('Entry not found');
+    if (!isExpected(e)) throw new Error('That income is not marked expected');
+    return e;
+  };
+  function markReceived(state, id, onDate) {
+    const e = findExpected(state, id);
+    if (!M().isDate(onDate)) throw new Error('Date received must be a date');
+    e.status = 'received'; e.date = onDate;
+    return e;
+  }
+  function moveDue(state, id, due) {
+    const e = findExpected(state, id);
+    if (!M().isDate(due)) throw new Error('Due date must be a date');
+    e.dueDate = due;
+    return e;
+  }
+  function writeOff(state, id) {
+    const e = findExpected(state, id);
+    e.status = 'written-off';
+    return e;
+  }
+  // Entries (income and expense) matching a filter: { type, from, to, text, line: 'any' | 'none' | projectId }.
+  function filterEntries(state, f) {
+    f = f || {};
+    const ix = index(state), q = normName(f.text);
+    return state.entries.filter((e) => {
+      if (!isMoney(e)) return false;
+      if (f.type && f.type !== 'any' && e.type !== f.type) return false;
+      if (f.from && e.date < f.from) return false;
+      if (f.to && e.date > f.to) return false;
+      if (q && !normName(e.title).includes(q)) return false;
+      const has = e.projectId && ix.byId.has(e.projectId);
+      if (f.line === 'none' && has) return false;
+      if (f.line && f.line !== 'any' && f.line !== 'none' && e.projectId !== f.line) return false;
+      return true;
+    });
+  }
+  // Bulk assign: set (or with null clear) the line of work on the given entries. Returns how many changed.
+  function assignLine(state, ids, projectId) {
+    if (!Array.isArray(ids)) throw new Error('Nothing to assign');
+    if (projectId) {
+      const p = (state.projects || []).find((x) => x.id === projectId);
+      if (!p) throw new Error('Line of work not found');
+      if (p.archived) throw new Error('That line of work is archived');
+    }
+    const set = new Set(ids);
+    let n = 0;
+    for (const e of state.entries) {
+      if (!set.has(e.id) || !isMoney(e)) continue;
+      if (projectId) { if (e.projectId !== projectId) { e.projectId = projectId; n++; } } else if (e.projectId) { delete e.projectId; n++; }
+    }
+    return n;
+  }
+  // What deleting or archiving a project touches (for the confirm text).
+  function linkedCounts(state, id) {
+    return {
+      entries: state.entries.filter((e) => e.projectId === id).length,
+      recurring: (state.recurring || []).filter((r) => r.projectId === id).length,
+      children: (state.projects || []).filter((p) => p.parentId === id).length,
+      goals: (state.goals || []).filter((g) => g.projectId === id).length,
+    };
+  }
+  function unlinkChildren(state, id) {
+    let n = 0;
+    for (const p of state.projects || []) if (p.parentId === id) { delete p.parentId; n++; }
+    return n;
+  }
+  // Deleting a project unlinks everything that pointed at it (entries, recurring items, goal scopes, children); nothing is deleted with it.
+  function unlinkProject(state, id) {
+    const o = { entries: 0, recurring: 0, children: 0, goals: 0 };
+    for (const e of state.entries) if (e.projectId === id) { delete e.projectId; o.entries++; }
+    for (const r of state.recurring || []) if (r.projectId === id) { delete r.projectId; o.recurring++; }
+    for (const g of state.goals || []) if (g.projectId === id) { delete g.projectId; delete g.rollup; o.goals++; }
+    o.children = unlinkChildren(state, id);
+    return o;
+  }
+  // Archiving a parent unlinks its children; money entries keep their link so history stays attributed.
+  function archiveProject(state, id) {
+    const p = (state.projects || []).find((x) => x.id === id);
+    if (!p) throw new Error('Project not found');
+    p.archived = true;
+    return unlinkChildren(state, id);
+  }
+  // One level only: the parent must exist, not be archived, not be this project, not itself have a parent; this project must have no children.
+  function setParent(state, id, parentId) {
+    const ps = state.projects || [], p = ps.find((x) => x.id === id);
+    if (!p) throw new Error('Project not found');
+    if (!parentId) { delete p.parentId; return p; }
+    const par = ps.find((x) => x.id === parentId);
+    if (!par) throw new Error('Parent not found');
+    if (parentId === id) throw new Error('A line cannot be its own parent');
+    if (par.archived) throw new Error('The parent cannot be archived');
+    if (par.parentId) throw new Error('Lines nest one level only');
+    if (ps.some((x) => x.parentId === id)) throw new Error('This line already has lines under it, so it cannot have a parent');
+    p.parentId = parentId;
+    return p;
+  }
+
+  // ---- ledger CSV import ----
+  // Amount text to integer cents with no floating point. Accepts currency symbols, thousands separators (1,234.56), a sign, and
+  // parentheses for negatives. Returns null when the text is not an amount.
+  function parseCents(raw) {
+    if (typeof raw !== 'string') return null;
+    let s = raw.replace(BIDI, '').replace(/[\s ]/g, '');
+    if (!s || s.length > 40) return null;
+    let neg = false;
+    const par = /^\((.*)\)$/.exec(s);
+    if (par) { neg = true; s = par[1]; }
+    let sign = '';
+    if (s[0] === '-' || s[0] === '+') { sign = s[0]; s = s.slice(1); }
+    s = s.replace(/^[$€£¥]/, '');
+    if (!sign && (s[0] === '-' || s[0] === '+')) { sign = s[0]; s = s.slice(1); }
+    if (par && sign) return null;
+    if (!/^(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d{1,2})?$|^\.\d{1,2}$/.test(s)) return null;
+    s = s.replace(/,/g, '');
+    const dot = s.indexOf('.'), ip = dot < 0 ? s : s.slice(0, dot), fp = dot < 0 ? '' : s.slice(dot + 1);
+    if (ip.length > 12) return null;
+    const c = (ip ? Number(ip) : 0) * 100 + Number((fp + '00').slice(0, 2));
+    return neg || sign === '-' ? -c : c;
+  }
+  // Date text to YYYY-MM-DD. YYYY-MM-DD and M/D/YYYY always; D/M/YYYY only when fmt is 'dmy' (the user picked it; never guessed).
+  function parseDate(raw, fmt) {
+    if (typeof raw !== 'string') return null;
+    const s = raw.trim();
+    let y, mo, d, m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s);
+    if (m) { y = m[1]; mo = m[2]; d = m[3]; } else {
+      m = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(s);
+      if (!m) return null;
+      y = m[3];
+      if (fmt === 'dmy') { d = m[1]; mo = m[2]; } else { mo = m[1]; d = m[2]; }
+      mo = mo.padStart(2, '0'); d = d.padStart(2, '0');
+    }
+    const out = y + '-' + mo + '-' + d;
+    return M().isDate(out) ? out : null;
+  }
+  async function sha256Hex(text) {
+    const buf = await L._webcrypto.subtle.digest('SHA-256', new TextEncoder().encode(text));
+    let h = '';
+    for (const b of new Uint8Array(buf)) h += b.toString(16).padStart(2, '0');
+    return h;
+  }
+  // importKey: SHA-256 of normalised date, amount (cents), type, line name and description. A row repeated within one file gets its
+  // occurrence number added from the second copy on, so two identical purchases on one day both import and a re-import adds nothing.
+  const importKey = (date, amountCents, type, line, desc, occurrence) =>
+    sha256Hex([date, String(amountCents), type, normName(line), normName(desc)].concat(occurrence > 0 ? [String(occurrence)] : []).join('\u001f'));
+
+  const tidy = (v) => String(v == null ? '' : v).replace(BIDI, '').replace(/^'(?=[=+\-@\t\r\n])/, '').replace(/\s+/g, ' ').trim();
+  function statusOf(raw) {
+    const s = normName(raw).replace(/[ _]/g, '-');
+    if (!s) return '';
+    if (s === 'received' || s === 'paid') return 'received';
+    if (s === 'expected' || s === 'pending' || s === 'invoiced') return 'expected';
+    if (s === 'written-off' || s === 'writtenoff') return 'written-off';
+    return null;
+  }
+  const SECRET_MSG = 'looks like an ID or card number';
+  // Preview of a ledger import. Writes nothing. opts: { map:{date, amount, income, expense, type, line, category, description, status, due}
+  // (column indexes), dateFormat:'auto'|'dmy', typeValues:{income, expense} (text in the type column), create:[line names to create] }.
+  async function plan(parsed, opts, state, today) {
+    const m = M();
+    if (!parsed || !Array.isArray(parsed.headers) || !Array.isArray(parsed.rows)) throw new Error('Nothing to import');
+    if (!opts || typeof opts.map !== 'object' || !opts.map) throw new Error('Column mapping required');
+    const map = {}, nh = parsed.headers.length;
+    for (const k of ['date', 'amount', 'income', 'expense', 'type', 'line', 'category', 'description', 'status', 'due']) {
+      const v = opts.map[k];
+      if (v === undefined || v === null || v === '') continue;
+      if (!Number.isInteger(v) || v < 0 || v >= nh) throw new Error('Column not found for ' + k);
+      map[k] = v;
+    }
+    const fmt = opts.dateFormat === 'dmy' ? 'dmy' : 'auto';
+    if (map.date === undefined) throw new Error('Choose the date column.');
+    const split = map.income !== undefined || map.expense !== undefined, typed = !split && map.type !== undefined;
+    if (split && map.amount !== undefined) throw new Error('Use either an amount column or separate income and expense columns, not both.');
+    if (!split && map.amount === undefined) throw new Error('Choose the amount column, or the income and expense columns.');
+    const tv = opts.typeValues || {};
+    if (typed && (!normName(tv.income) || !normName(tv.expense) || normName(tv.income) === normName(tv.expense))) throw new Error('Say which type values mean income and expense.');
+    // PV-1: the main state alone cannot tell which rows were already imported and then moved into the private vault, nor which line
+    // names belong to private lines of work. While private entries or lines are hidden, the preview refuses (writes and adds nothing).
+    const pm = state.priv && Array.isArray(state.priv.marks) ? state.priv.marks : [];
+    if (pm.includes('entries') || pm.includes('projects')) {
+      return { rows: parsed.rows.length, add: [], rejected: [], duplicates: 0, totals: { incomeCents: 0, expenseCents: 0 }, byLine: [], unknownLines: [], newLines: [], empty: true, blocked: 'private' };
+    }
+    const ix = index(state), live = ix.projects.filter((p) => !p.archived);
+    const byName = new Map();
+    for (const p of live) { const k = normName(p.name); if (!byName.has(k)) byName.set(k, p); }
+    const have = new Set();
+    for (const e of state.entries) if (e.importKey) have.add(e.importKey);
+    const create = new Set((opts.create || []).map(normName));
+    const seenInFile = new Map(), unknown = new Map(), newLines = new Map();
+    const add = [], rejected = [], byLine = new Map();
+    let duplicates = 0;
+    const totals = { incomeCents: 0, expenseCents: 0 };
+    for (let i = 0; i < parsed.rows.length; i++) {
+      const r = parsed.rows[i], rowNo = i + 2;
+      const reject = (why) => rejected.push({ row: rowNo, reason: why });
+      if (!Array.isArray(r) || r.length !== nh) { reject('wrong number of columns'); continue; }
+      const cell = (k) => (map[k] === undefined ? '' : tidy(r[map[k]]));
+      const date = parseDate(cell('date'), fmt);
+      if (!date) { reject(fmt === 'dmy' ? 'date is not a valid DD/MM/YYYY or YYYY-MM-DD date' : 'date is not a valid YYYY-MM-DD or MM/DD/YYYY date'); continue; }
+      let type, c;
+      if (split) {
+        const inc = cell('income'), exp = cell('expense');
+        const ci = inc ? parseCents(inc) : 0, ce = exp ? parseCents(exp) : 0;
+        if (ci === null || ce === null) { reject('amount is not a number'); continue; }
+        if (ci < 0 || ce < 0) { reject('amount is negative in an income or expense column'); continue; }
+        if (ci > 0 && ce > 0) { reject('both income and expense have an amount'); continue; }
+        if (ci === 0 && ce === 0) { reject('amount is zero or empty'); continue; }
+        type = ci > 0 ? 'income' : 'expense'; c = ci > 0 ? ci : ce;
+      } else {
+        const a = parseCents(cell('amount'));
+        if (a === null) { reject('amount is not a number'); continue; }
+        if (a === 0) { reject('amount is zero'); continue; }
+        if (typed) {
+          const t = normName(cell('type'));
+          if (t === normName(tv.income)) type = 'income'; else if (t === normName(tv.expense)) type = 'expense';
+          else { reject('type is not one of the chosen income or expense values'); continue; }
+          if (a < 0) { reject('amount is negative with a type column'); continue; }
+          c = a;
+        } else { type = a > 0 ? 'income' : 'expense'; c = Math.abs(a); }
+      }
+      if (c > 100000000000000) { reject('amount is too large'); continue; }
+      const desc = cell('description'), cat = cell('category'), lineRaw = cell('line');
+      if (desc.length > 200) { reject('description is longer than 200 characters'); continue; }
+      if (cat.length > 40) { reject('category is longer than 40 characters'); continue; }
+      if (lineRaw.length > 200) { reject('line of work is longer than 200 characters'); continue; }
+      if (L.admin && [desc, cat, lineRaw].some((x) => L.admin.looksSecretText(x))) { reject(SECRET_MSG); continue; }
+      let status = statusOf(cell('status')), dueDate = '';
+      if (status === null) { reject('status is not received, expected or written-off'); continue; }
+      if (type === 'expense' && status && status !== 'received') { reject('only income can be expected or written off'); continue; }
+      if (type === 'income' && cell('due')) {
+        dueDate = parseDate(cell('due'), fmt);
+        if (!dueDate) { reject('due date is not a valid date'); continue; }
+      }
+      const nk = normName(lineRaw);
+      let proj = null, newLine = '';
+      if (nk) {
+        proj = byName.get(nk) || null;
+        if (!proj) { if (!unknown.has(nk)) unknown.set(nk, lineRaw); if (create.has(nk)) { newLine = nk; if (!newLines.has(nk)) newLines.set(nk, lineRaw); } }
+      }
+      const base = [date, c, type, nk, normName(desc)].join('\u001f'), occ = seenInFile.get(base) || 0;
+      seenInFile.set(base, occ + 1);
+      const key = await importKey(date, c, type, lineRaw, desc, occ);
+      if (have.has(key)) { duplicates++; continue; }
+      const p = { domain: 'money', type, date, title: desc || cat || (type === 'income' ? 'Income' : 'Expense'), value: c / 100, importKey: key };
+      if (cat) p.category = cat;
+      if (type === 'income' && status && status !== 'received') p.status = status;
+      if (type === 'income' && dueDate) p.dueDate = dueDate;
+      if (proj) p.projectId = proj.id;
+      let entry;
+      try { entry = m.validateEntry(p); } catch (e) { reject(String(e.message || 'invalid row').slice(0, 120)); continue; }
+      add.push({ entry, newLine });
+      const label = proj ? proj.name : newLine ? newLines.get(newLine) : 'Unassigned';
+      const g = byLine.get(label) || { line: label, incomeCents: 0, expenseCents: 0, count: 0 };
+      if (type === 'income') { g.incomeCents += c; totals.incomeCents += c; } else { g.expenseCents += c; totals.expenseCents += c; }
+      g.count++; byLine.set(label, g);
+    }
+    if (state.entries.length + add.length > ENTRY_CAP) throw new Error('This import would pass the ' + ENTRY_CAP + ' entry limit.');
+    if (live.length + newLines.size > LIVE_PROJECT_CAP || ix.projects.length + newLines.size > PROJECT_TOTAL_CAP) throw new Error('Creating these lines of work would pass the project limit.');
+    return {
+      rows: parsed.rows.length, add, rejected, duplicates, totals, byLine: [...byLine.values()].sort((a, b) => a.line.localeCompare(b.line)),
+      unknownLines: [...unknown.values()], newLines: [...newLines.values()],
+      empty: add.length === 0,
+    };
+  }
+  // Apply a confirmed plan inside a commit. New lines (only those the user ticked) are created first.
+  function applyPlan(state, pl, now) {
+    if (!pl || !Array.isArray(pl.add)) throw new Error('Nothing to import');
+    if (pl.blocked) return { added: 0, linesCreated: 0 };
+    const created = new Map();
+    for (const name of pl.newLines || []) {
+      const p = { id: L.store.newId(), name, kind: 'client', status: 'active', nextAction: '', archived: false };
+      state.projects.push(p); created.set(normName(name), p.id);
+    }
+    const stamp = now || new Date().toISOString();
+    let n = 0;
+    for (const a of pl.add) {
+      const e = Object.assign({}, a.entry);
+      if (a.newLine) e.projectId = created.get(a.newLine);
+      e.createdAt = stamp;
+      state.entries.push(M().validateEntry(e));
+      n++;
+    }
+    return { added: n, linesCreated: created.size };
+  }
+
+  L.revenue = {
+    STATUSES, PERIODS, KEY_RE, isMoney, isCounted, isExpected, dueOf, divRound, marginBp, marginText, normName, index, scopeOf, periodRange, report, monthly,
+    recurringMonthlyCents, expected, totalsIn, digest, goalValue, reviewWeek, markReceived, moveDue, writeOff, filterEntries, assignLine, linkedCounts,
+    unlinkProject, archiveProject, setParent, parseCents, parseDate, importKey, plan, applyPlan,
+  };
+})();
+
+;
+(function () {
+  'use strict';
+  // v0.12.0: customizable home. A layout is a list of { id, size, hidden } kept per viewport class in settings.layouts
+  // ({ narrow, wide }; narrow is a viewport under 720 px). Ids are whitelisted: unknown ids are dropped, modules a saved layout does
+  // not mention are appended (visible) at the end, so modules added by later builds appear without breaking saved layouts.
+  const L = (globalThis.LifeOS = globalThis.LifeOS || {});
+  const NARROW_MAX = 720, LIST_CAP = 64;
+  const SIZES = Object.freeze(['small', 'wide']);
+  const mod = (id, label, sizes, size) => Object.freeze({ id, label, sizes: Object.freeze(sizes), size });
+  const TILE_DOMAINS = [['money', 'Money'], ['assets', 'Assets'], ['work', 'Work'], ['health', 'Health'], ['activities', 'Activities'], ['social', 'Social'], ['learning', 'Learning'], ['home', 'Home'], ['admin', 'Admin'], ['goals', 'Goals'], ['wellbeing', 'Wellbeing']];
+  // The default order is the order the dashboard had before: at a glance, priorities, the domain tiles; then the revenue modules.
+  const MODULES = Object.freeze([
+    mod('glance', 'At a glance', ['wide'], 'wide'),
+    mod('priorities', 'Priorities', ['small', 'wide'], 'wide'),
+  ].concat(
+    TILE_DOMAINS.map((d) => mod('tile-' + d[0], d[1], ['small', 'wide'], 'small')),
+    [mod('rev-month', 'Revenue this month', ['small', 'wide'], 'small'), mod('rev-net-line', 'Net by line of work', ['wide', 'small'], 'wide'), mod('rev-expected', 'Expected and overdue income', ['small', 'wide'], 'small')]
+  ));
+  const BY_ID = new Map(MODULES.map((m) => [m.id, m]));
+  const KEYS = Object.freeze(['narrow', 'wide']);
+  const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+  const fail = (m) => { throw new Error('Invalid data: ' + m); };
+
+  // Saved list to a clean saved list: unknown ids and repeats dropped, size and hidden checked. A size the module does not support
+  // becomes the module's own default size.
+  function clean(list) {
+    if (list === undefined || list === null) return [];
+    if (!Array.isArray(list)) fail('layout must be a list');
+    if (list.length > LIST_CAP) fail('layout has too many items');
+    const seen = new Set(), out = [];
+    for (const x of list) {
+      if (!isObj(x)) fail('layout item');
+      if (typeof x.id !== 'string' || x.id.length > 60) fail('layout id');
+      if (!SIZES.includes(x.size)) fail('layout size');
+      if (typeof x.hidden !== 'boolean') fail('layout hidden');
+      const m = BY_ID.get(x.id);
+      if (!m || seen.has(x.id)) continue;
+      seen.add(x.id);
+      out.push({ id: x.id, size: m.sizes.includes(x.size) ? x.size : m.size, hidden: x.hidden });
+    }
+    return out;
+  }
+  function cleanLayouts(x) {
+    if (x === undefined || x === null) return { narrow: [], wide: [] };
+    if (!isObj(x)) fail('layouts');
+    return { narrow: clean(x.narrow), wide: clean(x.wide) };
+  }
+  const defaultList = () => MODULES.map((m) => ({ id: m.id, size: m.size, hidden: false }));
+  // The full ordered list to draw: the saved order, then any module the saved list lacks.
+  function resolve(saved) {
+    let list;
+    try { list = clean(saved); } catch (e) { list = []; }
+    const have = new Set(list.map((x) => x.id));
+    for (const m of MODULES) if (!have.has(m.id)) list.push({ id: m.id, size: m.size, hidden: false });
+    return list;
+  }
+  const which = (width) => (Number(width) < NARROW_MAX ? 'narrow' : 'wide');
+  function get(settings, w) {
+    const ls = settings && settings.layouts;
+    return resolve(ls && Array.isArray(ls[w === 'narrow' ? 'narrow' : 'wide']) ? ls[w === 'narrow' ? 'narrow' : 'wide'] : []);
+  }
+  // Mutator for the settings object inside a commit: stores the full list for one viewport class and touches nothing else.
+  function set(settings, w, list) {
+    if (!KEYS.includes(w)) throw new Error('Unknown layout');
+    if (!isObj(settings.layouts)) settings.layouts = { narrow: [], wide: [] };
+    settings.layouts[w] = resolve(list);
+    return settings.layouts[w];
+  }
+  const reset = (settings, w) => {
+    if (!KEYS.includes(w)) throw new Error('Unknown layout');
+    if (!isObj(settings.layouts)) settings.layouts = { narrow: [], wide: [] };
+    settings.layouts[w] = [];
+  };
+  const idx = (list, id) => list.findIndex((x) => x.id === id);
+  function moveTo(list, id, to) {
+    const out = list.map((x) => Object.assign({}, x)), i = idx(out, id);
+    if (i < 0) return out;
+    const t = Math.max(0, Math.min(out.length - 1, Math.floor(Number(to)) || 0));
+    const [it] = out.splice(i, 1);
+    out.splice(t, 0, it);
+    return out;
+  }
+  const move = (list, id, delta) => { const i = idx(list, id); return i < 0 ? list.map((x) => Object.assign({}, x)) : moveTo(list, id, i + delta); };
+  const setHidden = (list, id, hidden) => list.map((x) => Object.assign({}, x, x.id === id ? { hidden: !!hidden } : {}));
+  function setSize(list, id, size) {
+    const m = BY_ID.get(id);
+    if (!m || !m.sizes.includes(size)) return list.map((x) => Object.assign({}, x));
+    return list.map((x) => Object.assign({}, x, x.id === id ? { size } : {}));
+  }
+
+  L.layout = { MODULES, SIZES, NARROW_MAX, LIST_CAP, clean, cleanLayouts, defaultList, resolve, which, get, set, reset, move, moveTo, setHidden, setSize, label: (id) => (BY_ID.has(id) ? BY_ID.get(id).label : '') };
+})();
+
+;
+(function () {
+  'use strict';
   // Goals (schema 5). Pure functions over state: progress and pace are derived live from the other domains, never stored.
   // Every mutator takes the state inside store.commit and only changes a goal's lifecycle (achieved, dropped, rolled over)
   // when called, which only happens after an explicit user tap.
@@ -4980,6 +5705,8 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     mk('habitRate', 'Daily checks completed (7 days)', 'health', 'percent'),
     mk('outcomesPerWeek', 'Outcomes done per week', 'work', 'count'),
     mk('pipelineWon', 'Pipeline items won', 'work', 'count'),
+    mk('revenueMonth', 'Revenue per month', 'work', 'currency'),
+    mk('netMonth', 'Net per month', 'work', 'currency'),
     mk('maintenanceOverdue', 'Maintenance tasks overdue', 'home', 'count'),
     mk('adminOverdue', 'Admin items overdue', 'admin', 'count'),
     mk('studyMinutes', 'Study minutes per week', 'learning', 'count'),
@@ -5025,6 +5752,14 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     if (goal.metric === 'manual') return typeof goal.manualValue === 'number' ? goal.manualValue : null;
     if (!m.isDate(asOf)) throw new Error('Date must be YYYY-MM-DD');
     if (goal.metric === 'itemProgress') return L.learning.goalProgress(state, goal.id); // depends on the goal, so it is never memoised by metric
+    if (goal.metric === 'revenueMonth' || goal.metric === 'netMonth') {
+      // Optionally scoped to one line of work or to a parent's rollup; memoised per metric, scope and date.
+      const k = goal.metric + '|' + (goal.projectId || '') + '|' + (goal.rollup ? 'r' : 'l') + '|' + asOf;
+      if (memo && memo.has(k)) return memo.get(k);
+      const v = L.revenue.goalValue(state, goal.metric, goal.projectId, !!goal.rollup, asOf);
+      if (memo) memo.set(k, v);
+      return v;
+    }
     if (memo) {
       const k = goal.metric + '|' + asOf;
       if (!memo.has(k)) memo.set(k, linkedValue(state, goal.metric, asOf));
@@ -5266,6 +6001,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     const mv = toNum(input.manualValue, 'Current value');
     if (mv !== undefined) g.manualValue = mv;
     if (input.parentId) g.parentId = input.parentId;
+    if (input.projectId && (def.id === 'revenueMonth' || def.id === 'netMonth')) { g.projectId = input.projectId; if (input.rollup) g.rollup = true; }
     if (g.startValue === undefined) {
       // A manual goal starts from its typed current value, else from 0; a linked goal starts from its current number.
       const cur = def.id === 'manual' ? (mv === undefined ? 0 : mv) : currentValue(state, g, t);
@@ -5278,7 +6014,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     state.goals.push(g);
     return g;
   }
-  const EDITABLE = ['title', 'horizon', 'direction', 'startValue', 'targetValue', 'startDate', 'dueDate', 'parentId', 'notes', 'manualValue', 'statusOverride', 'domain'];
+  const EDITABLE = ['title', 'horizon', 'direction', 'startValue', 'targetValue', 'startDate', 'dueDate', 'parentId', 'notes', 'manualValue', 'statusOverride', 'domain', 'projectId', 'rollup'];
   function updateGoal(state, id, patch) {
     const g = find(state, id);
     if (!isObj(patch)) throw new Error('Nothing to change');
@@ -5288,7 +6024,8 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       const v = patch[k];
       if (k === 'startValue' || k === 'targetValue') { const x = toNum(v, k === 'startValue' ? 'Start value' : 'Target'); if (x === undefined) throw new Error('Enter a number'); n[k] = x; }
       else if (k === 'manualValue') { const x = toNum(v, 'Current value'); if (x === undefined) delete n.manualValue; else n.manualValue = x; }
-      else if (k === 'parentId' || k === 'statusOverride') { if (v === null || v === undefined || v === '') delete n[k]; else n[k] = v; }
+      else if (k === 'parentId' || k === 'statusOverride' || k === 'projectId') { if (v === null || v === undefined || v === '') { delete n[k]; if (k === 'projectId') delete n.rollup; } else n[k] = v; }
+      else if (k === 'rollup') { if (v) n.rollup = true; else delete n.rollup; }
       else if (k === 'domain') { if (g.metric === 'manual') n.domain = v; }
       else n[k] = typeof v === 'string' && k !== 'horizon' && k !== 'direction' ? v.trim() : v;
     }
@@ -5368,7 +6105,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   // and new proposals leave it out; earlier wellbeing insights stay in the vault but are never sent.
   const NO_AI = new Set(['wellbeing']);
   const domains = () => L.DOMAINS.map((d) => d.id).filter((id) => !NO_AI.has(id)).concat(['overall']);
-  const BIDI = /[\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF]/g;
+  const BIDI = /[\u061C\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF]/g;
   const newId = () => L._webcrypto.randomUUID();
 
   function checkPeriod(p) {
@@ -5428,7 +6165,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     if (hd) {
       const unit = state.settings.health ? state.settings.health.units : 'lb';
       if (hd.avgSleep > 0) out.push({ domain: 'health', text: ('Average sleep this week was ' + hd.avgSleep + ' hours' + (ph.avgSleep > 0 ? ' (last week ' + ph.avgSleep + ').' : '.')).slice(0, MAX_TEXT) });
-      if (hd.weightChange !== 0) out.push({ domain: 'health', text: ('Weight moved ' + (hd.weightChange < 0 ? 'down ' : 'up ') + Math.abs(hd.weightChange) + ' ' + unit + ' this week.').slice(0, MAX_TEXT) });
+      // PV-9 (owner rule): body metrics never become a stored insight that states a value or a change, so there is no weight rule.
       if ((state.habits || []).length && (hd.habitRate > 0 || ph.habitRate > 0)) out.push({ domain: 'health', text: ('Daily checks completed: ' + hd.habitRate + '% this week (last week ' + ph.habitRate + '%).').slice(0, MAX_TEXT) });
     }
     return out;
@@ -5477,20 +6214,27 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       // Social: counts only, never a name, group name, date label, fact, channel or note. Groups are numbered by position.
       const sc = dg.social;
       if (sc && (sc.people || sc.overdue || sc.dueSoon || sc.contactsWeek)) lines.push('- social detail: people ' + sc.people + ', overdue ' + sc.overdue + ', due within 7 days ' + sc.dueSoon + ', contacts this week ' + sc.contactsWeek + (sc.byGroup.length ? ', by group ' + sc.byGroup.map((g, i) => 'group ' + (i + 1) + ': ' + g.people + ' people, ' + g.overdue + ' overdue').join('; ') : ''));
+      // Revenue: money totals and counts only, never a line of work name, a description, a category or imported text.
+      const rv = dg.revenue;
+      if (rv && (rv.revenueWeekCents || rv.expensesWeekCents || rv.revenueMonthCents || rv.expensesMonthCents || rv.expectedNext30Cents || rv.overdueCount)) lines.push('- revenue detail: received this week ' + fm(rv.revenueWeekCents) + ', expenses this week ' + fm(rv.expensesWeekCents) + ', net this week ' + fm(rv.netWeekCents) + ', received this month ' + fm(rv.revenueMonthCents) + ', expenses this month ' + fm(rv.expensesMonthCents) + ', net this month ' + fm(rv.netMonthCents) + ', expected in the next 30 days ' + fm(rv.expectedNext30Cents) + ', overdue expected income ' + rv.overdueCount + ', lines of work ' + rv.lines);
       ctx = approvedAll.filter((i) => !isBodyInsight(i)).slice(-CTX_MAX);
       lines.push('Approved insights so far:');
     } else {
       const from = level - 1;
-      ctx = approvedAll.filter((i) => !isBodyInsight(i) && i.level === from && i.period.from >= p.from && i.period.to <= p.to).slice(-CTX_MAX);
+      // PV-8: an insight belongs to the period holding its start, so a week that spans two months is consolidated in the first one.
+      ctx = approvedAll.filter((i) => !isBodyInsight(i) && i.level === from && i.period.from >= p.from && i.period.from <= p.to).slice(-CTX_MAX);
       lines.push('Level ' + level + (level === 2 ? ' monthly' : ' quarterly') + ' consolidation for ' + p.from + ' to ' + p.to + '.',
         'Approved level ' + from + ' insights to consolidate:');
     }
     if (!ctx.length) lines.push('- none');
     for (const i of ctx) lines.push('- [' + i.domain + '] ' + i.text);
+    // PV-6 (owner rule: numbers only): the reasons typed when rejecting stay on this device. The model only learns how many recent
+    // insights were rejected in each area, never the reason text or the rejected wording.
     lines.push('Lessons from earlier rejections (respect these):');
-    const ls = mem.lessons.slice(-CTX_MAX);
-    if (!ls.length) lines.push('- none');
-    for (const l of ls) lines.push('- ' + l.text);
+    const rej = mem.insights.filter((i) => i.status === 'rejected' && !NO_AI.has(i.domain)).slice(-30), byDom = new Map();
+    for (const i of rej) byDom.set(i.domain, (byDom.get(i.domain) || 0) + 1);
+    if (!byDom.size) lines.push('- none');
+    else lines.push('- recently rejected insights by area: ' + [...byDom.keys()].sort().map((d) => d + ' ' + byDom.get(d)).join(', ') + '. Propose different kinds of insight in those areas.');
     lines.push('Return the JSON array now.');
     const system = 'You are a careful personal reflection assistant. You only see numeric summaries and short approved notes, never raw records. ' +
       'Reply with ONLY a JSON array of at most ' + MAX_ITEMS + ' objects shaped {"domain":string,"text":string}. ' +
@@ -5836,17 +6580,19 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     try { const v = JSON.parse(text); if (v && typeof v === 'object') return v; } catch (e) { /* fall through */ }
     throw err('REMOTE_INVALID', 'Google Drive sent an unexpected reply.');
   }
-  async function findFile() {
+  // CR-5: the file this device synced with last (settings.sync.fileId) wins when Drive lists it; otherwise the newest. `copies` tells
+  // the caller when Drive holds more than one LifeOS file.
+  async function findFile(preferId) {
     const q = encodeURIComponent("name='" + FILE_NAME + "' and trashed=false");
     const r = await api(API + '/drive/v3/files?spaces=appDataFolder&q=' + q + '&orderBy=modifiedTime%20desc&pageSize=10&fields=' + encodeURIComponent('files(id,size,version)'));
     const files = json(r.text).files;
     if (!Array.isArray(files) || !files.length) return null;
-    const f = files[0];
-    if (!f || typeof f.id !== 'string' || !ID_RE.test(f.id)) throw err('REMOTE_INVALID', 'Google Drive sent an unexpected reply.');
+    for (const x of files) if (!x || typeof x.id !== 'string' || !ID_RE.test(x.id)) throw err('REMOTE_INVALID', 'Google Drive sent an unexpected reply.');
+    const f = (preferId && files.find((x) => x.id === preferId)) || files[0];
     const size = f.size === undefined ? 0 : Number(f.size);
     if (!isFinite(size) || size < 0) throw err('REMOTE_INVALID', 'Google Drive sent an unexpected reply.');
     if (size > MAX_REMOTE) throw err('TOO_LARGE', 'The Drive copy is larger than 64 MB, so it was rejected.');
-    return { id: f.id, version: f.version === undefined ? '' : String(f.version).slice(0, 40) };
+    return { id: f.id, version: f.version === undefined ? '' : String(f.version).slice(0, 40), copies: files.length };
   }
   async function download(file) {
     const r = await api(API + '/drive/v3/files/' + file.id + '?alt=media');
@@ -5856,6 +6602,8 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   async function upload(file, text, etag) {
     if (text.length > MAX_REMOTE) throw err('TOO_LARGE', 'The vault is larger than 64 MB, so nothing was uploaded. Your data on this device is unchanged. Delete old entries, study sessions, takeaways, activities, logged contacts, facts or long notes, then sync again.');
     if (!file) {
+      // CR-5: another device may have created the file since this sync listed Drive; never create a second one.
+      if (await findFile()) throw err('REMOTE_CHANGED', 'The Drive copy changed while syncing. Nothing was overwritten. Run sync again.');
       const b = 'lifeos' + newNonce();
       const body = '--' + b + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' +
         JSON.stringify({ name: FILE_NAME, parents: ['appDataFolder'] }) + '\r\n--' + b +
@@ -5906,16 +6654,19 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     }
   }
 
-  async function bookkeeping(clientId, remoteRev, fileId, action) {
+  // CR-1: fp and keySalt describe the state that was uploaded or adopted, captured when the envelope was exported (inside the store's
+  // serial queue) or before the adopt. An edit saved while the upload was on the wire is therefore still seen as a local change.
+  async function bookkeeping(clientId, remoteRev, fileId, action, fp, keySalt) {
     const S = L.store;
-    const fp = await fingerprint(S.getState());
     await S.commit((x) => {
-      x.settings.sync = { clientId, remoteRev, fp, fileId, keySalt: S.saltId() };
+      x.settings.sync = { clientId, remoteRev, fp, fileId, keySalt };
       if (!Array.isArray(x.audit)) x.audit = [];
       x.audit.push({ ts: new Date().toISOString(), action });
       while (x.audit.length > 200) x.audit.shift();
     }, { quiet: true });
   }
+  const exportSnap = (minRev) => L.store.exportEnvelope(minRev, { snapshot: fingerprint });
+  const b64 = (u8) => btoa(String.fromCharCode.apply(null, u8));
   const hide = (o, ctx) => { Object.defineProperty(o, '_ctx', { value: ctx, enumerable: false }); return o; };
 
   // Compare local and Drive. Uploads when safe; otherwise returns a decision request and writes nothing.
@@ -5925,14 +6676,15 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     const cur = S.getState();
     const sy = cur.settings.sync;
     const clientId = sy.clientId;
-    const file = await findFile();
-    const fp = await fingerprint(cur);
+    const file = await findFile(sy.fileId);
+    const fp = await fingerprint(cur), saltId = S.saltId();
     if (!file) {
-      const env = await S.exportEnvelope();
-      const id = await upload(null, JSON.stringify(env), '');
-      await bookkeeping(clientId, env.rev, id, 'sync: uploaded to Drive');
-      return { kind: 'uploaded', rev: env.rev };
+      const ex = await exportSnap();
+      const id = await upload(null, JSON.stringify(ex.env), '');
+      await bookkeeping(clientId, ex.env.rev, id, 'sync: uploaded to Drive', ex.snap, ex.saltId);
+      return { kind: 'uploaded', rev: ex.env.rev };
     }
+    const copies = file.copies > 1 ? { copies: file.copies } : {};
     const dl = await download(file);
     const info = await inspect(dl.text, opts.passphrase);
     const rr = info.meta.rev;
@@ -5945,20 +6697,20 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     const keyDiffers = !info.sameKey, remoteChanged = rr > sy.remoteRev;
     const localKeyChanged = keyDiffers && (!remoteChanged || (!!sy.keySalt && sy.keySalt !== S.saltId()));
     const localChanged = fp !== base || localKeyChanged;
-    if (!remoteChanged && !localChanged) return { kind: 'in-sync', rev: rr };
+    if (!remoteChanged && !localChanged) return Object.assign({ kind: 'in-sync', rev: rr }, copies);
     if (!remoteChanged) {
-      const env = await S.exportEnvelope(Math.max(rr, sy.remoteRev) + 1);
-      const id = await upload(file, JSON.stringify(env), dl.etag);
-      await bookkeeping(clientId, env.rev, id, 'sync: uploaded to Drive');
-      return { kind: 'uploaded', rev: env.rev };
+      const ex = await exportSnap(Math.max(rr, sy.remoteRev) + 1);
+      const id = await upload(file, JSON.stringify(ex.env), dl.etag);
+      await bookkeeping(clientId, ex.env.rev, id, 'sync: uploaded to Drive', ex.snap, ex.saltId);
+      return Object.assign({ kind: 'uploaded', rev: ex.env.rev }, copies);
     }
     const lm = S.getMeta();
     // An older-format Drive copy has no projects, pipeline (before schema 3), cycle, daily checks, workout types, body targets (before schema 4) or goals (before schema 5): using it would drop this device's data.
     const dropped = S.droppedData(cur, { sourceSchema: info.sourceSchema, priv: info.state.priv }), dropsWork = dropped.length > 0;
-    return hide({
+    return hide(Object.assign({
       kind: localChanged ? 'conflict' : 'download-offer',
       local: summary(lm, cur, cur.schema), remote: summary(info.meta, info.state, info.sourceSchema), passphraseDiffers: keyDiffers, dropsWork, dropped,
-    }, { file, dl, info, clientId, fp, dropsWork, dropped });
+    }, copies), { file, dl, info, clientId, fp, saltId, dropsWork, dropped });
   }
 
   // choice: 'download' (offer), or 'remote' | 'local' | 'cancel' (conflict). Conflict resolutions first save the losing copy via saveBackup(text, name).
@@ -5975,6 +6727,8 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     if (wantsRemote && ctx.dropsWork && opts.allowWorkLoss !== true) {
       throw err('OLDER_FORMAT', 'The Drive copy is from an older version and has no ' + S.nameList(ctx.dropped || []) + '. Nothing was replaced.');
     }
+    // CR-6: a passphrase change on this device since the check would be undone by adopting (the fingerprint ignores the key).
+    if (S.saltId() !== ctx.saltId) throw err('LOCAL_CHANGED', 'This device changed after the Drive copy was checked. Nothing was replaced. Run sync again.');
     // The offer was made because this device had no changes. If it changed since, do not replace it.
     if (decision.kind === 'download-offer' && (await fingerprint(S.getState())) !== ctx.fp) {
       throw err('LOCAL_CHANGED', 'This device changed after the Drive copy was checked. Nothing was replaced. Run sync again.');
@@ -5985,14 +6739,15 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       else await opts.saveBackup(ctx.dl.text, 'lifeos-drive-copy-' + stamp + '.json');
     }
     if (wantsRemote) {
+      const afp = await fingerprint(ctx.info.state);
       await S.adoptEnvelope(ctx.info);
-      await bookkeeping(ctx.clientId, ctx.info.meta.rev, ctx.file.id, 'sync: downloaded from Drive');
+      await bookkeeping(ctx.clientId, ctx.info.meta.rev, ctx.file.id, 'sync: downloaded from Drive', afp, b64(ctx.info.salt));
       return { kind: 'downloaded', rev: ctx.info.meta.rev };
     }
-    const env = await S.exportEnvelope(ctx.info.meta.rev + 1);
-    const id = await upload(ctx.file, JSON.stringify(env), ctx.dl.etag);
-    await bookkeeping(ctx.clientId, env.rev, id, 'sync: uploaded to Drive');
-    return { kind: 'uploaded', rev: env.rev };
+    const ex = await exportSnap(ctx.info.meta.rev + 1);
+    const id = await upload(ctx.file, JSON.stringify(ex.env), ctx.dl.etag);
+    await bookkeeping(ctx.clientId, ex.env.rev, id, 'sync: uploaded to Drive', ex.snap, ex.saltId);
+    return { kind: 'uploaded', rev: ex.env.rev };
   }
 
   L.sync = {
@@ -6044,8 +6799,12 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     }
     add(el, kids);
     if (val !== undefined) el.value = val;
+    // UI-1: browsers keep form history (autofill) in plaintext outside the vault. Every input, textarea and form is excluded unless the
+    // caller sets autocomplete itself (only the main passphrase fields do, for the password manager).
+    if (!svg && (tag === 'input' || tag === 'textarea' || tag === 'form') && !el.hasAttribute('autocomplete')) el.setAttribute('autocomplete', 'off');
     return el;
   }
+  function labelled(el, name) { el.setAttribute('aria-label', name); return el; }
   function field(label, input, hint) {
     return h('label', { class: 'field' }, h('span', { class: 'lbl', text: label }), input, hint ? h('span', { class: 'hint', text: hint }) : null);
   }
@@ -6080,6 +6839,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     var m = e && e.message ? String(e.message) : '';
     if (m === 'BAD_PASSPHRASE_OR_DATA') return 'That passphrase did not work, or the data is damaged.';
     if (m === 'BAD_PRIVATE_PASSPHRASE') return 'That private passphrase did not work.';
+    if (m === 'LOCKED') return 'LifeOS locked before that finished. Nothing was saved. Unlock and try again.';
     if (!m) return 'Something went wrong.';
     return m.slice(0, 300);
   }
@@ -6122,7 +6882,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   var vaultExists = false;
   var notice = null, noticeEl = null;
   var busy = false;
-  var csvPending = null;
+  var csvPending = null, ledger = null, dashEdit = false;
   var ai = null;
   var dlgEl = null, dlgReturn = null;
   var idleTimer = null, lastActive = 0, locking = null;
@@ -6158,8 +6918,16 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   // vault); with the vault closed it is a plain commit. New records are public unless "New items are private" is ticked.
   var privNew = false, privFail = { n: 0, until: 0 }, privTimer = null, privPick = { coll: 'accounts', q: '' };
   // from: [[collection, key]] the records a new record is made from (SEC-62): if any of them is private, so is the new one.
+  // UI-5: the toggle applies only to the add forms and add dialogs that show its note (markAddForms); one-tap actions (a daily check
+  // tick, a confirmed recurring item, carry-over, imports) follow their source record instead (SEC-62).
+  var addIntent = false;
+  function markAddIntent() { addIntent = true; setTimeout(function () { addIntent = false; }, 0); }
+  function isAddForm(f) { var b = f && f.querySelector && f.querySelector('button[type=submit]'); return !!(b && ADD_RE.test(b.textContent)); }
+  var ADD_RE = /^(Add (?!category|type|date|fact)|Log |Save budget|Save balance|Save cycle)/;
+  document.addEventListener('submit', function (e) { if (isAddForm(e.target)) markAddIntent(); }, true);
   function commit(fn, action, from) {
     var o = newPriv() ? { newPrivate: true } : (from && L.priv.isOpen() ? { from: from } : null);
+    if (o && o.newPrivate && !addIntent) o = from && L.priv.isOpen() ? { from: from } : null;
     return L.priv.write(function (s) { if (fn) fn(s); if (action) addAudit(s, action); }, o);
   }
   // The "New items are private" toggle only means anything while the vault is open; closed, it is off and ignored.
@@ -6175,8 +6943,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     Array.prototype.forEach.call(document.querySelectorAll('.dialog.adds'), function (n) { Array.prototype.forEach.call(n.querySelectorAll('.privnew-note'), function (m) { m.remove(); }); });
     if (!newPriv()) return;
     Array.prototype.forEach.call(root.querySelectorAll('form'), function (f) {
-      var b = f.querySelector('button[type=submit]');
-      if (b && /^(Add (?!category|type|date|fact)|Log |Save budget|Save balance|Save cycle)/.test(b.textContent)) f.insertBefore(privNewNote(), f.firstChild);
+      if (isAddForm(f)) f.insertBefore(privNewNote(), f.firstChild);
     });
     Array.prototype.forEach.call(document.querySelectorAll('.dialog.adds'), function (d) { d.insertBefore(privNewNote(), d.children[1] || null); });
   }
@@ -6204,7 +6971,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   }
   function go(name, extra) {
     view = Object.assign({ name: name }, extra || {});
-    notice = null; csvPending = null; ai = null;
+    notice = null; csvPending = null; ai = null; ledger = null;
     render();
     window.scrollTo(0, 0);
     var t = document.querySelector('h1');
@@ -6222,6 +6989,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     dlgReturn = document.activeElement;
     var err = h('p', { class: 'small', role: 'status', text: '' });
     var yes = btn(o.yes || 'OK', function () {
+      if (o.adds) markAddIntent();
       Promise.resolve().then(function () { return o.onYes(); }).then(function (keep) {
         if (keep !== false) closeDialog();
       }, function (e) { err.textContent = friendly(e); });
@@ -6247,14 +7015,18 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   }
 
   // ---------- auto-lock ----------
+  // UI-7: the main state holds the setting; no merged view is built per input event, and resets run at most once a second.
   function limitMs() {
-    try { return (st().settings.autoLockMin || 15) * 60000; } catch (e) { return 900000; }
+    try { return (mainState().settings.autoLockMin || 15) * 60000; } catch (e) { return 900000; }
   }
-  function resetIdle() {
+  var lastReset = 0;
+  function resetIdle(force) {
+    var now = Date.now();
+    if (force !== true && idleTimer && now - lastReset < 1000) return;
     if (L.priv.isOpen()) L.priv.touch();
-    clearTimeout(idleTimer);
+    clearTimeout(idleTimer); idleTimer = null;
     if (!L.store.isUnlocked() || locking) return;
-    lastActive = Date.now();
+    lastReset = now; lastActive = now;
     idleTimer = setTimeout(function () { lockNow(); }, limitMs());
   }
   // Wall-clock check: timers can pause during device sleep or background throttling.
@@ -6264,16 +7036,16 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   }
   function lockNow() {
     if (locking) return locking;
-    clearTimeout(idleTimer);
+    clearTimeout(idleTimer); idleTimer = null;
     // The Google token lives only in memory and must not outlive the unlocked session.
     if (L.sync) L.sync.disconnect();
     // Record the lock in the audit log, but never let a slow or stuck write delay the lock itself.
     var p = L.store.isUnlocked() ? Promise.race([commit(null, 'lock').catch(function () {}), new Promise(function (r) { setTimeout(r, 1000); })]) : Promise.resolve();
     locking = p.then(function () {
       L.store.lock();
-      privNew = false;
+      privNew = false; goalMemo = new Map();
       closeDialog();
-      csvPending = null; ai = null; notice = null; lastActive = 0;
+      csvPending = null; ledger = null; dashEdit = false; ai = null; notice = null; lastActive = 0;
       view = { name: 'lock' };
       render();
     }).then(function () { locking = null; }, function () { locking = null; });
@@ -6297,7 +7069,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     var s = st();
     var body;
     try {
-      body = view.name === 'domain' ? (view.domain === 'money' ? moneyScreen(s) : view.domain === 'assets' ? assetsScreen(s) : view.domain === 'work' ? workScreen(s) : view.domain === 'health' ? healthScreen(s) : view.domain === 'goals' ? goalsScreen(s) : view.domain === 'home' ? homeScreen(s) : view.domain === 'admin' ? adminScreen(s) : view.domain === 'learning' ? learningScreen(s) : view.domain === 'activities' ? activitiesScreen(s) : view.domain === 'social' ? socialScreen(s) : view.domain === 'wellbeing' ? wellbeingScreen(s) : domainScreen(s))
+      body = view.name === 'domain' ? (view.domain === 'money' ? moneyScreen(s) : view.domain === 'assets' ? assetsScreen(s) : view.domain === 'work' ? (view.revenue ? revenueScreen(s) : workScreen(s)) : view.domain === 'health' ? healthScreen(s) : view.domain === 'goals' ? goalsScreen(s) : view.domain === 'home' ? homeScreen(s) : view.domain === 'admin' ? adminScreen(s) : view.domain === 'learning' ? learningScreen(s) : view.domain === 'activities' ? activitiesScreen(s) : view.domain === 'social' ? socialScreen(s) : view.domain === 'wellbeing' ? wellbeingScreen(s) : domainScreen(s))
         : view.name === 'review' ? reviewScreen(s)
         : view.name === 'memory' ? memoryScreen(s)
         : view.name === 'settings' ? settingsScreen(s)
@@ -6336,9 +7108,9 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   // SEC-67: nothing typed or shown while open survives the close: the toggle, the private search text and any notice (a notice can
   // name a private record, for example "Posted <title>.").
   L.priv.onClose(function () {
-    privNew = false; privPick = { coll: 'accounts', q: '' }; notice = null;
+    privNew = false; privPick = { coll: 'accounts', q: '' }; notice = null; goalMemo = new Map();
     if (!L.store.isUnlocked() || locking) return;
-    closeDialog(); csvPending = null; ai = null;
+    closeDialog(); csvPending = null; ledger = null; ai = null;
     view = { name: view.name, domain: view.domain };
     render();
   });
@@ -6377,7 +7149,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   }
   function afterUnlock() {
     notice = null; csvPending = null; ai = null;
-    resetIdle();
+    resetIdle(true);
     view = { name: 'dashboard' };
     render();
     if (L.syncUI) L.syncUI.afterUnlock(syncCtx());
@@ -6401,12 +7173,13 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   }
   function dashScreen(s) {
     var t = today(), wk = L.metrics.weekStart(t);
-    var tiles = L.DOMAINS.map(function (d) {
-      if (d.id === 'wellbeing') return wellbeingTile(s, d, t);
+    var built = {};
+    L.DOMAINS.forEach(function (d) {
+      if (d.id === 'wellbeing') { built['tile-wellbeing'] = wellbeingTile(s, d, t); return; }
       var hl, ser;
       try { hl = L.metrics.headline(s, d.id, t); } catch (e) { hl = { label: '', display: '-', sub: '' }; }
       try { ser = L.metrics.series(s, d.id, 8, t); } catch (e) { ser = []; }
-      return h('button', { type: 'button', class: 'tile', 'data-domain': d.id, onclick: function () { go('domain', { domain: d.id }); } },
+      built['tile-' + d.id] = h('button', { type: 'button', class: 'tile', 'data-domain': d.id, onclick: function () { go('domain', { domain: d.id }); } },
         h('span', { class: 'tile-title' }, d.label, ' ', lockMark(DOMAIN_COLLS[d.id])),
         h('span', { class: 'tile-value', text: hl.display }),
         h('span', { class: 'tile-sub', text: hl.label }),
@@ -6421,10 +7194,116 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       if (rv.weekOf !== wk) pr.appendChild(h('p', { class: 'mut small', text: 'From the week of ' + rv.weekOf + '.' }));
     } else pr.appendChild(h('p', { class: 'mut', text: 'No priorities yet. Run your weekly review to set three.' }));
     if (!rv || rv.weekOf !== wk) pr.appendChild(btn('Start weekly review', function () { go('review'); }, 'pri'));
+    built.priorities = pr;
+    built.glance = glanceCard(s, t, 'dash-glance');
+    built['rev-month'] = revMonthTile(s, t);
+    built['rev-net-line'] = revNetLineCard(s, t);
+    built['rev-expected'] = revExpectedTile(s, t);
     var due = L.metrics.dueRecurring(s, t).length;
-    return h('div', null, h('div', { class: 'row sp' }, h('h1', { text: 'Dashboard' }), h('div', { class: 'row' }, btn('Log study', function () { studyDialog(''); }, 'qa-btn', { id: 'quick-study' }), btn('Add activity', function () { go('domain', { domain: 'activities', open: 'act-add' }); }, 'qa-btn', { id: 'quick-activity' }), btn('Quick add', quickAdd, 'pri qa-btn', { id: 'quick-add' }))),
+    var w = L.layout.which(window.innerWidth), list = L.layout.get(s.settings, w);
+    var mods = [];
+    list.forEach(function (m, i) {
+      var el = built[m.id];
+      if (!dashEdit && (m.hidden || !el)) return;
+      mods.push(h('div', { class: 'mod ' + m.size + (m.hidden ? ' modhidden' : ''), 'data-mod': m.id, 'data-size': m.size, 'data-hidden': m.hidden ? 'true' : 'false' },
+        dashEdit ? modBar(list, m, i, w) : null,
+        h('div', { class: 'modbody', inert: dashEdit ? true : null }, el || h('p', { class: 'mut small', text: L.layout.label(m.id) + ' has nothing to show right now.' }))));
+    });
+    return h('div', null, h('div', { class: 'row sp' }, h('h1', { text: 'Dashboard' }), h('div', { class: 'row' }, btn('Log study', function () { studyDialog(''); }, 'qa-btn', { id: 'quick-study' }), btn('Add activity', function () { go('domain', { domain: 'activities', open: 'act-add' }); }, 'qa-btn', { id: 'quick-activity' }), btn('Quick add', quickAdd, 'pri qa-btn', { id: 'quick-add' }), btn(dashEdit ? 'Done' : 'Customize', function () { dashEdit = !dashEdit; render(); }, 'qa-btn', { id: 'dash-customize' }))),
       due ? h('div', { class: 'warn' }, due + (due === 1 ? ' recurring item is' : ' recurring items are') + ' due. ', btn('Review', function () { go('domain', { domain: 'money' }); }, 'sm', { id: 'due-review' })) : null,
-      glanceCard(s, t, 'dash-glance'), pr, h('div', { class: 'grid' }, tiles));
+      dashEdit ? h('div', { class: 'card', id: 'dash-edit' }, h('p', { class: 'small', id: 'dash-edit-note', text: 'Editing the layout for ' + (w === 'narrow' ? 'narrow screens (under 720 px wide)' : 'wide screens (720 px and over)') + '. Drag a module or use Move up and Move down. Hidden modules are dimmed.' }),
+        btn('Reset to default', function () { act(function () { return commit(function (x) { L.layout.reset(x.settings, w); }).then(function () { setNotice('ok', 'Layout reset.'); render(); }); }); }, 'sm', { id: 'dash-reset' })) : null,
+      h('div', { class: 'grid modgrid' + (dashEdit ? ' editing' : ''), id: 'dash-grid', 'data-layout': w }, mods));
+  }
+
+  // ---------- customizable home (v0.12.0) ----------
+  function saveLayout(list, w, focus) {
+    return act(function () {
+      return commit(function (x) { L.layout.set(x.settings, w, list); }).then(function () {
+        render();
+        if (focus) { var f = document.querySelector('.mod[data-mod="' + focus.id + '"] ' + focus.sel); if (f && !f.disabled) f.focus(); else { var g = document.querySelector('.mod[data-mod="' + focus.id + '"] .mv-hide'); if (g) g.focus(); } }
+      });
+    });
+  }
+  function modBar(list, m, i, w) {
+    var label = L.layout.label(m.id), def = L.layout.MODULES.filter(function (x) { return x.id === m.id; })[0];
+    // UI-10: dragging is pointer only (mouse or touch); keyboard and screen reader users have Move up and Move down.
+    var drag = h('button', { type: 'button', class: 'btn sm drag', text: 'Drag', title: 'Drag with a mouse or finger to reorder', tabindex: '-1', 'aria-hidden': 'true' });
+    drag.addEventListener('pointerdown', function (e) { dragModule(e, drag, list, w); });
+    return h('div', { class: 'modbar' },
+      h('strong', { class: 'modname', text: label }),
+      drag,
+      btn('Move up', function () { saveLayout(L.layout.move(list, m.id, -1), w, { id: m.id, sel: '.mv-up' }); }, 'sm mv-up', { 'aria-label': 'Move ' + label + ' up', disabled: i === 0 }),
+      btn('Move down', function () { saveLayout(L.layout.move(list, m.id, 1), w, { id: m.id, sel: '.mv-down' }); }, 'sm mv-down', { 'aria-label': 'Move ' + label + ' down', disabled: i === list.length - 1 }),
+      btn(m.hidden ? 'Show' : 'Hide', function () { saveLayout(L.layout.setHidden(list, m.id, !m.hidden), w, { id: m.id, sel: '.mv-hide' }); }, 'sm mv-hide', { 'aria-label': (m.hidden ? 'Show ' : 'Hide ') + label }),
+      def.sizes.length > 1 ? sizeSel(list, m, w, label) : null);
+  }
+  // UI-2, UI-3: the size select is named for its module and found again by its class after the save re-renders.
+  function sizeSel(list, m, w, label) {
+    var z = sel(null, [{ v: 'small', t: 'Small' }, { v: 'wide', t: 'Wide' }], m.size, function (e) { saveLayout(L.layout.setSize(list, m.id, e.target.value), w, { id: m.id, sel: '.mv-size' }); });
+    z.setAttribute('class', 'mv-size');
+    z.setAttribute('aria-label', 'Size of ' + label);
+    return z;
+  }
+  // Pointer-event drag (mouse and touch): the module follows the pointer by moving in the grid; on release the new order is saved.
+  function dragModule(e, handle, list, w) {
+    if (e.button !== undefined && e.button !== 0) return;
+    var wrap = handle.closest('.mod'), grid = wrap.parentNode;
+    e.preventDefault();
+    try { handle.setPointerCapture(e.pointerId); } catch (x) { /* ignore */ }
+    var ids = function () { return Array.prototype.map.call(grid.children, function (c) { return c.getAttribute('data-mod'); }); };
+    var before = ids().join(',');
+    wrap.classList.add('dragging');
+    function move(ev) {
+      var gr = grid.getBoundingClientRect(), kids = Array.prototype.filter.call(grid.children, function (c) { return c !== wrap; });
+      for (var i = 0; i < kids.length; i++) {
+        var r = kids[i].getBoundingClientRect();
+        if (ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom) {
+          var stacked = r.width > gr.width * 0.9, first = stacked ? ev.clientY < r.top + r.height / 2 : ev.clientX < r.left + r.width / 2;
+          grid.insertBefore(wrap, first ? kids[i] : kids[i].nextSibling);
+          break;
+        }
+      }
+    }
+    function stop() { document.removeEventListener('pointermove', move); document.removeEventListener('pointerup', up); document.removeEventListener('pointercancel', cancel); wrap.classList.remove('dragging'); }
+    function up() {
+      stop();
+      var order = ids();
+      if (order.join(',') === before) return;
+      var byId = {};
+      list.forEach(function (m) { byId[m.id] = m; });
+      saveLayout(order.map(function (id) { return byId[id]; }), w, { id: wrap.getAttribute('data-mod'), sel: '.drag' });
+    }
+    function cancel() { stop(); render(); }
+    document.addEventListener('pointermove', move);
+    document.addEventListener('pointerup', up);
+    document.addEventListener('pointercancel', cancel);
+  }
+  function revMonthTile(s, t) {
+    var tot = L.revenue.totalsIn(s, { kind: 'all' }, t.slice(0, 7) + '-01', L.metrics.monthEnd(t.slice(0, 7)));
+    return h('button', { type: 'button', class: 'rtile', id: 'tile-rev-month', onclick: function () { go('domain', { domain: 'work', revenue: true }); } },
+      h('span', { class: 'tile-title' }, 'Revenue this month ', lockMark(['entries', 'projects'])),
+      h('span', { class: 'tile-value', id: 'dm-revenue', text: fmtC(s, tot.revenueCents) }),
+      h('span', { class: 'tile-sub', text: 'Received income' }),
+      h('span', { class: 'tile-sub', id: 'dm-sub', text: 'Expenses ' + fmtC(s, tot.expenseCents) + ', net ' + fmtC(s, tot.netCents) }));
+  }
+  function revNetLineCard(s, t) {
+    var rep = L.revenue.report(s, L.revenue.periodRange('month', t));
+    var rows = rep.lines.filter(function (l) { return l.revenueCents || l.expenseCents; }).concat(rep.unassigned.revenueCents || rep.unassigned.expenseCents ? [rep.unassigned] : [])
+      .sort(function (a, b) { return b.netCents - a.netCents || a.name.localeCompare(b.name); });
+    return h('div', { class: 'card', id: 'card-rev-net-line' }, h('h2', null, 'Net by line of work this month ', lockMark(['entries', 'projects'])),
+      rows.length ? rows.slice(0, 8).map(function (l) {
+        return h('div', { class: 'row sp item', 'data-line': l.name }, h('span', { text: l.name }), h('span', { class: l.netCents < 0 ? 'bad-t' : '', text: fmtC(s, l.netCents) }));
+      }) : h('p', { class: 'mut', text: 'No money recorded this month.' }),
+      btn('Open Revenue', function () { go('domain', { domain: 'work', revenue: true }); }, 'sm', { id: 'rev-open-card' }));
+  }
+  function revExpectedTile(s, t) {
+    var ex = L.revenue.expected(s, { kind: 'all' }, t);
+    return h('button', { type: 'button', class: 'rtile', id: 'tile-rev-expected', onclick: function () { go('domain', { domain: 'work', revenue: true }); } },
+      h('span', { class: 'tile-title' }, 'Expected income ', lockMark(['entries', 'projects'])),
+      h('span', { class: 'tile-value', id: 'de-next30', text: fmtC(s, ex.next30Cents) }),
+      h('span', { class: 'tile-sub', text: 'Expected in the next 30 days' }),
+      h('span', { class: 'tile-sub', id: 'de-overdue', text: ex.overdueCount + ' overdue (' + fmtC(s, ex.overdueCents) + ')' }));
   }
 
   // ---------- domain ----------
@@ -6452,6 +7331,13 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     if (d.id === 'money') {
       refs.category = h('select', { id: 'f-cat' }, [h('option', { value: '', text: '(none)' })].concat(catList(s, tid).map(function (c) { return h('option', { value: c, text: c }); })));
       fs.push(field('Category (optional)', refs.category));
+      refs.line = sel('f-line', lineOptions(s, '(no line of work)'), '');
+      fs.push(field('Line of work (optional)', refs.line));
+      if (tid === 'income') {
+        refs.mstatus = sel('f-mstatus', [{ v: 'received', t: 'Received' }, { v: 'expected', t: 'Expected (not counted until received)' }], 'received');
+        refs.mdue = h('input', { type: 'date', id: 'f-mdue' });
+        fs.push(field('Income status', refs.mstatus), field('Due date (expected income)', refs.mdue));
+      }
     }
     if (STATUS[skey] || names.indexOf('status') >= 0) {
       var so = STATUS[skey] || ['open', 'done'];
@@ -6473,6 +7359,9 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
           if (refs.value && refs.value.value !== '') p.value = Number(refs.value.value);
           if (refs.status) p.status = refs.status.value;
           if (refs.category && refs.category.value) p.category = refs.category.value;
+          if (refs.line && refs.line.value) p.projectId = refs.line.value;
+          if (refs.mstatus && refs.mstatus.value === 'expected') p.status = 'expected';
+          if (refs.mdue && refs.mdue.value) p.dueDate = refs.mdue.value;
           if (refs.person && refs.person.value.trim()) p.person = refs.person.value.trim();
           if (refs.due && refs.due.value) p.due = refs.due.value;
           if (refs.kind && refs.kind.value) p.kind = refs.kind.value;
@@ -6497,6 +7386,8 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       if (en.value !== undefined) meta.push(en.type === 'weight' ? fmt1(en.value) : String(en.value));
       if (en.category) meta.push(en.category);
       if (en.status) meta.push(en.status);
+      if (en.dueDate) meta.push('due ' + en.dueDate);
+      if (en.projectId && projName(s, en.projectId)) meta.push(projName(s, en.projectId));
       if (en.person) meta.push(en.person);
       if (en.due) meta.push('due ' + en.due);
       if (en.kind) meta.push(en.kind);
@@ -6506,13 +7397,15 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
         h('div', null, h('div', { class: 'entry-t', text: en.title }),
           h('div', { class: 'mut small', text: en.date + ' | ' + meta.join(' | ') }),
           en.notes ? h('div', { class: 'small', text: en.notes }) : null),
-        btn('Delete', function () {
-          openDialog({
-            title: 'Delete this entry?', yes: 'Delete', danger: true,
-            body: h('p', { class: 'mut', text: en.title }),
-            onYes: function () { return commit(function (x) { x.entries = x.entries.filter(function (z) { return z.id !== en.id; }); }).then(function () { render(); }); }
-          });
-        }, 'sm bad', { 'aria-label': 'Delete ' + en.title }));
+        h('div', { class: 'row' },
+          L.revenue.isExpected(en) ? btn('Mark received', function () { markReceivedDialog({ id: en.id, title: en.title }); }, 'sm pri', { 'aria-label': 'Mark ' + en.title + ' received' }) : null,
+          btn('Delete', function () {
+            openDialog({
+              title: 'Delete this entry?', yes: 'Delete', danger: true,
+              body: h('p', { class: 'mut', text: en.title }),
+              onYes: function () { return commit(function (x) { x.entries = x.entries.filter(function (z) { return z.id !== en.id; }); }).then(function () { render(); }); }
+            });
+          }, 'sm bad', { 'aria-label': 'Delete ' + en.title })));
     });
     var out = h('div', null,
       opts.embed ? null : btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'),
@@ -6768,12 +7661,13 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     var rCad = sel('rc-cadence', [{ v: 'weekly', t: 'Weekly' }, { v: 'monthly', t: 'Monthly' }, { v: 'yearly', t: 'Yearly' }], 'monthly');
     var rNext = h('input', { type: 'date', id: 'rc-next', value: t, required: true });
     var rHouse = h('input', { type: 'checkbox', id: 'rc-household' });
+    var rLine = sel('rc-line', lineOptions(s, '(no line of work)'), '');
     var recurring = details('recurring', 'Recurring items (' + s.recurring.length + ')', [
       h('p', { class: 'mut small', text: 'These only create a proposal on the due date. You confirm each one.' }),
       s.recurring.map(function (r) {
         return h('div', ROW({ class: 'item' }, 'recurring', r),
           h('div', null, h('div', { class: 'entry-t', text: r.title }),
-            h('div', { class: 'mut small', text: (r.type === 'income' ? 'Income ' : 'Expense ') + moneyFmt(L.metrics.cents(r.value), cur) + ' | ' + r.cadence + ' | next ' + r.nextDate + (r.active ? '' : ' | paused') + (r.household ? ' | household' : '') })),
+            h('div', { class: 'mut small', text: (r.type === 'income' ? 'Income ' : 'Expense ') + moneyFmt(L.metrics.cents(r.value), cur) + ' | ' + r.cadence + ' | next ' + r.nextDate + (r.active ? '' : ' | paused') + (r.household ? ' | household' : '') + (r.projectId && projName(s, r.projectId) ? ' | ' + projName(s, r.projectId) : '') })),
           h('div', { class: 'row' },
             btn(r.active ? 'Pause' : 'Resume', function () { act(function () { return commit(function (x) { x.recurring.forEach(function (z) { if (z.id === r.id) z.active = !z.active; }); }, 'recurring toggle').then(function () { view.open = 'recurring'; render(); }); }); }, 'sm', { 'aria-label': (r.active ? 'Pause ' : 'Resume ') + r.title }),
             btn('Delete', function () { act(function () { return commit(function (x) { x.recurring = x.recurring.filter(function (z) { return z.id !== r.id; }); }, 'recurring delete').then(function () { view.open = 'recurring'; render(); }); }); }, 'sm bad', { 'aria-label': 'Delete ' + r.title })));
@@ -6783,11 +7677,12 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
           e.preventDefault();
           act(function () {
             var item = { id: L.store.newId(), title: rT.value.trim(), value: parseAmount(rA.value), category: rCat.value, type: rType.value, cadence: rCad.value, nextDate: rNext.value, active: true, household: rType.value === 'expense' && rHouse.checked };
+            if (rLine.value) item.projectId = rLine.value;
             if (!item.title) throw new Error('Enter a title.');
             return commit(function (x) { x.recurring.push(item); }, 'recurring add').then(function () { view.open = 'recurring'; setNotice('ok', 'Recurring item added.'); render(); });
           });
         }
-      }, field('Title', rT), field('Amount', rA), field('Type', rType), field('Category', rCat), field('Repeats', rCad), field('Next date', rNext), h('label', { class: 'field check' }, rHouse, h('span', { text: 'Household bill (expenses only; shown under Home)' })), h('button', { type: 'submit', class: 'btn pri', text: 'Add recurring' })),
+      }, field('Title', rT), field('Amount', rA), field('Type', rType), field('Category', rCat), field('Repeats', rCad), field('Next date', rNext), field('Line of work (optional)', rLine), h('label', { class: 'field check' }, rHouse, h('span', { text: 'Household bill (expenses only; shown under Home)' })), h('button', { type: 'submit', class: 'btn pri', text: 'Add recurring' })),
     ], view.open === 'recurring');
 
     // categories
@@ -6836,7 +7731,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
           h('tbody', null, cf.map(function (r) {
             return h('tr', null, h('td', { text: monthLabel(r.month) }), h('td', { text: moneyFmt(r.incomeCents, cur) }), h('td', { text: moneyFmt(r.spendCents, cur) }), h('td', { text: moneyFmt(r.netCents, cur) }));
           }))))),
-      budgets, recurring, cats,
+      budgets, recurring, cats, bulkAssignCard(s),
       h('h2', { text: 'All entries' }),
       domainScreen(s, { embed: true }));
   }
@@ -6976,7 +7871,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     var why = h('input', { type: 'text', id: 'reject-reason', maxlength: '200' });
     openDialog({
       title: 'Reject this insight', yes: 'Reject',
-      body: [h('p', { class: 'mut', text: i.text }), field('Why? (optional, helps future suggestions)', why)],
+      body: [h('p', { class: 'mut', text: i.text }), field('Why? (optional, kept as a note on this device)', why, 'Your reason is never sent to the AI. The AI only learns how many insights were rejected in each area.')],
       onYes: function () {
         var r = why.value.trim().slice(0, 200);
         return commit(function (x) { L.memory.decide(x, i.id, 'rejected', r || undefined); }).then(function () { render(); });
@@ -7008,12 +7903,12 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     var kind = mainState().settings.provider.kind;
     var box = h('div', null,
       h('div', { class: 'row' }, btn(label, function () { suggestAI(level, period); }, 'sm', { id: 'ai-suggest' })),
-      h('p', { class: 'mut small', text: kind === 'anthropic' ? 'Sends only the numeric digest, approved insights and lessons to api.anthropic.com.' : kind === 'local' ? 'Sends only the numeric digest, approved insights and lessons to your local model.' : 'Manual mode: copy the prompt into your own AI chat and paste the reply here.' }));
+      h('p', { class: 'mut small', text: kind === 'anthropic' ? 'Sends only the numeric digest, approved insights and counts of rejected insights to api.anthropic.com.' : kind === 'local' ? 'Sends only the numeric digest, approved insights and counts of rejected insights to your local model.' : 'Manual mode: copy the prompt into your own AI chat and paste the reply here.' }));
     if (ai && ai.level === level && ai.period.from === period.from) {
       var ta = h('textarea', { id: 'ai-prompt', readOnly: true, value: ai.prompt, 'aria-label': 'Prompt to copy' });
       var paste = h('textarea', { id: 'ai-paste', 'aria-label': 'Paste the AI reply here', maxlength: '20000' });
       box.appendChild(h('div', { class: 'card' },
-        h('p', { class: 'small', text: 'The prompt has numbers only, no entries, titles or names.' }),
+        h('p', { class: 'small', text: 'The prompt holds the numeric digest, your approved insights and counts of rejected insights. No entries, titles, names or rejection reasons.' }),
         ta,
         h('div', { class: 'row' }, btn('Copy', function () { copyText(ta).then(function () { setNotice('ok', 'Copied.'); }, function (e) { setNotice('err', friendly(e)); }); }, 'sm')),
         field('Paste the reply (a JSON list)', paste),
@@ -7072,8 +7967,10 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       reviewActivitiesCard(s, wk, t),
       h('h2', { text: '7. Social' }),
       reviewSocialCard(s, wk, t),
+      h('h2', { text: '8. Revenue' }),
+      reviewRevenueCard(s, wk, t),
       reviewWellbeingStep(t),
-      h('h2', { text: (L.priv.isOpen() ? '9' : '8') + '. Your three priorities' }),
+      h('h2', { text: (L.priv.isOpen() ? '10' : '9') + '. Your three priorities' }),
       h('form', {
         class: 'card',
         onsubmit: function (e) {
@@ -7097,7 +7994,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   function reviewWellbeingStep(t) {
     if (!L.priv.isOpen()) return null;
     var W = L.wellbeing, wb = L.priv.getWellbeing();
-    return h('div', { id: 'rv-wellbeing' }, h('h2', { text: '8. Wellbeing' }),
+    return h('div', { id: 'rv-wellbeing' }, h('h2', { text: '9. Wellbeing' }),
       h('div', { class: 'card' }, h('p', { class: 'mut small', text: 'Shown only while the private vault is open. Nothing here is saved with the review.' }),
         h('table', null, h('thead', null, h('tr', null, ['Area', 'Today', '7-day average', 'Check-ins'].map(function (x) { return h('th', { text: x }); }))),
           h('tbody', null, W.AREAS.map(function (a) {
@@ -7110,7 +8007,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
 
   // ---------- work (v0.4.0) ----------
   var STAGE_LABEL = { lead: 'Lead', contacted: 'Contacted', applied: 'Applied', interview: 'Interview', offer: 'Offer', won: 'Won', lost: 'Lost' };
-  var PKIND = [['job', 'Job'], ['venture', 'Venture'], ['client', 'Client'], ['personal', 'Personal']];
+  var PKIND = [['job', 'Job'], ['venture', 'Venture'], ['client', 'Client'], ['personal', 'Personal'], ['website', 'Website'], ['podcast', 'Podcast']];
   var PLKIND = [['job', 'Job'], ['deal', 'Deal'], ['partner', 'Partner']];
   function projName(s, id) {
     var p = (s.projects || []).filter(function (x) { return x.id === id; })[0];
@@ -7118,11 +8015,12 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   }
   // Delete a project after an in-page confirm. Linked outcomes are kept and unlinked.
   function askDeleteProject(s, p) {
-    var n = L.metrics.linkedOutcomeCount(s, p.id);
+    var n = L.metrics.linkedOutcomeCount(s, p.id), k = L.revenue.linkedCounts(s, p.id);
     openDialog({
       title: 'Delete this project?', yes: 'Delete project', danger: true,
       body: [h('p', { class: 'mut', text: p.name }),
-        h('p', { class: 'small', id: 'pj-del-info', text: n + (n === 1 ? ' linked outcome is' : ' linked outcomes are') + ' kept and unlinked from this project. The project itself is removed.' })],
+        h('p', { class: 'small', id: 'pj-del-info', text: n + (n === 1 ? ' linked outcome is' : ' linked outcomes are') + ' kept and unlinked from this project. The project itself is removed.' }),
+        h('p', { class: 'small', id: 'pj-del-money', text: (k.entries - n) + ' linked money ' + (k.entries - n === 1 ? 'entry' : 'entries') + ', ' + k.recurring + ' recurring ' + (k.recurring === 1 ? 'item' : 'items') + ' and ' + k.children + ' ' + (k.children === 1 ? 'line' : 'lines') + ' under it are kept and unlinked. Nothing is deleted with it.' })],
       onYes: function () { return commit(function (x) { L.metrics.deleteProject(x, p.id); }, 'project delete').then(function () { setNotice('ok', 'Project deleted.'); render(); }); }
     });
   }
@@ -7203,6 +8101,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     var pKind = sel('pj-kind', PKIND.map(function (k) { return { v: k[0], t: k[1] }; }), 'job');
     var pNext = h('input', { type: 'text', id: 'pj-next', maxlength: '200', autocomplete: 'off' });
     var pDate = h('input', { type: 'date', id: 'pj-date' });
+    var pParent = sel('pj-parent', parentLineOptions(s, ''), '');
     var pForm = h('form', {
       onsubmit: function (e) {
         e.preventDefault();
@@ -7212,10 +8111,11 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
           if (live.length >= 200 || projects.length >= 2000) throw new Error('You have reached the 200 project limit. Archive or delete some.');
           var p = { id: L.store.newId(), name: name, kind: pKind.value, status: 'active', nextAction: pNext.value.trim(), archived: false };
           if (pDate.value) p.nextDate = pDate.value;
+          if (pParent.value) p.parentId = pParent.value;
           return commit(function (x) { x.projects.push(p); }, 'project add').then(function () { setNotice('ok', 'Project added.'); render(); });
         });
       }
-    }, field('Project name', pName), field('Kind', pKind), field('Next action', pNext), field('Next action date (optional)', pDate),
+    }, field('Project name', pName), field('Kind', pKind), field('Under (optional parent line of work)', pParent), field('Next action', pNext), field('Next action date (optional)', pDate),
       h('button', { type: 'submit', class: 'btn pri', id: 'pj-add', text: 'Add project' }));
     function setProj(p, fn, action) {
       act(function () { return commit(function (x) { x.projects.forEach(function (z) { if (z.id === p.id) fn(z); }); }, action).then(function () { render(); }); });
@@ -7226,6 +8126,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       return h('div', ROW({ class: 'item proj', 'data-project': p.name }, 'projects', p),
         h('div', null, h('div', { class: 'entry-t', text: p.name }),
           h('div', { class: 'mut small' }, h('span', { class: 'chip', text: p.kind }), h('span', { class: 'chip', text: p.status }),
+            p.parentId && projName(s, p.parentId) ? h('span', { class: 'chip', text: 'under ' + projName(s, p.parentId) }) : null,
             od ? h('span', { class: 'chip bad', text: 'Overdue' }) : null),
           h('div', { class: 'small', text: p.nextAction ? 'Next: ' + p.nextAction + (p.nextDate ? ' (' + p.nextDate + ')' : '') : (p.nextDate ? 'Next date ' + p.nextDate : 'No next action set') }),
           workLinks(s, 'projectIds', p.id, t, p.name)),
@@ -7242,7 +8143,8 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
           }, 'sm', { 'aria-label': 'Update next action for ' + p.name }),
           p.status === 'active' ? btn('Pause', function () { setProj(p, function (z) { z.status = 'paused'; }, 'project pause'); }, 'sm', { 'aria-label': 'Pause ' + p.name }) : btn('Resume', function () { setProj(p, function (z) { z.status = 'active'; }, 'project resume'); }, 'sm', { 'aria-label': 'Resume ' + p.name }),
           p.status !== 'done' ? btn('Done', function () { setProj(p, function (z) { z.status = 'done'; }, 'project done'); }, 'sm', { 'aria-label': 'Finish ' + p.name }) : null,
-          btn('Archive', function () { setProj(p, function (z) { z.archived = true; }, 'project archive'); }, 'sm', { 'aria-label': 'Archive ' + p.name }),
+          btn('Parent', function () { parentDialog(s, p); }, 'sm', { 'aria-label': 'Change the parent line of ' + p.name }),
+          btn('Archive', function () { act(function () { return commit(function (x) { L.revenue.archiveProject(x, p.id); }, 'project archive').then(function () { render(); }); }); }, 'sm', { 'aria-label': 'Archive ' + p.name }),
           btn('Delete', function () { askDeleteProject(s, p); }, 'sm bad', { 'aria-label': 'Delete ' + p.name })));
     });
     var archived = projects.filter(function (p) { return p.archived; });
@@ -7305,9 +8207,9 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
             workLinks(s, 'pipelineIds', it.id, t, it.title),
             h('div', { class: 'row' },
               nxt ? btn('To ' + STAGE_LABEL[nxt], function () { setItem(it, function (z) { z.stage = nxt; }, 'pipeline stage'); }, 'sm pri', { 'aria-label': 'Move ' + it.title + ' to ' + STAGE_LABEL[nxt] }) : null,
-              sel(null, order.map(function (k) { return { v: k, t: STAGE_LABEL[k] }; }), it.stage, function (e) {
+              labelled(sel(null, order.map(function (k) { return { v: k, t: STAGE_LABEL[k] }; }), it.stage, function (e) {
                 var v = e.target.value; if (v !== it.stage) setItem(it, function (z) { z.stage = v; }, 'pipeline stage');
-              }),
+              }), 'Stage of ' + it.title),
               stale ? btn('Touched today', function () { setItem(it, function () {}, 'pipeline touch'); }, 'sm', { 'aria-label': 'Mark ' + it.title + ' updated today' }) : null,
               btn('Delete', function () {
                 openDialog({ title: 'Delete this item?', yes: 'Delete', danger: true, body: h('p', { class: 'mut', text: it.title }),
@@ -7321,7 +8223,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
 
     var trend = h('div', { class: 'card' }, h('h2', { text: 'Outcomes completed, last 8 weeks' }), trendChart(L.metrics.series(s, 'work', 8, t)));
     var cc = carryCard(s, wk, render);
-    return h('div', null, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Work' }), stats,
+    return h('div', null, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('div', { class: 'row sp' }, h('h1', { text: 'Work' }), btn('Revenue', function () { go('domain', { domain: 'work', revenue: true }); }, 'pri', { id: 'open-revenue' })), stats,
       oCard, cc, pCard, lCard, trend,
       details('work-data', 'Entries and CSV', [
         h('div', { class: 'row' },
@@ -7702,9 +8604,13 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     var curIn = h('input', { type: 'text', id: 'g-cur', inputmode: 'decimal', maxlength: '20', autocomplete: 'off' });
     var notes = h('textarea', { id: 'g-notes', maxlength: '2000' });
     var manualBox = h('div', { id: 'g-manual-box' }, field('Area (manual goals only)', domain), field('Current value (optional)', curIn));
+    var gLine = sel('g-line', lineOptions(s, '(all money)'), '');
+    var gRoll = h('input', { type: 'checkbox', id: 'g-rollup' });
+    var scopeBox = h('div', { id: 'g-scope-box', class: 'hidden' }, field('Line of work (optional)', gLine), h('label', { class: 'field check' }, gRoll, h('span', { text: 'Include lines under it (rollup)' })));
     function sync() {
       var man = metric.value === 'manual';
       manualBox.setAttribute('class', man ? '' : 'hidden');
+      scopeBox.setAttribute('class', metric.value === 'revenueMonth' || metric.value === 'netMonth' ? '' : 'hidden');
       parent.replaceChildren.apply(parent, parentOptions(s, horizon.value).map(function (o) { return h('option', { value: o.v, text: o.t }); }));
     }
     horizon.addEventListener('change', sync);
@@ -7716,6 +8622,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
         act(function () {
           var p = { title: title.value, horizon: horizon.value, metric: metric.value, direction: dir.value, startValue: start.value, targetValue: target.value, startDate: sdate.value, dueDate: due.value || undefined, parentId: parent.value || undefined, notes: notes.value };
           if (metric.value === 'manual') { p.domain = domain.value; p.manualValue = curIn.value; }
+          if ((metric.value === 'revenueMonth' || metric.value === 'netMonth') && gLine.value) { p.projectId = gLine.value; p.rollup = !!gRoll.checked; }
           if (L.goals.isWellbeingMetric(metric.value) && !newPriv()) throw new Error('A wellbeing goal metric can only be used by a private goal. Tick "New items are private" first.');
           return commit(function (x) { L.goals.addGoal(x, p, t); }, 'goal add').then(function () { setNotice('ok', 'Goal added.'); render(); });
         });
@@ -7723,7 +8630,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     }, field('Title', title), field('Horizon', horizon), field('What it measures', metric), field('Direction', dir),
       field('Start value', start, 'Leave blank to start from the current value of a linked metric.'), field('Target', target),
       field('Start date', sdate), field('Due date (blank: end of the period)', due), field('Parent goal (a longer horizon, optional)', parent),
-      manualBox, field('Notes (optional)', notes),
+      manualBox, scopeBox, field('Notes (optional)', notes),
       h('button', { type: 'submit', class: 'btn pri', id: 'g-add', text: 'Add goal' }));
   }
   function goalsScreen(s) {
@@ -7951,7 +8858,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
 
     // household bills: Money recurring items with a household flag
     var others = (s.recurring || []).filter(function (r) { return !r.household && r.type === 'expense'; });
-    var pick = others.length ? sel('hb-pick', others.map(function (r) { return { v: r.id, t: r.title }; }), others[0].id) : null;
+    var pick = others.length ? labelled(sel('hb-pick', others.map(function (r) { return { v: r.id, t: r.title }; }), others[0].id), 'Recurring item to flag as a household bill') : null;
     var billsCard = h('div', { class: 'card', id: 'hm-bills' }, h('h2', { text: 'Household bills' }),
       h('p', { class: 'mut small', text: 'These are your Money recurring items flagged as household. There is no second list. Weekly counts 52 a year, yearly counts once.' }),
       sum.bills.items.length ? sum.bills.items.map(function (b) {
@@ -8082,7 +8989,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
             return h('div', ROW({ class: 'item tx-row', 'data-title': it.title }, 'taxItems', it),
               h('div', null, h('span', { class: 'entry-t' + (it.state === 'filed' ? ' done-t' : ''), text: it.title }), h('div', { class: 'mut small', text: it.state + (it.dueDate ? ' | due ' + it.dueDate : '') })),
               h('div', { class: 'row' },
-                sel('tx-state-' + it.id, A.TAX_STATES.map(function (v) { return { v: v, t: v }; }), it.state, function (e) { var v = e.target.value; act(function () { return commit(function (x) { A.setTaxState(x, it.id, v); }, 'tax item state').then(function () { view.open = 'ad-tax'; render(); }); }); }),
+                labelled(sel('tx-state-' + it.id, A.TAX_STATES.map(function (v) { return { v: v, t: v }; }), it.state, function (e) { var v = e.target.value; act(function () { return commit(function (x) { A.setTaxState(x, it.id, v); }, 'tax item state').then(function () { view.open = 'ad-tax'; render(); }); }); }), 'State of ' + it.title),
                 btn('Delete', function () { act(function () { return commit(function (x) { A.deleteTaxItem(x, it.id); }, 'tax item delete').then(function () { view.open = 'ad-tax'; render(); }); }); }, 'sm bad', { 'aria-label': 'Delete ' + it.title })));
           }));
       }),
@@ -8677,6 +9584,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       a.forEach(function (i) { out.push(insightCard(i, false)); });
     });
     out.push(h('h2', { text: 'Lessons from rejections (' + s.memory.lessons.length + ')' }));
+    out.push(h('p', { class: 'mut small', id: 'lessons-local', text: 'These reasons stay on this device. They are never sent to the AI.' }));
     if (!s.memory.lessons.length) out.push(h('p', { class: 'mut', text: 'None yet.' }));
     out.push(h('div', null, s.memory.lessons.map(function (l) { return h('div', { class: 'card' }, h('p', { text: l.text })); })));
     return h('div', null, out);
@@ -9022,8 +9930,8 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
         var a = p1.value;
         checkPass(a);
         if (a !== p2.value) throw new Error('The two passphrases do not match.');
-        return L.priv.setUp(a).then(function () { p1.value = ''; p2.value = ''; setNotice('ok', 'Private vault set up and open.'); render(); });
-      });
+        return L.priv.setUp(a).then(function () { setNotice('ok', 'Private vault set up and open.'); render(); });
+      }).then(function () { p1.value = ''; p2.value = ''; });
     } }, h('h2', { text: 'Set up the private vault' }),
       field('Private passphrase (12 characters or more, different from your main passphrase)', p1), field('Confirm private passphrase', p2),
       h('p', { class: 'warn small', text: 'If you forget this passphrase, the private items cannot be recovered. There is no reset and no backdoor.' }),
@@ -9063,7 +9971,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       body: [h('p', { class: 'mut', text: dir === 'in' ? 'It disappears from every screen, total and export while the vault is closed.' : 'It becomes an ordinary item again, visible with the app unlocked.' }),
         pair ? h('p', { class: 'small', id: 'priv-pair', text: 'An activity and its Money expense always move together.' }) : null,
         c === 'habits' ? h('p', { class: 'small', text: 'Its ticks move with it.' }) : null,
-        kids.length ? h('label', { class: 'row small' }, chk, h('span', { text: 'Also move ' + kids.length + ' linked ' + (kids.length === 1 ? 'item' : 'items') + ' (recommended)' })) : null],
+        kids.length ? h('label', { class: 'row small' }, chk, h('span', { text: 'Also move ' + kids.length + ' linked ' + (kids.length === 1 ? 'item' : 'items') + ' (default)' })) : null],
       onYes: function () {
         return (dir === 'in' ? L.priv.moveIn : L.priv.moveOut)(c, key, { children: kids.length ? !!chk.checked : false }).then(function () { setNotice('ok', dir === 'in' ? 'Moved to the private vault.' : 'Moved out of the private vault.'); render(); });
       }
@@ -9106,17 +10014,29 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       } }, field('Close the private vault after this many idle seconds (15 to 1800)', secs), h('button', { type: 'submit', class: 'btn sm', id: 'priv-secs-save', text: 'Save' }))));
     if (L.priv.isOpen()) out.push(privMoveCard(s));
     var o = passOnly('priv-old', 'off'), n1 = passOnly('priv-new1', 'new-password'), n2 = passOnly('priv-new2', 'new-password'), typed = h('input', { type: 'text', id: 'priv-destroy-confirm', autocomplete: 'off' });
+    var chBtn = h('button', { type: 'submit', class: 'btn sm', id: 'priv-change', text: 'Change private passphrase' }), chMsg = h('p', { class: 'small', id: 'priv-change-wait', role: 'status', text: '' });
+    function chTick() {
+      var left = Math.ceil((privFail.until - Date.now()) / 1000);
+      if (left > 0) { chBtn.disabled = true; chMsg.textContent = 'Wrong passphrase. Wait ' + left + ' s before trying again.'; setTimeout(function () { if (chBtn.isConnected) chTick(); }, 250); }
+      else { chBtn.disabled = false; chMsg.textContent = ''; }
+    }
+    chTick();
     out.push(h('div', { class: 'card', id: 'priv-manage' }, h('h2', { text: 'Passphrase and removal' }),
       h('form', { onsubmit: function (e) {
         e.preventDefault();
+        if (Date.now() < privFail.until) return;
         act(function () {
           checkPass(n1.value);
           if (n1.value !== n2.value) throw new Error('The two new passphrases do not match.');
           var a = o.value, c = n1.value;
-          return L.priv.changePassphrase(a, c).then(function () { o.value = ''; n1.value = ''; n2.value = ''; setNotice('ok', 'Private passphrase changed. The vault is closed.'); render(); });
-        });
+          // UI-6: a wrong current passphrase here counts toward the same wrong-passphrase delay as the open form.
+          return L.priv.changePassphrase(a, c).then(function () { privFail = { n: 0, until: 0 }; setNotice('ok', 'Private passphrase changed. The vault is closed.'); render(); }, function (err) {
+            if (err && err.message === 'BAD_PRIVATE_PASSPHRASE') { privFail.n++; privFail.until = Date.now() + Math.min(30000, 1000 * Math.pow(2, privFail.n - 1)); }
+            throw err;
+          });
+        }).then(function () { o.value = ''; n1.value = ''; n2.value = ''; chTick(); });
       } }, field('Current private passphrase', o), field('New private passphrase (12 characters or more)', n1), field('Confirm new private passphrase', n2),
-        h('button', { type: 'submit', class: 'btn sm', id: 'priv-change', text: 'Change private passphrase' })),
+        chBtn, chMsg),
       h('hr'),
       btn('Destroy the private vault', function () {
         openDialog({ title: 'Destroy the private vault?', yes: 'Destroy it', danger: true,
@@ -9331,7 +10251,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
           if (!(r >= 0 && r <= 100)) throw new Error('Savings rate must be 0 to 100.');
           if (!/^[A-Z]{3}$/.test(cu)) throw new Error('Currency must be a three letter code.');
           var m = Number(al.value);
-          return commit(function (x) { x.settings.targets = { workoutsPerWeek: w, contactDays: c, savingsRate: r / 100 }; x.settings.currency = cu; x.settings.autoLockMin = m; L.learning.setWeeklyTarget(x, study.value); }).then(function () { resetIdle(); setNotice('ok', 'Settings saved.'); });
+          return commit(function (x) { x.settings.targets = { workoutsPerWeek: w, contactDays: c, savingsRate: r / 100 }; x.settings.currency = cu; x.settings.autoLockMin = m; L.learning.setWeeklyTarget(x, study.value); }).then(function () { resetIdle(true); setNotice('ok', 'Settings saved.'); });
         });
       }
     }, h('h2', { text: 'Targets and preferences' }), field('Workouts per week', wpw), field('Days between contacts', cd), field('Savings rate target (%)', sr), field('Study minutes per week (0 for none)', study), field('Currency code', cur), field('Auto-lock after idle', al),
@@ -9379,9 +10299,10 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
           if (!f) { setNotice('err', 'Choose a backup file first.'); return; }
           if (f.size > L.vault.MAX_BACKUP) { setNotice('err', 'That file is larger than 64 MB.'); return; }
           if (!ip.value) { setNotice('err', 'Enter the backup passphrase.'); return; }
+          var ipv = ip.value;
+          ip.value = ''; // UI-9: never left in the field, whether the passphrase works or not
           act(function () {
-            return readFile(f, L.vault.MAX_BACKUP).then(function (text) { return L.vault.importBackup(ip.value, text); }).then(function (state) {
-              ip.value = '';
+            return readFile(f, L.vault.MAX_BACKUP).then(function (text) { return L.vault.importBackup(ipv, text); }).then(function (state) {
               if (!L.store.isUnlocked()) return;
               var ins = state.memory.insights, pv2 = state.settings.provider;
               var nAppr = ins.filter(function (i) { return i.status === 'approved'; }).length;
@@ -9419,7 +10340,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       }, field('Restore from a backup file (64 MB max)', bf), field('Backup passphrase', ip),
         h('button', { type: 'submit', class: 'btn', text: 'Import backup' }))));
 
-    out.push(h('p', { class: 'mut small', id: 'app-version', text: 'LifeOS v0.11.0' }));
+    out.push(h('p', { class: 'mut small', id: 'app-version', text: 'LifeOS v1.0.0' }));
 
     if (L.syncUI) out.push(L.syncUI.section(syncCtx()));
 
@@ -9437,7 +10358,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
               if (L.sync) L.sync.disconnect();
               return commit(null, 'wipe').catch(function () {}).then(function () { return L.store.wipe(); }).then(function () {
                 try { L.store.lock(); } catch (e) { /* already locked */ }
-                clearTimeout(idleTimer);
+                clearTimeout(idleTimer); idleTimer = null;
                 vaultExists = false; view = { name: 'lock' }; notice = { kind: 'ok', text: 'All data wiped.' };
                 setTimeout(render, 0);
               });
@@ -9452,8 +10373,261 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     return h('div', null, out);
   }
 
+  // ---------- lines of work and revenue (v0.12.0) ----------
+  function liveLines(s) { return (s.projects || []).filter(function (p) { return !p.archived; }).sort(function (a, b) { return a.name.localeCompare(b.name); }); }
+  function lineOptions(s, none) {
+    return [{ v: '', t: none }].concat(liveLines(s).map(function (p) { return { v: p.id, t: p.name + (p.parentId && projName(s, p.parentId) ? ' (under ' + projName(s, p.parentId) + ')' : '') }; }));
+  }
+  function parentLineOptions(s, selfId) {
+    return [{ v: '', t: '(no parent)' }].concat(liveLines(s).filter(function (p) { return !p.parentId && p.id !== selfId; }).map(function (p) { return { v: p.id, t: p.name }; }));
+  }
+  function parentDialog(s, p) {
+    var hasKids = (s.projects || []).some(function (x) { return x.parentId === p.id; });
+    var pick = sel('pj-parent-pick', hasKids ? [{ v: '', t: '(no parent)' }] : parentLineOptions(s, p.id), p.parentId || '');
+    openDialog({
+      title: 'Parent line of work', yes: 'Save',
+      body: [hasKids ? h('p', { class: 'small', text: 'This line has lines under it, so it cannot have a parent (one level only).' }) : null, field('Under', pick)],
+      onYes: function () { return commit(function (x) { L.revenue.setParent(x, p.id, pick.value); }, 'project parent').then(function () { render(); }); }
+    });
+  }
+  function markReceivedDialog(item) {
+    var d = h('input', { type: 'date', id: 'rcv-date', value: today(), required: true });
+    openDialog({
+      title: 'Mark as received', yes: 'Mark received',
+      body: [h('p', { class: 'mut', text: item.title }), field('Date received', d), h('p', { class: 'small', text: 'It is counted in Money on the date you pick.' })],
+      onYes: function () { return commit(function (x) { L.revenue.markReceived(x, item.id, d.value); }, 'income received').then(function () { setNotice('ok', 'Marked received.'); render(); }); }
+    });
+  }
+  function moveDueDialog(item) {
+    var d = h('input', { type: 'date', id: 'due-date', value: item.due, required: true });
+    openDialog({
+      title: 'Move the due date', yes: 'Save',
+      body: [h('p', { class: 'mut', text: item.title }), field('New due date', d)],
+      onYes: function () { return commit(function (x) { L.revenue.moveDue(x, item.id, d.value); }, 'income due moved').then(function () { setNotice('ok', 'Due date moved.'); render(); }); }
+    });
+  }
+  function writeOffDialog(item) {
+    openDialog({
+      title: 'Write off this income?', yes: 'Write off', danger: true,
+      body: [h('p', { class: 'mut', text: item.title }), h('p', { class: 'small', text: 'It stays in your records as written off and is not counted anywhere.' })],
+      onYes: function () { return commit(function (x) { L.revenue.writeOff(x, item.id); }, 'income written off').then(function () { setNotice('ok', 'Written off.'); render(); }); }
+    });
+  }
+  // One expected-income row with the offer-only actions.
+  function expectedRow(s, x, acts) {
+    var ln = x.projectId ? projName(s, x.projectId) : '';
+    return h('div', ROW({ class: 'item exp-row', 'data-exp': x.title }, 'entries', { id: x.id }),
+      h('div', null, h('div', { class: 'entry-t', text: x.title }), h('div', { class: 'mut small', text: 'Due ' + x.due + ' | ' + fmtC(s, x.cents) + (ln ? ' | ' + ln : '') })),
+      h('div', { class: 'row' },
+        acts.indexOf('received') >= 0 ? btn('Mark received', function () { markReceivedDialog(x); }, 'sm pri', { 'aria-label': 'Mark ' + x.title + ' received' }) : null,
+        acts.indexOf('move') >= 0 ? btn('Move due date', function () { moveDueDialog(x); }, 'sm', { 'aria-label': 'Move the due date of ' + x.title }) : null,
+        acts.indexOf('writeoff') >= 0 ? btn('Write off', function () { writeOffDialog(x); }, 'sm bad', { 'aria-label': 'Write off ' + x.title }) : null));
+  }
+  function reviewRevenueCard(s, wk, t) {
+    var r = L.revenue.reviewWeek(s, wk, t);
+    return h('div', { class: 'card', id: 'rv-revenue' },
+      h('p', { class: 'small', id: 'rv-rev-received', text: 'Received this week: ' + fmtC(s, r.receivedCents) + '.' }),
+      h('p', { class: 'small', id: 'rv-rev-overdue-h', text: 'Overdue expected income (' + r.overdue.length + ', ' + fmtC(s, r.overdueCents) + ')' }),
+      r.overdue.length ? h('p', { class: 'mut small', text: 'Nothing changes until you tap it.' }) : null,
+      r.overdue.map(function (x) { return expectedRow(s, x, ['received', 'move', 'writeoff']); }),
+      lockMark(['entries']));
+  }
+  function bulkAssignCard(s) {
+    var typ = sel('ba-type', [{ v: 'any', t: 'Income and expenses' }, { v: 'income', t: 'Income only' }, { v: 'expense', t: 'Expenses only' }], 'any');
+    var from = h('input', { type: 'date', id: 'ba-from' }), to = h('input', { type: 'date', id: 'ba-to' });
+    var text = h('input', { type: 'text', id: 'ba-text', maxlength: '200', autocomplete: 'off' });
+    var cur = sel('ba-cur', [{ v: 'any', t: 'Any line of work' }, { v: 'none', t: 'Unassigned only' }].concat(lineOptions(s, '').slice(1)), 'any');
+    var target = sel('ba-target', lineOptions(s, '(remove the line of work)'), '');
+    var count = h('p', { class: 'small', id: 'ba-count', role: 'status', text: '' });
+    function matches() { return L.revenue.filterEntries(st(), { type: typ.value, from: from.value || undefined, to: to.value || undefined, text: text.value, line: cur.value }); }
+    return details('bulk-assign', 'Assign entries to a line of work', [
+      h('p', { class: 'mut small', text: 'Filter the entries, then assign them all to one line of work. You confirm the count first.' }),
+      field('Type', typ), field('From date (optional)', from), field('To date (optional)', to), field('Title contains (optional)', text), field('Currently on', cur), field('Assign to', target),
+      h('div', { class: 'row' },
+        btn('Count matches', function () { var n = matches().length; count.textContent = n + (n === 1 ? ' entry matches.' : ' entries match.'); }, 'sm', { id: 'ba-preview' }),
+        btn('Assign...', function () {
+          var list = matches(), n = list.length;
+          if (!n) { count.textContent = 'No entries match.'; return; }
+          var dest = target.value ? projName(st(), target.value) : '';
+          openDialog({
+            title: 'Assign ' + n + (n === 1 ? ' entry?' : ' entries?'), yes: 'Assign',
+            body: [h('p', { class: 'mut', id: 'ba-confirm-count', text: n + (n === 1 ? ' entry' : ' entries') + ' will ' + (target.value ? 'be assigned to the chosen line of work.' : 'lose their line of work.') })],
+            onYes: function () {
+              var ids = list.map(function (e) { return e.id; });
+              return commit(function (x) { L.revenue.assignLine(x, ids, target.value || null); }, 'entries assigned').then(function () { view.open = 'bulk-assign'; setNotice('ok', 'Assigned ' + n + (n === 1 ? ' entry.' : ' entries.')); render(); });
+            }
+          });
+          void dest;
+        }, 'sm pri', { id: 'ba-assign' })),
+      count], view.open === 'bulk-assign');
+  }
+
+  function scopeFrom(s, v) {
+    if (!v || v === 'all') return { kind: 'all' };
+    if (v === 'unassigned') return { kind: 'unassigned' };
+    var i = v.indexOf(':'), k = v.slice(0, i), id = v.slice(i + 1);
+    return (k === 'line' || k === 'rollup') && (s.projects || []).some(function (p) { return p.id === id; }) ? { kind: k, id: id } : { kind: 'all' };
+  }
+  function scopeKey(sc) { return sc.kind === 'line' || sc.kind === 'rollup' ? sc.kind + ':' + sc.id : sc.kind; }
+  function scopeName(s, sc) { return sc.kind === 'all' ? 'All money' : sc.kind === 'unassigned' ? 'Unassigned' : projName(s, sc.id) + (sc.kind === 'rollup' ? ' (with lines under it)' : ''); }
+  function revRow(s, l, kind, sc) {
+    var sel0 = scopeKey(sc) === kind;
+    return h('tr', { 'data-line': l.name, 'data-kind': kind.split(':')[0], 'aria-selected': sel0 ? 'true' : null },
+      h('td', { class: 'c-name', text: l.name }), h('td', { class: 'c-rev', text: fmtC(s, l.revenueCents) }), h('td', { class: 'c-exp', text: fmtC(s, l.expenseCents) }),
+      h('td', { class: 'c-net', text: fmtC(s, l.netCents) }), h('td', { class: 'c-margin', text: L.revenue.marginText(l.marginBp) }),
+      h('td', null, btn('Details', function () { view.sel = kind; render(); }, 'sm', { 'aria-label': 'Show details for ' + l.name })));
+  }
+  function revTable(id, rows) {
+    return h('div', { class: 'tablewrap' }, h('table', { id: id },
+      h('thead', null, h('tr', null, ['Line of work', 'Revenue', 'Expenses', 'Net', 'Margin', ''].map(function (x) { return h('th', { text: x }); }))),
+      h('tbody', null, rows)));
+  }
+  function revenueScreen(s) {
+    var t = today(), R = L.revenue, cur = s.settings.currency;
+    var per = view.period || 'month', custom = { from: view.cfrom || t.slice(0, 7) + '-01', to: view.cto || t }, range, rerr = '';
+    try { range = R.periodRange(per, t, custom); } catch (e) { rerr = friendly(e); range = R.periodRange('month', t); }
+    var rep = R.report(s, range), sc = scopeFrom(s, view.sel);
+    var perSel = sel('rv-period', R.PERIODS.map(function (p) { return { v: p[0], t: p[1] }; }), per, function (e) { view.period = e.target.value; render(); });
+    var cf = h('input', { type: 'date', id: 'rv-from', value: custom.from, onchange: function (e) { view.cfrom = e.target.value; render(); } });
+    var ct = h('input', { type: 'date', id: 'rv-to', value: custom.to, onchange: function (e) { view.cto = e.target.value; render(); } });
+    var tot = rep.total;
+    var shown = rep.lines.filter(function (l) { return !l.archived || l.revenueCents || l.expenseCents; });
+    var lineRows = shown.map(function (l) { return revRow(s, l, 'line:' + l.id, sc); });
+    lineRows.push(revRow(s, rep.unassigned, 'unassigned', sc));
+    var totalRow = h('tr', { 'data-total': 'true' }, h('td', { class: 'c-name', text: 'Total' }), h('td', { class: 'c-rev', text: fmtC(s, tot.revenueCents) }), h('td', { class: 'c-exp', text: fmtC(s, tot.expenseCents) }),
+      h('td', { class: 'c-net', text: fmtC(s, tot.netCents) }), h('td', { class: 'c-margin', text: R.marginText(tot.marginBp) }), h('td', null, btn('Details', function () { view.sel = 'all'; render(); }, 'sm', { 'aria-label': 'Show details for all money' })));
+    lineRows.push(totalRow);
+    var rollRows = rep.rollups.map(function (r) { return revRow(s, r, 'rollup:' + r.id, sc); });
+    // detail for the chosen scope
+    var d = R.totalsIn(s, sc, range.from, range.to), ex = R.expected(s, sc, t), mrows = R.monthly(s, sc, t.slice(0, 7), 12);
+    var detail = h('div', { class: 'card', id: 'rev-detail', 'data-scope': scopeKey(sc) },
+      h('h2', { text: scopeName(s, sc) }),
+      h('div', { class: 'stats' }, stat('Revenue received', fmtC(s, d.revenueCents), 'rd-revenue'), stat('Expenses', fmtC(s, d.expenseCents), 'rd-expenses'), stat('Net', fmtC(s, d.netCents), 'rd-net'), stat('Margin', R.marginText(d.marginBp), 'rd-margin')),
+      h('div', { class: 'stats' }, stat('Recurring monthly revenue', fmtC(s, R.recurringMonthlyCents(s, sc)), 'rd-recurring'),
+        stat('Expected, next 30 days', fmtC(s, ex.next30Cents), 'rd-n30'), stat('Expected, next 60 days', fmtC(s, ex.next60Cents), 'rd-n60'), stat('Expected, next 90 days', fmtC(s, ex.next90Cents), 'rd-n90')),
+      h('div', { class: 'stats' }, stat('Overdue expected income', fmtC(s, ex.overdueCents), 'rd-overdue', ex.overdueCount ? 'bad-t' : ''), stat('Overdue items', String(ex.overdueCount), 'rd-overdue-n')),
+      h('h3', { text: 'Last 12 months' }),
+      cashflowChart(mrows.map(function (r) { return { month: r.month, incomeCents: r.revenueCents, spendCents: r.expenseCents }; }), cur),
+      h('div', { class: 'legend small' }, h('span', { class: 'sw sw-in' }), ' Revenue ', h('span', { class: 'sw sw-out' }), ' Expenses'),
+      h('div', { class: 'tablewrap' }, h('table', { id: 'rev-months' },
+        h('thead', null, h('tr', null, ['Month', 'Revenue', 'Expenses', 'Net', 'Margin'].map(function (x) { return h('th', { text: x }); }))),
+        h('tbody', null, mrows.map(function (r) {
+          return h('tr', { 'data-month': r.month }, h('td', { text: monthLabel(r.month) }), h('td', { class: 'c-rev', text: fmtC(s, r.revenueCents) }), h('td', { class: 'c-exp', text: fmtC(s, r.expenseCents) }), h('td', { class: 'c-net', text: fmtC(s, r.netCents) }), h('td', { class: 'c-margin', text: R.marginText(r.marginBp) }));
+        })))));
+    var items = ex.overdue.concat(ex.upcoming);
+    var expCard = h('div', { class: 'card', id: 'rev-expected' }, h('h2', { text: 'Expected income' }),
+      h('p', { class: 'mut small', text: 'Expected income is not counted in Money until you mark it received.' }),
+      items.length ? items.map(function (x) { return expectedRow(s, x, ['received', 'move', 'writeoff']); }) : h('p', { class: 'mut', text: 'No expected income' + (sc.kind === 'all' ? '.' : ' for this line.') }));
+    return h('div', null,
+      btn('Back to Work', function () { go('domain', { domain: 'work' }); }, 'sm back'),
+      h('div', { class: 'row sp' }, h('h1', { text: 'Revenue' }), lockMark(['entries', 'projects', 'recurring'])),
+      h('div', { class: 'card' }, field('Period', perSel), per === 'custom' ? h('div', { class: 'row' }, field('From', cf), field('To', ct)) : null,
+        rerr ? h('p', { class: 'small bad-t', role: 'alert', text: rerr }) : null,
+        h('p', { class: 'mut small', id: 'rv-range', text: range.from + ' to ' + range.to + '. Only received income is counted.' })),
+      h('div', { class: 'stats' }, stat('Revenue received', fmtC(s, tot.revenueCents), 'rv-revenue'), stat('Expenses', fmtC(s, tot.expenseCents), 'rv-expenses'), stat('Net', fmtC(s, tot.netCents), 'rv-net'), stat('Margin', R.marginText(tot.marginBp), 'rv-margin')),
+      h('div', { class: 'card' }, h('h2', { text: 'By line of work' }), revTable('rev-lines', lineRows)),
+      rollRows.length ? h('div', { class: 'card' }, h('h2', { text: 'Parent rollups' }), h('p', { class: 'mut small', text: 'A parent plus every line under it.' }), revTable('rev-rollups', rollRows)) : null,
+      detail, expCard, ledgerCard(s));
+  }
+
+  // ---- ledger CSV import ----
+  var LEDGER_MODES = [{ v: 'signed', t: 'One amount column (negative or in brackets is an expense)' }, { v: 'split', t: 'Separate income and expense columns' }, { v: 'typed', t: 'An amount column and a type column' }];
+  function ledgerGuess(hd, re) { var i = hd.findIndex(function (x) { return re.test(x); }); return i >= 0 ? String(i) : ''; }
+  function ledgerStart(parsed) {
+    var hd = parsed.headers, g = function (re) { return ledgerGuess(hd, re); };
+    ledger = { parsed: parsed, plan: null, create: {}, cfg: { mode: 'signed', date: g(/date/i), amount: g(/amount|total|value/i), income: g(/income|revenue|credit/i), expense: g(/expense|cost|debit/i), type: g(/^type$|kind/i), incomeVal: 'Income', expenseVal: 'Expense',
+      line: g(/line|project|client|venture|site|show/i), category: g(/categor/i), description: g(/desc|memo|title|name|note/i), status: g(/status/i), due: g(/due/i), fmt: 'auto' } };
+  }
+  function ledgerOpts() {
+    var c = ledger.cfg, map = {}, num = function (v) { return v === '' || v === undefined ? undefined : Number(v); };
+    map.date = num(c.date); map.line = num(c.line); map.category = num(c.category); map.description = num(c.description); map.status = num(c.status); map.due = num(c.due);
+    if (c.mode === 'split') { map.income = num(c.income); map.expense = num(c.expense); } else { map.amount = num(c.amount); if (c.mode === 'typed') map.type = num(c.type); }
+    var create = Object.keys(ledger.create).filter(function (k) { return ledger.create[k]; });
+    return { map: map, dateFormat: c.fmt, typeValues: { income: c.incomeVal, expense: c.expenseVal }, create: create };
+  }
+  function ledgerRun() {
+    return act(function () {
+      return L.revenue.plan(ledger.parsed, ledgerOpts(), st(), today()).then(function (pl) { ledger.plan = pl; render(); });
+    });
+  }
+  function ledgerCard(s) {
+    var card = h('div', { class: 'card', id: 'ledger-card' }, h('h2', { text: 'Import a ledger CSV' }),
+      h('p', { class: 'mut small', text: 'Map the columns, preview, then confirm. Nothing is saved until you confirm, and importing the same file again adds nothing.' }));
+    // PV-1: with private entries or lines of work hidden, rows already imported (and moved in) cannot be recognised.
+    var pm = L.priv.isOpen() ? [] : L.priv.marks(mainState());
+    if (pm.indexOf('entries') >= 0 || pm.indexOf('projects') >= 0) {
+      card.appendChild(h('p', { class: 'small', id: 'ledger-locked' }, lockIcon('Some private items are hidden', 'lockmark'), ' Open the private vault to import a ledger. Rows already imported may be private, and they can only be recognised while it is open.'));
+      return card;
+    }
+    var fileIn = h('input', { type: 'file', id: 'ledger-file', accept: '.csv,text/csv' });
+    fileIn.addEventListener('change', function () {
+      var f = fileIn.files && fileIn.files[0];
+      if (!f) return;
+      act(function () { return readFile(f).then(function (text) { if (!L.store.isUnlocked()) return; ledgerStart(L.csv.parse(text)); render(); }); });
+    });
+    card.appendChild(field('CSV file (5 MB max)', fileIn));
+    if (!ledger) return card;
+    var c = ledger.cfg, hd = ledger.parsed.headers;
+    var opts = [{ v: '', t: '(none)' }].concat(hd.map(function (x, i) { return { v: String(i), t: x || ('Column ' + (i + 1)) }; }));
+    var pick = function (key, id, label, req) {
+      return field(label + (req ? '' : ' (optional)'), sel(id, opts, c[key], function (e) { c[key] = e.target.value; ledger.plan = null; render(); }));
+    };
+    var txt = function (key, id, label) {
+      return field(label, h('input', { type: 'text', id: id, maxlength: '60', value: c[key], onchange: function (e) { c[key] = e.target.value; ledger.plan = null; } }));
+    };
+    card.appendChild(h('p', { class: 'mut small', id: 'ledger-size', text: hd.length + ' columns, ' + ledger.parsed.rows.length + ' rows.' }));
+    card.appendChild(pick('date', 'ledger-date', 'Date column', true));
+    card.appendChild(field('Date format', sel('ledger-datefmt', [{ v: 'auto', t: 'YYYY-MM-DD or MM/DD/YYYY' }, { v: 'dmy', t: 'DD/MM/YYYY (or YYYY-MM-DD)' }], c.fmt, function (e) { c.fmt = e.target.value; ledger.plan = null; })));
+    card.appendChild(field('Amounts are', sel('ledger-mode', LEDGER_MODES, c.mode, function (e) { c.mode = e.target.value; ledger.plan = null; render(); })));
+    if (c.mode === 'split') { card.appendChild(pick('income', 'ledger-income', 'Income column', true)); card.appendChild(pick('expense', 'ledger-expense', 'Expense column', true)); }
+    else card.appendChild(pick('amount', 'ledger-amount', 'Amount column', true));
+    if (c.mode === 'typed') { card.appendChild(pick('type', 'ledger-type', 'Type column', true)); card.appendChild(txt('incomeVal', 'ledger-income-val', 'Type value that means income')); card.appendChild(txt('expenseVal', 'ledger-expense-val', 'Type value that means expense')); }
+    card.appendChild(pick('line', 'ledger-line', 'Line of work column'));
+    card.appendChild(pick('category', 'ledger-category', 'Category column'));
+    card.appendChild(pick('description', 'ledger-description', 'Description column'));
+    card.appendChild(pick('status', 'ledger-status', 'Status column (received, expected or written-off)'));
+    card.appendChild(pick('due', 'ledger-due', 'Due date column'));
+    card.appendChild(h('div', { class: 'row' }, btn('Preview', function () { ledgerRun(); }, 'pri', { id: 'ledger-preview' }), btn('Cancel', function () { ledger = null; render(); }, null, { id: 'ledger-cancel' })));
+    var pl = ledger.plan;
+    if (pl) {
+      var body = h('div', { id: 'ledger-result' },
+        h('p', { id: 'ledger-summary', text: pl.add.length + ' to add, ' + pl.rejected.length + ' rejected, ' + pl.duplicates + ' already imported.' }),
+        h('p', { class: 'small', id: 'ledger-totals', text: 'Income ' + fmtC(s, pl.totals.incomeCents) + ', expenses ' + fmtC(s, pl.totals.expenseCents) + ' in the rows to add.' }));
+      if (pl.byLine.length) body.appendChild(h('div', { class: 'tablewrap' }, h('table', { id: 'ledger-lines' },
+        h('thead', null, h('tr', null, ['Line of work', 'Rows', 'Income', 'Expenses'].map(function (x) { return h('th', { text: x }); }))),
+        h('tbody', null, pl.byLine.map(function (g) { return h('tr', { 'data-line': g.line }, h('td', { text: g.line }), h('td', { text: String(g.count) }), h('td', { text: fmtC(s, g.incomeCents) }), h('td', { text: fmtC(s, g.expenseCents) })); })))));
+      if (pl.unknownLines.length) {
+        body.appendChild(h('p', { class: 'small', id: 'ledger-unknown-h', text: 'These line names are not lines of work yet. Rows for lines you do not create are imported as Unassigned.' }));
+        pl.unknownLines.forEach(function (name, i) {
+          var key = L.revenue.normName(name);
+          body.appendChild(h('label', { class: 'field check' }, h('input', { type: 'checkbox', id: 'ledger-create-' + i, checked: !!ledger.create[key], onchange: function (e) { ledger.create[key] = !!e.target.checked; ledgerRun(); } }), h('span', { text: 'Create "' + name + '" as a new line of work' })));
+        });
+      }
+      if (pl.rejected.length) body.appendChild(h('div', { id: 'ledger-rejected' }, h('p', { class: 'small', text: 'Rejected rows' }),
+        h('ul', null, pl.rejected.slice(0, 25).map(function (r) { return h('li', { class: 'small', text: 'Row ' + r.row + ': ' + r.reason }); })),
+        pl.rejected.length > 25 ? h('p', { class: 'mut small', text: 'And ' + (pl.rejected.length - 25) + ' more.' }) : null));
+      if (!pl.add.length && pl.duplicates) body.appendChild(h('p', { class: 'small', id: 'ledger-nothing', text: 'Nothing new to import: every valid row was already imported.' }));
+      body.appendChild(btn(pl.add.length ? 'Import ' + pl.add.length + (pl.add.length === 1 ? ' row' : ' rows') : 'Nothing to import', function () {
+        act(function () {
+          var res;
+          return commit(function (x) { res = L.revenue.applyPlan(x, pl); }, 'ledger import').then(function () {
+            ledger = null;
+            setNotice('ok', 'Imported ' + res.added + (res.added === 1 ? ' entry' : ' entries') + (res.linesCreated ? ' and created ' + res.linesCreated + (res.linesCreated === 1 ? ' line of work.' : ' lines of work.') : '.'));
+            render();
+          });
+        });
+      }, 'pri', { id: 'ledger-confirm', disabled: !pl.add.length }));
+      card.appendChild(body);
+    }
+    return card;
+  }
+
   // ---------- boot ----------
   function boot() {
+    // CR-9: frame-ancestors only exists in the HTTP header (Cloudflare); on any other host or file:// the page must refuse to run framed.
+    var framed = true;
+    try { framed = window.top !== window.self; } catch (e) { framed = true; }
+    if (framed) { var root = document.getElementById('app'); if (root) root.replaceChildren(h('p', { class: 'notice err', text: 'LifeOS cannot run inside a frame. Open it in its own tab.' })); return; }
     var p = Promise.resolve();
     if (!globalThis.crypto || !globalThis.crypto.subtle) notice = { kind: 'err', text: 'This browser does not support the required encryption features.' };
     else p = L.store.exists().then(function (x) { vaultExists = !!x; }, function () { notice = { kind: 'err', text: 'Storage is unavailable in this browser.' }; });
@@ -9501,6 +10675,8 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       else if (r.kind === 'in-sync') say('Already in sync (revision ' + r.rev + ').');
       else if (r.kind === 'downloaded') { c.setNotice('ok', 'Downloaded the Drive copy (revision ' + r.rev + ').'); c.render(); }
       else say('Nothing changed.');
+      // CR-5: Drive holds more than one LifeOS copy (two devices made one each); this device keeps using the one it synced with.
+      if (r.copies > 1) say(status.textContent + ' Google Drive holds ' + r.copies + ' LifeOS copies. This device uses the one it synced with last.');
       paint();
     }
     function fail(e) {

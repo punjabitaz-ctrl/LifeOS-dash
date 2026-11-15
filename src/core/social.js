@@ -17,7 +17,7 @@
   const CHANNELS = Object.freeze(['call', 'message', 'in person', 'video', 'email', 'other']);
   const DEFAULT_GROUPS = Object.freeze([{ name: 'Family', cadenceDays: 14 }, { name: 'Friends', cadenceDays: 30 }, { name: 'Professional', cadenceDays: 60 }]);
   const SECRET_MESSAGE = 'That looks like an ID number or a card number. Do not enter ID numbers, account numbers or passwords here.';
-  const BIDI = /[​-‏‪-‮⁠-⁩﻿]/g;
+  const BIDI = /[؜​-‏‪-‮⁠-⁩﻿]/g;
   const MD = /^(\d{2})-(\d{2})$/;
   const DIM = [31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
 

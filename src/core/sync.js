@@ -151,17 +151,19 @@
     try { const v = JSON.parse(text); if (v && typeof v === 'object') return v; } catch (e) { /* fall through */ }
     throw err('REMOTE_INVALID', 'Google Drive sent an unexpected reply.');
   }
-  async function findFile() {
+  // CR-5: the file this device synced with last (settings.sync.fileId) wins when Drive lists it; otherwise the newest. `copies` tells
+  // the caller when Drive holds more than one LifeOS file.
+  async function findFile(preferId) {
     const q = encodeURIComponent("name='" + FILE_NAME + "' and trashed=false");
     const r = await api(API + '/drive/v3/files?spaces=appDataFolder&q=' + q + '&orderBy=modifiedTime%20desc&pageSize=10&fields=' + encodeURIComponent('files(id,size,version)'));
     const files = json(r.text).files;
     if (!Array.isArray(files) || !files.length) return null;
-    const f = files[0];
-    if (!f || typeof f.id !== 'string' || !ID_RE.test(f.id)) throw err('REMOTE_INVALID', 'Google Drive sent an unexpected reply.');
+    for (const x of files) if (!x || typeof x.id !== 'string' || !ID_RE.test(x.id)) throw err('REMOTE_INVALID', 'Google Drive sent an unexpected reply.');
+    const f = (preferId && files.find((x) => x.id === preferId)) || files[0];
     const size = f.size === undefined ? 0 : Number(f.size);
     if (!isFinite(size) || size < 0) throw err('REMOTE_INVALID', 'Google Drive sent an unexpected reply.');
     if (size > MAX_REMOTE) throw err('TOO_LARGE', 'The Drive copy is larger than 64 MB, so it was rejected.');
-    return { id: f.id, version: f.version === undefined ? '' : String(f.version).slice(0, 40) };
+    return { id: f.id, version: f.version === undefined ? '' : String(f.version).slice(0, 40), copies: files.length };
   }
   async function download(file) {
     const r = await api(API + '/drive/v3/files/' + file.id + '?alt=media');
@@ -171,6 +173,8 @@
   async function upload(file, text, etag) {
     if (text.length > MAX_REMOTE) throw err('TOO_LARGE', 'The vault is larger than 64 MB, so nothing was uploaded. Your data on this device is unchanged. Delete old entries, study sessions, takeaways, activities, logged contacts, facts or long notes, then sync again.');
     if (!file) {
+      // CR-5: another device may have created the file since this sync listed Drive; never create a second one.
+      if (await findFile()) throw err('REMOTE_CHANGED', 'The Drive copy changed while syncing. Nothing was overwritten. Run sync again.');
       const b = 'lifeos' + newNonce();
       const body = '--' + b + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' +
         JSON.stringify({ name: FILE_NAME, parents: ['appDataFolder'] }) + '\r\n--' + b +
@@ -221,16 +225,19 @@
     }
   }
 
-  async function bookkeeping(clientId, remoteRev, fileId, action) {
+  // CR-1: fp and keySalt describe the state that was uploaded or adopted, captured when the envelope was exported (inside the store's
+  // serial queue) or before the adopt. An edit saved while the upload was on the wire is therefore still seen as a local change.
+  async function bookkeeping(clientId, remoteRev, fileId, action, fp, keySalt) {
     const S = L.store;
-    const fp = await fingerprint(S.getState());
     await S.commit((x) => {
-      x.settings.sync = { clientId, remoteRev, fp, fileId, keySalt: S.saltId() };
+      x.settings.sync = { clientId, remoteRev, fp, fileId, keySalt };
       if (!Array.isArray(x.audit)) x.audit = [];
       x.audit.push({ ts: new Date().toISOString(), action });
       while (x.audit.length > 200) x.audit.shift();
     }, { quiet: true });
   }
+  const exportSnap = (minRev) => L.store.exportEnvelope(minRev, { snapshot: fingerprint });
+  const b64 = (u8) => btoa(String.fromCharCode.apply(null, u8));
   const hide = (o, ctx) => { Object.defineProperty(o, '_ctx', { value: ctx, enumerable: false }); return o; };
 
   // Compare local and Drive. Uploads when safe; otherwise returns a decision request and writes nothing.
@@ -240,14 +247,15 @@
     const cur = S.getState();
     const sy = cur.settings.sync;
     const clientId = sy.clientId;
-    const file = await findFile();
-    const fp = await fingerprint(cur);
+    const file = await findFile(sy.fileId);
+    const fp = await fingerprint(cur), saltId = S.saltId();
     if (!file) {
-      const env = await S.exportEnvelope();
-      const id = await upload(null, JSON.stringify(env), '');
-      await bookkeeping(clientId, env.rev, id, 'sync: uploaded to Drive');
-      return { kind: 'uploaded', rev: env.rev };
+      const ex = await exportSnap();
+      const id = await upload(null, JSON.stringify(ex.env), '');
+      await bookkeeping(clientId, ex.env.rev, id, 'sync: uploaded to Drive', ex.snap, ex.saltId);
+      return { kind: 'uploaded', rev: ex.env.rev };
     }
+    const copies = file.copies > 1 ? { copies: file.copies } : {};
     const dl = await download(file);
     const info = await inspect(dl.text, opts.passphrase);
     const rr = info.meta.rev;
@@ -260,20 +268,20 @@
     const keyDiffers = !info.sameKey, remoteChanged = rr > sy.remoteRev;
     const localKeyChanged = keyDiffers && (!remoteChanged || (!!sy.keySalt && sy.keySalt !== S.saltId()));
     const localChanged = fp !== base || localKeyChanged;
-    if (!remoteChanged && !localChanged) return { kind: 'in-sync', rev: rr };
+    if (!remoteChanged && !localChanged) return Object.assign({ kind: 'in-sync', rev: rr }, copies);
     if (!remoteChanged) {
-      const env = await S.exportEnvelope(Math.max(rr, sy.remoteRev) + 1);
-      const id = await upload(file, JSON.stringify(env), dl.etag);
-      await bookkeeping(clientId, env.rev, id, 'sync: uploaded to Drive');
-      return { kind: 'uploaded', rev: env.rev };
+      const ex = await exportSnap(Math.max(rr, sy.remoteRev) + 1);
+      const id = await upload(file, JSON.stringify(ex.env), dl.etag);
+      await bookkeeping(clientId, ex.env.rev, id, 'sync: uploaded to Drive', ex.snap, ex.saltId);
+      return Object.assign({ kind: 'uploaded', rev: ex.env.rev }, copies);
     }
     const lm = S.getMeta();
     // An older-format Drive copy has no projects, pipeline (before schema 3), cycle, daily checks, workout types, body targets (before schema 4) or goals (before schema 5): using it would drop this device's data.
     const dropped = S.droppedData(cur, { sourceSchema: info.sourceSchema, priv: info.state.priv }), dropsWork = dropped.length > 0;
-    return hide({
+    return hide(Object.assign({
       kind: localChanged ? 'conflict' : 'download-offer',
       local: summary(lm, cur, cur.schema), remote: summary(info.meta, info.state, info.sourceSchema), passphraseDiffers: keyDiffers, dropsWork, dropped,
-    }, { file, dl, info, clientId, fp, dropsWork, dropped });
+    }, copies), { file, dl, info, clientId, fp, saltId, dropsWork, dropped });
   }
 
   // choice: 'download' (offer), or 'remote' | 'local' | 'cancel' (conflict). Conflict resolutions first save the losing copy via saveBackup(text, name).
@@ -290,6 +298,8 @@
     if (wantsRemote && ctx.dropsWork && opts.allowWorkLoss !== true) {
       throw err('OLDER_FORMAT', 'The Drive copy is from an older version and has no ' + S.nameList(ctx.dropped || []) + '. Nothing was replaced.');
     }
+    // CR-6: a passphrase change on this device since the check would be undone by adopting (the fingerprint ignores the key).
+    if (S.saltId() !== ctx.saltId) throw err('LOCAL_CHANGED', 'This device changed after the Drive copy was checked. Nothing was replaced. Run sync again.');
     // The offer was made because this device had no changes. If it changed since, do not replace it.
     if (decision.kind === 'download-offer' && (await fingerprint(S.getState())) !== ctx.fp) {
       throw err('LOCAL_CHANGED', 'This device changed after the Drive copy was checked. Nothing was replaced. Run sync again.');
@@ -300,14 +310,15 @@
       else await opts.saveBackup(ctx.dl.text, 'lifeos-drive-copy-' + stamp + '.json');
     }
     if (wantsRemote) {
+      const afp = await fingerprint(ctx.info.state);
       await S.adoptEnvelope(ctx.info);
-      await bookkeeping(ctx.clientId, ctx.info.meta.rev, ctx.file.id, 'sync: downloaded from Drive');
+      await bookkeeping(ctx.clientId, ctx.info.meta.rev, ctx.file.id, 'sync: downloaded from Drive', afp, b64(ctx.info.salt));
       return { kind: 'downloaded', rev: ctx.info.meta.rev };
     }
-    const env = await S.exportEnvelope(ctx.info.meta.rev + 1);
-    const id = await upload(ctx.file, JSON.stringify(env), ctx.dl.etag);
-    await bookkeeping(ctx.clientId, env.rev, id, 'sync: uploaded to Drive');
-    return { kind: 'uploaded', rev: env.rev };
+    const ex = await exportSnap(ctx.info.meta.rev + 1);
+    const id = await upload(ctx.file, JSON.stringify(ex.env), ctx.dl.etag);
+    await bookkeeping(ctx.clientId, ex.env.rev, id, 'sync: uploaded to Drive', ex.snap, ex.saltId);
+    return { kind: 'uploaded', rev: ex.env.rev };
   }
 
   L.sync = {

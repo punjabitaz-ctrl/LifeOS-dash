@@ -105,9 +105,24 @@
       if (typeof p.accountId !== 'string' || !p.accountId || p.accountId.length > 100) throw new Error('Invalid account');
       out.accountId = p.accountId;
     }
-    if (ty.id === 'outcome' && !isEmpty(p.projectId)) {
+    if ((ty.id === 'outcome' || (dom.id === 'money' && (ty.id === 'income' || ty.id === 'expense'))) && !isEmpty(p.projectId)) {
       if (typeof p.projectId !== 'string' || !p.projectId || p.projectId.length > 100) throw new Error('Invalid project');
       out.projectId = p.projectId;
+    }
+    // v0.12.0: income may be expected or written off (no status means received); dueDate and importKey are optional.
+    if (dom.id === 'money' && ty.id === 'income') {
+      if (!isEmpty(p.status)) {
+        if (!['expected', 'received', 'written-off'].includes(p.status)) throw new Error('Status must be expected, received or written-off');
+        out.status = p.status;
+      }
+      if (!isEmpty(p.dueDate)) {
+        if (!isDate(p.dueDate)) throw new Error('Due date must be a valid date');
+        out.dueDate = p.dueDate;
+      }
+    }
+    if (dom.id === 'money' && (ty.id === 'income' || ty.id === 'expense') && !isEmpty(p.importKey)) {
+      if (typeof p.importKey !== 'string' || !/^[0-9a-f]{64}$/.test(p.importKey)) throw new Error('Invalid import key');
+      out.importKey = p.importKey;
     }
     const ca = p.createdAt;
     out.createdAt = (typeof ca === 'string' && ca.length <= 40 && ca) || (typeof ca === 'number' && isFinite(ca) && ca) || new Date().toISOString();
@@ -131,9 +146,11 @@
   const monthOf = (d) => d.slice(0, 7);
   const monthEnd = (m) => { const y = +m.slice(0, 4), mo = +m.slice(5, 7); return m + '-' + String(new Date(Date.UTC(y, mo, 0)).getUTCDate()).padStart(2, '0'); };
   const addMonths = (m, k) => { const t = (+m.slice(0, 4)) * 12 + (+m.slice(5, 7) - 1) + k; return String(Math.floor(t / 12)).padStart(4, '0') + '-' + String(t % 12 + 1).padStart(2, '0'); };
+  // Expected and written-off income is not an actual: it counts only once received (no status means received).
+  const counted = (e) => !e.status || e.status === 'received';
   function sumMoney(ents, a, b) {
     let inc = 0, exp = 0;
-    for (const e of ents) if (inR(e, a, b)) { if (e.type === 'income') inc += cents(e.value); else if (e.type === 'expense') exp += cents(e.value); }
+    for (const e of ents) if (inR(e, a, b)) { if (e.type === 'income') { if (counted(e)) inc += cents(e.value); } else if (e.type === 'expense') exp += cents(e.value); }
     return { incC: inc, expC: exp };
   }
   function savings(ents, a, b) {
@@ -191,7 +208,7 @@
     const spent = new Map();
     for (const e of ents) {
       const c = cents(e.value);
-      if (e.type === 'income') inc += c;
+      if (e.type === 'income') { if (counted(e)) inc += c; }
       else if (e.type === 'expense') { exp += c; const k = e.category || UNCAT; spent.set(k, (spent.get(k) || 0) + c); }
     }
     const budgets = new Map((state.budgets || []).map((x) => [x.category, cents(x.value)]));
@@ -218,10 +235,11 @@
   }
 
   // ---- recurring: proposes only; the user confirms each item ----
-  function advanceDate(d, cadence) {
+  // anchor: the day of the month the item is really due on (PV-4); a date clamped to a short month's end returns to it later.
+  function advanceDate(d, cadence, anchor) {
     if (!isDate(d)) throw new Error('Invalid date');
     if (cadence === 'weekly') return addDays(d, 7);
-    const y = +d.slice(0, 4), m = +d.slice(5, 7) - 1, day = +d.slice(8, 10);
+    const y = +d.slice(0, 4), m = +d.slice(5, 7) - 1, day = Number.isInteger(anchor) && anchor > +d.slice(8, 10) && anchor <= 31 ? anchor : +d.slice(8, 10);
     const t = y * 12 + m + (cadence === 'yearly' ? 12 : 1);
     const ny = Math.floor(t / 12), nm = t % 12;
     const last = new Date(Date.UTC(ny, nm + 1, 0)).getUTCDate();
@@ -241,14 +259,20 @@
   }
   function confirmRecurring(state, id, today) {
     const r = findDue(state, id, today);
-    const e = validateEntry({ domain: 'money', type: r.type, date: r.nextDate, title: r.title, value: r.value, category: r.category || undefined, notes: 'Recurring' });
+    const e = validateEntry({ domain: 'money', type: r.type, date: r.nextDate, title: r.title, value: r.value, category: r.category || undefined, projectId: r.projectId || undefined, notes: 'Recurring' });
     state.entries.push(e);
-    r.nextDate = advanceDate(r.nextDate, r.cadence);
+    advanceRecurring(r);
     return e;
+  }
+  // PV-4: keep the anchor day while the next date is clamped (the 31st becomes the 28th in February, then the 31st again in March).
+  function advanceRecurring(r) {
+    const day = +r.nextDate.slice(8, 10), anchor = Number.isInteger(r.anchorDay) && r.anchorDay > day ? r.anchorDay : day;
+    r.nextDate = advanceDate(r.nextDate, r.cadence, anchor);
+    if (r.cadence !== 'weekly' && +r.nextDate.slice(8, 10) < anchor) r.anchorDay = anchor; else delete r.anchorDay;
   }
   function skipRecurring(state, id, today) {
     const r = findDue(state, id, today);
-    r.nextDate = advanceDate(r.nextDate, r.cadence);
+    advanceRecurring(r);
   }
   // Last contact per person: manual contact entries, plus (when `state` is given) done social-tagged activities with that person. Computed, never stored twice.
   function overdue(ents, asOf, days, state) {
@@ -551,6 +575,10 @@
     if (!(state.projects || []).some((p) => p.id === id)) throw new Error('Project not found');
     let n = 0;
     for (const e of state.entries) if (e.projectId === id) { delete e.projectId; n++; }
+    // v0.12.0: recurring items, goal scopes and child lines are unlinked too; nothing is deleted with the project.
+    for (const r of state.recurring || []) if (r.projectId === id) delete r.projectId;
+    for (const g of state.goals || []) if (g.projectId === id) { delete g.projectId; delete g.rollup; }
+    for (const q of state.projects) if (q.parentId === id) delete q.parentId;
     state.projects = state.projects.filter((p) => p.id !== id);
     return n;
   }
@@ -595,7 +623,7 @@
     const we = addDays(ws, 6), wm = sumMoney(byDomain(state, 'money'), ws, we), nw = netWorthDetail(state, we);
     const mv = monthView(state, monthOf(we));
     const money = { income: dollars(wm.incC), spend: dollars(wm.expC), budgetUsedPct: mv.budgetCents > 0 ? r1(mv.budgetedSpentCents * 100 / mv.budgetCents) : 0, netWorth: nw.total, liabilities: nw.liabilities };
-    return { week: ws, domains, money, work: workDigest(state, ws), health: healthDigest(state, ws), activities: L.activities.digest(state, ws), goals: L.goals.digestCounts(state, ws), home: L.home.digest(state, ws), admin: L.admin.digest(state, ws), learning: L.learning.digest(state, ws), social: L.social.digest(state, ws) };
+    return { week: ws, domains, money, work: workDigest(state, ws), health: healthDigest(state, ws), activities: L.activities.digest(state, ws), goals: L.goals.digestCounts(state, ws), home: L.home.digest(state, ws), admin: L.admin.digest(state, ws), learning: L.learning.digest(state, ws), social: L.social.digest(state, ws), revenue: L.revenue.digest(state, ws) };
   }
   function series(state, domainId, n, today) {
     if (!DOMAINS.some((d) => d.id === domainId)) throw new Error('Unknown domain');

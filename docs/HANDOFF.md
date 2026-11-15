@@ -1,6 +1,6 @@
 # LifeOS handoff
 
-Updated 14 Nov 2026. Read this first in any new session, then SPEC.md and docs/SECURITY.md.
+Updated 15 Nov 2026. Read this first in any new session, then SPEC.md and docs/SECURITY.md.
 
 ## What it is
 LifeOS (Living Independent and Free Everyday Operating System): one offline-capable HTML file, vanilla JS, no dependencies. All data sits in one passphrase-encrypted envelope in the browser's IndexedDB. Optional AI (Anthropic key, local model, or copy/paste into Claude) only ever sees weekly numbers. Owner: Taz Abbas. Proprietary licence (see LICENSE).
@@ -9,7 +9,7 @@ LifeOS (Living Independent and Free Everyday Operating System): one offline-capa
 - Repo: github.com/punjabitaz-ctrl/LifeOS-dash, branch main, push straight to main.
 - Live copy: https://lfs-dsh.punjabitaz.workers.dev/dist/lifeos (Cloudflare Worker with static assets, free tier, behind a Cloudflare Access sign-in that stays on). Deploys on push.
 - Source: src/core/*.js (vault, store, priv, wellbeing, csv, metrics, home, admin, learning, activities, social, goals, memory, ai, sync), src/ui/* (shell, styles, app, sync-ui). `node build.mjs` writes dist/lifeos.html and `_headers`.
-- Tests: `node --test test/` and test/smoke*.mjs (test/smoke-leaks.mjs, the leak test in test/v090-audit.test.mjs and the Social error test in test/v0100-audit.test.mjs check that no free text from any domain leaves the vault) (Playwright with system Chrome; `npm i --no-save playwright`).
+- Tests: `node --test test/` and `node test/smokes.mjs` (every test/smoke*.mjs plus test/review-ui.mjs) (test/smoke-leaks.mjs, the leak test in test/v090-audit.test.mjs and the Social error test in test/v0100-audit.test.mjs check that no free text from any domain leaves the vault) (Playwright with system Chrome; `npm i --no-save playwright`).
 - Spec: SPEC.md, one addendum per version. Audit log: docs/SECURITY.md. Sync setup guide: docs/SYNC-SETUP.md.
 
 ## Build state
@@ -26,8 +26,10 @@ LifeOS (Living Independent and Free Everyday Operating System): one offline-capa
 | 0.9.0 | Activities, schema 8: planned/done/skipped activities, 30-day upcoming and At a glance provider list, cost and ROI tables, paid-while-planned amendment (paidOn), Health and Social computed from activities, review step, three goal metrics; src/core/activities.js | audited (SEC-51 to SEC-53 Low, SEC-54 Info fixed; SEC-55, SEC-56 Info documented), committed |
 | 0.10.0 | Social, schema 9: groups, people, contact log, important dates (at a glance), facts, Work links (pipeline items and projects), review step, two goal metrics, snooze; src/core/social.js | audited (SEC-57 Medium, SEC-58 to SEC-60 Low, SEC-61 Info fixed), committed |
 | 0.11.0 | Private vault and Wellbeing, schema 10: a second lock with its own passphrase inside the encrypted state (src/core/priv.js), moves of any record, lock markers and badges, "New items are private"; Wellbeing check-ins only inside it (src/core/wellbeing.js), kept away from the AI | audited (SEC-62 and SEC-66 Medium, SEC-63 to SEC-65 and SEC-67 to SEC-69 Low, SEC-70 Info fixed), not committed |
+| 0.12.0 | Command center, first build, schema 11: lines of work (kinds, parents), revenue tracker and expected income (src/core/revenue.js), ledger CSV import, customizable home (src/core/layout.js); reviewed in the final complete review, released as 1.0.0 |
+| 1.0.0 | Final complete review: three independent reviewers (crypto, privacy, UI), 30 findings (CR-1 to CR-10, PV-1 to PV-10, UI-1 to UI-10) all fixed with regression tests; schema stays 11 | tests and smokes pass, not committed |
 
-Schema: 10 as of v0.11.0 (9 at v0.10.0). Every schema change needs a tested migration and the downgrade guards (SEC-27/28) extended to the new collections.
+Schema: 11 as of v0.12.0 and v1.0.0 (10 at v0.11.0). Every schema change needs a tested migration and the downgrade guards (SEC-27/28) extended to the new collections.
 
 ## How each build cycle runs
 1. Owner picks the next domain and answers scope questions.
@@ -54,6 +56,7 @@ Haiku is used for short, capped research only. Keep prompts lean and cap reply l
 - The live site's response headers (the Access gate blocks outside checks; `_headers` on a Worker is unconfirmed).
 
 ## Owner's to-do
+0. Confirm two owner-rule fixes from the final review: rejection reasons never go to the AI (only counts per area, PV-6), and the weight rules insight is removed (PV-9). Optional: decide whether to turn off spell check in text fields (Chrome's enhanced spell check sends typed text to Google when the user has turned it on).
 1. Sign in to the live copy, open Settings, confirm the version matches the latest push.
 2. First real run on phone and PC: create a vault, enter a week of data, export a backup.
 3. At the end of the build: follow docs/SYNC-SETUP.md. Because Cloudflare Access is on, confirm the Google redirect back to the site still lands after sign-in, and add the exact live origin as the authorised origin and redirect URI.
@@ -61,16 +64,13 @@ Haiku is used for short, capped research only. Keep prompts lean and cap reply l
 5. Have a lawyer review LICENSE before charging anyone.
 
 ## Roadmap
-1. Goals deep (done in v0.6.0).
-2. Home and Admin deep (done in v0.7.0, one cycle).
-3. Recommended before more building: a first real run on phone and PC (owner's to-do 2), since nothing has yet run on a real device.
-4. Learning deep (done in v0.8.0, audited).
-5. Activities (done in v0.9.0, audited).
-6. Social (done in v0.10.0, audited).
-7. Wellbeing inside a private inner vault (done in v0.11.0, audited).
-8. Next: a final complete independent review of the whole codebase.
-9. Not built: activity CSV import, vault archiving (with several domains at their caps the vault passes 64 MB; Social alone reaches 55.7 MB of JSON with three-byte text; export and sync refuse rather than cut), NAS sync to replace Google Drive.
-10. Possible later: real-device test pass, custom domain.
+Done: Goals (0.6.0), Home and Admin (0.7.0), Learning (0.8.0), Activities (0.9.0), Social (0.10.0), private vault and Wellbeing (0.11.0), command center first build (0.12.0), final complete review (1.0.0).
+1. Recommended first: a real run on phone and PC (owner's to-do 2); nothing has run on a real device yet.
+2. Activity CSV import.
+3. Vault archiving (with several domains at their caps the vault passes 64 MB; export and sync refuse rather than cut).
+4. NAS sync to replace Google Drive.
+5. Command center tabs: job search, websites, podcasts, AYiN Advisors and client projects.
+6. Possible later: custom domain.
 
 ## Open items
 - SEC-30 (Info, accepted): carry-over list has no limit.
@@ -78,4 +78,4 @@ Haiku is used for short, capped research only. Keep prompts lean and cap reply l
 - Local model (Ollama) may be unreachable from the hosted HTTPS copy in some browsers; untested.
 
 ## Current step
-v0.11.0 private vault and Wellbeing is audited (see "v0.11.0 audit" in docs/SECURITY.md). Fixed with tests in test/v0110-audit.test.mjs and steps in test/smoke-priv.mjs and test/smoke-wellbeing.mjs: SEC-62 (Medium, records made from or under a private record are now private; this goes beyond the addendum, owner may confirm), SEC-66 (Medium, owner decision: no wellbeing value in the digest, prompts, rules insights or lessons; test/metrics.test.mjs now asserts absence), SEC-63, SEC-64, SEC-65, SEC-67, SEC-68, SEC-69 (Low) and SEC-70 (Info, the older-app check now runs the real v0.10.0 code from commit 8bf2325). At the audit `node --test test/` passed 425 of 425 in the default zone, New York and Auckland, and all thirteen smoke scripts passed twice. Not committed or pushed. Next: the orchestrator re-runs tests and smokes, commits and pushes v0.11.0, then the final complete independent review (roadmap item 8). A forgotten private passphrase destroys the private data everywhere; say so to the owner before first use.
+v1.0.0 final complete review is done (see "Final complete review (v1.0.0)" in docs/SECURITY.md and the three reports in docs/review/). All 30 findings are fixed in source: High CR-1, PV-1, UI-1; Medium CR-2, PV-2, PV-3, PV-6; Low and Info the rest. The reviewers' proof tests pass and stay as regression tests, plus test/v100-review.test.mjs and test/smoke-v100.mjs. `node --test test/` passes 496 of 496 in the default zone, New York and Auckland; `node test/smokes.mjs` (16 scripts) passed twice. Version 1.0.0 in package.json and the app. Not committed or pushed. Next: the orchestrator re-runs tests and smokes, commits and pushes v0.11.0, v0.12.0 and v1.0.0, then the owner's real-device run. A forgotten private passphrase destroys the private data everywhere; say so to the owner before first use.

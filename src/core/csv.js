@@ -48,13 +48,21 @@
     if (m) return m[3] + '-' + m[1].padStart(2, '0') + '-' + m[2].padStart(2, '0');
     return s;
   }
-  function normNum(s) {
-    const t = s.replace(/[\s,$€£]/g, '');
-    if (t.length > 40 || !/^[+-]?(\d+(\.\d*)?|\.\d+)$/.test(t)) return NaN;
-    return Number(t);
+  // PV-3: a comma is only a thousands separator in groups of three ("1,234.5"); "12,50" or "1.234,56" (decimal comma) is rejected, never
+  // read 100 times too large. Money values (dollars and cents) allow at most two decimals.
+  function normNum(s, money) {
+    const t = s.replace(/[\s$€£]/g, '');
+    if (t.length > 40 || !/^[+-]?(?:(?:\d{1,3}(?:,\d{3})+|\d+)(?:\.\d*)?|\.\d+)$/.test(t)) return NaN;
+    if (money && /\.\d{3,}$/.test(t)) return NaN;
+    return Number(t.replace(/,/g, ''));
   }
   const EXTRA = ['status', 'person', 'due', 'kind'];
   const NUMERIC = ['value', 'minutes', 'effort'];
+  // PV-7: Money fields that are not part of the thin type definitions but are exported and can be mapped back on import.
+  function moneyFields(domain, type) {
+    if (domain !== 'money') return [];
+    return type === 'income' ? ['category', 'status', 'dueDate'] : type === 'expense' ? ['category'] : [];
+  }
 
   function toEntries(parsed, opts) {
     if (!parsed || !Array.isArray(parsed.headers) || !Array.isArray(parsed.rows)) throw new Error('Nothing to import');
@@ -64,16 +72,16 @@
     // SEC-65: wellbeing lives only in the private vault, so it is never imported into the main state.
     if (domain === 'wellbeing') throw new Error('Wellbeing is kept only in the private vault and cannot be imported.');
     if (!map || typeof map !== 'object') throw new Error('Column mapping required');
-    const tfields = dom.types.find((t) => t.id === type).fields;
+    const tfields = dom.types.find((t) => t.id === type).fields, mf = moneyFields(domain, type);
     // Only fields the selected type has may be mapped; its required fields must be mapped.
-    for (const k of NUMERIC.concat(EXTRA)) {
+    for (const k of NUMERIC.concat(EXTRA, ['category', 'dueDate'])) {
       const given = !(map[k] === undefined || map[k] === null || map[k] === '');
       const f = tfields.find((x) => x.id === k);
-      if (given && !f) throw new Error('This type has no ' + k + ' field');
+      if (given && !f && !mf.includes(k)) throw new Error('This type has no ' + k + ' field');
       if (!given && f && f.required) throw new Error(f.label + ' column is required');
     }
     const idx = {};
-    for (const k of ['date', 'title', 'notes'].concat(NUMERIC, EXTRA)) {
+    for (const k of ['date', 'title', 'notes'].concat(NUMERIC, EXTRA, ['category', 'dueDate'])) {
       const m = map[k];
       if (m === undefined || m === null || m === '') continue;
       const i = typeof m === 'number' ? m : parsed.headers.indexOf(m);
@@ -90,7 +98,7 @@
         const p = { domain, type, date: normDate(cell('date')), title: cell('title') };
         for (const k of NUMERIC) {
           if (idx[k] === undefined || cell(k).trim() === '') continue;
-          p[k] = normNum(cell(k));
+          p[k] = normNum(cell(k), domain === 'money' && k === 'value');
           if (Number.isNaN(p[k])) throw new Error('bad number');
         }
         if (idx.notes !== undefined) p.notes = cell('notes');
@@ -98,6 +106,10 @@
           if (idx[k] === undefined) continue;
           p[k] = k === 'status' ? cell(k).trim().toLowerCase() : k === 'kind' ? cell(k).trim() : cell(k);
         }
+        if (idx.category !== undefined && cell('category').trim()) p.category = cell('category').trim();
+        if (idx.dueDate !== undefined && cell('dueDate').trim()) p.dueDate = normDate(cell('dueDate'));
+        // Income with no status (or "received") is received; anything else must be expected or written-off (validateEntry checks).
+        if (mf.includes('status') && p.status === 'received') delete p.status;
         entries.push(L.metrics.validateEntry(p));
       } catch (e) { rejected++; }
     }
@@ -115,9 +127,9 @@
     for (const e of rows || []) if (!(L.priv && L.priv.isPrivateRecord(e))) lines.push(cols.map((c) => q(e[c])).join(','));
     return lines.join('\r\n') + '\r\n';
   }
-  const exportEntries = (entries) => toCsv(['id', 'domain', 'type', 'date', 'title', 'value', 'status', 'person', 'due', 'notes', 'createdAt', 'kind', 'minutes', 'effort', 'projectId'], entries);
+  const exportEntries = (entries) => toCsv(['id', 'domain', 'type', 'date', 'title', 'value', 'status', 'person', 'due', 'notes', 'createdAt', 'kind', 'minutes', 'effort', 'category', 'dueDate', 'projectId'], entries);
   const exportPipeline = (items) => toCsv(['id', 'title', 'org', 'kind', 'stage', 'source', 'nextStep', 'nextDate', 'updatedAt', 'notes'], items);
   const exportProjects = (items) => toCsv(['id', 'name', 'kind', 'status', 'nextAction', 'nextDate', 'archived'], items);
 
-  L.csv = { parse, toEntries, exportEntries, exportPipeline, exportProjects };
+  L.csv = { parse, toEntries, moneyFields, exportEntries, exportPipeline, exportProjects };
 })();

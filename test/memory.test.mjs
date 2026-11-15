@@ -88,7 +88,8 @@ test('buildPrompt sends only digest, approved insights (max 8) and lessons (max 
   assert.match(user, /- money: now/);
   assert.equal((user.match(/- \[money\] ins/g) || []).length, 8);
   assert.ok(user.includes('ins11') && !user.includes('ins3\n'));
-  assert.equal((user.match(/- less/g) || []).length, 8);
+  // PV-6 (owner rule, numbers only): the reasons typed when rejecting are kept on this device and never sent.
+  assert.equal((user.match(/less/g) || []).length, 0);
   assert.match(system, /JSON array/);
 });
 test('buildPrompt levels 2 and 3 consolidate approved lower-level insights in period', () => {

@@ -459,3 +459,64 @@ A close racing an in-flight open, set-up, move, routed write or check-in never l
 - Real devices, Safari, real Google Drive and real AI providers.
 - The private vault with every collection at its cap at once (the private ciphertext cap of 40 MB was exercised in Node by the existing size test).
 - Timer behaviour under real device sleep (the wall-clock check is tested with a faked clock).
+
+## Final complete review (v1.0.0)
+
+### Scope
+The whole codebase at v0.12.0 (uncommitted on top of v0.11.0): src/core (vault, store, priv, sync, csv, metrics, memory, ai, revenue, layout and every domain module), src/ui (app, sync-ui, styles, shell), build.mjs, `_headers` and dist/lifeos.html. Released as v1.0.0 with the fixes below. Schema stays 11; no migration was needed.
+
+### Method
+Three independent reviewers who never saw the code before wrote one report each with proof tests that failed on the v0.12.0 code: crypto, storage, backup, sync and the private vault (docs/review/crypto.md, test/review-crypto.test.mjs, CR-1 to CR-10); AI boundary, privacy and data integrity (docs/review/privacy.md, test/review-privacy.test.mjs, PV-1 to PV-10); the UI layer in Chrome (docs/review/ui.md, test/review-ui.mjs, UI-1 to UI-10). The engineer closing the review checked each finding against the source before fixing it, fixed it in source, and kept the proof tests as regression tests (their assertions were not loosened). Further regression tests: test/v100-review.test.mjs (19 tests) and test/smoke-v100.mjs (autofill with a real Chrome profile over http, autocomplete on every input, textarea and form of every screen, frame refusal, ledger refusal while private lines are hidden, the change-passphrase delay, Customize inert bodies). test/review-ui.mjs now runs with the smoke set (`node test/smokes.mjs`, also `npm run smoke`).
+
+Harness changes, not assertion changes: the two review test files ran their fast key derivation, storage adapter and vault close for every test in the shared process that test/index.js uses, which broke 42 other tests. Their tests now sit in a describe block with the same hooks, registered after the other files' first tests. Four existing assertions encoded behaviour the owner's rules now forbid and were changed to assert the stricter rule: lesson text in prompts (test/memory.test.mjs, PV-6), the weight rules insight (test/health.test.mjs, test/v050-audit.test.mjs, and the precondition in review-privacy test 1, PV-9). The SEC-32 test now injects a stored legacy weight insight so the prompt exclusion is still exercised.
+
+### Findings
+| ID | Severity | Status |
+|---|---|---|
+| CR-1 | High | Fixed. The sync fingerprint and key salt are captured inside the store's serial step that exports the envelope (or from the adopted copy before adopting), so an edit saved during an upload stays a local change and later becomes a conflict, never a silent download. |
+| CR-2 | Medium | Fixed. Validating a merged view (open, every private write) allows each cap up to twice its value (each layer is already held to its own cap) and detaches, instead of refusing, a private line under a public line that gained a parent, or a goal whose parent horizon no longer fits. Add functions still count the view, so adds stay refused. The stored main state stays strict. |
+| CR-3 | Low | Fixed. The private passphrase change commits only if the stored private vault is the one it decrypted; otherwise it decrypts the newer one and retries (up to 4 times, then refuses with nothing written). |
+| CR-4 | Low | Fixed. A numeric audit timestamp is stored as an ISO string. |
+| CR-5 | Low | Fixed. The file this device synced with wins when Drive lists it; Drive is listed again right before a first upload and nothing is created if a file appeared; more than one LifeOS file is reported in Settings. |
+| CR-6 | Info | Fixed. Applying a sync decision is refused if the main key changed since the check. |
+| CR-7 | Info | Fixed. replaceState validates first and judges data loss from the result; the format marker can no longer be missing. |
+| CR-8 | Info | Fixed as suggested by the reviewer: a test fails if any source file contains `<script`, `</script` or `<!--`, so the build's escaping never touches real code. |
+| CR-9 | Info | Fixed. The page refuses to run inside a frame on any host (the header only exists on Cloudflare). Trusted Types was not added. |
+| CR-10 | Info | Fixed. U+061C is stripped with the other bidi controls (store, memory, social, revenue). |
+| PV-1 | High | Fixed. While private entries or lines of work are hidden, a ledger preview adds nothing and the card says to open the private vault. |
+| PV-2 | Medium | Fixed. A money entry saved while closed may keep the id of a private line of work (only while private lines exist); it counts as Unassigned while closed, is found again on open, and the next private write moves the link into the vault. The ledger preview is also dropped from the screen on every close. |
+| PV-3 | Medium | Fixed. CSV numbers accept commas only in groups of three; money values allow two decimals at most; anything else is a rejected row. |
+| PV-4 | Low | Fixed. Recurring items keep an anchor day while a date is clamped to a short month, so the 31st and Feb 29 come back. |
+| PV-5 | Low | Fixed. Slash, underscore and comma are separators, and a run of separators counts as one. |
+| PV-6 | Medium | Fixed per the owner's numbers-only rule. Rejection reasons are kept on this device only; prompts carry the count of recently rejected insights per area, never reason text or rejected wording. UI copy says so. |
+| PV-7 | Low | Fixed. Money CSV export writes category and due date; income import maps status (received, expected, written-off), due date and category. |
+| PV-8 | Low | Fixed. A weekly insight belongs to the month holding its start. |
+| PV-9 | Low | Fixed per the owner rule given to the reviewer (body metrics never reach a value-revealing insight): the weight rules insight was removed. Older stored ones stay excluded from prompts by their text. Owner may confirm. |
+| PV-10 | Low | Fixed for the ledger import only: there, a bare 9-digit number counts as an SSN only with an SSN cue. Every other field (document index, renewals, tax items, notes) keeps the strict rule, which existing tests require. |
+| UI-1 | High | Fixed. Every input, textarea and form gets autocomplete off unless it sets its own value (only the main passphrase fields, for the password manager). Confirmed in Chrome: after submitting money, outcome, project, review priority, quick add and private vault forms over http with a persistent profile, the profile's autofill table is empty; with the fix removed the same smoke finds four rows. Nothing stored means nothing can be offered back. |
+| UI-2 | Low | Fixed. The size, pipeline stage, household bill and tax state selects have names. |
+| UI-3 | Low | Fixed. Focus returns to the size select. |
+| UI-4 | Low | Fixed. The goal memo is emptied on every private close and on lock. |
+| UI-5 | Low | Fixed. "New items are private" applies only to the add forms and add dialogs that show its note; one-tap actions and imports follow their source record (SEC-62). |
+| UI-6 | Low | Fixed. A wrong current passphrase in "Change private passphrase" shares the open form's growing delay and disables the button. |
+| UI-7 | Low | Fixed. The idle timer reads the main state and resets at most once a second. |
+| UI-8 | Info | Fixed. "(default)". |
+| UI-9 | Info | Fixed. Private set-up, private change and backup import fields are cleared on failure too; LOCKED has a sentence. |
+| UI-10 | Info | Fixed. Module bodies are inert in Customize; Drag is hidden from keyboard and screen readers (Move up and Move down remain). |
+
+Counts: fixed 30 of 30 (High 3, Medium 4, Low 15, Info 8). Disputed: none. Needs an owner decision: none blocking; PV-9 and PV-6 follow owner rules and may be confirmed.
+
+### Re-checks
+SEC-01 to SEC-70 through the existing tests (all pass), the leak smoke (all collections moved in, closed and open), private-vault close races (test/priv.test.mjs, test/v0110-audit.test.mjs) and money totals (review-privacy tests 4 and 5, test/revenue.test.mjs). Version 1.0.0 in package.json and the app; nothing compares app version strings: sync, backup and migration decide by schema number and revision, which v1.0.0 leaves at schema 11, so v0.12.0 and v1.0.0 copies are interchangeable (the new recurring anchor day is ignored by v0.12.0).
+
+### Residual risks
+- A forgotten private passphrase destroys the private data everywhere. A forgotten main passphrase destroys everything.
+- Anyone with the main passphrase and a copy can try private passphrases offline at PBKDF2 speed; the delay is in the page only.
+- While closed, lock markers show which kinds of records are private, and a public money entry may hold the id (never the name or any number) of a private line of work (PV-2).
+- If two devices each created a Drive file before v1.0.0, each keeps its own file; Settings says so, but merging needs the user (export from one, restore on the other).
+- Chrome's enhanced spell check, if the user turned it on, sends typed text to Google; the app does not disable spell check.
+- Every write re-encrypts the whole vault (about 2 s at the caps). The vault can pass 64 MB with several domains at their caps; export and sync refuse rather than cut.
+- JS cannot zero memory: passphrases and decrypted copies live until garbage collection.
+
+### Never tested for real
+Google sign-in and Drive (all tests mock Google, including whether Drive honours If-Match), a physical phone (tests use desktop Chrome at 390x844), a real AI call (simulated providers only), and the live site's response headers (Cloudflare Access blocks outside checks). Autofill was checked in desktop Chrome only, not Safari, Firefox or Chrome on Android.

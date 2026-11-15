@@ -22,6 +22,8 @@
     mk('habitRate', 'Daily checks completed (7 days)', 'health', 'percent'),
     mk('outcomesPerWeek', 'Outcomes done per week', 'work', 'count'),
     mk('pipelineWon', 'Pipeline items won', 'work', 'count'),
+    mk('revenueMonth', 'Revenue per month', 'work', 'currency'),
+    mk('netMonth', 'Net per month', 'work', 'currency'),
     mk('maintenanceOverdue', 'Maintenance tasks overdue', 'home', 'count'),
     mk('adminOverdue', 'Admin items overdue', 'admin', 'count'),
     mk('studyMinutes', 'Study minutes per week', 'learning', 'count'),
@@ -67,6 +69,14 @@
     if (goal.metric === 'manual') return typeof goal.manualValue === 'number' ? goal.manualValue : null;
     if (!m.isDate(asOf)) throw new Error('Date must be YYYY-MM-DD');
     if (goal.metric === 'itemProgress') return L.learning.goalProgress(state, goal.id); // depends on the goal, so it is never memoised by metric
+    if (goal.metric === 'revenueMonth' || goal.metric === 'netMonth') {
+      // Optionally scoped to one line of work or to a parent's rollup; memoised per metric, scope and date.
+      const k = goal.metric + '|' + (goal.projectId || '') + '|' + (goal.rollup ? 'r' : 'l') + '|' + asOf;
+      if (memo && memo.has(k)) return memo.get(k);
+      const v = L.revenue.goalValue(state, goal.metric, goal.projectId, !!goal.rollup, asOf);
+      if (memo) memo.set(k, v);
+      return v;
+    }
     if (memo) {
       const k = goal.metric + '|' + asOf;
       if (!memo.has(k)) memo.set(k, linkedValue(state, goal.metric, asOf));
@@ -308,6 +318,7 @@
     const mv = toNum(input.manualValue, 'Current value');
     if (mv !== undefined) g.manualValue = mv;
     if (input.parentId) g.parentId = input.parentId;
+    if (input.projectId && (def.id === 'revenueMonth' || def.id === 'netMonth')) { g.projectId = input.projectId; if (input.rollup) g.rollup = true; }
     if (g.startValue === undefined) {
       // A manual goal starts from its typed current value, else from 0; a linked goal starts from its current number.
       const cur = def.id === 'manual' ? (mv === undefined ? 0 : mv) : currentValue(state, g, t);
@@ -320,7 +331,7 @@
     state.goals.push(g);
     return g;
   }
-  const EDITABLE = ['title', 'horizon', 'direction', 'startValue', 'targetValue', 'startDate', 'dueDate', 'parentId', 'notes', 'manualValue', 'statusOverride', 'domain'];
+  const EDITABLE = ['title', 'horizon', 'direction', 'startValue', 'targetValue', 'startDate', 'dueDate', 'parentId', 'notes', 'manualValue', 'statusOverride', 'domain', 'projectId', 'rollup'];
   function updateGoal(state, id, patch) {
     const g = find(state, id);
     if (!isObj(patch)) throw new Error('Nothing to change');
@@ -330,7 +341,8 @@
       const v = patch[k];
       if (k === 'startValue' || k === 'targetValue') { const x = toNum(v, k === 'startValue' ? 'Start value' : 'Target'); if (x === undefined) throw new Error('Enter a number'); n[k] = x; }
       else if (k === 'manualValue') { const x = toNum(v, 'Current value'); if (x === undefined) delete n.manualValue; else n.manualValue = x; }
-      else if (k === 'parentId' || k === 'statusOverride') { if (v === null || v === undefined || v === '') delete n[k]; else n[k] = v; }
+      else if (k === 'parentId' || k === 'statusOverride' || k === 'projectId') { if (v === null || v === undefined || v === '') { delete n[k]; if (k === 'projectId') delete n.rollup; } else n[k] = v; }
+      else if (k === 'rollup') { if (v) n.rollup = true; else delete n.rollup; }
       else if (k === 'domain') { if (g.metric === 'manual') n.domain = v; }
       else n[k] = typeof v === 'string' && k !== 'horizon' && k !== 'direction' ? v.trim() : v;
     }

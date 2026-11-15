@@ -13,8 +13,11 @@ const W = (date, value) => E({ domain: 'health', type: 'weight', date, title: 'W
 test('SEC-32 weight change never reaches a prompt, also not through an approved rules insight', () => {
   const s = S.validateState(clone(Object.assign(S.defaultState(), { entries: [W('2026-11-02', 200), W('2026-11-12', 195.5)] })));
   const ins = Mem.rulesInsights(s, WK);
-  assert.ok(ins.some((i) => i.text === 'Weight moved down 4.5 lb this week.'), 'the insight still exists in the vault');
+  // PV-9 (owner rule): the weight rule is gone, so no new insight states it. An older vault may still hold one: inject it so the
+  // prompt exclusion is still exercised.
+  assert.ok(!ins.some((i) => /weight/i.test(i.text)), 'no weight rules insight');
   Mem.propose(s, ins, { level: 1, period: { from: WK, to: '2026-11-15' }, source: 'rules' });
+  s.memory.insights.push({ id: 'l1w', level: 1, period: { from: WK, to: '2026-11-15' }, domain: 'health', text: 'Weight moved down 4.5 lb this week.', source: 'rules', status: 'proposed', createdAt: 1 });
   for (const i of s.memory.insights) Mem.decide(s, i.id, 'approved');
   assert.ok(s.memory.insights.some((i) => /Weight moved/.test(i.text) && i.status === 'approved'));
   const ps = [Mem.buildPrompt(s, 1, { from: WK, to: '2026-11-15' }), Mem.buildPrompt(s, 2, { from: '2026-11-01', to: '2026-11-30' }), Mem.buildPrompt(s, 3, { from: '2026-10-01', to: '2026-12-31' })];

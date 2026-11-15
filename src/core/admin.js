@@ -39,7 +39,9 @@
   }
   function fold(s) {
     return s.normalize('NFKC').replace(/\p{Cf}/gu, '').replace(/\p{Nd}/gu, (c) => (c >= '0' && c <= '9' ? c : digitOf(c)))
-      .replace(/[\p{Zs}\t]/gu, ' ').replace(/\p{Pd}|\u2212/gu, '-');
+      .replace(/[\p{Zs}\t]/gu, ' ').replace(/\p{Pd}|\u2212/gu, '-')
+      // PV-5: a slash, underscore or comma between digit groups is a separator too, and a run of separators counts as one.
+      .replace(/[\/_,]/g, '-').replace(/ *[-.](?: *[-.])+ */g, '-');
   }
   // One separator between digit groups: a space, dash or dot, with optional spaces around it ("4111 - 1111", "4111  1111").
   const SEP = '(?: *[-.] *| +)';
@@ -49,11 +51,15 @@
   // True for: a 9-digit SSN shape (123-45-6789, 123 45 6789, 123.45.6789, 123456789), or a 13 to 19 digit number that passes the
   // Luhn check, either run together or grouped like a card (4-4-4-4, 4-6-5) with spaces, dashes or dots. Years, dates, phone
   // numbers and amounts do not match.
-  function looksSecret(s0) {
+  // PV-10: in an imported ledger a bare 9-digit run (no separators) is an invoice, order or payout number far more often than an SSN,
+  // so there (looksSecretText) it counts only with an SSN cue in the text. Everywhere else a bare 9-digit run is refused as before.
+  const SSN_CUE = /(?<![a-z])(?:ssn|ss#|social *security|soc\.? *sec|itin|tin)(?![a-z])/i;
+  function looksSecret(s0, lenient) {
+    const strict = lenient !== 'ledger';
     if (typeof s0 !== 'string' || !s0) return false;
     const s = fold(s0);
     if (SSN_RE.test(s)) return true;
-    if (/(?<![\d.,])\d{9}(?!\d|[.,]\d)/.test(s)) return true;
+    if ((strict || SSN_CUE.test(s)) && /(?<![\d.])\d{9}(?!\d|[.,]\d)/.test(s)) return true;
     for (const m of s.matchAll(/(?<!\d)\d{13,19}(?!\d)/g)) if (luhn(m[0])) return true;
     for (const m of s.matchAll(CARD4_RE)) {
       const digits = m[1] + m[2] + m[3] + m[4];
@@ -346,7 +352,7 @@
 
   L.admin = {
     KINDS, KIND_LABEL, CADENCES, CADENCE_LABEL, TAX_STATES, RENEWAL_CAP, DOC_CAP, TAX_CAP, SECRET_MESSAGE, SECRET_MESSAGE_FIELD,
-    looksSecret, luhn, checkNoSecrets, anchorDay, cleanRenewals, cleanDocuments, cleanTaxItems, addRenewal, proposeNext, pendingRenewals, completeRenewal, confirmRenewal,
+    looksSecret, looksSecretText: (x) => looksSecret(x, 'ledger'), luhn, checkNoSecrets, anchorDay, cleanRenewals, cleanDocuments, cleanTaxItems, addRenewal, proposeNext, pendingRenewals, completeRenewal, confirmRenewal,
     stopRenewing, cancelRenewal, markReviewed, deleteRenewal, annualCents, subscriptions, addDocument, deleteDocument, addTaxItem, setTaxState, deleteTaxItem, taxByYear,
     legacyDue, legacyEntries, dated, overdueAt, dueWithin, timeline, headline, weekValue, digest, reviewWeek, overdueValue, hasData,
   };

@@ -36,6 +36,8 @@
       else if (r.kind === 'in-sync') say('Already in sync (revision ' + r.rev + ').');
       else if (r.kind === 'downloaded') { c.setNotice('ok', 'Downloaded the Drive copy (revision ' + r.rev + ').'); c.render(); }
       else say('Nothing changed.');
+      // CR-5: Drive holds more than one LifeOS copy (two devices made one each); this device keeps using the one it synced with.
+      if (r.copies > 1) say(status.textContent + ' Google Drive holds ' + r.copies + ' LifeOS copies. This device uses the one it synced with last.');
       paint();
     }
     function fail(e) {

@@ -2,13 +2,13 @@
   'use strict';
   const L = (globalThis.LifeOS = globalThis.LifeOS || {});
   const KEY = 'envelope';
-  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 10, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
+  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 11, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
   const HABIT_CAP = 8, HABIT_LOG_CAP = 100000, KIND_CAP = 30;
   const RENEWAL_TOTAL_CAP = 2000;
   const ENTRY_CAP = 50000, INSIGHT_CAP = 5000, REVIEW_CAP = 1000, LESSON_CAP = 30, AUDIT_CAP = 200;
   const BLOCKED = new Set(['__proto__', 'constructor', 'prototype']);
   // Same rule as ai.isLocalUrl (ai.js loads after this file, so call it lazily).
-  const BIDI = /[\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF]/g;
+  const BIDI = /[\u061C\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF]/g;
   const strip = (v) => (typeof v === 'string' ? v.replace(BIDI, '') : v);
   let adapter = null, key = null, salt = null, state = null, queue = Promise.resolve();
   // Sync metadata (rev etc.) travels outside AND inside the ciphertext; a mismatch means tampering. Missing = rev 0.
@@ -84,9 +84,12 @@
     return str(v, 40, name);
   }
   function oneOf(v, list, name) { if (!list.includes(v)) fail(name + ' not allowed'); return v; }
+  // CR-2: while a merged view (public and private records together) is validated, each layer has already been held to its own cap,
+  // so the view may hold up to twice the cap; adds are still refused by the add functions, which count the view.
+  let merged = false;
   function arr(v, cap, name) {
     if (!Array.isArray(v)) fail(name + ' must be a list');
-    if (v.length > cap) fail(name + ' has too many items');
+    if (v.length > (merged ? cap * 2 : cap)) fail(name + ' has too many items');
     return v;
   }
   function domainIds() { return L.metrics.DOMAINS.map((d) => d.id); }
@@ -117,6 +120,7 @@
       home: schema >= 6 ? cleanHomeSettings(s.home) : { starterDone: false },
       learning: schema >= 7 ? L.learning.cleanSettings(s.learning) : { weeklyMinutes: 0 },
       privAutoLockSec: schema >= 10 && s.privAutoLockSec !== undefined ? num(s.privAutoLockSec, 15, 1800, 'privAutoLockSec', true) : 60,
+      layouts: schema >= 11 ? L.layout.cleanLayouts(s.layouts) : { narrow: [], wide: [] },
     };
   }
   // 6 decimals, like converted weights, so a unit switch round trip does not drift.
@@ -212,15 +216,15 @@
     return out;
   }
   const STAGES = ['lead', 'contacted', 'applied', 'interview', 'offer', 'won', 'lost'];
-  const PROJECT_KINDS = ['job', 'venture', 'client', 'personal'];
+  const PROJECT_KINDS = ['job', 'venture', 'client', 'personal', 'website', 'podcast'];
   const PIPELINE_KINDS = ['job', 'deal', 'partner'];
   function cleanProjects(list) {
     if (list === undefined) return [];
     const seen = new Set();
     arr(list, PROJECT_TOTAL_CAP, 'projects');
     // Archived projects do not count toward the 200 cap; a separate total cap keeps the list bounded.
-    if (list.filter((x) => !(isObj(x) && x.archived === true)).length > PROJECT_CAP) fail('projects has too many items');
-    return list.map((x) => {
+    if (list.filter((x) => !(isObj(x) && x.archived === true)).length > (merged ? PROJECT_CAP * 2 : PROJECT_CAP)) fail('projects has too many items');
+    const out = list.map((x) => {
       if (!isObj(x)) fail('project');
       const id = str(x.id, 100, 'project id');
       if (seen.has(id)) fail('duplicate project id');
@@ -233,8 +237,23 @@
       };
       if (x.nextDate !== undefined && x.nextDate !== '') o.nextDate = date(x.nextDate, 'nextDate');
       o.archived = bool(x.archived, 'archived', false);
+      if (x.parentId !== undefined && x.parentId !== null && x.parentId !== '') o.parentId = str(x.parentId, 100, 'project parent');
       return o;
     });
+    // v0.12.0: a line of work may sit under one parent (one level only). A parent that does not exist or is archived is dropped and
+    // the project kept; a project that is its own parent, or a parent that itself has a parent, is refused.
+    const byId = new Map(out.map((p) => [p.id, p]));
+    for (const p of out) {
+      if (p.parentId === undefined) continue;
+      const par = byId.get(p.parentId);
+      if (p.parentId === p.id) fail('a project cannot be its own parent');
+      if (!par || par.archived) { delete p.parentId; continue; }
+    }
+    // CR-2: in a merged view a public parent may have gained its own parent while the private vault was closed; the private child is
+    // then detached (kept, unlinked) instead of making the vault impossible to open.
+    if (merged) { const deep = out.filter((p) => p.parentId !== undefined && byId.get(p.parentId).parentId !== undefined); for (const p of deep) delete p.parentId; }
+    for (const p of out) if (p.parentId !== undefined && byId.get(p.parentId).parentId !== undefined) fail('projects nest one level only');
+    return out;
   }
   function cleanPipeline(list) {
     if (list === undefined) return [];
@@ -315,6 +334,14 @@
       });
       out.social = o;
     }
+    if (d.revenue !== undefined) {
+      if (!isObj(d.revenue)) fail('digest revenue');
+      const x = d.revenue, o = {};
+      for (const k of ['revenueWeekCents', 'expensesWeekCents', 'revenueMonthCents', 'expensesMonthCents', 'expectedNext30Cents']) o[k] = num(x[k], 0, Number.MAX_SAFE_INTEGER, 'digest revenue', true);
+      for (const k of ['netWeekCents', 'netMonthCents']) o[k] = num(x[k], -Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, 'digest revenue', true);
+      for (const k of ['overdueCount', 'lines']) o[k] = num(x[k], 0, 1e9, 'digest revenue', true);
+      out.revenue = o;
+    }
     for (const k of ['home', 'admin']) {
       if (d[k] === undefined) continue;
       if (!isObj(d[k])) fail('digest ' + k);
@@ -365,7 +392,9 @@
     if (!Array.isArray(a)) fail('audit');
     return a.slice(-AUDIT_CAP).map((x) => {
       if (!isObj(x)) fail('audit item');
-      return { ts: ts(x.ts, 'ts'), action: str(x.action, 100, 'action', true) };
+      // CR-4: Settings renders ts as text; a numeric timestamp (older writer or crafted backup) becomes an ISO string.
+      const t = ts(x.ts, 'ts');
+      return { ts: typeof t === 'number' ? (Math.abs(t) <= 8.64e15 ? new Date(t).toISOString() : '') : t, action: str(x.action, 100, 'action', true) };
     });
   }
   // ---- schema 2: accounts, recurring, budgets, categories ----
@@ -386,6 +415,13 @@
       return { id, name, kind, liability: LIAB_KINDS.includes(kind) ? true : bool(x.liability, 'liability'), archived: bool(x.archived, 'archived', false) };
     });
   }
+  // PV-4: anchorDay is kept only while nextDate is a month's last day earlier than the anchor (a clamped date), else dropped.
+  function anchorOf(x) {
+    const a = x.anchorDay;
+    if (!Number.isInteger(a) || a < 1 || a > 31 || x.cadence === 'weekly' || !isDate(x.nextDate)) return {};
+    const d = x.nextDate, day = +d.slice(8, 10), last = new Date(Date.UTC(+d.slice(0, 4), +d.slice(5, 7), 0)).getUTCDate();
+    return day === last && a > day ? { anchorDay: a } : {};
+  }
   function cleanRecurring(list) {
     if (list === undefined) return [];
     const seen = new Set();
@@ -398,7 +434,9 @@
         id, title: str(strip(x.title).trim(), 200, 'recurring title'), value: money2(x.value, 0.01, 1e9, 'recurring value'),
         category: str(strip(x.category).trim(), 40, 'recurring category', true), type: oneOf(x.type, ['income', 'expense'], 'recurring type'),
         cadence: oneOf(x.cadence, ['weekly', 'monthly', 'yearly'], 'cadence'), nextDate: date(x.nextDate, 'nextDate'), active: bool(x.active, 'active'),
-        household: bool(x.household, 'household', false)
+        household: bool(x.household, 'household', false),
+        ...anchorOf(x),
+        ...(x.projectId !== undefined && x.projectId !== null && x.projectId !== '' ? { projectId: str(x.projectId, 100, 'recurring project') } : {})
       };
     });
   }
@@ -475,6 +513,11 @@
     if (o.direction === 'up' ? o.targetValue < o.startValue : o.targetValue > o.startValue) fail('goal target is on the wrong side of its start value');
     if (x.parentId !== undefined && x.parentId !== null && x.parentId !== '') o.parentId = str(x.parentId, 100, 'goal parent');
     if (x.manualValue !== undefined && x.manualValue !== null) o.manualValue = num(x.manualValue, -1e12, 1e12, 'goal current value');
+    if (x.projectId !== undefined && x.projectId !== null && x.projectId !== '') {
+      if (metric !== 'revenueMonth' && metric !== 'netMonth') fail('only revenue goals can be scoped to a line of work');
+      o.projectId = str(x.projectId, 100, 'goal line of work');
+      if (x.rollup !== undefined) o.rollup = bool(x.rollup, 'goal rollup', false);
+    }
     if (x.statusOverride !== undefined && x.statusOverride !== null) o.statusOverride = oneOf(x.statusOverride, ['ahead', 'on-track', 'behind'], 'goal status');
     o.state = oneOf(x.state, ['active', 'achieved', 'dropped'], 'goal state');
     if (x.closedAt !== undefined && x.closedAt !== null) o.closedAt = date(x.closedAt, 'goal closed date');
@@ -491,7 +534,7 @@
       if (g.parentId === undefined) continue;
       const p = byId.get(g.parentId);
       if (!p) { delete g.parentId; continue; } // a dangling link is dropped, the goal is kept
-      if (rank(p) <= rank(g)) fail('a goal parent must be on a longer horizon');
+      if (rank(p) <= rank(g)) { if (merged) { delete g.parentId; continue; } fail('a goal parent must be on a longer horizon'); }
     }
     for (const g of out) { // belt and braces: strictly longer parents cannot loop, but never trust a loop-free claim
       let c = g, n = 0;
@@ -539,10 +582,16 @@
     return { goals, entries: entries.filter((e) => !gone.has(e.id)) };
   }
   // opts.privateGoals: the caller validates a view with private records merged in, so wellbeing goal metrics are allowed (the stored main state never is).
+  // opts.merged: the input is a merged view (priv.js); caps and cross-record rules are tolerant (see arr and cleanProjects).
   function validateState(o, opts) {
+    const was = merged;
+    merged = !!(opts && opts.merged);
+    try { return validateStateRaw(o, opts); } finally { merged = was; }
+  }
+  function validateStateRaw(o, opts) {
     if (!isObj(o)) fail('state must be an object');
     scan(o, 0, { n: 4e6 });
-    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, SCHEMA].includes(o.schema)) fail('unsupported schema');
+    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, SCHEMA].includes(o.schema)) fail('unsupported schema');
     if (!L.metrics) fail('metrics module missing');
     const settings = cleanSettings(o.settings, o.schema), entries = cleanEntries(o.entries);
     const out = { schema: SCHEMA, settings, entries };
@@ -558,10 +607,16 @@
     out.habitLog = o.schema >= 4 ? cleanHabitLog(o.habitLog, out.habits) : [];
     // An outcome may only point at a project that exists; a dangling link is dropped, the outcome is kept.
     const pids = new Set(out.projects.map((p) => p.id));
-    for (const e of entries) if (e.projectId !== undefined && !pids.has(e.projectId)) delete e.projectId;
+    // PV-2: while private lines of work exist, a money entry saved with the vault closed may point at one of them (a ledger preview made
+    // while the vault was open and imported after it closed). The id is kept, so the line is found again once the vault opens (and the
+    // next write moves the link into the private vault); while closed it counts as Unassigned. Merged views drop it as usual.
+    const hiddenLines = !(opts && opts.merged) && isObj(o.priv) && Array.isArray(o.priv.marks) && o.priv.marks.includes('projects');
+    for (const e of entries) if (e.projectId !== undefined && !pids.has(e.projectId) && !(hiddenLines && e.domain === 'money')) delete e.projectId;
+    for (const r of out.recurring) if (r.projectId !== undefined && !pids.has(r.projectId)) delete r.projectId;
     // Schema 5 adds goals; older formats turn their goals/goal entries into goals (nothing is lost).
     if (o.schema >= 5) out.goals = cleanGoals(o.goals, !!(opts && opts.privateGoals));
     else { const m = goalsFromEntries(entries); out.goals = cleanGoals(m.goals); out.entries = m.entries; }
+    for (const g of out.goals) if (g.projectId !== undefined && !pids.has(g.projectId)) { delete g.projectId; delete g.rollup; }
     // Schema 6 adds Home (properties, vehicles, maintenance) and Admin (renewals, documents, tax items). Older formats get
     // empty collections, and their home/due entries become renewals (see admin.legacyDue; nothing is dropped).
     const six = o.schema >= 6, H = L.home, A = L.admin;
@@ -652,6 +707,15 @@
     if (src < 9) {
       for (const [k, n] of [['groups', 'social groups'], ['people', 'people'], ['contacts', 'logged contacts']]) if ((cur[k] || []).length) out.push(n);
     }
+    if (src < 11) {
+      // v0.12.0: lines of work (website and podcast kinds, parents), money linked to them, expected income and dashboard layouts.
+      const ps = cur.projects || [], money = (cur.entries || []).filter((e) => e.domain === 'money');
+      if (ps.some((p) => p.parentId || p.kind === 'website' || p.kind === 'podcast')) out.push('line of work kinds and parents');
+      if (money.some((e) => e.projectId) || (cur.recurring || []).some((r) => r.projectId) || (cur.goals || []).some((g) => g.projectId)) out.push('money linked to lines of work');
+      if (money.some((e) => e.status === 'expected' || e.status === 'written-off' || e.dueDate)) out.push('expected income');
+      const ls = cur.settings && cur.settings.layouts;
+      if (ls && ((ls.narrow || []).length || (ls.wide || []).length)) out.push('dashboard layouts');
+    }
     if (src < 4) {
       if (cur.cycle) out.push('training cycle');
       if ((cur.habits || []).length) out.push('daily checks');
@@ -682,6 +746,7 @@
         home: { starterDone: false },
         learning: { weeklyMinutes: 0 },
         privAutoLockSec: 60,
+        layouts: { narrow: [], wide: [] },
       },
       entries: [],
       accounts: [], recurring: [], budgets: [], categories: defaultCategories(),
@@ -812,10 +877,15 @@
     return serial(async () => {
       requireUnlocked();
       const st = state;
-      if (dropsWork(st, next) && !(opts && opts.allowWorkLoss === true)) {
-        const e = new Error('This backup is from an older version and has no ' + nameList(droppedData(st, next)) + '. Nothing was replaced.'); e.code = 'OLDER_FORMAT'; throw e;
-      }
+      // CR-7: validate first and judge what would be lost from the result. The format marker comes from the caller's earlier
+      // validation when present (an older backup already migrated in memory), else from this one, so it can never be missing.
       const clean = validateState(next);
+      const src = next && typeof next.sourceSchema === 'number' ? next.sourceSchema : clean.sourceSchema;
+      if (typeof src !== 'number') throw new Error('Invalid data: unknown format');
+      const probe = Object.defineProperty({ priv: clean.priv }, 'sourceSchema', { value: src, enumerable: false });
+      if (dropsWork(st, probe) && !(opts && opts.allowWorkLoss === true)) {
+        const e = new Error('This backup is from an older version and has no ' + nameList(droppedData(st, probe)) + '. Nothing was replaced.'); e.code = 'OLDER_FORMAT'; throw e;
+      }
       dropPriv();
       // A restored backup never brings its own sync bookkeeping: an older remoteRev would weaken the rollback
       // check, and a different OAuth client ID would be swapped in without the user seeing it.
@@ -833,7 +903,9 @@
   // Public identifier of the live key: its salt in base64 (the salt is not secret; it is in every envelope).
   const saltId = () => { requireUnlocked(); return btoa(String.fromCharCode.apply(null, salt)); };
   // Current stored envelope, re-sealed first if it has no rev yet or must reach at least minRev.
-  function exportEnvelope(minRev) {
+  // opts.snapshot(state): an async function run on the live state inside the same serial step, so its result describes exactly the
+  // exported content (CR-1); the call then resolves to { env, snap, saltId }.
+  function exportEnvelope(minRev, opts) {
     return serial(async () => {
       requireUnlocked();
       const a = getAdapter(), st = state, k = key, sl = salt;
@@ -845,6 +917,11 @@
         if (state !== st || key !== k) throw new Error('LOCKED');
         await a.set(KEY, sealed.env);
         meta = sealed.m; env = sealed.env;
+      }
+      if (opts && typeof opts.snapshot === 'function') {
+        const snap = await opts.snapshot(st);
+        if (state !== st || key !== k) throw new Error('LOCKED');
+        return { env, snap, saltId: btoa(String.fromCharCode.apply(null, sl)) };
       }
       return env;
     });

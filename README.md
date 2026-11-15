@@ -14,6 +14,7 @@ Build, then open `dist/lifeos.html` in a browser (double-click works, it needs n
 - `node test/smoke-money.mjs` runs the Money and Assets flow (accounts, quick add, budget, recurring, lock) at desktop and 390x844 sizes.
 - `node test/smoke-sync.mjs` runs Google Drive sync against a mocked Drive; `node test/smoke-work.mjs` runs the Work flow (projects, outcomes, pipeline, older backup restore) at desktop and 390x844 sizes.
 - `node build.mjs` also writes `_headers` (Cloudflare Pages) with the same CSP plus frame-ancestors.
+- `node test/smokes.mjs` (or `npm run smoke`) builds, then runs every browser smoke script (`test/smoke*.mjs`) and the UI review proofs (`test/review-ui.mjs`) one after another.
 
 ## v0.4.0: Work
 
@@ -69,6 +70,25 @@ Build, then open `dist/lifeos.html` in a browser (double-click works, it needs n
 - Important dates (label and name only) appear in the dashboard "At a glance" card; Feb 29 shows on Feb 28 in other years. Pipeline items and projects show linked people and their last contact; unlinking never deletes either side.
 - The weekly review gains a Social step (offers only); Goals gain people overdue and contacts per week. The AI and digest see counts only, with groups numbered by position.
 - Vault schema 9, migrated from schema 1 to 8 with no data loss: each distinct name in old contact entries becomes a person with those entries as the log; an entry that cannot map stays a visible entry. Contact entries added later (for example by CSV import) are offered for conversion, once. `node test/smoke-social.mjs` runs the flow. Audited: names, group names, labels, facts, channels and notes never leave the vault. See the v0.10.0 audit in docs/SECURITY.md.
+
+## v1.0.0: Final complete review
+
+- Three independent reviews (crypto and sync, privacy and the AI boundary, the UI in Chrome) found 30 issues; all are fixed, with their proof tests kept as regression tests. See "Final complete review (v1.0.0)" in docs/SECURITY.md.
+- Typed text is no longer kept in the browser's autofill history: every input, textarea and form says autocomplete off.
+- An edit saved while a Drive upload is in progress is no longer marked as synced. A private vault no longer refuses to open after public changes made while it was closed.
+- A ledger import waits until the private vault is open when private entries or lines of work exist, so nothing is imported twice.
+- The AI never receives the reason you typed when rejecting an insight, only how many insights were rejected in each area. No rules insight states a body metric.
+- CSV import rejects a decimal comma instead of reading it 100 times too large; Money CSV export and import keep status, due date and category. Monthly items due on the 31st come back to the 31st.
+- "New items are private" applies to add forms and add dialogs only; one-tap actions follow the record they come from.
+- The page refuses to run inside a frame. Schema stays 11, so v0.12.0 and v1.0.0 copies open in each other.
+
+## v0.12.0: Command center, first build
+
+- Lines of work: projects gain the kinds Website and Podcast and an optional parent (one level). Money income and expenses, recurring items and revenue goals can be linked to a line.
+- Revenue view (Work, Revenue): per line, rollup and Unassigned totals for this month, last month, quarter to date, year to date, trailing 12 months or a custom range, with margin, 12-month table, recurring monthly revenue and expected income (next 30, 60, 90 days, overdue). Expected and written-off income never count in Money, savings rate, budgets or net worth until marked received.
+- Ledger CSV import: pick the columns, preview (nothing is written), confirm. Importing the same file again adds nothing. Unknown line names are offered, never created silently.
+- Customizable home: reorder (drag or Move up and Move down), hide, resize and reset modules, saved separately for narrow (under 720 px) and wide screens.
+- Schema 11, migrated from schema 1 to 10 with no data loss. `node test/smoke-command.mjs` runs the flow.
 
 ## v0.11.0: Private vault and Wellbeing
 - A private vault inside the app: a second lock with its own passphrase (12 characters or more, different from the main one), its own salt and key (PBKDF2 600,000, AES-GCM 256), stored encrypted inside the main encrypted state. Unlocking the app does not open it. It closes by itself after a set idle time (default 60 seconds, 15 to 1800), when the tab is hidden, when the app locks, on a passphrase change and before any AI request. Wrong passphrases add a growing wait (1 s doubling to 30 s).

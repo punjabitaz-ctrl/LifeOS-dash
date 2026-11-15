@@ -144,6 +144,44 @@ async function run(label, viewport) {
       await nav('Review'); await page.waitForSelector('#rv-social, #rv-soc-none', T);
       await grab('social work and review');
     });
+    await step('Revenue (v0.12.0): lines, expected income, an imported ledger with marked text, bulk assign, review and prompt hold numbers only', async () => {
+      await page.evaluate(`(async () => {
+        const L = globalThis.LifeOS, M = ${JSON.stringify(ADV_MARK)};
+        await L.store.commit((x) => {
+          x.projects.push({ id: 'p-kid', name: M + 'child line', kind: 'website', status: 'active', nextAction: M + 'child next', archived: false, parentId: 'p1' });
+          x.entries.push(
+            L.metrics.validateEntry({ id: 'rv1', domain: 'money', type: 'income', date: '2026-11-10', title: M + 'rev income', value: 120, category: M.slice(0, 20) + 'c', notes: M + 'rev notes', projectId: 'p-kid' }),
+            L.metrics.validateEntry({ id: 'rv2', domain: 'money', type: 'income', date: '2026-11-01', title: M + 'rev expected', value: 80, notes: M + 'exp notes', projectId: 'p1', status: 'expected', dueDate: '2026-11-05' }),
+            L.metrics.validateEntry({ id: 'rv3', domain: 'money', type: 'expense', date: '2026-11-11', title: M + 'rev cost', value: 30, projectId: 'p-kid' }));
+          x.recurring.push({ id: 'rr1', title: M + 'rev retainer', value: 60, category: '', type: 'income', cadence: 'monthly', nextDate: '2026-12-01', active: true, household: false, projectId: 'p-kid' });
+        });
+      })()`);
+      await nav('Work'); await page.waitForSelector('#open-revenue', T); await page.click('#open-revenue'); await page.waitForSelector('#rev-lines', T);
+      if (!(await page.textContent('#rev-lines')).includes(ADV_MARK)) throw new Error('marked line not shown on the revenue screen, so the check proves nothing');
+      await grab('revenue');
+      const csv = ['Date,Line,Category,Description,Amount', '2026-11-12,"' + ADV_MARK + 'csv line",Other,"' + ADV_MARK + 'csv desc",44.00', '2026-11-12,,Other,"' + ADV_MARK + 'card 4111 1111 1111 1111",9', '2026-11-13,,"' + 'k'.repeat(41) + '","' + ADV_MARK + 'long cat",3'].join('\n');
+      await page.setInputFiles('#ledger-file', { name: 'ledger.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
+      await page.waitForSelector('#ledger-preview', T); await page.click('#ledger-preview'); await page.waitForSelector('#ledger-summary', T);
+      if (!(await page.textContent('#ledger-rejected')).length) throw new Error('no rejected rows listed');
+      if ((await page.textContent('#ledger-rejected')).includes('LEAK') || (await page.textContent('#ledger-summary')).includes('LEAK')) throw new Error('a rejected-row reason echoes the imported text');
+      await page.check('#ledger-create-0'); await page.waitForSelector('#ledger-confirm:not([disabled])', T);
+      await grab('ledger preview');
+      await page.click('#ledger-confirm'); await page.waitForSelector('.notice:has-text("Imported 1 entry")', T);
+      await page.waitForSelector('#rev-lines tr[data-line^="' + ADV_MARK + 'csv line"]', T);
+      await grab('ledger imported');
+      await nav('Money'); await page.waitForSelector('#bulk-assign', T);
+      if (!(await page.locator('#bulk-assign').evaluate((el) => el.open))) await page.click('#bulk-assign > summary');
+      await page.fill('#ba-text', 'LEAK'); await page.click('#ba-preview');
+      await grab('bulk assign');
+      await nav('Review'); await page.waitForSelector('#rv-revenue', T);
+      await grab('review revenue');
+      await page.click('button:has-text("Suggest with AI")'); await page.waitForSelector('#ai-prompt', T);
+      const p = await page.$eval('#ai-prompt', (t) => t.value);
+      if (!/revenue detail/.test(p)) throw new Error('revenue line missing from the prompt: ' + p.slice(0, 80));
+      prompts.push(p);
+      const audit = await page.evaluate(() => JSON.stringify(globalThis.LifeOS.store.getState().audit));
+      if (!audit.includes('ledger import')) throw new Error('ledger import not in the audit log');
+    });
     await step('lock, unlock and reload', async () => {
       await page.click('.top .lockbtn'); await page.waitForSelector('#pass', T);
       if ((await page.textContent('body')).includes(ADV_MARK)) throw new Error('locked page shows data');

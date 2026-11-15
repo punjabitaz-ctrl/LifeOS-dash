@@ -6,7 +6,7 @@
   // and new proposals leave it out; earlier wellbeing insights stay in the vault but are never sent.
   const NO_AI = new Set(['wellbeing']);
   const domains = () => L.DOMAINS.map((d) => d.id).filter((id) => !NO_AI.has(id)).concat(['overall']);
-  const BIDI = /[\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF]/g;
+  const BIDI = /[\u061C\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF]/g;
   const newId = () => L._webcrypto.randomUUID();
 
   function checkPeriod(p) {
@@ -66,7 +66,7 @@
     if (hd) {
       const unit = state.settings.health ? state.settings.health.units : 'lb';
       if (hd.avgSleep > 0) out.push({ domain: 'health', text: ('Average sleep this week was ' + hd.avgSleep + ' hours' + (ph.avgSleep > 0 ? ' (last week ' + ph.avgSleep + ').' : '.')).slice(0, MAX_TEXT) });
-      if (hd.weightChange !== 0) out.push({ domain: 'health', text: ('Weight moved ' + (hd.weightChange < 0 ? 'down ' : 'up ') + Math.abs(hd.weightChange) + ' ' + unit + ' this week.').slice(0, MAX_TEXT) });
+      // PV-9 (owner rule): body metrics never become a stored insight that states a value or a change, so there is no weight rule.
       if ((state.habits || []).length && (hd.habitRate > 0 || ph.habitRate > 0)) out.push({ domain: 'health', text: ('Daily checks completed: ' + hd.habitRate + '% this week (last week ' + ph.habitRate + '%).').slice(0, MAX_TEXT) });
     }
     return out;
@@ -115,20 +115,27 @@
       // Social: counts only, never a name, group name, date label, fact, channel or note. Groups are numbered by position.
       const sc = dg.social;
       if (sc && (sc.people || sc.overdue || sc.dueSoon || sc.contactsWeek)) lines.push('- social detail: people ' + sc.people + ', overdue ' + sc.overdue + ', due within 7 days ' + sc.dueSoon + ', contacts this week ' + sc.contactsWeek + (sc.byGroup.length ? ', by group ' + sc.byGroup.map((g, i) => 'group ' + (i + 1) + ': ' + g.people + ' people, ' + g.overdue + ' overdue').join('; ') : ''));
+      // Revenue: money totals and counts only, never a line of work name, a description, a category or imported text.
+      const rv = dg.revenue;
+      if (rv && (rv.revenueWeekCents || rv.expensesWeekCents || rv.revenueMonthCents || rv.expensesMonthCents || rv.expectedNext30Cents || rv.overdueCount)) lines.push('- revenue detail: received this week ' + fm(rv.revenueWeekCents) + ', expenses this week ' + fm(rv.expensesWeekCents) + ', net this week ' + fm(rv.netWeekCents) + ', received this month ' + fm(rv.revenueMonthCents) + ', expenses this month ' + fm(rv.expensesMonthCents) + ', net this month ' + fm(rv.netMonthCents) + ', expected in the next 30 days ' + fm(rv.expectedNext30Cents) + ', overdue expected income ' + rv.overdueCount + ', lines of work ' + rv.lines);
       ctx = approvedAll.filter((i) => !isBodyInsight(i)).slice(-CTX_MAX);
       lines.push('Approved insights so far:');
     } else {
       const from = level - 1;
-      ctx = approvedAll.filter((i) => !isBodyInsight(i) && i.level === from && i.period.from >= p.from && i.period.to <= p.to).slice(-CTX_MAX);
+      // PV-8: an insight belongs to the period holding its start, so a week that spans two months is consolidated in the first one.
+      ctx = approvedAll.filter((i) => !isBodyInsight(i) && i.level === from && i.period.from >= p.from && i.period.from <= p.to).slice(-CTX_MAX);
       lines.push('Level ' + level + (level === 2 ? ' monthly' : ' quarterly') + ' consolidation for ' + p.from + ' to ' + p.to + '.',
         'Approved level ' + from + ' insights to consolidate:');
     }
     if (!ctx.length) lines.push('- none');
     for (const i of ctx) lines.push('- [' + i.domain + '] ' + i.text);
+    // PV-6 (owner rule: numbers only): the reasons typed when rejecting stay on this device. The model only learns how many recent
+    // insights were rejected in each area, never the reason text or the rejected wording.
     lines.push('Lessons from earlier rejections (respect these):');
-    const ls = mem.lessons.slice(-CTX_MAX);
-    if (!ls.length) lines.push('- none');
-    for (const l of ls) lines.push('- ' + l.text);
+    const rej = mem.insights.filter((i) => i.status === 'rejected' && !NO_AI.has(i.domain)).slice(-30), byDom = new Map();
+    for (const i of rej) byDom.set(i.domain, (byDom.get(i.domain) || 0) + 1);
+    if (!byDom.size) lines.push('- none');
+    else lines.push('- recently rejected insights by area: ' + [...byDom.keys()].sort().map((d) => d + ' ' + byDom.get(d)).join(', ') + '. Propose different kinds of insight in those areas.');
     lines.push('Return the JSON array now.');
     const system = 'You are a careful personal reflection assistant. You only see numeric summaries and short approved notes, never raw records. ' +
       'Reply with ONLY a JSON array of at most ' + MAX_ITEMS + ' objects shaped {"domain":string,"text":string}. ' +

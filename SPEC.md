@@ -277,3 +277,37 @@ Built after part A. Wellbeing lives only in the inner plaintext (`wellbeing`), n
 - Dashboard Wellbeing tile: closed shows "Locked" and the lock marker with no numbers; open shows the 7-day mood average and streak.
 - Goals: wellbeing metrics (7-day average per area, check-ins per week) are available only to goals that are themselves private; a public goal cannot reference them.
 - Wellbeing never appears in the weekly review record, digest, prompts, insights, audit log or CSV export. The weekly review shows a Wellbeing step only while the vault is open, and stores nothing from it.
+
+## v0.12.0 addendum: Command center, first build (revenue tracker and customizable home)
+Owner decisions: the command center lives inside LifeOS (same vault and passphrase), not a separate app. This first build covers the revenue tracker and customizable home modules; job search, websites, podcasts, AYiN Advisors and client project tabs come later. Lines of work are Work projects; money is attributed by linking Money income and expense entries to a project. The owner's "Command Center - Revenue Ledger" Google Sheet is a one-time CSV import source. Schema 11 with tested migrations from 1 to 10 (no data loss). Private vault rules (part A) apply to everything new: private projects and their entries are excluded while closed, with markers; the write-routing helper covers every new write path.
+
+### Lines of work
+- Project `kind` gains 'website' and 'podcast'. Projects gain optional `parentId` (one level only, parent must be a non-archived project, no cycles) so client and website lines can roll up under a venture such as AYiN Advisors. Deleting or archiving a parent unlinks children, never deletes them.
+- Money income and expense entries and recurring items gain optional `projectId` (unlink on project delete, never delete the entry). Bulk "assign to line of work" on a filtered list of entries, with a confirm showing the count.
+
+### Revenue tracker (a "Revenue" view under Work, also reachable from the home module)
+- Income entries gain optional `status:'expected'|'received'` (default received; existing entries are received) and `dueDate`. Expected income is NOT counted in Money actuals, savings rate, budgets or net worth until marked received (one tap, date received defaults to today; never automatic). Received is counted on its received date.
+- Per line of work and per parent rollup, for a chosen period (this month, last month, quarter to date, year to date, trailing 12 months, custom): revenue received, expenses, net, margin percent (no data when revenue is zero, never divide by zero), month-by-month table and inline SVG chart for 12 months, recurring monthly revenue from recurring income items, expected income in the next 30, 60 and 90 days, and overdue expected income (due date passed, not received). An "Unassigned" line shows entries with no project. Totals across lines must equal Money totals for the same period exactly (integer cents); test this.
+- Goals: linked metrics "revenue per month" and "net per month", each optionally scoped to one line of work or one parent rollup.
+- Weekly review gains a Revenue step: received this week, overdue expected income, with offer-only actions (mark received, move due date, write off which sets status to a new 'written-off' value excluded from actuals).
+
+### Ledger CSV import (one-time, reusable)
+- Uses the existing CSV parser and caps. A mapping screen lets the user map columns to: date, amount, or separate income and expense amount columns, or an amount plus a type column with user-chosen income and expense values; line of work (matched to existing projects case and whitespace insensitive; unknown names are listed and each is offered as a new project, never created automatically); category; description; status; due date. Date formats: YYYY-MM-DD, MM/DD/YYYY, M/D/YYYY, and DD/MM/YYYY only when the user picks it explicitly (never guessed). Amounts accept currency symbols, thousands separators and parentheses for negatives; parse to integer cents without floating point.
+- A preview shows rows to add, rows rejected with reasons, totals by line and type, and duplicates. Nothing is written until the user confirms. Each imported entry stores an `importKey` (SHA-256 of normalised date, amount, type, line name and description); re-importing the same file adds nothing and says so. Secrets guard and 200-character caps apply to description.
+
+### Customizable home (dashboard modules)
+- The dashboard becomes a set of modules: every existing tile, the Activities at-a-glance card, priorities, plus new revenue modules (revenue this month, net by line of work this month, expected and overdue income). Users can reorder by drag (pointer events, works with touch and mouse), and also with "Move up" and "Move down" buttons for keyboard and accessibility; show or hide each module; choose size small or wide where the module supports it; reset to default.
+- Layout is stored in settings inside the encrypted state as `layouts:{narrow:[...],wide:[...]}` (narrow under 720 px viewport width), each a list of `{id,size,hidden}` with ids whitelisted; unknown ids dropped, missing modules appended hidden-false at the end, so new modules from future builds appear without breaking saved layouts. Saving a layout never writes anything else.
+- Private and Wellbeing modules keep their locked behaviour.
+
+### Privacy and AI
+- Project names, parent names, descriptions, categories and imported text never reach any prompt, digest, insight, audit entry, error or URL. The digest gains numbers only: revenue received, expenses and net this week and month, expected next 30 days, overdue count, line-of-work count. Private projects and their money excluded per part A. Extend test/smoke-leaks.mjs to every new free-text path, including imported CSV text.
+- No advice wording; numbers only.
+
+## v1.0.0 addendum: final complete review (contract changes)
+- Hard rule 6, owner's numbers-only rule: lessons (rejection reasons) stay in the vault and are never sent. The prompt carries the numeric digest, approved insights (max 8) and the count of recently rejected insights per area.
+- No rules insight states a body metric value or change (the weight rule is removed).
+- Ledger import refuses while private entries or lines of work exist and the private vault is closed.
+- "New items are private" applies to add forms and add dialogs only; other new records follow SEC-62.
+- Recurring items may carry `anchorDay` (1 to 31) while their next date is clamped to a short month's end. Schema stays 11.
+- Every input, textarea and form has autocomplete off, except the main passphrase fields.

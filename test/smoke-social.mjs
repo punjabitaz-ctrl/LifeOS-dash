@@ -65,11 +65,14 @@ async function run(label, viewport) {
   const stats = async (w, where) => { for (const [id, v] of Object.entries(w)) await expectText('#' + id, v); await layout(where); };
   async function addPerson(f) {
     await openFold('soc-add');
+    const rows = await page.locator('.soc-person-row').count();
     await page.fill('#soc-p-name', f.name);
     await page.selectOption('#soc-p-group', f.group ? { label: f.group } : '');
     await page.fill('#soc-p-cad', f.cad || '');
     await page.click('#soc-p-add');
     await noticeIs('Person added.');
+    // The notice from the previous add can still be on screen, so wait for the new row: the form is re-rendered only after the save.
+    await page.waitForFunction((n) => document.querySelectorAll('.soc-person-row').length === n + 1, rows, T);
   }
   async function logContact(name, date) {
     await openPerson(name);
@@ -242,7 +245,7 @@ async function run(label, viewport) {
     });
     await step('settings: version, and no Social text', async () => {
       await nav('Settings'); await page.waitForSelector('#app-version', T);
-      await expectText('#app-version', 'LifeOS v0.11.0');
+      await expectText('#app-version', 'LifeOS v1.0.0');
       const t = await text('main'); for (const secret of ['Peanuts', 'Acme deal', 'Neighbour BBQ']) if (t.includes(secret)) throw new Error('settings page shows ' + secret);
       await layout('settings');
     });

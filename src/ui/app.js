@@ -40,8 +40,12 @@
     }
     add(el, kids);
     if (val !== undefined) el.value = val;
+    // UI-1: browsers keep form history (autofill) in plaintext outside the vault. Every input, textarea and form is excluded unless the
+    // caller sets autocomplete itself (only the main passphrase fields do, for the password manager).
+    if (!svg && (tag === 'input' || tag === 'textarea' || tag === 'form') && !el.hasAttribute('autocomplete')) el.setAttribute('autocomplete', 'off');
     return el;
   }
+  function labelled(el, name) { el.setAttribute('aria-label', name); return el; }
   function field(label, input, hint) {
     return h('label', { class: 'field' }, h('span', { class: 'lbl', text: label }), input, hint ? h('span', { class: 'hint', text: hint }) : null);
   }
@@ -76,6 +80,7 @@
     var m = e && e.message ? String(e.message) : '';
     if (m === 'BAD_PASSPHRASE_OR_DATA') return 'That passphrase did not work, or the data is damaged.';
     if (m === 'BAD_PRIVATE_PASSPHRASE') return 'That private passphrase did not work.';
+    if (m === 'LOCKED') return 'LifeOS locked before that finished. Nothing was saved. Unlock and try again.';
     if (!m) return 'Something went wrong.';
     return m.slice(0, 300);
   }
@@ -118,7 +123,7 @@
   var vaultExists = false;
   var notice = null, noticeEl = null;
   var busy = false;
-  var csvPending = null;
+  var csvPending = null, ledger = null, dashEdit = false;
   var ai = null;
   var dlgEl = null, dlgReturn = null;
   var idleTimer = null, lastActive = 0, locking = null;
@@ -154,8 +159,16 @@
   // vault); with the vault closed it is a plain commit. New records are public unless "New items are private" is ticked.
   var privNew = false, privFail = { n: 0, until: 0 }, privTimer = null, privPick = { coll: 'accounts', q: '' };
   // from: [[collection, key]] the records a new record is made from (SEC-62): if any of them is private, so is the new one.
+  // UI-5: the toggle applies only to the add forms and add dialogs that show its note (markAddForms); one-tap actions (a daily check
+  // tick, a confirmed recurring item, carry-over, imports) follow their source record instead (SEC-62).
+  var addIntent = false;
+  function markAddIntent() { addIntent = true; setTimeout(function () { addIntent = false; }, 0); }
+  function isAddForm(f) { var b = f && f.querySelector && f.querySelector('button[type=submit]'); return !!(b && ADD_RE.test(b.textContent)); }
+  var ADD_RE = /^(Add (?!category|type|date|fact)|Log |Save budget|Save balance|Save cycle)/;
+  document.addEventListener('submit', function (e) { if (isAddForm(e.target)) markAddIntent(); }, true);
   function commit(fn, action, from) {
     var o = newPriv() ? { newPrivate: true } : (from && L.priv.isOpen() ? { from: from } : null);
+    if (o && o.newPrivate && !addIntent) o = from && L.priv.isOpen() ? { from: from } : null;
     return L.priv.write(function (s) { if (fn) fn(s); if (action) addAudit(s, action); }, o);
   }
   // The "New items are private" toggle only means anything while the vault is open; closed, it is off and ignored.
@@ -171,8 +184,7 @@
     Array.prototype.forEach.call(document.querySelectorAll('.dialog.adds'), function (n) { Array.prototype.forEach.call(n.querySelectorAll('.privnew-note'), function (m) { m.remove(); }); });
     if (!newPriv()) return;
     Array.prototype.forEach.call(root.querySelectorAll('form'), function (f) {
-      var b = f.querySelector('button[type=submit]');
-      if (b && /^(Add (?!category|type|date|fact)|Log |Save budget|Save balance|Save cycle)/.test(b.textContent)) f.insertBefore(privNewNote(), f.firstChild);
+      if (isAddForm(f)) f.insertBefore(privNewNote(), f.firstChild);
     });
     Array.prototype.forEach.call(document.querySelectorAll('.dialog.adds'), function (d) { d.insertBefore(privNewNote(), d.children[1] || null); });
   }
@@ -200,7 +212,7 @@
   }
   function go(name, extra) {
     view = Object.assign({ name: name }, extra || {});
-    notice = null; csvPending = null; ai = null;
+    notice = null; csvPending = null; ai = null; ledger = null;
     render();
     window.scrollTo(0, 0);
     var t = document.querySelector('h1');
@@ -218,6 +230,7 @@
     dlgReturn = document.activeElement;
     var err = h('p', { class: 'small', role: 'status', text: '' });
     var yes = btn(o.yes || 'OK', function () {
+      if (o.adds) markAddIntent();
       Promise.resolve().then(function () { return o.onYes(); }).then(function (keep) {
         if (keep !== false) closeDialog();
       }, function (e) { err.textContent = friendly(e); });
@@ -243,14 +256,18 @@
   }
 
   // ---------- auto-lock ----------
+  // UI-7: the main state holds the setting; no merged view is built per input event, and resets run at most once a second.
   function limitMs() {
-    try { return (st().settings.autoLockMin || 15) * 60000; } catch (e) { return 900000; }
+    try { return (mainState().settings.autoLockMin || 15) * 60000; } catch (e) { return 900000; }
   }
-  function resetIdle() {
+  var lastReset = 0;
+  function resetIdle(force) {
+    var now = Date.now();
+    if (force !== true && idleTimer && now - lastReset < 1000) return;
     if (L.priv.isOpen()) L.priv.touch();
-    clearTimeout(idleTimer);
+    clearTimeout(idleTimer); idleTimer = null;
     if (!L.store.isUnlocked() || locking) return;
-    lastActive = Date.now();
+    lastReset = now; lastActive = now;
     idleTimer = setTimeout(function () { lockNow(); }, limitMs());
   }
   // Wall-clock check: timers can pause during device sleep or background throttling.
@@ -260,16 +277,16 @@
   }
   function lockNow() {
     if (locking) return locking;
-    clearTimeout(idleTimer);
+    clearTimeout(idleTimer); idleTimer = null;
     // The Google token lives only in memory and must not outlive the unlocked session.
     if (L.sync) L.sync.disconnect();
     // Record the lock in the audit log, but never let a slow or stuck write delay the lock itself.
     var p = L.store.isUnlocked() ? Promise.race([commit(null, 'lock').catch(function () {}), new Promise(function (r) { setTimeout(r, 1000); })]) : Promise.resolve();
     locking = p.then(function () {
       L.store.lock();
-      privNew = false;
+      privNew = false; goalMemo = new Map();
       closeDialog();
-      csvPending = null; ai = null; notice = null; lastActive = 0;
+      csvPending = null; ledger = null; dashEdit = false; ai = null; notice = null; lastActive = 0;
       view = { name: 'lock' };
       render();
     }).then(function () { locking = null; }, function () { locking = null; });
@@ -293,7 +310,7 @@
     var s = st();
     var body;
     try {
-      body = view.name === 'domain' ? (view.domain === 'money' ? moneyScreen(s) : view.domain === 'assets' ? assetsScreen(s) : view.domain === 'work' ? workScreen(s) : view.domain === 'health' ? healthScreen(s) : view.domain === 'goals' ? goalsScreen(s) : view.domain === 'home' ? homeScreen(s) : view.domain === 'admin' ? adminScreen(s) : view.domain === 'learning' ? learningScreen(s) : view.domain === 'activities' ? activitiesScreen(s) : view.domain === 'social' ? socialScreen(s) : view.domain === 'wellbeing' ? wellbeingScreen(s) : domainScreen(s))
+      body = view.name === 'domain' ? (view.domain === 'money' ? moneyScreen(s) : view.domain === 'assets' ? assetsScreen(s) : view.domain === 'work' ? (view.revenue ? revenueScreen(s) : workScreen(s)) : view.domain === 'health' ? healthScreen(s) : view.domain === 'goals' ? goalsScreen(s) : view.domain === 'home' ? homeScreen(s) : view.domain === 'admin' ? adminScreen(s) : view.domain === 'learning' ? learningScreen(s) : view.domain === 'activities' ? activitiesScreen(s) : view.domain === 'social' ? socialScreen(s) : view.domain === 'wellbeing' ? wellbeingScreen(s) : domainScreen(s))
         : view.name === 'review' ? reviewScreen(s)
         : view.name === 'memory' ? memoryScreen(s)
         : view.name === 'settings' ? settingsScreen(s)
@@ -332,9 +349,9 @@
   // SEC-67: nothing typed or shown while open survives the close: the toggle, the private search text and any notice (a notice can
   // name a private record, for example "Posted <title>.").
   L.priv.onClose(function () {
-    privNew = false; privPick = { coll: 'accounts', q: '' }; notice = null;
+    privNew = false; privPick = { coll: 'accounts', q: '' }; notice = null; goalMemo = new Map();
     if (!L.store.isUnlocked() || locking) return;
-    closeDialog(); csvPending = null; ai = null;
+    closeDialog(); csvPending = null; ledger = null; ai = null;
     view = { name: view.name, domain: view.domain };
     render();
   });
@@ -373,7 +390,7 @@
   }
   function afterUnlock() {
     notice = null; csvPending = null; ai = null;
-    resetIdle();
+    resetIdle(true);
     view = { name: 'dashboard' };
     render();
     if (L.syncUI) L.syncUI.afterUnlock(syncCtx());
@@ -397,12 +414,13 @@
   }
   function dashScreen(s) {
     var t = today(), wk = L.metrics.weekStart(t);
-    var tiles = L.DOMAINS.map(function (d) {
-      if (d.id === 'wellbeing') return wellbeingTile(s, d, t);
+    var built = {};
+    L.DOMAINS.forEach(function (d) {
+      if (d.id === 'wellbeing') { built['tile-wellbeing'] = wellbeingTile(s, d, t); return; }
       var hl, ser;
       try { hl = L.metrics.headline(s, d.id, t); } catch (e) { hl = { label: '', display: '-', sub: '' }; }
       try { ser = L.metrics.series(s, d.id, 8, t); } catch (e) { ser = []; }
-      return h('button', { type: 'button', class: 'tile', 'data-domain': d.id, onclick: function () { go('domain', { domain: d.id }); } },
+      built['tile-' + d.id] = h('button', { type: 'button', class: 'tile', 'data-domain': d.id, onclick: function () { go('domain', { domain: d.id }); } },
         h('span', { class: 'tile-title' }, d.label, ' ', lockMark(DOMAIN_COLLS[d.id])),
         h('span', { class: 'tile-value', text: hl.display }),
         h('span', { class: 'tile-sub', text: hl.label }),
@@ -417,10 +435,116 @@
       if (rv.weekOf !== wk) pr.appendChild(h('p', { class: 'mut small', text: 'From the week of ' + rv.weekOf + '.' }));
     } else pr.appendChild(h('p', { class: 'mut', text: 'No priorities yet. Run your weekly review to set three.' }));
     if (!rv || rv.weekOf !== wk) pr.appendChild(btn('Start weekly review', function () { go('review'); }, 'pri'));
+    built.priorities = pr;
+    built.glance = glanceCard(s, t, 'dash-glance');
+    built['rev-month'] = revMonthTile(s, t);
+    built['rev-net-line'] = revNetLineCard(s, t);
+    built['rev-expected'] = revExpectedTile(s, t);
     var due = L.metrics.dueRecurring(s, t).length;
-    return h('div', null, h('div', { class: 'row sp' }, h('h1', { text: 'Dashboard' }), h('div', { class: 'row' }, btn('Log study', function () { studyDialog(''); }, 'qa-btn', { id: 'quick-study' }), btn('Add activity', function () { go('domain', { domain: 'activities', open: 'act-add' }); }, 'qa-btn', { id: 'quick-activity' }), btn('Quick add', quickAdd, 'pri qa-btn', { id: 'quick-add' }))),
+    var w = L.layout.which(window.innerWidth), list = L.layout.get(s.settings, w);
+    var mods = [];
+    list.forEach(function (m, i) {
+      var el = built[m.id];
+      if (!dashEdit && (m.hidden || !el)) return;
+      mods.push(h('div', { class: 'mod ' + m.size + (m.hidden ? ' modhidden' : ''), 'data-mod': m.id, 'data-size': m.size, 'data-hidden': m.hidden ? 'true' : 'false' },
+        dashEdit ? modBar(list, m, i, w) : null,
+        h('div', { class: 'modbody', inert: dashEdit ? true : null }, el || h('p', { class: 'mut small', text: L.layout.label(m.id) + ' has nothing to show right now.' }))));
+    });
+    return h('div', null, h('div', { class: 'row sp' }, h('h1', { text: 'Dashboard' }), h('div', { class: 'row' }, btn('Log study', function () { studyDialog(''); }, 'qa-btn', { id: 'quick-study' }), btn('Add activity', function () { go('domain', { domain: 'activities', open: 'act-add' }); }, 'qa-btn', { id: 'quick-activity' }), btn('Quick add', quickAdd, 'pri qa-btn', { id: 'quick-add' }), btn(dashEdit ? 'Done' : 'Customize', function () { dashEdit = !dashEdit; render(); }, 'qa-btn', { id: 'dash-customize' }))),
       due ? h('div', { class: 'warn' }, due + (due === 1 ? ' recurring item is' : ' recurring items are') + ' due. ', btn('Review', function () { go('domain', { domain: 'money' }); }, 'sm', { id: 'due-review' })) : null,
-      glanceCard(s, t, 'dash-glance'), pr, h('div', { class: 'grid' }, tiles));
+      dashEdit ? h('div', { class: 'card', id: 'dash-edit' }, h('p', { class: 'small', id: 'dash-edit-note', text: 'Editing the layout for ' + (w === 'narrow' ? 'narrow screens (under 720 px wide)' : 'wide screens (720 px and over)') + '. Drag a module or use Move up and Move down. Hidden modules are dimmed.' }),
+        btn('Reset to default', function () { act(function () { return commit(function (x) { L.layout.reset(x.settings, w); }).then(function () { setNotice('ok', 'Layout reset.'); render(); }); }); }, 'sm', { id: 'dash-reset' })) : null,
+      h('div', { class: 'grid modgrid' + (dashEdit ? ' editing' : ''), id: 'dash-grid', 'data-layout': w }, mods));
+  }
+
+  // ---------- customizable home (v0.12.0) ----------
+  function saveLayout(list, w, focus) {
+    return act(function () {
+      return commit(function (x) { L.layout.set(x.settings, w, list); }).then(function () {
+        render();
+        if (focus) { var f = document.querySelector('.mod[data-mod="' + focus.id + '"] ' + focus.sel); if (f && !f.disabled) f.focus(); else { var g = document.querySelector('.mod[data-mod="' + focus.id + '"] .mv-hide'); if (g) g.focus(); } }
+      });
+    });
+  }
+  function modBar(list, m, i, w) {
+    var label = L.layout.label(m.id), def = L.layout.MODULES.filter(function (x) { return x.id === m.id; })[0];
+    // UI-10: dragging is pointer only (mouse or touch); keyboard and screen reader users have Move up and Move down.
+    var drag = h('button', { type: 'button', class: 'btn sm drag', text: 'Drag', title: 'Drag with a mouse or finger to reorder', tabindex: '-1', 'aria-hidden': 'true' });
+    drag.addEventListener('pointerdown', function (e) { dragModule(e, drag, list, w); });
+    return h('div', { class: 'modbar' },
+      h('strong', { class: 'modname', text: label }),
+      drag,
+      btn('Move up', function () { saveLayout(L.layout.move(list, m.id, -1), w, { id: m.id, sel: '.mv-up' }); }, 'sm mv-up', { 'aria-label': 'Move ' + label + ' up', disabled: i === 0 }),
+      btn('Move down', function () { saveLayout(L.layout.move(list, m.id, 1), w, { id: m.id, sel: '.mv-down' }); }, 'sm mv-down', { 'aria-label': 'Move ' + label + ' down', disabled: i === list.length - 1 }),
+      btn(m.hidden ? 'Show' : 'Hide', function () { saveLayout(L.layout.setHidden(list, m.id, !m.hidden), w, { id: m.id, sel: '.mv-hide' }); }, 'sm mv-hide', { 'aria-label': (m.hidden ? 'Show ' : 'Hide ') + label }),
+      def.sizes.length > 1 ? sizeSel(list, m, w, label) : null);
+  }
+  // UI-2, UI-3: the size select is named for its module and found again by its class after the save re-renders.
+  function sizeSel(list, m, w, label) {
+    var z = sel(null, [{ v: 'small', t: 'Small' }, { v: 'wide', t: 'Wide' }], m.size, function (e) { saveLayout(L.layout.setSize(list, m.id, e.target.value), w, { id: m.id, sel: '.mv-size' }); });
+    z.setAttribute('class', 'mv-size');
+    z.setAttribute('aria-label', 'Size of ' + label);
+    return z;
+  }
+  // Pointer-event drag (mouse and touch): the module follows the pointer by moving in the grid; on release the new order is saved.
+  function dragModule(e, handle, list, w) {
+    if (e.button !== undefined && e.button !== 0) return;
+    var wrap = handle.closest('.mod'), grid = wrap.parentNode;
+    e.preventDefault();
+    try { handle.setPointerCapture(e.pointerId); } catch (x) { /* ignore */ }
+    var ids = function () { return Array.prototype.map.call(grid.children, function (c) { return c.getAttribute('data-mod'); }); };
+    var before = ids().join(',');
+    wrap.classList.add('dragging');
+    function move(ev) {
+      var gr = grid.getBoundingClientRect(), kids = Array.prototype.filter.call(grid.children, function (c) { return c !== wrap; });
+      for (var i = 0; i < kids.length; i++) {
+        var r = kids[i].getBoundingClientRect();
+        if (ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom) {
+          var stacked = r.width > gr.width * 0.9, first = stacked ? ev.clientY < r.top + r.height / 2 : ev.clientX < r.left + r.width / 2;
+          grid.insertBefore(wrap, first ? kids[i] : kids[i].nextSibling);
+          break;
+        }
+      }
+    }
+    function stop() { document.removeEventListener('pointermove', move); document.removeEventListener('pointerup', up); document.removeEventListener('pointercancel', cancel); wrap.classList.remove('dragging'); }
+    function up() {
+      stop();
+      var order = ids();
+      if (order.join(',') === before) return;
+      var byId = {};
+      list.forEach(function (m) { byId[m.id] = m; });
+      saveLayout(order.map(function (id) { return byId[id]; }), w, { id: wrap.getAttribute('data-mod'), sel: '.drag' });
+    }
+    function cancel() { stop(); render(); }
+    document.addEventListener('pointermove', move);
+    document.addEventListener('pointerup', up);
+    document.addEventListener('pointercancel', cancel);
+  }
+  function revMonthTile(s, t) {
+    var tot = L.revenue.totalsIn(s, { kind: 'all' }, t.slice(0, 7) + '-01', L.metrics.monthEnd(t.slice(0, 7)));
+    return h('button', { type: 'button', class: 'rtile', id: 'tile-rev-month', onclick: function () { go('domain', { domain: 'work', revenue: true }); } },
+      h('span', { class: 'tile-title' }, 'Revenue this month ', lockMark(['entries', 'projects'])),
+      h('span', { class: 'tile-value', id: 'dm-revenue', text: fmtC(s, tot.revenueCents) }),
+      h('span', { class: 'tile-sub', text: 'Received income' }),
+      h('span', { class: 'tile-sub', id: 'dm-sub', text: 'Expenses ' + fmtC(s, tot.expenseCents) + ', net ' + fmtC(s, tot.netCents) }));
+  }
+  function revNetLineCard(s, t) {
+    var rep = L.revenue.report(s, L.revenue.periodRange('month', t));
+    var rows = rep.lines.filter(function (l) { return l.revenueCents || l.expenseCents; }).concat(rep.unassigned.revenueCents || rep.unassigned.expenseCents ? [rep.unassigned] : [])
+      .sort(function (a, b) { return b.netCents - a.netCents || a.name.localeCompare(b.name); });
+    return h('div', { class: 'card', id: 'card-rev-net-line' }, h('h2', null, 'Net by line of work this month ', lockMark(['entries', 'projects'])),
+      rows.length ? rows.slice(0, 8).map(function (l) {
+        return h('div', { class: 'row sp item', 'data-line': l.name }, h('span', { text: l.name }), h('span', { class: l.netCents < 0 ? 'bad-t' : '', text: fmtC(s, l.netCents) }));
+      }) : h('p', { class: 'mut', text: 'No money recorded this month.' }),
+      btn('Open Revenue', function () { go('domain', { domain: 'work', revenue: true }); }, 'sm', { id: 'rev-open-card' }));
+  }
+  function revExpectedTile(s, t) {
+    var ex = L.revenue.expected(s, { kind: 'all' }, t);
+    return h('button', { type: 'button', class: 'rtile', id: 'tile-rev-expected', onclick: function () { go('domain', { domain: 'work', revenue: true }); } },
+      h('span', { class: 'tile-title' }, 'Expected income ', lockMark(['entries', 'projects'])),
+      h('span', { class: 'tile-value', id: 'de-next30', text: fmtC(s, ex.next30Cents) }),
+      h('span', { class: 'tile-sub', text: 'Expected in the next 30 days' }),
+      h('span', { class: 'tile-sub', id: 'de-overdue', text: ex.overdueCount + ' overdue (' + fmtC(s, ex.overdueCents) + ')' }));
   }
 
   // ---------- domain ----------
@@ -448,6 +572,13 @@
     if (d.id === 'money') {
       refs.category = h('select', { id: 'f-cat' }, [h('option', { value: '', text: '(none)' })].concat(catList(s, tid).map(function (c) { return h('option', { value: c, text: c }); })));
       fs.push(field('Category (optional)', refs.category));
+      refs.line = sel('f-line', lineOptions(s, '(no line of work)'), '');
+      fs.push(field('Line of work (optional)', refs.line));
+      if (tid === 'income') {
+        refs.mstatus = sel('f-mstatus', [{ v: 'received', t: 'Received' }, { v: 'expected', t: 'Expected (not counted until received)' }], 'received');
+        refs.mdue = h('input', { type: 'date', id: 'f-mdue' });
+        fs.push(field('Income status', refs.mstatus), field('Due date (expected income)', refs.mdue));
+      }
     }
     if (STATUS[skey] || names.indexOf('status') >= 0) {
       var so = STATUS[skey] || ['open', 'done'];
@@ -469,6 +600,9 @@
           if (refs.value && refs.value.value !== '') p.value = Number(refs.value.value);
           if (refs.status) p.status = refs.status.value;
           if (refs.category && refs.category.value) p.category = refs.category.value;
+          if (refs.line && refs.line.value) p.projectId = refs.line.value;
+          if (refs.mstatus && refs.mstatus.value === 'expected') p.status = 'expected';
+          if (refs.mdue && refs.mdue.value) p.dueDate = refs.mdue.value;
           if (refs.person && refs.person.value.trim()) p.person = refs.person.value.trim();
           if (refs.due && refs.due.value) p.due = refs.due.value;
           if (refs.kind && refs.kind.value) p.kind = refs.kind.value;
@@ -493,6 +627,8 @@
       if (en.value !== undefined) meta.push(en.type === 'weight' ? fmt1(en.value) : String(en.value));
       if (en.category) meta.push(en.category);
       if (en.status) meta.push(en.status);
+      if (en.dueDate) meta.push('due ' + en.dueDate);
+      if (en.projectId && projName(s, en.projectId)) meta.push(projName(s, en.projectId));
       if (en.person) meta.push(en.person);
       if (en.due) meta.push('due ' + en.due);
       if (en.kind) meta.push(en.kind);
@@ -502,13 +638,15 @@
         h('div', null, h('div', { class: 'entry-t', text: en.title }),
           h('div', { class: 'mut small', text: en.date + ' | ' + meta.join(' | ') }),
           en.notes ? h('div', { class: 'small', text: en.notes }) : null),
-        btn('Delete', function () {
-          openDialog({
-            title: 'Delete this entry?', yes: 'Delete', danger: true,
-            body: h('p', { class: 'mut', text: en.title }),
-            onYes: function () { return commit(function (x) { x.entries = x.entries.filter(function (z) { return z.id !== en.id; }); }).then(function () { render(); }); }
-          });
-        }, 'sm bad', { 'aria-label': 'Delete ' + en.title }));
+        h('div', { class: 'row' },
+          L.revenue.isExpected(en) ? btn('Mark received', function () { markReceivedDialog({ id: en.id, title: en.title }); }, 'sm pri', { 'aria-label': 'Mark ' + en.title + ' received' }) : null,
+          btn('Delete', function () {
+            openDialog({
+              title: 'Delete this entry?', yes: 'Delete', danger: true,
+              body: h('p', { class: 'mut', text: en.title }),
+              onYes: function () { return commit(function (x) { x.entries = x.entries.filter(function (z) { return z.id !== en.id; }); }).then(function () { render(); }); }
+            });
+          }, 'sm bad', { 'aria-label': 'Delete ' + en.title })));
     });
     var out = h('div', null,
       opts.embed ? null : btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'),
@@ -764,12 +902,13 @@
     var rCad = sel('rc-cadence', [{ v: 'weekly', t: 'Weekly' }, { v: 'monthly', t: 'Monthly' }, { v: 'yearly', t: 'Yearly' }], 'monthly');
     var rNext = h('input', { type: 'date', id: 'rc-next', value: t, required: true });
     var rHouse = h('input', { type: 'checkbox', id: 'rc-household' });
+    var rLine = sel('rc-line', lineOptions(s, '(no line of work)'), '');
     var recurring = details('recurring', 'Recurring items (' + s.recurring.length + ')', [
       h('p', { class: 'mut small', text: 'These only create a proposal on the due date. You confirm each one.' }),
       s.recurring.map(function (r) {
         return h('div', ROW({ class: 'item' }, 'recurring', r),
           h('div', null, h('div', { class: 'entry-t', text: r.title }),
-            h('div', { class: 'mut small', text: (r.type === 'income' ? 'Income ' : 'Expense ') + moneyFmt(L.metrics.cents(r.value), cur) + ' | ' + r.cadence + ' | next ' + r.nextDate + (r.active ? '' : ' | paused') + (r.household ? ' | household' : '') })),
+            h('div', { class: 'mut small', text: (r.type === 'income' ? 'Income ' : 'Expense ') + moneyFmt(L.metrics.cents(r.value), cur) + ' | ' + r.cadence + ' | next ' + r.nextDate + (r.active ? '' : ' | paused') + (r.household ? ' | household' : '') + (r.projectId && projName(s, r.projectId) ? ' | ' + projName(s, r.projectId) : '') })),
           h('div', { class: 'row' },
             btn(r.active ? 'Pause' : 'Resume', function () { act(function () { return commit(function (x) { x.recurring.forEach(function (z) { if (z.id === r.id) z.active = !z.active; }); }, 'recurring toggle').then(function () { view.open = 'recurring'; render(); }); }); }, 'sm', { 'aria-label': (r.active ? 'Pause ' : 'Resume ') + r.title }),
             btn('Delete', function () { act(function () { return commit(function (x) { x.recurring = x.recurring.filter(function (z) { return z.id !== r.id; }); }, 'recurring delete').then(function () { view.open = 'recurring'; render(); }); }); }, 'sm bad', { 'aria-label': 'Delete ' + r.title })));
@@ -779,11 +918,12 @@
           e.preventDefault();
           act(function () {
             var item = { id: L.store.newId(), title: rT.value.trim(), value: parseAmount(rA.value), category: rCat.value, type: rType.value, cadence: rCad.value, nextDate: rNext.value, active: true, household: rType.value === 'expense' && rHouse.checked };
+            if (rLine.value) item.projectId = rLine.value;
             if (!item.title) throw new Error('Enter a title.');
             return commit(function (x) { x.recurring.push(item); }, 'recurring add').then(function () { view.open = 'recurring'; setNotice('ok', 'Recurring item added.'); render(); });
           });
         }
-      }, field('Title', rT), field('Amount', rA), field('Type', rType), field('Category', rCat), field('Repeats', rCad), field('Next date', rNext), h('label', { class: 'field check' }, rHouse, h('span', { text: 'Household bill (expenses only; shown under Home)' })), h('button', { type: 'submit', class: 'btn pri', text: 'Add recurring' })),
+      }, field('Title', rT), field('Amount', rA), field('Type', rType), field('Category', rCat), field('Repeats', rCad), field('Next date', rNext), field('Line of work (optional)', rLine), h('label', { class: 'field check' }, rHouse, h('span', { text: 'Household bill (expenses only; shown under Home)' })), h('button', { type: 'submit', class: 'btn pri', text: 'Add recurring' })),
     ], view.open === 'recurring');
 
     // categories
@@ -832,7 +972,7 @@
           h('tbody', null, cf.map(function (r) {
             return h('tr', null, h('td', { text: monthLabel(r.month) }), h('td', { text: moneyFmt(r.incomeCents, cur) }), h('td', { text: moneyFmt(r.spendCents, cur) }), h('td', { text: moneyFmt(r.netCents, cur) }));
           }))))),
-      budgets, recurring, cats,
+      budgets, recurring, cats, bulkAssignCard(s),
       h('h2', { text: 'All entries' }),
       domainScreen(s, { embed: true }));
   }
@@ -972,7 +1112,7 @@
     var why = h('input', { type: 'text', id: 'reject-reason', maxlength: '200' });
     openDialog({
       title: 'Reject this insight', yes: 'Reject',
-      body: [h('p', { class: 'mut', text: i.text }), field('Why? (optional, helps future suggestions)', why)],
+      body: [h('p', { class: 'mut', text: i.text }), field('Why? (optional, kept as a note on this device)', why, 'Your reason is never sent to the AI. The AI only learns how many insights were rejected in each area.')],
       onYes: function () {
         var r = why.value.trim().slice(0, 200);
         return commit(function (x) { L.memory.decide(x, i.id, 'rejected', r || undefined); }).then(function () { render(); });
@@ -1004,12 +1144,12 @@
     var kind = mainState().settings.provider.kind;
     var box = h('div', null,
       h('div', { class: 'row' }, btn(label, function () { suggestAI(level, period); }, 'sm', { id: 'ai-suggest' })),
-      h('p', { class: 'mut small', text: kind === 'anthropic' ? 'Sends only the numeric digest, approved insights and lessons to api.anthropic.com.' : kind === 'local' ? 'Sends only the numeric digest, approved insights and lessons to your local model.' : 'Manual mode: copy the prompt into your own AI chat and paste the reply here.' }));
+      h('p', { class: 'mut small', text: kind === 'anthropic' ? 'Sends only the numeric digest, approved insights and counts of rejected insights to api.anthropic.com.' : kind === 'local' ? 'Sends only the numeric digest, approved insights and counts of rejected insights to your local model.' : 'Manual mode: copy the prompt into your own AI chat and paste the reply here.' }));
     if (ai && ai.level === level && ai.period.from === period.from) {
       var ta = h('textarea', { id: 'ai-prompt', readOnly: true, value: ai.prompt, 'aria-label': 'Prompt to copy' });
       var paste = h('textarea', { id: 'ai-paste', 'aria-label': 'Paste the AI reply here', maxlength: '20000' });
       box.appendChild(h('div', { class: 'card' },
-        h('p', { class: 'small', text: 'The prompt has numbers only, no entries, titles or names.' }),
+        h('p', { class: 'small', text: 'The prompt holds the numeric digest, your approved insights and counts of rejected insights. No entries, titles, names or rejection reasons.' }),
         ta,
         h('div', { class: 'row' }, btn('Copy', function () { copyText(ta).then(function () { setNotice('ok', 'Copied.'); }, function (e) { setNotice('err', friendly(e)); }); }, 'sm')),
         field('Paste the reply (a JSON list)', paste),
@@ -1068,8 +1208,10 @@
       reviewActivitiesCard(s, wk, t),
       h('h2', { text: '7. Social' }),
       reviewSocialCard(s, wk, t),
+      h('h2', { text: '8. Revenue' }),
+      reviewRevenueCard(s, wk, t),
       reviewWellbeingStep(t),
-      h('h2', { text: (L.priv.isOpen() ? '9' : '8') + '. Your three priorities' }),
+      h('h2', { text: (L.priv.isOpen() ? '10' : '9') + '. Your three priorities' }),
       h('form', {
         class: 'card',
         onsubmit: function (e) {
@@ -1093,7 +1235,7 @@
   function reviewWellbeingStep(t) {
     if (!L.priv.isOpen()) return null;
     var W = L.wellbeing, wb = L.priv.getWellbeing();
-    return h('div', { id: 'rv-wellbeing' }, h('h2', { text: '8. Wellbeing' }),
+    return h('div', { id: 'rv-wellbeing' }, h('h2', { text: '9. Wellbeing' }),
       h('div', { class: 'card' }, h('p', { class: 'mut small', text: 'Shown only while the private vault is open. Nothing here is saved with the review.' }),
         h('table', null, h('thead', null, h('tr', null, ['Area', 'Today', '7-day average', 'Check-ins'].map(function (x) { return h('th', { text: x }); }))),
           h('tbody', null, W.AREAS.map(function (a) {
@@ -1106,7 +1248,7 @@
 
   // ---------- work (v0.4.0) ----------
   var STAGE_LABEL = { lead: 'Lead', contacted: 'Contacted', applied: 'Applied', interview: 'Interview', offer: 'Offer', won: 'Won', lost: 'Lost' };
-  var PKIND = [['job', 'Job'], ['venture', 'Venture'], ['client', 'Client'], ['personal', 'Personal']];
+  var PKIND = [['job', 'Job'], ['venture', 'Venture'], ['client', 'Client'], ['personal', 'Personal'], ['website', 'Website'], ['podcast', 'Podcast']];
   var PLKIND = [['job', 'Job'], ['deal', 'Deal'], ['partner', 'Partner']];
   function projName(s, id) {
     var p = (s.projects || []).filter(function (x) { return x.id === id; })[0];
@@ -1114,11 +1256,12 @@
   }
   // Delete a project after an in-page confirm. Linked outcomes are kept and unlinked.
   function askDeleteProject(s, p) {
-    var n = L.metrics.linkedOutcomeCount(s, p.id);
+    var n = L.metrics.linkedOutcomeCount(s, p.id), k = L.revenue.linkedCounts(s, p.id);
     openDialog({
       title: 'Delete this project?', yes: 'Delete project', danger: true,
       body: [h('p', { class: 'mut', text: p.name }),
-        h('p', { class: 'small', id: 'pj-del-info', text: n + (n === 1 ? ' linked outcome is' : ' linked outcomes are') + ' kept and unlinked from this project. The project itself is removed.' })],
+        h('p', { class: 'small', id: 'pj-del-info', text: n + (n === 1 ? ' linked outcome is' : ' linked outcomes are') + ' kept and unlinked from this project. The project itself is removed.' }),
+        h('p', { class: 'small', id: 'pj-del-money', text: (k.entries - n) + ' linked money ' + (k.entries - n === 1 ? 'entry' : 'entries') + ', ' + k.recurring + ' recurring ' + (k.recurring === 1 ? 'item' : 'items') + ' and ' + k.children + ' ' + (k.children === 1 ? 'line' : 'lines') + ' under it are kept and unlinked. Nothing is deleted with it.' })],
       onYes: function () { return commit(function (x) { L.metrics.deleteProject(x, p.id); }, 'project delete').then(function () { setNotice('ok', 'Project deleted.'); render(); }); }
     });
   }
@@ -1199,6 +1342,7 @@
     var pKind = sel('pj-kind', PKIND.map(function (k) { return { v: k[0], t: k[1] }; }), 'job');
     var pNext = h('input', { type: 'text', id: 'pj-next', maxlength: '200', autocomplete: 'off' });
     var pDate = h('input', { type: 'date', id: 'pj-date' });
+    var pParent = sel('pj-parent', parentLineOptions(s, ''), '');
     var pForm = h('form', {
       onsubmit: function (e) {
         e.preventDefault();
@@ -1208,10 +1352,11 @@
           if (live.length >= 200 || projects.length >= 2000) throw new Error('You have reached the 200 project limit. Archive or delete some.');
           var p = { id: L.store.newId(), name: name, kind: pKind.value, status: 'active', nextAction: pNext.value.trim(), archived: false };
           if (pDate.value) p.nextDate = pDate.value;
+          if (pParent.value) p.parentId = pParent.value;
           return commit(function (x) { x.projects.push(p); }, 'project add').then(function () { setNotice('ok', 'Project added.'); render(); });
         });
       }
-    }, field('Project name', pName), field('Kind', pKind), field('Next action', pNext), field('Next action date (optional)', pDate),
+    }, field('Project name', pName), field('Kind', pKind), field('Under (optional parent line of work)', pParent), field('Next action', pNext), field('Next action date (optional)', pDate),
       h('button', { type: 'submit', class: 'btn pri', id: 'pj-add', text: 'Add project' }));
     function setProj(p, fn, action) {
       act(function () { return commit(function (x) { x.projects.forEach(function (z) { if (z.id === p.id) fn(z); }); }, action).then(function () { render(); }); });
@@ -1222,6 +1367,7 @@
       return h('div', ROW({ class: 'item proj', 'data-project': p.name }, 'projects', p),
         h('div', null, h('div', { class: 'entry-t', text: p.name }),
           h('div', { class: 'mut small' }, h('span', { class: 'chip', text: p.kind }), h('span', { class: 'chip', text: p.status }),
+            p.parentId && projName(s, p.parentId) ? h('span', { class: 'chip', text: 'under ' + projName(s, p.parentId) }) : null,
             od ? h('span', { class: 'chip bad', text: 'Overdue' }) : null),
           h('div', { class: 'small', text: p.nextAction ? 'Next: ' + p.nextAction + (p.nextDate ? ' (' + p.nextDate + ')' : '') : (p.nextDate ? 'Next date ' + p.nextDate : 'No next action set') }),
           workLinks(s, 'projectIds', p.id, t, p.name)),
@@ -1238,7 +1384,8 @@
           }, 'sm', { 'aria-label': 'Update next action for ' + p.name }),
           p.status === 'active' ? btn('Pause', function () { setProj(p, function (z) { z.status = 'paused'; }, 'project pause'); }, 'sm', { 'aria-label': 'Pause ' + p.name }) : btn('Resume', function () { setProj(p, function (z) { z.status = 'active'; }, 'project resume'); }, 'sm', { 'aria-label': 'Resume ' + p.name }),
           p.status !== 'done' ? btn('Done', function () { setProj(p, function (z) { z.status = 'done'; }, 'project done'); }, 'sm', { 'aria-label': 'Finish ' + p.name }) : null,
-          btn('Archive', function () { setProj(p, function (z) { z.archived = true; }, 'project archive'); }, 'sm', { 'aria-label': 'Archive ' + p.name }),
+          btn('Parent', function () { parentDialog(s, p); }, 'sm', { 'aria-label': 'Change the parent line of ' + p.name }),
+          btn('Archive', function () { act(function () { return commit(function (x) { L.revenue.archiveProject(x, p.id); }, 'project archive').then(function () { render(); }); }); }, 'sm', { 'aria-label': 'Archive ' + p.name }),
           btn('Delete', function () { askDeleteProject(s, p); }, 'sm bad', { 'aria-label': 'Delete ' + p.name })));
     });
     var archived = projects.filter(function (p) { return p.archived; });
@@ -1301,9 +1448,9 @@
             workLinks(s, 'pipelineIds', it.id, t, it.title),
             h('div', { class: 'row' },
               nxt ? btn('To ' + STAGE_LABEL[nxt], function () { setItem(it, function (z) { z.stage = nxt; }, 'pipeline stage'); }, 'sm pri', { 'aria-label': 'Move ' + it.title + ' to ' + STAGE_LABEL[nxt] }) : null,
-              sel(null, order.map(function (k) { return { v: k, t: STAGE_LABEL[k] }; }), it.stage, function (e) {
+              labelled(sel(null, order.map(function (k) { return { v: k, t: STAGE_LABEL[k] }; }), it.stage, function (e) {
                 var v = e.target.value; if (v !== it.stage) setItem(it, function (z) { z.stage = v; }, 'pipeline stage');
-              }),
+              }), 'Stage of ' + it.title),
               stale ? btn('Touched today', function () { setItem(it, function () {}, 'pipeline touch'); }, 'sm', { 'aria-label': 'Mark ' + it.title + ' updated today' }) : null,
               btn('Delete', function () {
                 openDialog({ title: 'Delete this item?', yes: 'Delete', danger: true, body: h('p', { class: 'mut', text: it.title }),
@@ -1317,7 +1464,7 @@
 
     var trend = h('div', { class: 'card' }, h('h2', { text: 'Outcomes completed, last 8 weeks' }), trendChart(L.metrics.series(s, 'work', 8, t)));
     var cc = carryCard(s, wk, render);
-    return h('div', null, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Work' }), stats,
+    return h('div', null, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('div', { class: 'row sp' }, h('h1', { text: 'Work' }), btn('Revenue', function () { go('domain', { domain: 'work', revenue: true }); }, 'pri', { id: 'open-revenue' })), stats,
       oCard, cc, pCard, lCard, trend,
       details('work-data', 'Entries and CSV', [
         h('div', { class: 'row' },
@@ -1698,9 +1845,13 @@
     var curIn = h('input', { type: 'text', id: 'g-cur', inputmode: 'decimal', maxlength: '20', autocomplete: 'off' });
     var notes = h('textarea', { id: 'g-notes', maxlength: '2000' });
     var manualBox = h('div', { id: 'g-manual-box' }, field('Area (manual goals only)', domain), field('Current value (optional)', curIn));
+    var gLine = sel('g-line', lineOptions(s, '(all money)'), '');
+    var gRoll = h('input', { type: 'checkbox', id: 'g-rollup' });
+    var scopeBox = h('div', { id: 'g-scope-box', class: 'hidden' }, field('Line of work (optional)', gLine), h('label', { class: 'field check' }, gRoll, h('span', { text: 'Include lines under it (rollup)' })));
     function sync() {
       var man = metric.value === 'manual';
       manualBox.setAttribute('class', man ? '' : 'hidden');
+      scopeBox.setAttribute('class', metric.value === 'revenueMonth' || metric.value === 'netMonth' ? '' : 'hidden');
       parent.replaceChildren.apply(parent, parentOptions(s, horizon.value).map(function (o) { return h('option', { value: o.v, text: o.t }); }));
     }
     horizon.addEventListener('change', sync);
@@ -1712,6 +1863,7 @@
         act(function () {
           var p = { title: title.value, horizon: horizon.value, metric: metric.value, direction: dir.value, startValue: start.value, targetValue: target.value, startDate: sdate.value, dueDate: due.value || undefined, parentId: parent.value || undefined, notes: notes.value };
           if (metric.value === 'manual') { p.domain = domain.value; p.manualValue = curIn.value; }
+          if ((metric.value === 'revenueMonth' || metric.value === 'netMonth') && gLine.value) { p.projectId = gLine.value; p.rollup = !!gRoll.checked; }
           if (L.goals.isWellbeingMetric(metric.value) && !newPriv()) throw new Error('A wellbeing goal metric can only be used by a private goal. Tick "New items are private" first.');
           return commit(function (x) { L.goals.addGoal(x, p, t); }, 'goal add').then(function () { setNotice('ok', 'Goal added.'); render(); });
         });
@@ -1719,7 +1871,7 @@
     }, field('Title', title), field('Horizon', horizon), field('What it measures', metric), field('Direction', dir),
       field('Start value', start, 'Leave blank to start from the current value of a linked metric.'), field('Target', target),
       field('Start date', sdate), field('Due date (blank: end of the period)', due), field('Parent goal (a longer horizon, optional)', parent),
-      manualBox, field('Notes (optional)', notes),
+      manualBox, scopeBox, field('Notes (optional)', notes),
       h('button', { type: 'submit', class: 'btn pri', id: 'g-add', text: 'Add goal' }));
   }
   function goalsScreen(s) {
@@ -1947,7 +2099,7 @@
 
     // household bills: Money recurring items with a household flag
     var others = (s.recurring || []).filter(function (r) { return !r.household && r.type === 'expense'; });
-    var pick = others.length ? sel('hb-pick', others.map(function (r) { return { v: r.id, t: r.title }; }), others[0].id) : null;
+    var pick = others.length ? labelled(sel('hb-pick', others.map(function (r) { return { v: r.id, t: r.title }; }), others[0].id), 'Recurring item to flag as a household bill') : null;
     var billsCard = h('div', { class: 'card', id: 'hm-bills' }, h('h2', { text: 'Household bills' }),
       h('p', { class: 'mut small', text: 'These are your Money recurring items flagged as household. There is no second list. Weekly counts 52 a year, yearly counts once.' }),
       sum.bills.items.length ? sum.bills.items.map(function (b) {
@@ -2078,7 +2230,7 @@
             return h('div', ROW({ class: 'item tx-row', 'data-title': it.title }, 'taxItems', it),
               h('div', null, h('span', { class: 'entry-t' + (it.state === 'filed' ? ' done-t' : ''), text: it.title }), h('div', { class: 'mut small', text: it.state + (it.dueDate ? ' | due ' + it.dueDate : '') })),
               h('div', { class: 'row' },
-                sel('tx-state-' + it.id, A.TAX_STATES.map(function (v) { return { v: v, t: v }; }), it.state, function (e) { var v = e.target.value; act(function () { return commit(function (x) { A.setTaxState(x, it.id, v); }, 'tax item state').then(function () { view.open = 'ad-tax'; render(); }); }); }),
+                labelled(sel('tx-state-' + it.id, A.TAX_STATES.map(function (v) { return { v: v, t: v }; }), it.state, function (e) { var v = e.target.value; act(function () { return commit(function (x) { A.setTaxState(x, it.id, v); }, 'tax item state').then(function () { view.open = 'ad-tax'; render(); }); }); }), 'State of ' + it.title),
                 btn('Delete', function () { act(function () { return commit(function (x) { A.deleteTaxItem(x, it.id); }, 'tax item delete').then(function () { view.open = 'ad-tax'; render(); }); }); }, 'sm bad', { 'aria-label': 'Delete ' + it.title })));
           }));
       }),
@@ -2673,6 +2825,7 @@
       a.forEach(function (i) { out.push(insightCard(i, false)); });
     });
     out.push(h('h2', { text: 'Lessons from rejections (' + s.memory.lessons.length + ')' }));
+    out.push(h('p', { class: 'mut small', id: 'lessons-local', text: 'These reasons stay on this device. They are never sent to the AI.' }));
     if (!s.memory.lessons.length) out.push(h('p', { class: 'mut', text: 'None yet.' }));
     out.push(h('div', null, s.memory.lessons.map(function (l) { return h('div', { class: 'card' }, h('p', { text: l.text })); })));
     return h('div', null, out);
@@ -3018,8 +3171,8 @@
         var a = p1.value;
         checkPass(a);
         if (a !== p2.value) throw new Error('The two passphrases do not match.');
-        return L.priv.setUp(a).then(function () { p1.value = ''; p2.value = ''; setNotice('ok', 'Private vault set up and open.'); render(); });
-      });
+        return L.priv.setUp(a).then(function () { setNotice('ok', 'Private vault set up and open.'); render(); });
+      }).then(function () { p1.value = ''; p2.value = ''; });
     } }, h('h2', { text: 'Set up the private vault' }),
       field('Private passphrase (12 characters or more, different from your main passphrase)', p1), field('Confirm private passphrase', p2),
       h('p', { class: 'warn small', text: 'If you forget this passphrase, the private items cannot be recovered. There is no reset and no backdoor.' }),
@@ -3059,7 +3212,7 @@
       body: [h('p', { class: 'mut', text: dir === 'in' ? 'It disappears from every screen, total and export while the vault is closed.' : 'It becomes an ordinary item again, visible with the app unlocked.' }),
         pair ? h('p', { class: 'small', id: 'priv-pair', text: 'An activity and its Money expense always move together.' }) : null,
         c === 'habits' ? h('p', { class: 'small', text: 'Its ticks move with it.' }) : null,
-        kids.length ? h('label', { class: 'row small' }, chk, h('span', { text: 'Also move ' + kids.length + ' linked ' + (kids.length === 1 ? 'item' : 'items') + ' (recommended)' })) : null],
+        kids.length ? h('label', { class: 'row small' }, chk, h('span', { text: 'Also move ' + kids.length + ' linked ' + (kids.length === 1 ? 'item' : 'items') + ' (default)' })) : null],
       onYes: function () {
         return (dir === 'in' ? L.priv.moveIn : L.priv.moveOut)(c, key, { children: kids.length ? !!chk.checked : false }).then(function () { setNotice('ok', dir === 'in' ? 'Moved to the private vault.' : 'Moved out of the private vault.'); render(); });
       }
@@ -3102,17 +3255,29 @@
       } }, field('Close the private vault after this many idle seconds (15 to 1800)', secs), h('button', { type: 'submit', class: 'btn sm', id: 'priv-secs-save', text: 'Save' }))));
     if (L.priv.isOpen()) out.push(privMoveCard(s));
     var o = passOnly('priv-old', 'off'), n1 = passOnly('priv-new1', 'new-password'), n2 = passOnly('priv-new2', 'new-password'), typed = h('input', { type: 'text', id: 'priv-destroy-confirm', autocomplete: 'off' });
+    var chBtn = h('button', { type: 'submit', class: 'btn sm', id: 'priv-change', text: 'Change private passphrase' }), chMsg = h('p', { class: 'small', id: 'priv-change-wait', role: 'status', text: '' });
+    function chTick() {
+      var left = Math.ceil((privFail.until - Date.now()) / 1000);
+      if (left > 0) { chBtn.disabled = true; chMsg.textContent = 'Wrong passphrase. Wait ' + left + ' s before trying again.'; setTimeout(function () { if (chBtn.isConnected) chTick(); }, 250); }
+      else { chBtn.disabled = false; chMsg.textContent = ''; }
+    }
+    chTick();
     out.push(h('div', { class: 'card', id: 'priv-manage' }, h('h2', { text: 'Passphrase and removal' }),
       h('form', { onsubmit: function (e) {
         e.preventDefault();
+        if (Date.now() < privFail.until) return;
         act(function () {
           checkPass(n1.value);
           if (n1.value !== n2.value) throw new Error('The two new passphrases do not match.');
           var a = o.value, c = n1.value;
-          return L.priv.changePassphrase(a, c).then(function () { o.value = ''; n1.value = ''; n2.value = ''; setNotice('ok', 'Private passphrase changed. The vault is closed.'); render(); });
-        });
+          // UI-6: a wrong current passphrase here counts toward the same wrong-passphrase delay as the open form.
+          return L.priv.changePassphrase(a, c).then(function () { privFail = { n: 0, until: 0 }; setNotice('ok', 'Private passphrase changed. The vault is closed.'); render(); }, function (err) {
+            if (err && err.message === 'BAD_PRIVATE_PASSPHRASE') { privFail.n++; privFail.until = Date.now() + Math.min(30000, 1000 * Math.pow(2, privFail.n - 1)); }
+            throw err;
+          });
+        }).then(function () { o.value = ''; n1.value = ''; n2.value = ''; chTick(); });
       } }, field('Current private passphrase', o), field('New private passphrase (12 characters or more)', n1), field('Confirm new private passphrase', n2),
-        h('button', { type: 'submit', class: 'btn sm', id: 'priv-change', text: 'Change private passphrase' })),
+        chBtn, chMsg),
       h('hr'),
       btn('Destroy the private vault', function () {
         openDialog({ title: 'Destroy the private vault?', yes: 'Destroy it', danger: true,
@@ -3327,7 +3492,7 @@
           if (!(r >= 0 && r <= 100)) throw new Error('Savings rate must be 0 to 100.');
           if (!/^[A-Z]{3}$/.test(cu)) throw new Error('Currency must be a three letter code.');
           var m = Number(al.value);
-          return commit(function (x) { x.settings.targets = { workoutsPerWeek: w, contactDays: c, savingsRate: r / 100 }; x.settings.currency = cu; x.settings.autoLockMin = m; L.learning.setWeeklyTarget(x, study.value); }).then(function () { resetIdle(); setNotice('ok', 'Settings saved.'); });
+          return commit(function (x) { x.settings.targets = { workoutsPerWeek: w, contactDays: c, savingsRate: r / 100 }; x.settings.currency = cu; x.settings.autoLockMin = m; L.learning.setWeeklyTarget(x, study.value); }).then(function () { resetIdle(true); setNotice('ok', 'Settings saved.'); });
         });
       }
     }, h('h2', { text: 'Targets and preferences' }), field('Workouts per week', wpw), field('Days between contacts', cd), field('Savings rate target (%)', sr), field('Study minutes per week (0 for none)', study), field('Currency code', cur), field('Auto-lock after idle', al),
@@ -3375,9 +3540,10 @@
           if (!f) { setNotice('err', 'Choose a backup file first.'); return; }
           if (f.size > L.vault.MAX_BACKUP) { setNotice('err', 'That file is larger than 64 MB.'); return; }
           if (!ip.value) { setNotice('err', 'Enter the backup passphrase.'); return; }
+          var ipv = ip.value;
+          ip.value = ''; // UI-9: never left in the field, whether the passphrase works or not
           act(function () {
-            return readFile(f, L.vault.MAX_BACKUP).then(function (text) { return L.vault.importBackup(ip.value, text); }).then(function (state) {
-              ip.value = '';
+            return readFile(f, L.vault.MAX_BACKUP).then(function (text) { return L.vault.importBackup(ipv, text); }).then(function (state) {
               if (!L.store.isUnlocked()) return;
               var ins = state.memory.insights, pv2 = state.settings.provider;
               var nAppr = ins.filter(function (i) { return i.status === 'approved'; }).length;
@@ -3415,7 +3581,7 @@
       }, field('Restore from a backup file (64 MB max)', bf), field('Backup passphrase', ip),
         h('button', { type: 'submit', class: 'btn', text: 'Import backup' }))));
 
-    out.push(h('p', { class: 'mut small', id: 'app-version', text: 'LifeOS v0.11.0' }));
+    out.push(h('p', { class: 'mut small', id: 'app-version', text: 'LifeOS v1.0.0' }));
 
     if (L.syncUI) out.push(L.syncUI.section(syncCtx()));
 
@@ -3433,7 +3599,7 @@
               if (L.sync) L.sync.disconnect();
               return commit(null, 'wipe').catch(function () {}).then(function () { return L.store.wipe(); }).then(function () {
                 try { L.store.lock(); } catch (e) { /* already locked */ }
-                clearTimeout(idleTimer);
+                clearTimeout(idleTimer); idleTimer = null;
                 vaultExists = false; view = { name: 'lock' }; notice = { kind: 'ok', text: 'All data wiped.' };
                 setTimeout(render, 0);
               });
@@ -3448,8 +3614,261 @@
     return h('div', null, out);
   }
 
+  // ---------- lines of work and revenue (v0.12.0) ----------
+  function liveLines(s) { return (s.projects || []).filter(function (p) { return !p.archived; }).sort(function (a, b) { return a.name.localeCompare(b.name); }); }
+  function lineOptions(s, none) {
+    return [{ v: '', t: none }].concat(liveLines(s).map(function (p) { return { v: p.id, t: p.name + (p.parentId && projName(s, p.parentId) ? ' (under ' + projName(s, p.parentId) + ')' : '') }; }));
+  }
+  function parentLineOptions(s, selfId) {
+    return [{ v: '', t: '(no parent)' }].concat(liveLines(s).filter(function (p) { return !p.parentId && p.id !== selfId; }).map(function (p) { return { v: p.id, t: p.name }; }));
+  }
+  function parentDialog(s, p) {
+    var hasKids = (s.projects || []).some(function (x) { return x.parentId === p.id; });
+    var pick = sel('pj-parent-pick', hasKids ? [{ v: '', t: '(no parent)' }] : parentLineOptions(s, p.id), p.parentId || '');
+    openDialog({
+      title: 'Parent line of work', yes: 'Save',
+      body: [hasKids ? h('p', { class: 'small', text: 'This line has lines under it, so it cannot have a parent (one level only).' }) : null, field('Under', pick)],
+      onYes: function () { return commit(function (x) { L.revenue.setParent(x, p.id, pick.value); }, 'project parent').then(function () { render(); }); }
+    });
+  }
+  function markReceivedDialog(item) {
+    var d = h('input', { type: 'date', id: 'rcv-date', value: today(), required: true });
+    openDialog({
+      title: 'Mark as received', yes: 'Mark received',
+      body: [h('p', { class: 'mut', text: item.title }), field('Date received', d), h('p', { class: 'small', text: 'It is counted in Money on the date you pick.' })],
+      onYes: function () { return commit(function (x) { L.revenue.markReceived(x, item.id, d.value); }, 'income received').then(function () { setNotice('ok', 'Marked received.'); render(); }); }
+    });
+  }
+  function moveDueDialog(item) {
+    var d = h('input', { type: 'date', id: 'due-date', value: item.due, required: true });
+    openDialog({
+      title: 'Move the due date', yes: 'Save',
+      body: [h('p', { class: 'mut', text: item.title }), field('New due date', d)],
+      onYes: function () { return commit(function (x) { L.revenue.moveDue(x, item.id, d.value); }, 'income due moved').then(function () { setNotice('ok', 'Due date moved.'); render(); }); }
+    });
+  }
+  function writeOffDialog(item) {
+    openDialog({
+      title: 'Write off this income?', yes: 'Write off', danger: true,
+      body: [h('p', { class: 'mut', text: item.title }), h('p', { class: 'small', text: 'It stays in your records as written off and is not counted anywhere.' })],
+      onYes: function () { return commit(function (x) { L.revenue.writeOff(x, item.id); }, 'income written off').then(function () { setNotice('ok', 'Written off.'); render(); }); }
+    });
+  }
+  // One expected-income row with the offer-only actions.
+  function expectedRow(s, x, acts) {
+    var ln = x.projectId ? projName(s, x.projectId) : '';
+    return h('div', ROW({ class: 'item exp-row', 'data-exp': x.title }, 'entries', { id: x.id }),
+      h('div', null, h('div', { class: 'entry-t', text: x.title }), h('div', { class: 'mut small', text: 'Due ' + x.due + ' | ' + fmtC(s, x.cents) + (ln ? ' | ' + ln : '') })),
+      h('div', { class: 'row' },
+        acts.indexOf('received') >= 0 ? btn('Mark received', function () { markReceivedDialog(x); }, 'sm pri', { 'aria-label': 'Mark ' + x.title + ' received' }) : null,
+        acts.indexOf('move') >= 0 ? btn('Move due date', function () { moveDueDialog(x); }, 'sm', { 'aria-label': 'Move the due date of ' + x.title }) : null,
+        acts.indexOf('writeoff') >= 0 ? btn('Write off', function () { writeOffDialog(x); }, 'sm bad', { 'aria-label': 'Write off ' + x.title }) : null));
+  }
+  function reviewRevenueCard(s, wk, t) {
+    var r = L.revenue.reviewWeek(s, wk, t);
+    return h('div', { class: 'card', id: 'rv-revenue' },
+      h('p', { class: 'small', id: 'rv-rev-received', text: 'Received this week: ' + fmtC(s, r.receivedCents) + '.' }),
+      h('p', { class: 'small', id: 'rv-rev-overdue-h', text: 'Overdue expected income (' + r.overdue.length + ', ' + fmtC(s, r.overdueCents) + ')' }),
+      r.overdue.length ? h('p', { class: 'mut small', text: 'Nothing changes until you tap it.' }) : null,
+      r.overdue.map(function (x) { return expectedRow(s, x, ['received', 'move', 'writeoff']); }),
+      lockMark(['entries']));
+  }
+  function bulkAssignCard(s) {
+    var typ = sel('ba-type', [{ v: 'any', t: 'Income and expenses' }, { v: 'income', t: 'Income only' }, { v: 'expense', t: 'Expenses only' }], 'any');
+    var from = h('input', { type: 'date', id: 'ba-from' }), to = h('input', { type: 'date', id: 'ba-to' });
+    var text = h('input', { type: 'text', id: 'ba-text', maxlength: '200', autocomplete: 'off' });
+    var cur = sel('ba-cur', [{ v: 'any', t: 'Any line of work' }, { v: 'none', t: 'Unassigned only' }].concat(lineOptions(s, '').slice(1)), 'any');
+    var target = sel('ba-target', lineOptions(s, '(remove the line of work)'), '');
+    var count = h('p', { class: 'small', id: 'ba-count', role: 'status', text: '' });
+    function matches() { return L.revenue.filterEntries(st(), { type: typ.value, from: from.value || undefined, to: to.value || undefined, text: text.value, line: cur.value }); }
+    return details('bulk-assign', 'Assign entries to a line of work', [
+      h('p', { class: 'mut small', text: 'Filter the entries, then assign them all to one line of work. You confirm the count first.' }),
+      field('Type', typ), field('From date (optional)', from), field('To date (optional)', to), field('Title contains (optional)', text), field('Currently on', cur), field('Assign to', target),
+      h('div', { class: 'row' },
+        btn('Count matches', function () { var n = matches().length; count.textContent = n + (n === 1 ? ' entry matches.' : ' entries match.'); }, 'sm', { id: 'ba-preview' }),
+        btn('Assign...', function () {
+          var list = matches(), n = list.length;
+          if (!n) { count.textContent = 'No entries match.'; return; }
+          var dest = target.value ? projName(st(), target.value) : '';
+          openDialog({
+            title: 'Assign ' + n + (n === 1 ? ' entry?' : ' entries?'), yes: 'Assign',
+            body: [h('p', { class: 'mut', id: 'ba-confirm-count', text: n + (n === 1 ? ' entry' : ' entries') + ' will ' + (target.value ? 'be assigned to the chosen line of work.' : 'lose their line of work.') })],
+            onYes: function () {
+              var ids = list.map(function (e) { return e.id; });
+              return commit(function (x) { L.revenue.assignLine(x, ids, target.value || null); }, 'entries assigned').then(function () { view.open = 'bulk-assign'; setNotice('ok', 'Assigned ' + n + (n === 1 ? ' entry.' : ' entries.')); render(); });
+            }
+          });
+          void dest;
+        }, 'sm pri', { id: 'ba-assign' })),
+      count], view.open === 'bulk-assign');
+  }
+
+  function scopeFrom(s, v) {
+    if (!v || v === 'all') return { kind: 'all' };
+    if (v === 'unassigned') return { kind: 'unassigned' };
+    var i = v.indexOf(':'), k = v.slice(0, i), id = v.slice(i + 1);
+    return (k === 'line' || k === 'rollup') && (s.projects || []).some(function (p) { return p.id === id; }) ? { kind: k, id: id } : { kind: 'all' };
+  }
+  function scopeKey(sc) { return sc.kind === 'line' || sc.kind === 'rollup' ? sc.kind + ':' + sc.id : sc.kind; }
+  function scopeName(s, sc) { return sc.kind === 'all' ? 'All money' : sc.kind === 'unassigned' ? 'Unassigned' : projName(s, sc.id) + (sc.kind === 'rollup' ? ' (with lines under it)' : ''); }
+  function revRow(s, l, kind, sc) {
+    var sel0 = scopeKey(sc) === kind;
+    return h('tr', { 'data-line': l.name, 'data-kind': kind.split(':')[0], 'aria-selected': sel0 ? 'true' : null },
+      h('td', { class: 'c-name', text: l.name }), h('td', { class: 'c-rev', text: fmtC(s, l.revenueCents) }), h('td', { class: 'c-exp', text: fmtC(s, l.expenseCents) }),
+      h('td', { class: 'c-net', text: fmtC(s, l.netCents) }), h('td', { class: 'c-margin', text: L.revenue.marginText(l.marginBp) }),
+      h('td', null, btn('Details', function () { view.sel = kind; render(); }, 'sm', { 'aria-label': 'Show details for ' + l.name })));
+  }
+  function revTable(id, rows) {
+    return h('div', { class: 'tablewrap' }, h('table', { id: id },
+      h('thead', null, h('tr', null, ['Line of work', 'Revenue', 'Expenses', 'Net', 'Margin', ''].map(function (x) { return h('th', { text: x }); }))),
+      h('tbody', null, rows)));
+  }
+  function revenueScreen(s) {
+    var t = today(), R = L.revenue, cur = s.settings.currency;
+    var per = view.period || 'month', custom = { from: view.cfrom || t.slice(0, 7) + '-01', to: view.cto || t }, range, rerr = '';
+    try { range = R.periodRange(per, t, custom); } catch (e) { rerr = friendly(e); range = R.periodRange('month', t); }
+    var rep = R.report(s, range), sc = scopeFrom(s, view.sel);
+    var perSel = sel('rv-period', R.PERIODS.map(function (p) { return { v: p[0], t: p[1] }; }), per, function (e) { view.period = e.target.value; render(); });
+    var cf = h('input', { type: 'date', id: 'rv-from', value: custom.from, onchange: function (e) { view.cfrom = e.target.value; render(); } });
+    var ct = h('input', { type: 'date', id: 'rv-to', value: custom.to, onchange: function (e) { view.cto = e.target.value; render(); } });
+    var tot = rep.total;
+    var shown = rep.lines.filter(function (l) { return !l.archived || l.revenueCents || l.expenseCents; });
+    var lineRows = shown.map(function (l) { return revRow(s, l, 'line:' + l.id, sc); });
+    lineRows.push(revRow(s, rep.unassigned, 'unassigned', sc));
+    var totalRow = h('tr', { 'data-total': 'true' }, h('td', { class: 'c-name', text: 'Total' }), h('td', { class: 'c-rev', text: fmtC(s, tot.revenueCents) }), h('td', { class: 'c-exp', text: fmtC(s, tot.expenseCents) }),
+      h('td', { class: 'c-net', text: fmtC(s, tot.netCents) }), h('td', { class: 'c-margin', text: R.marginText(tot.marginBp) }), h('td', null, btn('Details', function () { view.sel = 'all'; render(); }, 'sm', { 'aria-label': 'Show details for all money' })));
+    lineRows.push(totalRow);
+    var rollRows = rep.rollups.map(function (r) { return revRow(s, r, 'rollup:' + r.id, sc); });
+    // detail for the chosen scope
+    var d = R.totalsIn(s, sc, range.from, range.to), ex = R.expected(s, sc, t), mrows = R.monthly(s, sc, t.slice(0, 7), 12);
+    var detail = h('div', { class: 'card', id: 'rev-detail', 'data-scope': scopeKey(sc) },
+      h('h2', { text: scopeName(s, sc) }),
+      h('div', { class: 'stats' }, stat('Revenue received', fmtC(s, d.revenueCents), 'rd-revenue'), stat('Expenses', fmtC(s, d.expenseCents), 'rd-expenses'), stat('Net', fmtC(s, d.netCents), 'rd-net'), stat('Margin', R.marginText(d.marginBp), 'rd-margin')),
+      h('div', { class: 'stats' }, stat('Recurring monthly revenue', fmtC(s, R.recurringMonthlyCents(s, sc)), 'rd-recurring'),
+        stat('Expected, next 30 days', fmtC(s, ex.next30Cents), 'rd-n30'), stat('Expected, next 60 days', fmtC(s, ex.next60Cents), 'rd-n60'), stat('Expected, next 90 days', fmtC(s, ex.next90Cents), 'rd-n90')),
+      h('div', { class: 'stats' }, stat('Overdue expected income', fmtC(s, ex.overdueCents), 'rd-overdue', ex.overdueCount ? 'bad-t' : ''), stat('Overdue items', String(ex.overdueCount), 'rd-overdue-n')),
+      h('h3', { text: 'Last 12 months' }),
+      cashflowChart(mrows.map(function (r) { return { month: r.month, incomeCents: r.revenueCents, spendCents: r.expenseCents }; }), cur),
+      h('div', { class: 'legend small' }, h('span', { class: 'sw sw-in' }), ' Revenue ', h('span', { class: 'sw sw-out' }), ' Expenses'),
+      h('div', { class: 'tablewrap' }, h('table', { id: 'rev-months' },
+        h('thead', null, h('tr', null, ['Month', 'Revenue', 'Expenses', 'Net', 'Margin'].map(function (x) { return h('th', { text: x }); }))),
+        h('tbody', null, mrows.map(function (r) {
+          return h('tr', { 'data-month': r.month }, h('td', { text: monthLabel(r.month) }), h('td', { class: 'c-rev', text: fmtC(s, r.revenueCents) }), h('td', { class: 'c-exp', text: fmtC(s, r.expenseCents) }), h('td', { class: 'c-net', text: fmtC(s, r.netCents) }), h('td', { class: 'c-margin', text: R.marginText(r.marginBp) }));
+        })))));
+    var items = ex.overdue.concat(ex.upcoming);
+    var expCard = h('div', { class: 'card', id: 'rev-expected' }, h('h2', { text: 'Expected income' }),
+      h('p', { class: 'mut small', text: 'Expected income is not counted in Money until you mark it received.' }),
+      items.length ? items.map(function (x) { return expectedRow(s, x, ['received', 'move', 'writeoff']); }) : h('p', { class: 'mut', text: 'No expected income' + (sc.kind === 'all' ? '.' : ' for this line.') }));
+    return h('div', null,
+      btn('Back to Work', function () { go('domain', { domain: 'work' }); }, 'sm back'),
+      h('div', { class: 'row sp' }, h('h1', { text: 'Revenue' }), lockMark(['entries', 'projects', 'recurring'])),
+      h('div', { class: 'card' }, field('Period', perSel), per === 'custom' ? h('div', { class: 'row' }, field('From', cf), field('To', ct)) : null,
+        rerr ? h('p', { class: 'small bad-t', role: 'alert', text: rerr }) : null,
+        h('p', { class: 'mut small', id: 'rv-range', text: range.from + ' to ' + range.to + '. Only received income is counted.' })),
+      h('div', { class: 'stats' }, stat('Revenue received', fmtC(s, tot.revenueCents), 'rv-revenue'), stat('Expenses', fmtC(s, tot.expenseCents), 'rv-expenses'), stat('Net', fmtC(s, tot.netCents), 'rv-net'), stat('Margin', R.marginText(tot.marginBp), 'rv-margin')),
+      h('div', { class: 'card' }, h('h2', { text: 'By line of work' }), revTable('rev-lines', lineRows)),
+      rollRows.length ? h('div', { class: 'card' }, h('h2', { text: 'Parent rollups' }), h('p', { class: 'mut small', text: 'A parent plus every line under it.' }), revTable('rev-rollups', rollRows)) : null,
+      detail, expCard, ledgerCard(s));
+  }
+
+  // ---- ledger CSV import ----
+  var LEDGER_MODES = [{ v: 'signed', t: 'One amount column (negative or in brackets is an expense)' }, { v: 'split', t: 'Separate income and expense columns' }, { v: 'typed', t: 'An amount column and a type column' }];
+  function ledgerGuess(hd, re) { var i = hd.findIndex(function (x) { return re.test(x); }); return i >= 0 ? String(i) : ''; }
+  function ledgerStart(parsed) {
+    var hd = parsed.headers, g = function (re) { return ledgerGuess(hd, re); };
+    ledger = { parsed: parsed, plan: null, create: {}, cfg: { mode: 'signed', date: g(/date/i), amount: g(/amount|total|value/i), income: g(/income|revenue|credit/i), expense: g(/expense|cost|debit/i), type: g(/^type$|kind/i), incomeVal: 'Income', expenseVal: 'Expense',
+      line: g(/line|project|client|venture|site|show/i), category: g(/categor/i), description: g(/desc|memo|title|name|note/i), status: g(/status/i), due: g(/due/i), fmt: 'auto' } };
+  }
+  function ledgerOpts() {
+    var c = ledger.cfg, map = {}, num = function (v) { return v === '' || v === undefined ? undefined : Number(v); };
+    map.date = num(c.date); map.line = num(c.line); map.category = num(c.category); map.description = num(c.description); map.status = num(c.status); map.due = num(c.due);
+    if (c.mode === 'split') { map.income = num(c.income); map.expense = num(c.expense); } else { map.amount = num(c.amount); if (c.mode === 'typed') map.type = num(c.type); }
+    var create = Object.keys(ledger.create).filter(function (k) { return ledger.create[k]; });
+    return { map: map, dateFormat: c.fmt, typeValues: { income: c.incomeVal, expense: c.expenseVal }, create: create };
+  }
+  function ledgerRun() {
+    return act(function () {
+      return L.revenue.plan(ledger.parsed, ledgerOpts(), st(), today()).then(function (pl) { ledger.plan = pl; render(); });
+    });
+  }
+  function ledgerCard(s) {
+    var card = h('div', { class: 'card', id: 'ledger-card' }, h('h2', { text: 'Import a ledger CSV' }),
+      h('p', { class: 'mut small', text: 'Map the columns, preview, then confirm. Nothing is saved until you confirm, and importing the same file again adds nothing.' }));
+    // PV-1: with private entries or lines of work hidden, rows already imported (and moved in) cannot be recognised.
+    var pm = L.priv.isOpen() ? [] : L.priv.marks(mainState());
+    if (pm.indexOf('entries') >= 0 || pm.indexOf('projects') >= 0) {
+      card.appendChild(h('p', { class: 'small', id: 'ledger-locked' }, lockIcon('Some private items are hidden', 'lockmark'), ' Open the private vault to import a ledger. Rows already imported may be private, and they can only be recognised while it is open.'));
+      return card;
+    }
+    var fileIn = h('input', { type: 'file', id: 'ledger-file', accept: '.csv,text/csv' });
+    fileIn.addEventListener('change', function () {
+      var f = fileIn.files && fileIn.files[0];
+      if (!f) return;
+      act(function () { return readFile(f).then(function (text) { if (!L.store.isUnlocked()) return; ledgerStart(L.csv.parse(text)); render(); }); });
+    });
+    card.appendChild(field('CSV file (5 MB max)', fileIn));
+    if (!ledger) return card;
+    var c = ledger.cfg, hd = ledger.parsed.headers;
+    var opts = [{ v: '', t: '(none)' }].concat(hd.map(function (x, i) { return { v: String(i), t: x || ('Column ' + (i + 1)) }; }));
+    var pick = function (key, id, label, req) {
+      return field(label + (req ? '' : ' (optional)'), sel(id, opts, c[key], function (e) { c[key] = e.target.value; ledger.plan = null; render(); }));
+    };
+    var txt = function (key, id, label) {
+      return field(label, h('input', { type: 'text', id: id, maxlength: '60', value: c[key], onchange: function (e) { c[key] = e.target.value; ledger.plan = null; } }));
+    };
+    card.appendChild(h('p', { class: 'mut small', id: 'ledger-size', text: hd.length + ' columns, ' + ledger.parsed.rows.length + ' rows.' }));
+    card.appendChild(pick('date', 'ledger-date', 'Date column', true));
+    card.appendChild(field('Date format', sel('ledger-datefmt', [{ v: 'auto', t: 'YYYY-MM-DD or MM/DD/YYYY' }, { v: 'dmy', t: 'DD/MM/YYYY (or YYYY-MM-DD)' }], c.fmt, function (e) { c.fmt = e.target.value; ledger.plan = null; })));
+    card.appendChild(field('Amounts are', sel('ledger-mode', LEDGER_MODES, c.mode, function (e) { c.mode = e.target.value; ledger.plan = null; render(); })));
+    if (c.mode === 'split') { card.appendChild(pick('income', 'ledger-income', 'Income column', true)); card.appendChild(pick('expense', 'ledger-expense', 'Expense column', true)); }
+    else card.appendChild(pick('amount', 'ledger-amount', 'Amount column', true));
+    if (c.mode === 'typed') { card.appendChild(pick('type', 'ledger-type', 'Type column', true)); card.appendChild(txt('incomeVal', 'ledger-income-val', 'Type value that means income')); card.appendChild(txt('expenseVal', 'ledger-expense-val', 'Type value that means expense')); }
+    card.appendChild(pick('line', 'ledger-line', 'Line of work column'));
+    card.appendChild(pick('category', 'ledger-category', 'Category column'));
+    card.appendChild(pick('description', 'ledger-description', 'Description column'));
+    card.appendChild(pick('status', 'ledger-status', 'Status column (received, expected or written-off)'));
+    card.appendChild(pick('due', 'ledger-due', 'Due date column'));
+    card.appendChild(h('div', { class: 'row' }, btn('Preview', function () { ledgerRun(); }, 'pri', { id: 'ledger-preview' }), btn('Cancel', function () { ledger = null; render(); }, null, { id: 'ledger-cancel' })));
+    var pl = ledger.plan;
+    if (pl) {
+      var body = h('div', { id: 'ledger-result' },
+        h('p', { id: 'ledger-summary', text: pl.add.length + ' to add, ' + pl.rejected.length + ' rejected, ' + pl.duplicates + ' already imported.' }),
+        h('p', { class: 'small', id: 'ledger-totals', text: 'Income ' + fmtC(s, pl.totals.incomeCents) + ', expenses ' + fmtC(s, pl.totals.expenseCents) + ' in the rows to add.' }));
+      if (pl.byLine.length) body.appendChild(h('div', { class: 'tablewrap' }, h('table', { id: 'ledger-lines' },
+        h('thead', null, h('tr', null, ['Line of work', 'Rows', 'Income', 'Expenses'].map(function (x) { return h('th', { text: x }); }))),
+        h('tbody', null, pl.byLine.map(function (g) { return h('tr', { 'data-line': g.line }, h('td', { text: g.line }), h('td', { text: String(g.count) }), h('td', { text: fmtC(s, g.incomeCents) }), h('td', { text: fmtC(s, g.expenseCents) })); })))));
+      if (pl.unknownLines.length) {
+        body.appendChild(h('p', { class: 'small', id: 'ledger-unknown-h', text: 'These line names are not lines of work yet. Rows for lines you do not create are imported as Unassigned.' }));
+        pl.unknownLines.forEach(function (name, i) {
+          var key = L.revenue.normName(name);
+          body.appendChild(h('label', { class: 'field check' }, h('input', { type: 'checkbox', id: 'ledger-create-' + i, checked: !!ledger.create[key], onchange: function (e) { ledger.create[key] = !!e.target.checked; ledgerRun(); } }), h('span', { text: 'Create "' + name + '" as a new line of work' })));
+        });
+      }
+      if (pl.rejected.length) body.appendChild(h('div', { id: 'ledger-rejected' }, h('p', { class: 'small', text: 'Rejected rows' }),
+        h('ul', null, pl.rejected.slice(0, 25).map(function (r) { return h('li', { class: 'small', text: 'Row ' + r.row + ': ' + r.reason }); })),
+        pl.rejected.length > 25 ? h('p', { class: 'mut small', text: 'And ' + (pl.rejected.length - 25) + ' more.' }) : null));
+      if (!pl.add.length && pl.duplicates) body.appendChild(h('p', { class: 'small', id: 'ledger-nothing', text: 'Nothing new to import: every valid row was already imported.' }));
+      body.appendChild(btn(pl.add.length ? 'Import ' + pl.add.length + (pl.add.length === 1 ? ' row' : ' rows') : 'Nothing to import', function () {
+        act(function () {
+          var res;
+          return commit(function (x) { res = L.revenue.applyPlan(x, pl); }, 'ledger import').then(function () {
+            ledger = null;
+            setNotice('ok', 'Imported ' + res.added + (res.added === 1 ? ' entry' : ' entries') + (res.linesCreated ? ' and created ' + res.linesCreated + (res.linesCreated === 1 ? ' line of work.' : ' lines of work.') : '.'));
+            render();
+          });
+        });
+      }, 'pri', { id: 'ledger-confirm', disabled: !pl.add.length }));
+      card.appendChild(body);
+    }
+    return card;
+  }
+
   // ---------- boot ----------
   function boot() {
+    // CR-9: frame-ancestors only exists in the HTTP header (Cloudflare); on any other host or file:// the page must refuse to run framed.
+    var framed = true;
+    try { framed = window.top !== window.self; } catch (e) { framed = true; }
+    if (framed) { var root = document.getElementById('app'); if (root) root.replaceChildren(h('p', { class: 'notice err', text: 'LifeOS cannot run inside a frame. Open it in its own tab.' })); return; }
     var p = Promise.resolve();
     if (!globalThis.crypto || !globalThis.crypto.subtle) notice = { kind: 'err', text: 'This browser does not support the required encryption features.' };
     else p = L.store.exists().then(function (x) { vaultExists = !!x; }, function () { notice = { kind: 'err', text: 'Storage is unavailable in this browser.' }; });

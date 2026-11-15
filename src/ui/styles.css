@@ -18,8 +18,8 @@ p{margin:.4rem 0}
 @media (min-width:560px){.grid{grid-template-columns:repeat(2,1fr)}}
 @media (min-width:820px){.grid{grid-template-columns:repeat(3,1fr)}}
 @media (min-width:1040px){.grid{grid-template-columns:repeat(4,1fr)}}
-.tile{display:flex;flex-direction:column;gap:2px;text-align:left;font:inherit;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px;cursor:pointer;box-shadow:var(--sh);min-height:132px}
-.tile:hover{border-color:var(--acc)}
+.tile,.rtile{display:flex;flex-direction:column;gap:2px;text-align:left;font:inherit;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px;cursor:pointer;box-shadow:var(--sh);min-height:132px}
+.tile:hover,.rtile:hover{border-color:var(--acc)}
 .tile-title{font-size:.8rem;text-transform:uppercase;letter-spacing:.06em;color:var(--mut)}
 .tile-value{font-size:1.7rem;font-weight:700}
 .tile-sub{font-size:.85rem;color:var(--mut)}
@@ -148,3 +148,18 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
 .rate{font:inherit;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:10px;min-width:44px;min-height:44px;padding:4px 10px;cursor:pointer}
 .rate[aria-pressed=true]{background:var(--acc);color:var(--acc-fg);border-color:var(--acc);font-weight:700}
 .wb-area .stats{grid-template-columns:repeat(2,minmax(0,1fr))}
+/* v0.12.0: customizable home modules and the revenue view */
+.modgrid>.mod{min-width:0;display:flex;flex-direction:column}
+.modgrid>.mod.wide{grid-column:1/-1}
+.modgrid>.mod>.modbody{flex:1;display:flex;flex-direction:column}
+.modgrid>.mod>.modbody>.tile,.modgrid>.mod>.modbody>.rtile,.modgrid>.mod>.modbody>.card{flex:1}
+.modgrid>.mod>.modbody>.card{margin:0}
+.modgrid.editing>.mod{border:1px dashed var(--line);border-radius:var(--r);padding:8px}
+.modgrid.editing>.mod.modhidden{opacity:.55}
+.modgrid.editing>.mod.dragging{outline:2px solid var(--acc);opacity:.8}
+.modgrid.editing .modbody{pointer-events:none}
+.modbar{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-bottom:8px}
+.modbar .modname{flex:1 1 100%}
+.btn.drag{cursor:grab;touch-action:none;user-select:none}
+#rev-lines tr[aria-selected=true],#rev-rollups tr[aria-selected=true]{background:var(--card);outline:2px solid var(--acc)}
+#rev-lines td.c-rev,#rev-lines td.c-exp,#rev-lines td.c-net,#rev-lines td.c-margin,#rev-rollups td.c-rev,#rev-rollups td.c-exp,#rev-rollups td.c-net,#rev-rollups td.c-margin{white-space:nowrap}

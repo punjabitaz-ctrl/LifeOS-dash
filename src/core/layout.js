@@ -1,0 +1,92 @@
+(function () {
+  'use strict';
+  // v0.12.0: customizable home. A layout is a list of { id, size, hidden } kept per viewport class in settings.layouts
+  // ({ narrow, wide }; narrow is a viewport under 720 px). Ids are whitelisted: unknown ids are dropped, modules a saved layout does
+  // not mention are appended (visible) at the end, so modules added by later builds appear without breaking saved layouts.
+  const L = (globalThis.LifeOS = globalThis.LifeOS || {});
+  const NARROW_MAX = 720, LIST_CAP = 64;
+  const SIZES = Object.freeze(['small', 'wide']);
+  const mod = (id, label, sizes, size) => Object.freeze({ id, label, sizes: Object.freeze(sizes), size });
+  const TILE_DOMAINS = [['money', 'Money'], ['assets', 'Assets'], ['work', 'Work'], ['health', 'Health'], ['activities', 'Activities'], ['social', 'Social'], ['learning', 'Learning'], ['home', 'Home'], ['admin', 'Admin'], ['goals', 'Goals'], ['wellbeing', 'Wellbeing']];
+  // The default order is the order the dashboard had before: at a glance, priorities, the domain tiles; then the revenue modules.
+  const MODULES = Object.freeze([
+    mod('glance', 'At a glance', ['wide'], 'wide'),
+    mod('priorities', 'Priorities', ['small', 'wide'], 'wide'),
+  ].concat(
+    TILE_DOMAINS.map((d) => mod('tile-' + d[0], d[1], ['small', 'wide'], 'small')),
+    [mod('rev-month', 'Revenue this month', ['small', 'wide'], 'small'), mod('rev-net-line', 'Net by line of work', ['wide', 'small'], 'wide'), mod('rev-expected', 'Expected and overdue income', ['small', 'wide'], 'small')]
+  ));
+  const BY_ID = new Map(MODULES.map((m) => [m.id, m]));
+  const KEYS = Object.freeze(['narrow', 'wide']);
+  const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+  const fail = (m) => { throw new Error('Invalid data: ' + m); };
+
+  // Saved list to a clean saved list: unknown ids and repeats dropped, size and hidden checked. A size the module does not support
+  // becomes the module's own default size.
+  function clean(list) {
+    if (list === undefined || list === null) return [];
+    if (!Array.isArray(list)) fail('layout must be a list');
+    if (list.length > LIST_CAP) fail('layout has too many items');
+    const seen = new Set(), out = [];
+    for (const x of list) {
+      if (!isObj(x)) fail('layout item');
+      if (typeof x.id !== 'string' || x.id.length > 60) fail('layout id');
+      if (!SIZES.includes(x.size)) fail('layout size');
+      if (typeof x.hidden !== 'boolean') fail('layout hidden');
+      const m = BY_ID.get(x.id);
+      if (!m || seen.has(x.id)) continue;
+      seen.add(x.id);
+      out.push({ id: x.id, size: m.sizes.includes(x.size) ? x.size : m.size, hidden: x.hidden });
+    }
+    return out;
+  }
+  function cleanLayouts(x) {
+    if (x === undefined || x === null) return { narrow: [], wide: [] };
+    if (!isObj(x)) fail('layouts');
+    return { narrow: clean(x.narrow), wide: clean(x.wide) };
+  }
+  const defaultList = () => MODULES.map((m) => ({ id: m.id, size: m.size, hidden: false }));
+  // The full ordered list to draw: the saved order, then any module the saved list lacks.
+  function resolve(saved) {
+    let list;
+    try { list = clean(saved); } catch (e) { list = []; }
+    const have = new Set(list.map((x) => x.id));
+    for (const m of MODULES) if (!have.has(m.id)) list.push({ id: m.id, size: m.size, hidden: false });
+    return list;
+  }
+  const which = (width) => (Number(width) < NARROW_MAX ? 'narrow' : 'wide');
+  function get(settings, w) {
+    const ls = settings && settings.layouts;
+    return resolve(ls && Array.isArray(ls[w === 'narrow' ? 'narrow' : 'wide']) ? ls[w === 'narrow' ? 'narrow' : 'wide'] : []);
+  }
+  // Mutator for the settings object inside a commit: stores the full list for one viewport class and touches nothing else.
+  function set(settings, w, list) {
+    if (!KEYS.includes(w)) throw new Error('Unknown layout');
+    if (!isObj(settings.layouts)) settings.layouts = { narrow: [], wide: [] };
+    settings.layouts[w] = resolve(list);
+    return settings.layouts[w];
+  }
+  const reset = (settings, w) => {
+    if (!KEYS.includes(w)) throw new Error('Unknown layout');
+    if (!isObj(settings.layouts)) settings.layouts = { narrow: [], wide: [] };
+    settings.layouts[w] = [];
+  };
+  const idx = (list, id) => list.findIndex((x) => x.id === id);
+  function moveTo(list, id, to) {
+    const out = list.map((x) => Object.assign({}, x)), i = idx(out, id);
+    if (i < 0) return out;
+    const t = Math.max(0, Math.min(out.length - 1, Math.floor(Number(to)) || 0));
+    const [it] = out.splice(i, 1);
+    out.splice(t, 0, it);
+    return out;
+  }
+  const move = (list, id, delta) => { const i = idx(list, id); return i < 0 ? list.map((x) => Object.assign({}, x)) : moveTo(list, id, i + delta); };
+  const setHidden = (list, id, hidden) => list.map((x) => Object.assign({}, x, x.id === id ? { hidden: !!hidden } : {}));
+  function setSize(list, id, size) {
+    const m = BY_ID.get(id);
+    if (!m || !m.sizes.includes(size)) return list.map((x) => Object.assign({}, x));
+    return list.map((x) => Object.assign({}, x, x.id === id ? { size } : {}));
+  }
+
+  L.layout = { MODULES, SIZES, NARROW_MAX, LIST_CAP, clean, cleanLayouts, defaultList, resolve, which, get, set, reset, move, moveTo, setHidden, setSize, label: (id) => (BY_ID.has(id) ? BY_ID.get(id).label : '') };
+})();

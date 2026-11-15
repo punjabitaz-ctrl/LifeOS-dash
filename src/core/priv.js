@@ -8,12 +8,12 @@
   const BLOCKED = new Set(['__proto__', 'constructor', 'prototype']);
   const V = () => L.vault, S = () => L.store;
   // Validating the merged view (public and private records together): private goals may use wellbeing metrics. The stored main state is always validated without this.
-  const PRIVATE_OK = Object.freeze({ privateGoals: true });
+  const PRIVATE_OK = Object.freeze({ privateGoals: true, merged: true });
   // Collections that can hold private records. `refs`: [field, target collection, isArray]. `key` defaults to id.
   const COLL = {
     entries: { refs: [['accountId', 'accounts'], ['projectId', 'projects']] },
-    accounts: {}, recurring: {}, budgets: { key: (r) => r.category }, projects: {}, pipeline: {},
-    goals: { refs: [['parentId', 'goals']] },
+    accounts: {}, recurring: { refs: [['projectId', 'projects']] }, budgets: { key: (r) => r.category }, projects: { refs: [['parentId', 'projects']] }, pipeline: {},
+    goals: { refs: [['parentId', 'goals'], ['projectId', 'projects']] },
     maintenance: { refs: [['propertyId', 'properties'], ['vehicleId', 'vehicles']] },
     vehicles: {}, properties: {}, renewals: {}, documents: {}, taxItems: {},
     learningItems: { refs: [['goalId', 'goals']] },
@@ -337,27 +337,39 @@
       return true;
     });
   }
+  // CR-3: the private data re-encrypted is the private data stored when the change commits. If a restore or sync adoption replaced the
+  // private vault while the keys were being derived, the newer copy is decrypted (with the current passphrase) and used instead.
   async function changePassphrase(oldP, newP) {
     return pserial(async () => {
-      const st = needBase();
-      if (!st.priv) throw new Error('No private vault is set up.');
-      const { p } = await decryptBlob(st.priv, oldP);
+      if (!needBase().priv) throw new Error('No private vault is set up.');
       V().checkPassphrase(newP);
       if (await S().matchesMain(newP)) throw new Error('The private passphrase must be different from your main passphrase.');
       const salt = V().newSalt(), k = await V().deriveKey(newP, salt);
       let sb = '';
       for (const b of salt) sb += String.fromCharCode(b);
       sb = btoa(sb);
-      const next = clone(p); next.rev = p.rev + 1;
-      const blob = await sealPlain(next, k, sb);
-      close('system');
-      await S().commit((x) => {
-        x.priv = blob;
-        if (!Array.isArray(x.audit)) x.audit = [];
-        x.audit.push({ ts: new Date().toISOString(), action: 'private vault passphrase changed' });
-        while (x.audit.length > 200) x.audit.shift();
-      });
-      scrub(next); scrub(p);
+      const STALE = {};
+      for (let attempt = 0; attempt < 4; attempt++) {
+        const blob0 = needBase().priv;
+        if (!blob0) throw new Error('No private vault is set up.');
+        const { p } = await decryptBlob(blob0, oldP);
+        const next = clone(p); next.rev = p.rev + 1;
+        let blob;
+        try { blob = await sealPlain(next, k, sb); } catch (e) { scrub(next); scrub(p); throw e; }
+        close('system');
+        try {
+          await S().commit((x) => {
+            if (!x.priv || x.priv.rev !== blob0.rev || x.priv.ct !== blob0.ct || x.priv.iv !== blob0.iv) throw STALE;
+            x.priv = blob;
+            if (!Array.isArray(x.audit)) x.audit = [];
+            x.audit.push({ ts: new Date().toISOString(), action: 'private vault passphrase changed' });
+            while (x.audit.length > 200) x.audit.shift();
+          });
+        } catch (e) { scrub(next); scrub(p); if (e === STALE) continue; throw e; }
+        scrub(next); scrub(p);
+        return;
+      }
+      throw new Error('The private vault changed while the passphrase was being changed. Nothing was changed. Try again.');
     });
   }
   async function destroy() {
@@ -485,7 +497,7 @@
   const CHILDREN = {
     people: [['contacts', 'personId']],
     learningItems: [['studySessions', 'itemId'], ['takeaways', 'itemId']],
-    projects: [['entries', 'projectId']],
+    projects: [['entries', 'projectId'], ['recurring', 'projectId'], ['projects', 'parentId']],
     accounts: [['entries', 'accountId']],
     properties: [['maintenance', 'propertyId']],
     vehicles: [['maintenance', 'vehicleId']],
@@ -512,7 +524,7 @@
       if (cc === 'activities' && r0.expenseId) q.push(['entries', r0.expenseId]);
       if (cc === 'entries') for (const a of refs('activities', 'expenseId', k)) q.push(['activities', a.id]);
       if (cc === 'habits') for (const t of refs('habitLog', 'habitId', k)) q.push(['habitLog', keyOf('habitLog', t)]);
-      if (children) for (const [ch, f] of CHILDREN[cc] || []) for (const r of refs(ch, f, k)) if (ch !== 'entries' || (cc === 'accounts' ? r.type === 'balance' : r.type === 'outcome')) q.push([ch, keyOf(ch, r)]);
+      if (children) for (const [ch, f] of CHILDREN[cc] || []) for (const r of refs(ch, f, k)) if (ch !== 'entries' || (cc === 'accounts' ? r.type === 'balance' : (r.type === 'outcome' || r.type === 'income' || r.type === 'expense'))) q.push([ch, keyOf(ch, r)]);
     }
     return out;
   }

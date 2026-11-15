@@ -9,6 +9,8 @@ import '../src/core/admin.js';
 import '../src/core/learning.js';
 import '../src/core/activities.js';
 import '../src/core/social.js';
+import '../src/core/revenue.js';
+import '../src/core/layout.js';
 import '../src/core/goals.js';
 import '../src/core/memory.js';
 import '../src/core/ai.js';
