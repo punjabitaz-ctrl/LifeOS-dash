@@ -68,6 +68,14 @@
     for (const m of s.matchAll(CARD465_RE)) if (luhn(m[1] + m[2] + m[3])) return true;
     return false;
   }
+  // v1.1.0: payee fields refuse an SSN or an EIN (12-3456789 and its folded forms) as well as the secrets above; a tax ID is never stored.
+  const TAXID_MESSAGE = 'That looks like a tax ID (SSN or EIN). LifeOS never stores tax IDs. Only record whether a W-9 is on file.';
+  function looksTaxId(s0) {
+    if (typeof s0 !== 'string' || !s0) return false;
+    if (looksSecret(s0)) return true;
+    const s = fold(s0);
+    return /(?<!\d)\d{2}[-. ]\d{7}(?!\d)/.test(s) || /(?<!\d)\d{3}[-. ]\d{2}[-. ]\d{4}(?!\d)/.test(s);
+  }
   const SECRET_MESSAGE_FIELD = 'That looks like an ID number or a card number. Do not enter ID numbers, account numbers or passwords here.';
   const checkNoSecrets = (fields, msg) => { for (const f of fields) if (looksSecret(f)) throw new Error(msg || SECRET_MESSAGE); };
 
@@ -303,6 +311,8 @@
     for (const d of list(state, 'documents')) if (d.expires) out.push({ src: 'document', id: d.id, title: d.title, kind: 'expires', date: d.expires, closed: null });
     // Certification expiry is computed from the Learning item, never stored as a renewal.
     if (L.learning) for (const x of L.learning.expiries(state)) out.push({ src: 'learning', id: x.id, title: x.title, kind: 'certification expires', date: x.date, closed: null });
+    // Estimated tax payment dates and the 1099-NEC reminder come from the tax-year profile (computed, never stored as renewals).
+    if (L.tax) for (const x of L.tax.timelineRows(state)) out.push(x);
     for (const e of legacyEntries(state)) out.push({ src: 'legacy', id: e.id, title: e.title, kind: 'older due item', date: e.due, closed: e.status === 'done' ? '' : null });
     return out;
   }
@@ -352,7 +362,7 @@
 
   L.admin = {
     KINDS, KIND_LABEL, CADENCES, CADENCE_LABEL, TAX_STATES, RENEWAL_CAP, DOC_CAP, TAX_CAP, SECRET_MESSAGE, SECRET_MESSAGE_FIELD,
-    looksSecret, looksSecretText: (x) => looksSecret(x, 'ledger'), luhn, checkNoSecrets, anchorDay, cleanRenewals, cleanDocuments, cleanTaxItems, addRenewal, proposeNext, pendingRenewals, completeRenewal, confirmRenewal,
+    looksSecret, looksTaxId, TAXID_MESSAGE, looksSecretText: (x) => looksSecret(x, 'ledger'), luhn, checkNoSecrets, anchorDay, cleanRenewals, cleanDocuments, cleanTaxItems, addRenewal, proposeNext, pendingRenewals, completeRenewal, confirmRenewal,
     stopRenewing, cancelRenewal, markReviewed, deleteRenewal, annualCents, subscriptions, addDocument, deleteDocument, addTaxItem, setTaxState, deleteTaxItem, taxByYear,
     legacyDue, legacyEntries, dated, overdueAt, dueWithin, timeline, headline, weekValue, digest, reviewWeek, overdueValue, hasData,
   };

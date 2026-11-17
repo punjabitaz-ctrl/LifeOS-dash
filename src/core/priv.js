@@ -11,7 +11,7 @@
   const PRIVATE_OK = Object.freeze({ privateGoals: true, merged: true });
   // Collections that can hold private records. `refs`: [field, target collection, isArray]. `key` defaults to id.
   const COLL = {
-    entries: { refs: [['accountId', 'accounts'], ['projectId', 'projects']] },
+    entries: { refs: [['accountId', 'accounts'], ['projectId', 'projects'], ['billedInvoiceId', 'invoices'], ['payeeId', 'payees']] },
     accounts: {}, recurring: { refs: [['projectId', 'projects']] }, budgets: { key: (r) => r.category }, projects: { refs: [['parentId', 'projects']] }, pipeline: {},
     goals: { refs: [['parentId', 'goals'], ['projectId', 'projects']] },
     maintenance: { refs: [['propertyId', 'properties'], ['vehicleId', 'vehicles']] },
@@ -23,10 +23,21 @@
     people: { refs: [['groupId', 'groups'], ['pipelineIds', 'pipeline', true], ['projectIds', 'projects', true]] },
     groups: {}, contacts: { refs: [['personId', 'people']] },
     habits: {}, habitLog: { key: (r) => r.habitId + '|' + r.date },
+    // v1.1.0: business records. An invoice and its income entry move together (one-to-one money link, like an activity and its expense).
+    invoices: { refs: [['projectId', 'projects'], ['incomeId', 'entries']] }, trips: { refs: [['projectId', 'projects']] }, payees: {}, taxPayments: {},
     cycle: { single: true, key: () => 'cycle' },
   };
   const COLLECTIONS = Object.keys(COLL);
   const MARK_NAMES = COLLECTIONS.concat(['wellbeing']);
+  // v1.1.0 (amendment item 6): marks 'business' and 'business-YYYY' say that a private business record exists (of that year, or of a
+  // year that cannot be told), so tax figures refuse while the vault is closed. They carry no count and no name.
+  // SEC-76: 'business-link' says a public record points at a private record in a way that changes a tax figure (its line of work, payee or
+  // invoice), so a closed-vault write that moves such a record to another year marks that year too. 'business-reserve' says a private
+  // account or balance entry exists, so the tax reserve balance is not shown while closed. 'business' (any year) is accepted from older
+  // copies only; it is no longer written.
+  const isMarkName = (m) => MARK_NAMES.includes(m) || m === 'business' || m === 'business-link' || m === 'business-reserve' || /^business-\d{4}$/.test(m);
+  const MARKS_MAX = MARK_NAMES.length + 3 + 400;
+  const BIZ_KINDS = ['venture', 'client', 'website', 'podcast'];
   const keyOf = (c, r) => (COLL[c].key ? COLL[c].key(r) : r.id);
   const refsOf = (c) => COLL[c].refs || [];
   const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -56,13 +67,13 @@
     b64len(x.iv, 'iv', 16, 16);
     b64len(x.ct, 'data', 24, CT_MAX);
     if (!Number.isInteger(x.rev) || x.rev < 0 || x.rev > 1e9) throw bad('private vault revision');
-    if (!Array.isArray(x.marks) || x.marks.length > MARK_NAMES.length) throw bad('private vault marks');
+    if (!Array.isArray(x.marks) || x.marks.length > MARKS_MAX) throw bad('private vault marks');
     const seen = new Set();
     for (const m of x.marks) {
-      if (typeof m !== 'string' || !MARK_NAMES.includes(m) || BLOCKED.has(m) || seen.has(m)) throw bad('private vault marks');
+      if (typeof m !== 'string' || !isMarkName(m) || BLOCKED.has(m) || seen.has(m)) throw bad('private vault marks');
       seen.add(m);
     }
-    return { v: 1, kdf: { name: 'PBKDF2', hash: 'SHA-256', iter: ITER, salt: k.salt }, iv: x.iv, ct: x.ct, rev: x.rev, marks: MARK_NAMES.filter((m) => seen.has(m)) };
+    return { v: 1, kdf: { name: 'PBKDF2', hash: 'SHA-256', iter: ITER, salt: k.salt }, iv: x.iv, ct: x.ct, rev: x.rev, marks: MARK_NAMES.filter((m) => seen.has(m)).concat(Array.from(seen).filter((m) => !MARK_NAMES.includes(m)).sort()) };
   }
 
   // ---- inner plaintext ----
@@ -98,10 +109,71 @@
     return p;
   }
   const keySets = (st) => { const o = {}; for (const c of COLLECTIONS) o[c] = new Set(listOf(st, c).map((r) => keyOf(c, r))); return o; };
-  function marksOf(p) {
+  function marksOf(p, pub) {
     const m = COLLECTIONS.filter((c) => (p.records[c] || []).length > 0);
     if (Object.keys(p.wellbeing || {}).length) m.push('wellbeing');
+    return m.concat(bizMarks(p, pub));
+  }
+  // SEC-76 (deviation a): a year is marked exactly when a business record of that year is private, or a public record of that year belongs
+  // to (points at) a private record that changes a tax figure: its line of work, its payee or its invoice, or its line of work's parent.
+  // A private payee or line of work with no record in a year marks nothing. An unscoped private entry with a line of work is counted as
+  // business (its scope could follow a kind change made while the vault is closed), so it can only over-refuse, never under-refuse.
+  const isMoneyEntry = (e) => !!e && e.domain === 'money' && (e.type === 'income' || e.type === 'expense');
+  const yearOf = (d) => (typeof d === 'string' && /^\d{4}-/.test(d) ? d.slice(0, 4) : null);
+  const recYears = (c, r) => (c === 'invoices' ? [yearOf(r.issueDate), yearOf(r.paidOn)] : [yearOf(r.date)]).filter(Boolean);
+  const TAX_LINKS = { entries: ['projectId', 'payeeId', 'billedInvoiceId'], trips: ['projectId'], invoices: ['projectId'], projects: ['parentId'] };
+  function bizMarks(p, pub) {
+    const r = p.records || {}, ys = new Set();
+    let wild = false, linked = false;
+    const add = (d) => { const y = yearOf(d); if (y) ys.add(y); };
+    for (const e of r.entries || []) if (isMoneyEntry(e) && (e.scope === 'business' || (!e.scope && e.projectId))) add(e.date);
+    for (const i of r.invoices || []) { add(i.issueDate); add(i.paidOn); }
+    for (const t of r.trips || []) add(t.date);
+    for (const x of r.taxPayments || []) if (Number.isInteger(x.year)) ys.add(String(x.year));
+    // SEC-77: the reserve account chosen in settings, or its balance entries, are private.
+    const rid = pub && pub.settings && pub.settings.business ? pub.settings.business.reserveAccountId : null;
+    const reserve = !!rid && ((r.accounts || []).some((a) => a && a.id === rid) || (r.entries || []).some((e) => e && e.type === 'balance' && e.accountId === rid));
+    const idx = {};
+    const find = (c, id) => { if (!pub) return null; if (!idx[c]) idx[c] = new Map(listOf(pub, c).map((x) => [x.id, x])); return idx[c].get(id) || null; };
+    for (const l of p.links || []) {
+      if (!(TAX_LINKS[l.fromCollection] || []).includes(l.field)) continue;
+      linked = true;
+      const from = find(l.fromCollection, l.fromId);
+      if (!from) { wild = true; continue; }
+      if (l.fromCollection === 'projects') {
+        // a public line of work under a private parent: every year in which it has a business record
+        for (const c of ['entries', 'trips', 'invoices']) for (const x of listOf(pub, c)) if (x.projectId === from.id && (c !== 'entries' || isMoneyEntry(x))) for (const y of recYears(c, x)) ys.add(y);
+        continue;
+      }
+      if (l.fromCollection === 'entries' && !isMoneyEntry(from)) continue;
+      for (const y of recYears(l.fromCollection, from)) ys.add(y);
+    }
+    return (wild ? ['business'] : []).concat(linked ? ['business-link'] : [], reserve ? ['business-reserve'] : [], Array.from(ys).sort().map((y) => 'business-' + y));
+  }
+  // While closed: with 'business-link' set, a public money entry, trip or invoice that is new, changes year or changes line of work marks its
+  // years, so a record that a hidden link ties to a private record can never leave the marked years unseen.
+  const sigOf = (c, x) => recYears(c, x).join(',') + '|' + (x.projectId || '');
+  function sigs(st) {
+    const m = new Map();
+    for (const c of ['entries', 'trips', 'invoices']) for (const x of listOf(st, c)) if (x && (c !== 'entries' || isMoneyEntry(x))) m.set(c + '\u0000' + x.id, [c, x]);
     return m;
+  }
+  function closedMarks(fn) {
+    return async (st) => {
+      const linked = !!(st.priv && Array.isArray(st.priv.marks) && st.priv.marks.includes('business-link'));
+      const before = linked ? new Map(Array.from(sigs(st)).map(([k, v]) => [k, sigOf(v[0], v[1])])) : null;
+      const rid = (st) => (st.settings && st.settings.business && st.settings.business.reserveAccountId) || '';
+      const rid0 = rid(st);
+      await fn(st);
+      if (!st.priv || !Array.isArray(st.priv.marks)) return;
+      const add = new Set();
+      // a reserve account chosen while closed may have private balance entries: hide the reserve rather than guess it
+      if (rid(st) && rid(st) !== rid0 && (st.priv.marks.includes('accounts') || st.priv.marks.includes('entries'))) add.add('business-reserve');
+      if (!linked) { for (const m of add) if (!st.priv.marks.includes(m)) st.priv.marks.push(m); return; }
+      for (const [k, [c, x]] of sigs(st)) if (before.get(k) !== sigOf(c, x)) for (const y of recYears(c, x)) add.add('business-' + y);
+      const have = new Set(st.priv.marks);
+      for (const m of add) if (!have.has(m)) st.priv.marks.push(m);
+    };
   }
 
   // ---- merge, overlay, split ----
@@ -157,13 +229,13 @@
       }
     }
     // An activity and its expense move together or not at all; a habit's ticks follow the habit.
-    for (const a of listOf(clean, 'activities')) {
-      if (!a.expenseId) continue;
-      const ap = isP.activities.has(a.id), ep = isP.entries.has(a.expenseId);
-      if (ap === ep || !listOf(clean, 'entries').some((e) => e.id === a.expenseId)) continue;
-      const out = outSet('activities', a.id) || outSet('entries', a.expenseId);
+    for (const [pc, pf] of [['activities', 'expenseId'], ['invoices', 'incomeId']]) for (const a of listOf(clean, pc)) {
+      if (!a[pf]) continue;
+      const ap = isP[pc].has(a.id), ep = isP.entries.has(a[pf]);
+      if (ap === ep || !listOf(clean, 'entries').some((e) => e.id === a[pf])) continue;
+      const out = outSet(pc, a.id) || outSet('entries', a[pf]);
       const to = !out;
-      for (const [c, k] of [['activities', a.id], ['entries', a.expenseId]]) { if (to) isP[c].add(k); else isP[c].delete(k); }
+      for (const [c, k] of [[pc, a.id], ['entries', a[pf]]]) { if (to) isP[c].add(k); else isP[c].delete(k); }
     }
     for (const t of listOf(clean, 'habitLog')) if (isP.habits.has(t.habitId)) isP.habitLog.add(keyOf('habitLog', t));
     // SEC-62: a record created from or under a private record is private too, so no private text reaches the main state through a
@@ -271,10 +343,10 @@
   }
   const onClose = (f) => { if (typeof f === 'function') closers.push(f); };
 
-  async function sealPlain(p, k, salt) {
+  async function sealPlain(p, k, salt, pub) {
     const { iv, ct } = await V().encrypt(k, p);
     if (ct.length > CT_MAX) throw new Error('The private vault would be too large. Move some items out or delete old ones.');
-    return { v: 1, kdf: { name: 'PBKDF2', hash: 'SHA-256', iter: ITER, salt }, iv, ct, rev: p.rev, marks: marksOf(p) };
+    return { v: 1, kdf: { name: 'PBKDF2', hash: 'SHA-256', iter: ITER, salt }, iv, ct, rev: p.rev, marks: marksOf(p, pub) };
   }
   const bkey = async (pass, blob) => {
     const salt = Uint8Array.from(atob(blob.kdf.salt), (ch) => ch.charCodeAt(0));
@@ -355,7 +427,7 @@
         const { p } = await decryptBlob(blob0, oldP);
         const next = clone(p); next.rev = p.rev + 1;
         let blob;
-        try { blob = await sealPlain(next, k, sb); } catch (e) { scrub(next); scrub(p); throw e; }
+        try { blob = await sealPlain(next, k, sb, needBase()); } catch (e) { scrub(next); scrub(p); throw e; }
         close('system');
         try {
           await S().commit((x) => {
@@ -416,7 +488,7 @@
     fn = noWellbeing(fn);
     if (!isOpen()) {
       if (o.newPrivate || o.moveIn || o.moveOut) return Promise.reject(new Error('The private vault is closed.'));
-      return S().commit(fn);
+      return S().commit(closedMarks(fn));
     }
     return pserial(() => writeRaw(fn, o));
   }
@@ -448,7 +520,7 @@
         const sp = split(clean, { privKeys: m.privKeys, shadow: m.shadow, idsBefore, moveIn: o.moveIn || {}, moveOut: o.moveOut || {}, newPrivate: !!o.newPrivate, from: Array.isArray(o.from) ? o.from : [], privChanged });
         next = { schema: 1, rev: before.rev + 1, records: sp.records, links: sp.links, wellbeing: next_wb };
         if (key !== k) throw new Error('The private vault is closed.');
-        const blob = await sealPlain(next, k, sb);
+        const blob = await sealPlain(next, k, sb, sp.pub);
         if (key !== k) throw new Error('The private vault is closed.');
         for (const f of Object.keys(st)) delete st[f];
         Object.assign(st, sp.pub, { priv: blob });
@@ -480,7 +552,7 @@
           const m = merge(st, next); w = clone(m.out); overlay(w, next.links, false);
           S().validateState(w, PRIVATE_OK);
           if (key !== k) throw new Error('The private vault is closed.');
-          const blob = await sealPlain(next, k, sb);
+          const blob = await sealPlain(next, k, sb, st);
           if (key !== k) throw new Error('The private vault is closed.');
           st.priv = blob;
         });
@@ -497,7 +569,8 @@
   const CHILDREN = {
     people: [['contacts', 'personId']],
     learningItems: [['studySessions', 'itemId'], ['takeaways', 'itemId']],
-    projects: [['entries', 'projectId'], ['recurring', 'projectId'], ['projects', 'parentId']],
+    projects: [['entries', 'projectId'], ['recurring', 'projectId'], ['projects', 'parentId'], ['invoices', 'projectId'], ['trips', 'projectId']],
+    payees: [['entries', 'payeeId']],
     accounts: [['entries', 'accountId']],
     properties: [['maintenance', 'propertyId']],
     vehicles: [['maintenance', 'vehicleId']],
@@ -522,7 +595,8 @@
       if (!r0) { if (cc === c && k === id) throw new Error('That item no longer exists.'); continue; }
       seen.add(tag); out.push([cc, k]);
       if (cc === 'activities' && r0.expenseId) q.push(['entries', r0.expenseId]);
-      if (cc === 'entries') for (const a of refs('activities', 'expenseId', k)) q.push(['activities', a.id]);
+      if (cc === 'invoices' && r0.incomeId) q.push(['entries', r0.incomeId]);
+      if (cc === 'entries') { for (const a of refs('activities', 'expenseId', k)) q.push(['activities', a.id]); for (const a of refs('invoices', 'incomeId', k)) q.push(['invoices', a.id]); }
       if (cc === 'habits') for (const t of refs('habitLog', 'habitId', k)) q.push(['habitLog', keyOf('habitLog', t)]);
       if (children) for (const [ch, f] of CHILDREN[cc] || []) for (const r of refs(ch, f, k)) if (ch !== 'entries' || (cc === 'accounts' ? r.type === 'balance' : (r.type === 'outcome' || r.type === 'income' || r.type === 'expense'))) q.push([ch, keyOf(ch, r)]);
     }

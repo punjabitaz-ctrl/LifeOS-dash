@@ -124,6 +124,25 @@
       if (typeof p.importKey !== 'string' || !/^[0-9a-f]{64}$/.test(p.importKey)) throw new Error('Invalid import key');
       out.importKey = p.importKey;
     }
+    // v1.1.0: business or personal, and the expense marks (billable, reimbursable, paid by card, contractor) and links (invoice, payee).
+    if (dom.id === 'money' && (ty.id === 'income' || ty.id === 'expense')) {
+      if (!isEmpty(p.scope)) {
+        if (p.scope !== 'business' && p.scope !== 'personal') throw new Error('Scope must be business or personal');
+        out.scope = p.scope;
+      }
+      if (ty.id === 'expense') {
+        for (const f of ['billable', 'reimbursable', 'cardPaid', 'contractor']) {
+          if (p[f] === undefined || p[f] === null || p[f] === false) continue;
+          if (p[f] !== true) throw new Error(f + ' must be true or false');
+          out[f] = true;
+        }
+        for (const f of ['billedInvoiceId', 'payeeId']) {
+          if (isEmpty(p[f])) continue;
+          if (typeof p[f] !== 'string' || p[f].length > 100) throw new Error('Invalid ' + f);
+          out[f] = p[f];
+        }
+      }
+    }
     const ca = p.createdAt;
     out.createdAt = (typeof ca === 'string' && ca.length <= 40 && ca) || (typeof ca === 'number' && isFinite(ca) && ca) || new Date().toISOString();
     return out;
@@ -623,7 +642,7 @@
     const we = addDays(ws, 6), wm = sumMoney(byDomain(state, 'money'), ws, we), nw = netWorthDetail(state, we);
     const mv = monthView(state, monthOf(we));
     const money = { income: dollars(wm.incC), spend: dollars(wm.expC), budgetUsedPct: mv.budgetCents > 0 ? r1(mv.budgetedSpentCents * 100 / mv.budgetCents) : 0, netWorth: nw.total, liabilities: nw.liabilities };
-    return { week: ws, domains, money, work: workDigest(state, ws), health: healthDigest(state, ws), activities: L.activities.digest(state, ws), goals: L.goals.digestCounts(state, ws), home: L.home.digest(state, ws), admin: L.admin.digest(state, ws), learning: L.learning.digest(state, ws), social: L.social.digest(state, ws), revenue: L.revenue.digest(state, ws) };
+    return { week: ws, domains, money, work: workDigest(state, ws), health: healthDigest(state, ws), activities: L.activities.digest(state, ws), goals: L.goals.digestCounts(state, ws), home: L.home.digest(state, ws), admin: L.admin.digest(state, ws), learning: L.learning.digest(state, ws), social: L.social.digest(state, ws), revenue: L.revenue.digest(state, ws), business: L.business.digest(state, ws) };
   }
   function series(state, domainId, n, today) {
     if (!DOMAINS.some((d) => d.id === domainId)) throw new Error('Unknown domain');

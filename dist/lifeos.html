@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-kDeJNgJnawKEMkgA1GHE4JZ9DCDXU6NGClSSCo3Umbo='; style-src 'sha256-eBk42VC1WGbQmCXa6hP6TJ23zDzhduSVVQVNTU3gXao='; connect-src https://api.anthropic.com https://www.googleapis.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-IIAM46EY9tMN3wevaE7dNTEIV3TtqceUaUQGqIi3PMc='; style-src 'sha256-YIVd2U/Wt31GIuspmN0QTKrn8eZcc45Z0u6vBGo3gnk='; connect-src https://api.anthropic.com https://www.googleapis.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>LifeOS</title>
 <style>:root{color-scheme:light dark;--bg:#f4f5f7;--card:#fff;--fg:#14171c;--mut:#5b6573;--line:#dde1e7;--acc:#2255d4;--acc-fg:#fff;--ok:#1c7a46;--warn:#9a5b00;--bad:#b42318;--r:14px;--sh:0 1px 2px rgba(0,0,0,.06);--font:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
@@ -170,6 +170,15 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
 .btn.drag{cursor:grab;touch-action:none;user-select:none}
 #rev-lines tr[aria-selected=true],#rev-rollups tr[aria-selected=true]{background:var(--card);outline:2px solid var(--acc)}
 #rev-lines td.c-rev,#rev-lines td.c-exp,#rev-lines td.c-net,#rev-lines td.c-margin,#rev-rollups td.c-rev,#rev-rollups td.c-exp,#rev-rollups td.c-net,#rev-rollups td.c-margin{white-space:nowrap}
+.bz-tabs{margin:0 0 12px}
+.tax-notice{margin:0 0 12px}
+.tax-blocked{display:flex;align-items:center;gap:8px}
+.printview{background:#fff;color:#000;padding:8px}
+.printview table{width:100%;border-collapse:collapse}
+.printview th,.printview td{border:1px solid #888;padding:4px 6px;text-align:left}
+#pf-form .field,#bs-form .field,#tr-form .field,#ho-form .field{max-width:420px}
+#inv-detail .item,#bz-entries .item{flex-wrap:wrap}
+@media print{.top,.nav,.noprint,.notice,.privbar{display:none!important}body{background:#fff}.printview{padding:0}}
 </style>
 </head>
 <body>
@@ -261,7 +270,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   'use strict';
   const L = (globalThis.LifeOS = globalThis.LifeOS || {});
   const KEY = 'envelope';
-  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 11, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
+  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 12, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
   const HABIT_CAP = 8, HABIT_LOG_CAP = 100000, KIND_CAP = 30;
   const RENEWAL_TOTAL_CAP = 2000;
   const ENTRY_CAP = 50000, INSIGHT_CAP = 5000, REVIEW_CAP = 1000, LESSON_CAP = 30, AUDIT_CAP = 200;
@@ -380,6 +389,8 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       learning: schema >= 7 ? L.learning.cleanSettings(s.learning) : { weeklyMinutes: 0 },
       privAutoLockSec: schema >= 10 && s.privAutoLockSec !== undefined ? num(s.privAutoLockSec, 15, 1800, 'privAutoLockSec', true) : 60,
       layouts: schema >= 11 ? L.layout.cleanLayouts(s.layouts) : { narrow: [], wide: [] },
+      // v1.1.0: business settings. Migrating from an older schema asks the owner to confirm the business or personal scope once.
+      business: schema >= 12 ? L.business.cleanSettings(s.business) : L.business.defaultSettings(false),
     };
   }
   // 6 decimals, like converted weights, so a unit switch round trip does not drift.
@@ -496,6 +507,10 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       };
       if (x.nextDate !== undefined && x.nextDate !== '') o.nextDate = date(x.nextDate, 'nextDate');
       o.archived = bool(x.archived, 'archived', false);
+      if (x.budgetCents !== undefined && x.budgetCents !== null) {
+        o.budgetCents = num(x.budgetCents, 0, 1e11, 'project budget', true);
+        o.budgetPeriod = oneOf(x.budgetPeriod, ['month', 'project'], 'budget period');
+      }
       if (x.parentId !== undefined && x.parentId !== null && x.parentId !== '') o.parentId = str(x.parentId, 100, 'project parent');
       return o;
     });
@@ -600,6 +615,19 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       for (const k of ['netWeekCents', 'netMonthCents']) o[k] = num(x[k], -Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, 'digest revenue', true);
       for (const k of ['overdueCount', 'lines']) o[k] = num(x[k], 0, 1e9, 'digest revenue', true);
       out.revenue = o;
+    }
+    if (d.business !== undefined) {
+      if (!isObj(d.business)) fail('digest business');
+      const x = d.business, o = {};
+      for (const k of ['openInvoices', 'overdueInvoices']) o[k] = num(x[k], 0, 1e9, 'digest business', true);
+      o.openInvoiceCents = num(x.openInvoiceCents, 0, Number.MAX_SAFE_INTEGER, 'digest business', true);
+      if (x.tax !== undefined) {
+        if (!isObj(x.tax)) fail('digest tax');
+        o.tax = { profitCents: num(x.tax.profitCents, -Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, 'digest tax', true) };
+        if (x.tax.estimatedTaxCents !== undefined) o.tax.estimatedTaxCents = num(x.tax.estimatedTaxCents, 0, Number.MAX_SAFE_INTEGER, 'digest tax', true);
+        if (x.tax.gapCents !== undefined) o.tax.gapCents = num(x.tax.gapCents, -Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, 'digest tax', true);
+      }
+      out.business = o;
     }
     for (const k of ['home', 'admin']) {
       if (d[k] === undefined) continue;
@@ -850,7 +878,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   function validateStateRaw(o, opts) {
     if (!isObj(o)) fail('state must be an object');
     scan(o, 0, { n: 4e6 });
-    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, SCHEMA].includes(o.schema)) fail('unsupported schema');
+    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, SCHEMA].includes(o.schema)) fail('unsupported schema');
     if (!L.metrics) fail('metrics module missing');
     const settings = cleanSettings(o.settings, o.schema), entries = cleanEntries(o.entries);
     const out = { schema: SCHEMA, settings, entries };
@@ -927,6 +955,31 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       out.contacts = So.cleanContacts(m.contacts, out.people);
       out.entries = m.entries;
     }
+    // Schema 12 adds business records (payees, invoices, trips, estimated payments), the tax-year profiles, the home-office figures and
+    // the category to Schedule C line map. Older formats get empty collections, and each money entry takes the scope its line of work implies.
+    const Bz = L.business, Tx = L.tax, twelve = o.schema >= 12;
+    out.payees = twelve ? Bz.cleanPayees(o.payees) : [];
+    out.invoices = twelve ? Bz.cleanInvoices(o.invoices, { merged }) : [];
+    out.trips = twelve ? Bz.cleanTrips(o.trips) : [];
+    out.taxPayments = twelve ? Tx.cleanPayments(o.taxPayments) : [];
+    out.taxYears = twelve ? Tx.cleanTaxYears(o.taxYears) : {};
+    out.homeOffice = twelve ? Tx.cleanHomeOffice(o.homeOffice) : {};
+    out.taxMap = twelve ? Tx.cleanTaxMap(o.taxMap) : [];
+    // No money entry is rewritten by the migration: an entry with no scope takes the one its line of work implies (business.scopeOf),
+    // and the owner confirms the counts once (business.confirmScope then fixes each visible entry's scope).
+    if (!twelve && !out.entries.some((e) => e.domain === 'money' && (e.type === 'income' || e.type === 'expense'))) out.settings.business.scopeConfirmed = true;
+    {
+      const payeeIds = new Set(out.payees.map((x) => x.id)), invIds = new Set(out.invoices.map((x) => x.id)), entIds = new Set(out.entries.map((x) => x.id));
+      for (const e of out.entries) {
+        if (e.payeeId !== undefined && !payeeIds.has(e.payeeId)) delete e.payeeId;
+        if (e.billedInvoiceId !== undefined && !invIds.has(e.billedInvoiceId)) delete e.billedInvoiceId;
+      }
+      for (const i of out.invoices) {
+        if (i.projectId !== undefined && !pids.has(i.projectId)) delete i.projectId;
+        if (i.incomeId !== undefined && !entIds.has(i.incomeId)) delete i.incomeId;
+      }
+      for (const t of out.trips) if (t.projectId !== undefined && !pids.has(t.projectId)) delete t.projectId;
+    }
     out.memory = cleanMemory(o.memory);
     out.audit = cleanAudit(o.audit);
     // Schema 10 adds the private vault: checked structurally only (types, base64, sizes, iteration count, mark names); the key is never needed.
@@ -975,6 +1028,17 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       const ls = cur.settings && cur.settings.layouts;
       if (ls && ((ls.narrow || []).length || (ls.wide || []).length)) out.push('dashboard layouts');
     }
+    if (src < 12) {
+      // v1.1.0: business records, tax profiles, the home-office figures and budgets.
+      for (const [k, n] of [['invoices', 'invoices'], ['trips', 'mileage trips'], ['payees', 'payees'], ['taxPayments', 'estimated tax payments'], ['taxMap', 'tax line mappings']]) if ((cur[k] || []).length) out.push(n);
+      if (Object.keys(cur.taxYears || {}).length) out.push('tax year profiles');
+      if (Object.keys(cur.homeOffice || {}).length) out.push('home-office figures');
+      if ((cur.projects || []).some((p) => p.budgetCents !== undefined)) out.push('project budgets');
+      const money = (cur.entries || []).filter((e) => e.domain === 'money');
+      if (money.some((e) => e.scope === 'business' || e.billable || e.reimbursable || e.billedInvoiceId || e.payeeId || e.contractor || e.cardPaid)) out.push('business expense and income marks');
+      const b = cur.settings && cur.settings.business;
+      if (b && (b.name || b.address || b.paymentTerms || b.invoiceNext > 1 || b.reserveAccountId || b.pinnedProjectId)) out.push('business settings');
+    }
     if (src < 4) {
       if (cur.cycle) out.push('training cycle');
       if ((cur.habits || []).length) out.push('daily checks');
@@ -987,7 +1051,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   const dropsWork = (cur, next) => droppedData(cur, next).length > 0;
   const andList = (l) => (l.length > 1 ? l.slice(0, -1).join(', ') + ' and ' + l[l.length - 1] : l.join(''));
   // Plain-language list for warnings, with counts: "3 projects and 4 pipeline items". Names only, never values.
-  const COUNTED = { properties: 'properties', vehicles: 'vehicles', 'maintenance items': 'maintenance', renewals: 'renewals', documents: 'documents', 'tax items': 'taxItems', 'learning items': 'learningItems', 'study sessions': 'studySessions', takeaways: 'takeaways', activities: 'activities', 'social groups': 'groups', people: 'people', 'logged contacts': 'contacts' };
+  const COUNTED = { properties: 'properties', vehicles: 'vehicles', 'maintenance items': 'maintenance', renewals: 'renewals', documents: 'documents', 'tax items': 'taxItems', 'learning items': 'learningItems', 'study sessions': 'studySessions', takeaways: 'takeaways', activities: 'activities', 'social groups': 'groups', people: 'people', 'logged contacts': 'contacts', invoices: 'invoices', 'mileage trips': 'trips', payees: 'payees', 'estimated tax payments': 'taxPayments' };
   function lossText(cur, next) {
     return andList(droppedData(cur, next).map((n) => (n === 'projects' ? cur.projects.length + ' projects' : n === 'pipeline items' ? cur.pipeline.length + ' pipeline items' : n === 'daily checks' ? cur.habits.length + ' daily checks' : n === 'goals' ? cur.goals.length + ' goals' : COUNTED[n] ? cur[COUNTED[n]].length + ' ' + n : 'your ' + n)));
   }
@@ -1006,6 +1070,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
         learning: { weeklyMinutes: 0 },
         privAutoLockSec: 60,
         layouts: { narrow: [], wide: [] },
+        business: L.business.defaultSettings(true),
       },
       entries: [],
       accounts: [], recurring: [], budgets: [], categories: defaultCategories(),
@@ -1014,6 +1079,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       learningItems: [], studySessions: [], takeaways: [],
       activities: [], activityCategories: L.activities.DEFAULT_CATEGORIES.slice(),
       groups: [], people: [], contacts: [],
+      payees: [], invoices: [], trips: [], taxPayments: [], taxYears: {}, homeOffice: {}, taxMap: [],
       cycle: null, kinds: L.metrics.DEFAULT_KINDS.slice(), habits: [], habitLog: [],
       memory: { insights: [], lessons: [], reviews: [] },
       audit: [],
@@ -1240,7 +1306,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   const PRIVATE_OK = Object.freeze({ privateGoals: true, merged: true });
   // Collections that can hold private records. `refs`: [field, target collection, isArray]. `key` defaults to id.
   const COLL = {
-    entries: { refs: [['accountId', 'accounts'], ['projectId', 'projects']] },
+    entries: { refs: [['accountId', 'accounts'], ['projectId', 'projects'], ['billedInvoiceId', 'invoices'], ['payeeId', 'payees']] },
     accounts: {}, recurring: { refs: [['projectId', 'projects']] }, budgets: { key: (r) => r.category }, projects: { refs: [['parentId', 'projects']] }, pipeline: {},
     goals: { refs: [['parentId', 'goals'], ['projectId', 'projects']] },
     maintenance: { refs: [['propertyId', 'properties'], ['vehicleId', 'vehicles']] },
@@ -1252,10 +1318,21 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     people: { refs: [['groupId', 'groups'], ['pipelineIds', 'pipeline', true], ['projectIds', 'projects', true]] },
     groups: {}, contacts: { refs: [['personId', 'people']] },
     habits: {}, habitLog: { key: (r) => r.habitId + '|' + r.date },
+    // v1.1.0: business records. An invoice and its income entry move together (one-to-one money link, like an activity and its expense).
+    invoices: { refs: [['projectId', 'projects'], ['incomeId', 'entries']] }, trips: { refs: [['projectId', 'projects']] }, payees: {}, taxPayments: {},
     cycle: { single: true, key: () => 'cycle' },
   };
   const COLLECTIONS = Object.keys(COLL);
   const MARK_NAMES = COLLECTIONS.concat(['wellbeing']);
+  // v1.1.0 (amendment item 6): marks 'business' and 'business-YYYY' say that a private business record exists (of that year, or of a
+  // year that cannot be told), so tax figures refuse while the vault is closed. They carry no count and no name.
+  // SEC-76: 'business-link' says a public record points at a private record in a way that changes a tax figure (its line of work, payee or
+  // invoice), so a closed-vault write that moves such a record to another year marks that year too. 'business-reserve' says a private
+  // account or balance entry exists, so the tax reserve balance is not shown while closed. 'business' (any year) is accepted from older
+  // copies only; it is no longer written.
+  const isMarkName = (m) => MARK_NAMES.includes(m) || m === 'business' || m === 'business-link' || m === 'business-reserve' || /^business-\d{4}$/.test(m);
+  const MARKS_MAX = MARK_NAMES.length + 3 + 400;
+  const BIZ_KINDS = ['venture', 'client', 'website', 'podcast'];
   const keyOf = (c, r) => (COLL[c].key ? COLL[c].key(r) : r.id);
   const refsOf = (c) => COLL[c].refs || [];
   const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -1285,13 +1362,13 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     b64len(x.iv, 'iv', 16, 16);
     b64len(x.ct, 'data', 24, CT_MAX);
     if (!Number.isInteger(x.rev) || x.rev < 0 || x.rev > 1e9) throw bad('private vault revision');
-    if (!Array.isArray(x.marks) || x.marks.length > MARK_NAMES.length) throw bad('private vault marks');
+    if (!Array.isArray(x.marks) || x.marks.length > MARKS_MAX) throw bad('private vault marks');
     const seen = new Set();
     for (const m of x.marks) {
-      if (typeof m !== 'string' || !MARK_NAMES.includes(m) || BLOCKED.has(m) || seen.has(m)) throw bad('private vault marks');
+      if (typeof m !== 'string' || !isMarkName(m) || BLOCKED.has(m) || seen.has(m)) throw bad('private vault marks');
       seen.add(m);
     }
-    return { v: 1, kdf: { name: 'PBKDF2', hash: 'SHA-256', iter: ITER, salt: k.salt }, iv: x.iv, ct: x.ct, rev: x.rev, marks: MARK_NAMES.filter((m) => seen.has(m)) };
+    return { v: 1, kdf: { name: 'PBKDF2', hash: 'SHA-256', iter: ITER, salt: k.salt }, iv: x.iv, ct: x.ct, rev: x.rev, marks: MARK_NAMES.filter((m) => seen.has(m)).concat(Array.from(seen).filter((m) => !MARK_NAMES.includes(m)).sort()) };
   }
 
   // ---- inner plaintext ----
@@ -1327,10 +1404,71 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     return p;
   }
   const keySets = (st) => { const o = {}; for (const c of COLLECTIONS) o[c] = new Set(listOf(st, c).map((r) => keyOf(c, r))); return o; };
-  function marksOf(p) {
+  function marksOf(p, pub) {
     const m = COLLECTIONS.filter((c) => (p.records[c] || []).length > 0);
     if (Object.keys(p.wellbeing || {}).length) m.push('wellbeing');
+    return m.concat(bizMarks(p, pub));
+  }
+  // SEC-76 (deviation a): a year is marked exactly when a business record of that year is private, or a public record of that year belongs
+  // to (points at) a private record that changes a tax figure: its line of work, its payee or its invoice, or its line of work's parent.
+  // A private payee or line of work with no record in a year marks nothing. An unscoped private entry with a line of work is counted as
+  // business (its scope could follow a kind change made while the vault is closed), so it can only over-refuse, never under-refuse.
+  const isMoneyEntry = (e) => !!e && e.domain === 'money' && (e.type === 'income' || e.type === 'expense');
+  const yearOf = (d) => (typeof d === 'string' && /^\d{4}-/.test(d) ? d.slice(0, 4) : null);
+  const recYears = (c, r) => (c === 'invoices' ? [yearOf(r.issueDate), yearOf(r.paidOn)] : [yearOf(r.date)]).filter(Boolean);
+  const TAX_LINKS = { entries: ['projectId', 'payeeId', 'billedInvoiceId'], trips: ['projectId'], invoices: ['projectId'], projects: ['parentId'] };
+  function bizMarks(p, pub) {
+    const r = p.records || {}, ys = new Set();
+    let wild = false, linked = false;
+    const add = (d) => { const y = yearOf(d); if (y) ys.add(y); };
+    for (const e of r.entries || []) if (isMoneyEntry(e) && (e.scope === 'business' || (!e.scope && e.projectId))) add(e.date);
+    for (const i of r.invoices || []) { add(i.issueDate); add(i.paidOn); }
+    for (const t of r.trips || []) add(t.date);
+    for (const x of r.taxPayments || []) if (Number.isInteger(x.year)) ys.add(String(x.year));
+    // SEC-77: the reserve account chosen in settings, or its balance entries, are private.
+    const rid = pub && pub.settings && pub.settings.business ? pub.settings.business.reserveAccountId : null;
+    const reserve = !!rid && ((r.accounts || []).some((a) => a && a.id === rid) || (r.entries || []).some((e) => e && e.type === 'balance' && e.accountId === rid));
+    const idx = {};
+    const find = (c, id) => { if (!pub) return null; if (!idx[c]) idx[c] = new Map(listOf(pub, c).map((x) => [x.id, x])); return idx[c].get(id) || null; };
+    for (const l of p.links || []) {
+      if (!(TAX_LINKS[l.fromCollection] || []).includes(l.field)) continue;
+      linked = true;
+      const from = find(l.fromCollection, l.fromId);
+      if (!from) { wild = true; continue; }
+      if (l.fromCollection === 'projects') {
+        // a public line of work under a private parent: every year in which it has a business record
+        for (const c of ['entries', 'trips', 'invoices']) for (const x of listOf(pub, c)) if (x.projectId === from.id && (c !== 'entries' || isMoneyEntry(x))) for (const y of recYears(c, x)) ys.add(y);
+        continue;
+      }
+      if (l.fromCollection === 'entries' && !isMoneyEntry(from)) continue;
+      for (const y of recYears(l.fromCollection, from)) ys.add(y);
+    }
+    return (wild ? ['business'] : []).concat(linked ? ['business-link'] : [], reserve ? ['business-reserve'] : [], Array.from(ys).sort().map((y) => 'business-' + y));
+  }
+  // While closed: with 'business-link' set, a public money entry, trip or invoice that is new, changes year or changes line of work marks its
+  // years, so a record that a hidden link ties to a private record can never leave the marked years unseen.
+  const sigOf = (c, x) => recYears(c, x).join(',') + '|' + (x.projectId || '');
+  function sigs(st) {
+    const m = new Map();
+    for (const c of ['entries', 'trips', 'invoices']) for (const x of listOf(st, c)) if (x && (c !== 'entries' || isMoneyEntry(x))) m.set(c + '\u0000' + x.id, [c, x]);
     return m;
+  }
+  function closedMarks(fn) {
+    return async (st) => {
+      const linked = !!(st.priv && Array.isArray(st.priv.marks) && st.priv.marks.includes('business-link'));
+      const before = linked ? new Map(Array.from(sigs(st)).map(([k, v]) => [k, sigOf(v[0], v[1])])) : null;
+      const rid = (st) => (st.settings && st.settings.business && st.settings.business.reserveAccountId) || '';
+      const rid0 = rid(st);
+      await fn(st);
+      if (!st.priv || !Array.isArray(st.priv.marks)) return;
+      const add = new Set();
+      // a reserve account chosen while closed may have private balance entries: hide the reserve rather than guess it
+      if (rid(st) && rid(st) !== rid0 && (st.priv.marks.includes('accounts') || st.priv.marks.includes('entries'))) add.add('business-reserve');
+      if (!linked) { for (const m of add) if (!st.priv.marks.includes(m)) st.priv.marks.push(m); return; }
+      for (const [k, [c, x]] of sigs(st)) if (before.get(k) !== sigOf(c, x)) for (const y of recYears(c, x)) add.add('business-' + y);
+      const have = new Set(st.priv.marks);
+      for (const m of add) if (!have.has(m)) st.priv.marks.push(m);
+    };
   }
 
   // ---- merge, overlay, split ----
@@ -1386,13 +1524,13 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       }
     }
     // An activity and its expense move together or not at all; a habit's ticks follow the habit.
-    for (const a of listOf(clean, 'activities')) {
-      if (!a.expenseId) continue;
-      const ap = isP.activities.has(a.id), ep = isP.entries.has(a.expenseId);
-      if (ap === ep || !listOf(clean, 'entries').some((e) => e.id === a.expenseId)) continue;
-      const out = outSet('activities', a.id) || outSet('entries', a.expenseId);
+    for (const [pc, pf] of [['activities', 'expenseId'], ['invoices', 'incomeId']]) for (const a of listOf(clean, pc)) {
+      if (!a[pf]) continue;
+      const ap = isP[pc].has(a.id), ep = isP.entries.has(a[pf]);
+      if (ap === ep || !listOf(clean, 'entries').some((e) => e.id === a[pf])) continue;
+      const out = outSet(pc, a.id) || outSet('entries', a[pf]);
       const to = !out;
-      for (const [c, k] of [['activities', a.id], ['entries', a.expenseId]]) { if (to) isP[c].add(k); else isP[c].delete(k); }
+      for (const [c, k] of [[pc, a.id], ['entries', a[pf]]]) { if (to) isP[c].add(k); else isP[c].delete(k); }
     }
     for (const t of listOf(clean, 'habitLog')) if (isP.habits.has(t.habitId)) isP.habitLog.add(keyOf('habitLog', t));
     // SEC-62: a record created from or under a private record is private too, so no private text reaches the main state through a
@@ -1500,10 +1638,10 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   }
   const onClose = (f) => { if (typeof f === 'function') closers.push(f); };
 
-  async function sealPlain(p, k, salt) {
+  async function sealPlain(p, k, salt, pub) {
     const { iv, ct } = await V().encrypt(k, p);
     if (ct.length > CT_MAX) throw new Error('The private vault would be too large. Move some items out or delete old ones.');
-    return { v: 1, kdf: { name: 'PBKDF2', hash: 'SHA-256', iter: ITER, salt }, iv, ct, rev: p.rev, marks: marksOf(p) };
+    return { v: 1, kdf: { name: 'PBKDF2', hash: 'SHA-256', iter: ITER, salt }, iv, ct, rev: p.rev, marks: marksOf(p, pub) };
   }
   const bkey = async (pass, blob) => {
     const salt = Uint8Array.from(atob(blob.kdf.salt), (ch) => ch.charCodeAt(0));
@@ -1584,7 +1722,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
         const { p } = await decryptBlob(blob0, oldP);
         const next = clone(p); next.rev = p.rev + 1;
         let blob;
-        try { blob = await sealPlain(next, k, sb); } catch (e) { scrub(next); scrub(p); throw e; }
+        try { blob = await sealPlain(next, k, sb, needBase()); } catch (e) { scrub(next); scrub(p); throw e; }
         close('system');
         try {
           await S().commit((x) => {
@@ -1645,7 +1783,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     fn = noWellbeing(fn);
     if (!isOpen()) {
       if (o.newPrivate || o.moveIn || o.moveOut) return Promise.reject(new Error('The private vault is closed.'));
-      return S().commit(fn);
+      return S().commit(closedMarks(fn));
     }
     return pserial(() => writeRaw(fn, o));
   }
@@ -1677,7 +1815,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
         const sp = split(clean, { privKeys: m.privKeys, shadow: m.shadow, idsBefore, moveIn: o.moveIn || {}, moveOut: o.moveOut || {}, newPrivate: !!o.newPrivate, from: Array.isArray(o.from) ? o.from : [], privChanged });
         next = { schema: 1, rev: before.rev + 1, records: sp.records, links: sp.links, wellbeing: next_wb };
         if (key !== k) throw new Error('The private vault is closed.');
-        const blob = await sealPlain(next, k, sb);
+        const blob = await sealPlain(next, k, sb, sp.pub);
         if (key !== k) throw new Error('The private vault is closed.');
         for (const f of Object.keys(st)) delete st[f];
         Object.assign(st, sp.pub, { priv: blob });
@@ -1709,7 +1847,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
           const m = merge(st, next); w = clone(m.out); overlay(w, next.links, false);
           S().validateState(w, PRIVATE_OK);
           if (key !== k) throw new Error('The private vault is closed.');
-          const blob = await sealPlain(next, k, sb);
+          const blob = await sealPlain(next, k, sb, st);
           if (key !== k) throw new Error('The private vault is closed.');
           st.priv = blob;
         });
@@ -1726,7 +1864,8 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   const CHILDREN = {
     people: [['contacts', 'personId']],
     learningItems: [['studySessions', 'itemId'], ['takeaways', 'itemId']],
-    projects: [['entries', 'projectId'], ['recurring', 'projectId'], ['projects', 'parentId']],
+    projects: [['entries', 'projectId'], ['recurring', 'projectId'], ['projects', 'parentId'], ['invoices', 'projectId'], ['trips', 'projectId']],
+    payees: [['entries', 'payeeId']],
     accounts: [['entries', 'accountId']],
     properties: [['maintenance', 'propertyId']],
     vehicles: [['maintenance', 'vehicleId']],
@@ -1751,7 +1890,8 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       if (!r0) { if (cc === c && k === id) throw new Error('That item no longer exists.'); continue; }
       seen.add(tag); out.push([cc, k]);
       if (cc === 'activities' && r0.expenseId) q.push(['entries', r0.expenseId]);
-      if (cc === 'entries') for (const a of refs('activities', 'expenseId', k)) q.push(['activities', a.id]);
+      if (cc === 'invoices' && r0.incomeId) q.push(['entries', r0.incomeId]);
+      if (cc === 'entries') { for (const a of refs('activities', 'expenseId', k)) q.push(['activities', a.id]); for (const a of refs('invoices', 'incomeId', k)) q.push(['invoices', a.id]); }
       if (cc === 'habits') for (const t of refs('habitLog', 'habitId', k)) q.push(['habitLog', keyOf('habitLog', t)]);
       if (children) for (const [ch, f] of CHILDREN[cc] || []) for (const r of refs(ch, f, k)) if (ch !== 'entries' || (cc === 'accounts' ? r.type === 'balance' : (r.type === 'outcome' || r.type === 'income' || r.type === 'expense'))) q.push([ch, keyOf(ch, r)]);
     }
@@ -2252,6 +2392,25 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       if (typeof p.importKey !== 'string' || !/^[0-9a-f]{64}$/.test(p.importKey)) throw new Error('Invalid import key');
       out.importKey = p.importKey;
     }
+    // v1.1.0: business or personal, and the expense marks (billable, reimbursable, paid by card, contractor) and links (invoice, payee).
+    if (dom.id === 'money' && (ty.id === 'income' || ty.id === 'expense')) {
+      if (!isEmpty(p.scope)) {
+        if (p.scope !== 'business' && p.scope !== 'personal') throw new Error('Scope must be business or personal');
+        out.scope = p.scope;
+      }
+      if (ty.id === 'expense') {
+        for (const f of ['billable', 'reimbursable', 'cardPaid', 'contractor']) {
+          if (p[f] === undefined || p[f] === null || p[f] === false) continue;
+          if (p[f] !== true) throw new Error(f + ' must be true or false');
+          out[f] = true;
+        }
+        for (const f of ['billedInvoiceId', 'payeeId']) {
+          if (isEmpty(p[f])) continue;
+          if (typeof p[f] !== 'string' || p[f].length > 100) throw new Error('Invalid ' + f);
+          out[f] = p[f];
+        }
+      }
+    }
     const ca = p.createdAt;
     out.createdAt = (typeof ca === 'string' && ca.length <= 40 && ca) || (typeof ca === 'number' && isFinite(ca) && ca) || new Date().toISOString();
     return out;
@@ -2751,7 +2910,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     const we = addDays(ws, 6), wm = sumMoney(byDomain(state, 'money'), ws, we), nw = netWorthDetail(state, we);
     const mv = monthView(state, monthOf(we));
     const money = { income: dollars(wm.incC), spend: dollars(wm.expC), budgetUsedPct: mv.budgetCents > 0 ? r1(mv.budgetedSpentCents * 100 / mv.budgetCents) : 0, netWorth: nw.total, liabilities: nw.liabilities };
-    return { week: ws, domains, money, work: workDigest(state, ws), health: healthDigest(state, ws), activities: L.activities.digest(state, ws), goals: L.goals.digestCounts(state, ws), home: L.home.digest(state, ws), admin: L.admin.digest(state, ws), learning: L.learning.digest(state, ws), social: L.social.digest(state, ws), revenue: L.revenue.digest(state, ws) };
+    return { week: ws, domains, money, work: workDigest(state, ws), health: healthDigest(state, ws), activities: L.activities.digest(state, ws), goals: L.goals.digestCounts(state, ws), home: L.home.digest(state, ws), admin: L.admin.digest(state, ws), learning: L.learning.digest(state, ws), social: L.social.digest(state, ws), revenue: L.revenue.digest(state, ws), business: L.business.digest(state, ws) };
   }
   function series(state, domainId, n, today) {
     if (!DOMAINS.some((d) => d.id === domainId)) throw new Error('Unknown domain');
@@ -3316,6 +3475,14 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     for (const m of s.matchAll(CARD465_RE)) if (luhn(m[1] + m[2] + m[3])) return true;
     return false;
   }
+  // v1.1.0: payee fields refuse an SSN or an EIN (12-3456789 and its folded forms) as well as the secrets above; a tax ID is never stored.
+  const TAXID_MESSAGE = 'That looks like a tax ID (SSN or EIN). LifeOS never stores tax IDs. Only record whether a W-9 is on file.';
+  function looksTaxId(s0) {
+    if (typeof s0 !== 'string' || !s0) return false;
+    if (looksSecret(s0)) return true;
+    const s = fold(s0);
+    return /(?<!\d)\d{2}[-. ]\d{7}(?!\d)/.test(s) || /(?<!\d)\d{3}[-. ]\d{2}[-. ]\d{4}(?!\d)/.test(s);
+  }
   const SECRET_MESSAGE_FIELD = 'That looks like an ID number or a card number. Do not enter ID numbers, account numbers or passwords here.';
   const checkNoSecrets = (fields, msg) => { for (const f of fields) if (looksSecret(f)) throw new Error(msg || SECRET_MESSAGE); };
 
@@ -3551,6 +3718,8 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     for (const d of list(state, 'documents')) if (d.expires) out.push({ src: 'document', id: d.id, title: d.title, kind: 'expires', date: d.expires, closed: null });
     // Certification expiry is computed from the Learning item, never stored as a renewal.
     if (L.learning) for (const x of L.learning.expiries(state)) out.push({ src: 'learning', id: x.id, title: x.title, kind: 'certification expires', date: x.date, closed: null });
+    // Estimated tax payment dates and the 1099-NEC reminder come from the tax-year profile (computed, never stored as renewals).
+    if (L.tax) for (const x of L.tax.timelineRows(state)) out.push(x);
     for (const e of legacyEntries(state)) out.push({ src: 'legacy', id: e.id, title: e.title, kind: 'older due item', date: e.due, closed: e.status === 'done' ? '' : null });
     return out;
   }
@@ -3600,7 +3769,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
 
   L.admin = {
     KINDS, KIND_LABEL, CADENCES, CADENCE_LABEL, TAX_STATES, RENEWAL_CAP, DOC_CAP, TAX_CAP, SECRET_MESSAGE, SECRET_MESSAGE_FIELD,
-    looksSecret, looksSecretText: (x) => looksSecret(x, 'ledger'), luhn, checkNoSecrets, anchorDay, cleanRenewals, cleanDocuments, cleanTaxItems, addRenewal, proposeNext, pendingRenewals, completeRenewal, confirmRenewal,
+    looksSecret, looksTaxId, TAXID_MESSAGE, looksSecretText: (x) => looksSecret(x, 'ledger'), luhn, checkNoSecrets, anchorDay, cleanRenewals, cleanDocuments, cleanTaxItems, addRenewal, proposeNext, pendingRenewals, completeRenewal, confirmRenewal,
     stopRenewing, cancelRenewal, markReviewed, deleteRenewal, annualCents, subscriptions, addDocument, deleteDocument, addTaxItem, setTaxState, deleteTaxItem, taxByYear,
     legacyDue, legacyEntries, dated, overdueAt, dueWithin, timeline, headline, weekValue, digest, reviewWeek, overdueValue, hasData,
   };
@@ -5589,6 +5758,1056 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
 ;
 (function () {
   'use strict';
+  // v1.1.0: tax estimates for a single-member LLC taxed like a sole proprietor (Schedule C, self-employment tax, federal and NJ
+  // estimates). Pure functions over state; nothing here posts anything. Every rate, threshold, date and holiday comes from the
+  // tax-year profile in state.taxYears; the only numbers in this file are the 2026 profile DEFAULTS and the Schedule C line list.
+  // Money is integer cents. Rates are held as parts per million (exact integers) and every product is a BigInt, so there is no
+  // floating point in any figure.
+  // ROUNDING RULE (one rule everywhere): a figure is the exact rational result rounded to a whole cent, half away from zero, at the
+  // moment it is produced, and later figures use the rounded value. Meals are rounded per entry, mileage per trip, the home office
+  // once, SE tax in its three parts (Social Security, Medicare, additional Medicare), income tax estimates once each, installments
+  // by splitting the target into four with the remainder cents going to the earliest quarters.
+  const L = (globalThis.LifeOS = globalThis.LifeOS || {});
+  const V = () => L.validate;
+
+  const NOTICE = 'Estimate. Numbers only, not tax advice. Confirm with your accountant.';
+  const BLOCK_MESSAGE = 'Open the private vault to see tax figures.';
+  const PAYMENT_CAP = 2000, YEAR_CAP = 30, MAP_CAP = 100, MAX_CENTS = 1e13;
+  const FILING = Object.freeze(['single', 'mfj', 'mfs', 'hoh']);
+  const FILING_LABEL = Object.freeze({ single: 'Single', mfj: 'Married filing jointly', mfs: 'Married filing separately', hoh: 'Head of household' });
+  const JURISDICTIONS = Object.freeze(['federal', 'nj']);
+
+  // Schedule C lines. `car` and `homeOffice` are filled from the mileage and home-office logs only (no category can map to them).
+  const LINES = Object.freeze([
+    { id: 'advertising', label: 'Advertising', sc: '8', cat: 'Advertising' },
+    { id: 'car', label: 'Car and truck (mileage log)', sc: '9', log: true },
+    { id: 'contract', label: 'Contract labor', sc: '11', cat: 'Contract labor' },
+    { id: 'insurance', label: 'Insurance', sc: '15', cat: 'Insurance' },
+    { id: 'legal', label: 'Legal and professional services', sc: '17', cat: 'Legal and professional' },
+    { id: 'office', label: 'Office expense', sc: '18', cat: 'Office expense' },
+    { id: 'rent', label: 'Rent or lease', sc: '20', cat: 'Rent' },
+    { id: 'supplies', label: 'Supplies', sc: '22', cat: 'Supplies' },
+    { id: 'travel', label: 'Travel', sc: '24a', cat: 'Travel' },
+    { id: 'meals', label: 'Meals', sc: '24b', cat: 'Meals', pct: true },
+    { id: 'utilities', label: 'Utilities', sc: '25', cat: 'Utilities' },
+    { id: 'other', label: 'Other expenses', sc: '27a', cat: 'Software and subscriptions' },
+    { id: 'homeOffice', label: 'Home office (home-office log)', sc: '30', log: true },
+  ]);
+  const LINE_IDS = LINES.map((x) => x.id);
+  const MAPPABLE = LINES.filter((x) => !x.log).map((x) => x.id);
+  // Category names offered as business categories; each maps to its line by name (case insensitive) until the user maps it otherwise.
+  const DEFAULT_CATEGORY_LINES = Object.freeze([
+    ['Advertising', 'advertising'], ['Contract labor', 'contract'], ['Insurance', 'insurance'], ['Legal and professional', 'legal'],
+    ['Office expense', 'office'], ['Rent', 'rent'], ['Supplies', 'supplies'], ['Travel', 'travel'], ['Meals', 'meals'], ['Utilities', 'utilities'],
+    ['Software and subscriptions', 'other'], ['Education', 'other'], ['Bank and payment fees', 'other'],
+  ]);
+  const lineById = (id) => LINES.find((x) => x.id === id);
+
+  // ---- exact arithmetic ----
+  function mulDiv(a, b, d) {
+    if (![a, b, d].every(Number.isSafeInteger) || d === 0) throw new Error('Invalid amount');
+    let n = BigInt(a) * BigInt(b), dd = BigInt(d);
+    const neg = n !== 0n && (n < 0n) !== (dd < 0n);
+    if (n < 0n) n = -n;
+    if (dd < 0n) dd = -dd;
+    const q = (2n * n + dd) / (2n * dd);
+    return Number(neg ? -q : q);
+  }
+  const ppm = (r) => Math.round(r * 1e6);
+  const centsOf = (v) => Math.round(Number(v) * 100);
+  const sum = (a) => a.reduce((x, y) => x + y, 0);
+  const isDate = (s) => L.home.dates.isDate(s);
+  const addDays = (s, n) => L.home.dates.addDays(s, n);
+  const yearOfDate = (d) => Number(String(d).slice(0, 4));
+  const weekday = (s) => new Date(Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10))).getUTCDay();
+
+  // ---- 2026 profile defaults (the only place tax numbers live besides tests) ----
+  const THRESHOLD_BY_STATUS = Object.freeze({ single: 20000000, hoh: 20000000, mfj: 25000000, mfs: 12500000 });
+  // SEC-73: no SE tax when net earnings from self-employment are under $400 (IRS Schedule SE instructions; Internal Revenue Code
+  // section 6017). A profile value, so a later year can change it.
+  const SE_MIN_DEFAULT = 40000;
+  const SE_MIN_NOTE = 'No self-employment tax when net earnings from self-employment are under $400 (Schedule SE instructions).';
+  const THRESHOLD_NOTE = 'Additional Medicare Tax threshold by filing status (single and head of household $200,000, married filing jointly $250,000, married filing separately $125,000).';
+  const DEFAULT_HOLIDAYS_2026 = Object.freeze(['2026-01-01', '2026-01-19', '2026-02-16', '2026-05-25', '2026-06-19', '2026-07-03', '2026-09-07', '2026-10-12', '2026-11-11', '2026-11-26', '2026-12-25', '2027-01-01', '2027-01-18', '2027-02-15']);
+  function defaultProfile(year) {
+    if (year !== 2026) return null;
+    return {
+      filingStatus: 'single',
+      seRate: 0.153, ssRate: 0.124, medicareRate: 0.029, addlMedicareRate: 0.009, seFactor: 0.9235,
+      ssWageBase: 18450000, otherSsEarningsCents: 0, seMinNetEarningsCents: SE_MIN_DEFAULT,
+      addlMedicareThreshold: THRESHOLD_BY_STATUS.single,
+      mileageRates: [
+        { from: '2026-01-01', centsPerMile: 72.5, note: 'IRS Notice 2026-10' },
+        { from: '2026-07-01', centsPerMile: 76, note: 'IRS Announcement 2026-11' },
+      ],
+      homeOfficeRate: 500, homeOfficeMaxSqFt: 300,
+      nec1099Threshold: 200000, nec1099Due: '2027-01-31',
+      mealsPct: 50, seDeductionPct: 50,
+      safeHarbor: { federalCurrentPct: 90, federalPriorPct: 100, federalPriorHighPct: 110, njCurrentPct: 80, njPriorPct: 100 },
+      federalEffectiveRate: null, njEffectiveRate: null,
+      priorYearFederalTax: null, priorYearNjTax: null, priorYearAgiOver150k: false,
+      dueDates: { federal: ['2026-04-15', '2026-06-15', '2026-09-15', '2027-01-15'], nj: ['2026-04-15', '2026-06-15', '2026-09-15', '2027-01-15'] },
+      holidays: DEFAULT_HOLIDAYS_2026.slice(),
+      sourceNote: '2026 defaults: Social Security wage base $184,500; mileage 72.5 cents from 2026-01-01 (IRS Notice 2026-10) and 76 cents from 2026-07-01 (IRS Announcement 2026-11); 1099-NEC threshold $2,000; estimate dates April 15, June 15, September 15 and January 15, moved past weekends and listed holidays. ' + THRESHOLD_NOTE + ' ' + SE_MIN_NOTE + ' Effective income tax rates are yours to enter.',
+    };
+  }
+
+  // ---- profile validation (whitelist; every field typed and ranged) ----
+  const rate = (v, name) => {
+    const n = V().num(v, 0, 1, name);
+    if (Math.round(n * 1e6) / 1e6 !== n) V().fail(name + ' has too many decimals');
+    return n;
+  };
+  const optRate = (v, name) => (v === undefined || v === null || v === '' ? null : rate(v, name));
+  const cents = (v, name, max) => V().num(v, 0, max || MAX_CENTS, name, true);
+  const optCents = (v, name) => (v === undefined || v === null || v === '' ? null : cents(v, name));
+  const reqDate = (v, name) => { const d = V().date(v, name); if (!isDate(d)) V().fail(name + ' is out of range'); return d; };
+  function cleanMileageRates(list) {
+    if (!Array.isArray(list)) V().fail('mileage rates must be a list');
+    if (list.length > 24) V().fail('mileage rates has too many items');
+    const seen = new Set(), out = list.map((x) => {
+      if (!V().isObj(x)) V().fail('mileage rate');
+      const from = reqDate(x.from, 'mileage rate start');
+      if (seen.has(from)) V().fail('two mileage rates start on the same date');
+      seen.add(from);
+      const c = V().num(x.centsPerMile, 0, 1000, 'cents per mile');
+      if (Math.round(c * 10) / 10 !== c) V().fail('cents per mile allows one decimal');
+      const o = { from, centsPerMile: c };
+      if (x.note !== undefined && x.note !== '') o.note = V().str(V().strip(String(x.note)).trim(), 200, 'mileage rate note', true);
+      return o;
+    });
+    return out.sort((a, b) => a.from.localeCompare(b.from));
+  }
+  function cleanDates4(l, name) {
+    if (!Array.isArray(l) || l.length !== 4) V().fail(name + ' needs four dates');
+    return l.map((d) => reqDate(d, name));
+  }
+  const SAFE_KEYS = Object.freeze(['federalCurrentPct', 'federalPriorPct', 'federalPriorHighPct', 'njCurrentPct', 'njPriorPct']);
+  function cleanSafe(x) {
+    if (!V().isObj(x)) V().fail('safe harbor');
+    const o = {};
+    for (const k of SAFE_KEYS) o[k] = V().num(x[k], 0, 1000, 'safe harbor ' + k, true);
+    return o;
+  }
+  function cleanProfile(x) {
+    if (!V().isObj(x)) V().fail('tax year profile');
+    const st = V().oneOf(x.filingStatus === undefined ? 'single' : x.filingStatus, FILING, 'filing status');
+    const o = {
+      filingStatus: st,
+      seRate: rate(x.seRate, 'seRate'), ssRate: rate(x.ssRate, 'ssRate'), medicareRate: rate(x.medicareRate, 'medicareRate'), addlMedicareRate: rate(x.addlMedicareRate, 'addlMedicareRate'),
+      seFactor: rate(x.seFactor, 'seFactor'),
+      ssWageBase: cents(x.ssWageBase, 'ssWageBase'), otherSsEarningsCents: x.otherSsEarningsCents === undefined ? 0 : cents(x.otherSsEarningsCents, 'otherSsEarningsCents'),
+      seMinNetEarningsCents: x.seMinNetEarningsCents === undefined || x.seMinNetEarningsCents === null ? SE_MIN_DEFAULT : cents(x.seMinNetEarningsCents, 'seMinNetEarningsCents'),
+      addlMedicareThreshold: x.addlMedicareThreshold === undefined || x.addlMedicareThreshold === null ? THRESHOLD_BY_STATUS[st] : cents(x.addlMedicareThreshold, 'addlMedicareThreshold'),
+      mileageRates: cleanMileageRates(x.mileageRates === undefined ? [] : x.mileageRates),
+      homeOfficeRate: cents(x.homeOfficeRate, 'homeOfficeRate', 1e7), homeOfficeMaxSqFt: V().num(x.homeOfficeMaxSqFt, 0, 100000, 'homeOfficeMaxSqFt', true),
+      nec1099Threshold: cents(x.nec1099Threshold, 'nec1099Threshold'), nec1099Due: reqDate(x.nec1099Due, 'nec1099Due'),
+      mealsPct: V().num(x.mealsPct, 0, 100, 'mealsPct', true),
+      seDeductionPct: V().num(x.seDeductionPct, 0, 100, 'seDeductionPct', true),
+      safeHarbor: cleanSafe(x.safeHarbor),
+      federalEffectiveRate: optRate(x.federalEffectiveRate, 'federalEffectiveRate'), njEffectiveRate: optRate(x.njEffectiveRate, 'njEffectiveRate'),
+      priorYearFederalTax: optCents(x.priorYearFederalTax, 'priorYearFederalTax'), priorYearNjTax: optCents(x.priorYearNjTax, 'priorYearNjTax'),
+      priorYearAgiOver150k: V().bool(x.priorYearAgiOver150k, 'priorYearAgiOver150k', false),
+    };
+    if (ppm(o.seRate) !== ppm(o.ssRate) + ppm(o.medicareRate)) V().fail('seRate must equal ssRate plus medicareRate');
+    if (!V().isObj(x.dueDates)) V().fail('due dates');
+    o.dueDates = { federal: cleanDates4(x.dueDates.federal, 'federal due dates'), nj: cleanDates4(x.dueDates.nj, 'NJ due dates') };
+    const hs = x.holidays === undefined ? [] : x.holidays;
+    if (!Array.isArray(hs) || hs.length > 80) V().fail('holidays');
+    o.holidays = Array.from(new Set(hs.map((d) => reqDate(d, 'holiday')))).sort();
+    o.sourceNote = V().str(V().strip(x.sourceNote === undefined ? '' : String(x.sourceNote)).trim(), 1200, 'source note', true);
+    return o;
+  }
+  function cleanTaxYears(m) {
+    if (m === undefined || m === null) return {};
+    if (!V().isObj(m)) V().fail('tax years');
+    const keys = Object.keys(m);
+    if (keys.length > YEAR_CAP) V().fail('tax years has too many items');
+    const out = {};
+    for (const k of keys.sort()) {
+      if (!/^\d{4}$/.test(k) || +k < 1990 || +k > 2200) V().fail('tax year');
+      out[k] = cleanProfile(m[k]);
+    }
+    return out;
+  }
+  function cleanHomeOffice(m) {
+    if (m === undefined || m === null) return {};
+    if (!V().isObj(m)) V().fail('home office');
+    const keys = Object.keys(m);
+    if (keys.length > YEAR_CAP) V().fail('home office has too many items');
+    const out = {};
+    for (const k of keys.sort()) {
+      if (!/^\d{4}$/.test(k) || +k < 1990 || +k > 2200) V().fail('home office year');
+      const x = m[k];
+      if (!V().isObj(x)) V().fail('home office');
+      out[k] = { squareFeet: V().num(x.squareFeet, 0, 100000, 'square feet', true), monthsUsed: V().num(x.monthsUsed, 0, 12, 'months used', true) };
+    }
+    return out;
+  }
+  function cleanTaxMap(list) {
+    if (list === undefined || list === null) return [];
+    const seen = new Set();
+    return V().arr(list, MAP_CAP, 'tax line map').map((x) => {
+      if (!V().isObj(x)) V().fail('tax line map item');
+      const category = V().str(V().strip(x.category).trim(), 40, 'tax line category');
+      if (seen.has(category.toLowerCase())) V().fail('duplicate tax line category');
+      seen.add(category.toLowerCase());
+      return { category, line: V().oneOf(x.line, MAPPABLE, 'tax line') };
+    });
+  }
+  function cleanPayments(list) {
+    if (list === undefined || list === null) return [];
+    const seen = new Set();
+    return V().arr(list, PAYMENT_CAP, 'tax payments').map((x) => {
+      if (!V().isObj(x)) V().fail('tax payment');
+      const id = V().str(x.id, 100, 'tax payment id');
+      if (seen.has(id)) V().fail('duplicate tax payment id');
+      seen.add(id);
+      const o = {
+        id, year: V().num(x.year, 1990, 2200, 'payment year', true), jurisdiction: V().oneOf(x.jurisdiction, JURISDICTIONS, 'jurisdiction'),
+        quarter: V().num(x.quarter, 1, 4, 'quarter', true), amountCents: V().num(x.amountCents, 1, MAX_CENTS, 'payment amount', true), paidOn: reqDate(x.paidOn, 'paid on'),
+      };
+      if (x.confirmation !== undefined && x.confirmation !== '') o.confirmation = V().str(V().strip(String(x.confirmation)).trim(), 100, 'confirmation', true);
+      return o;
+    });
+  }
+
+  // ---- profile access ----
+  const profileOf = (state, year) => (state && state.taxYears && state.taxYears[String(year)]) || null;
+  const years = (state) => Object.keys((state && state.taxYears) || {}).map(Number).sort((a, b) => a - b);
+
+  // ---- private vault refusal (amendment item 6) ----
+  // A closed private vault that holds a business record of the year, or a private record that a public business record of the year
+  // belongs to, makes every tax figure refuse: its marks say so with 'business-YYYY' (see priv.bizMarks, SEC-76). 'business' (any year)
+  // comes only from older copies. A view (vault open) has every record, so nothing is hidden. The digest always passes the main state,
+  // so it refuses whenever such records exist.
+  function blocked(state, year) {
+    if (!state) return false;
+    if (L.priv && L.priv.isView && L.priv.isView(state)) return false;
+    const m = state.priv && Array.isArray(state.priv.marks) ? state.priv.marks : [];
+    if (m.includes('business') || m.includes('business-' + year)) return true;
+    // SEC-83: a public money entry may keep the id of a private line of work while closed (PV-2). Its scope could come from that line,
+    // so its year refuses too.
+    if (!m.includes('projects')) return false;
+    const pids = new Set((state.projects || []).map((p) => p.id)), ys = String(year);
+    return (state.entries || []).some((e) => isMoney(e) && e.projectId && !pids.has(e.projectId) && e.date.slice(0, 4) === ys);
+  }
+  const refusal = (year) => ({ blocked: true, year, message: BLOCK_MESSAGE, notice: NOTICE });
+
+  // ---- due dates ----
+  function shiftDue(nominal, holidays) {
+    const hs = new Set(holidays || []);
+    let d = nominal;
+    for (let i = 0; i < 40; i++) { const w = weekday(d); if (w !== 0 && w !== 6 && !hs.has(d)) return d; d = addDays(d, 1); }
+    return d;
+  }
+  function dueDates(profile) {
+    const mk = (l) => l.map((n, i) => ({ quarter: i + 1, nominal: n, date: shiftDue(n, profile.holidays) }));
+    return { federal: mk(profile.dueDates.federal), nj: mk(profile.dueDates.nj), nec1099: { nominal: profile.nec1099Due, date: shiftDue(profile.nec1099Due, profile.holidays) } };
+  }
+
+  // ---- tax line mapping ----
+  function lineFor(state, category) {
+    if (!category) return null;
+    const k = String(category).trim().toLowerCase();
+    const m = (state.taxMap || []).find((x) => x.category.toLowerCase() === k);
+    if (m) return m.line;
+    const d = DEFAULT_CATEGORY_LINES.find((x) => x[0].toLowerCase() === k);
+    return d ? d[1] : null;
+  }
+
+  // ---- mileage and home office ----
+  function rateFor(profile, date) {
+    let r = null;
+    for (const x of profile.mileageRates) if (x.from <= date) r = x;
+    return r;
+  }
+  // Deduction for one trip in cents: miles (one decimal, doubled for a round trip) times the rate in force on the trip date.
+  // Miles in tenths times cents per mile in tenths, over 100, rounded half away from zero. null when no rate covers the date.
+  function tripCents(profile, trip) {
+    const r = rateFor(profile, trip.date);
+    if (!r) return null;
+    const tenthsMiles = Math.round(trip.miles * 10) * (trip.roundTrip ? 2 : 1);
+    return mulDiv(tenthsMiles, Math.round(r.centsPerMile * 10), 100);
+  }
+  function homeOfficeCents(profile, ho) {
+    if (!ho || !ho.squareFeet || !ho.monthsUsed) return 0;
+    return mulDiv(Math.min(ho.squareFeet, profile.homeOfficeMaxSqFt) * profile.homeOfficeRate, ho.monthsUsed, 12);
+  }
+
+  // ---- self-employment tax ----
+  // Net earnings = profit x seFactor. None at all when profit is not positive or net earnings are under the profile minimum ($400).
+  // Social Security: ssRate on the lesser of net earnings and the room left under the wage base after other (W-2) earnings.
+  // Medicare: medicareRate on all net earnings. Additional Medicare: addlMedicareRate on net earnings above the filing-status threshold
+  // reduced by the W-2 wages already counted (floored at 0); SEC-72.
+  // SEC-71: the deduction for half of SE tax covers the Social Security and Medicare parts only. Additional Medicare Tax is not part of
+  // it and is not deductible.
+  function seTax(profile, profitCents) {
+    const room = Math.max(0, profile.ssWageBase - profile.otherSsEarningsCents);
+    const z = { netEarningsCents: 0, ssCents: 0, medicareCents: 0, addlCents: 0, totalCents: 0, deductionCents: 0, ssRoomCents: room, addlThresholdCents: 0, belowMinimum: false };
+    if (!(profitCents > 0)) return z;
+    const net = mulDiv(profitCents, ppm(profile.seFactor), 1e6);
+    const min = profile.seMinNetEarningsCents === undefined ? SE_MIN_DEFAULT : profile.seMinNetEarningsCents;
+    if (net < min) return Object.assign(z, { netEarningsCents: net, belowMinimum: true });
+    const ssBase = Math.min(net, room);
+    const ss = mulDiv(ssBase, ppm(profile.ssRate), 1e6), med = mulDiv(net, ppm(profile.medicareRate), 1e6);
+    const threshold = Math.max(0, profile.addlMedicareThreshold - profile.otherSsEarningsCents);
+    const addl = mulDiv(Math.max(0, net - threshold), ppm(profile.addlMedicareRate), 1e6);
+    const total = ss + med + addl;
+    return { netEarningsCents: net, ssCents: ss, medicareCents: med, addlCents: addl, totalCents: total, deductionCents: mulDiv(ss + med, profile.seDeductionPct, 100), ssRoomCents: room, addlThresholdCents: threshold, belowMinimum: false };
+  }
+
+  // ---- the year's business figures ----
+  const isMoney = (e) => e.domain === 'money' && (e.type === 'income' || e.type === 'expense');
+  const bizTest = (state) => { const b = L.business.isBiz(state); return (e) => isMoney(e) && b(e); };
+  const counted = (e) => e.type === 'expense' || !e.status || e.status === 'received';
+  function collect(state, year) {
+    const profile = profileOf(state, year), ys = String(year);
+    const biz = bizTest(state), rows = (state.entries || []).filter((e) => biz(e) && e.date.slice(0, 4) === ys);
+    const income = [], expense = [];
+    for (const e of rows) {
+      if (e.type === 'income') { if (counted(e)) income.push({ e, cents: centsOf(e.value) }); continue; }
+      const line = lineFor(state, e.category), pct = line === 'meals' && profile ? profile.mealsPct : 100, gross = centsOf(e.value);
+      expense.push({ e, line, grossCents: gross, cents: pct === 100 ? gross : mulDiv(gross, pct, 100) });
+    }
+    const trips = (state.trips || []).filter((t) => t.date.slice(0, 4) === ys).map((t) => ({ t, cents: profile ? tripCents(profile, t) : null }));
+    return { profile, income, expense, trips };
+  }
+
+  function compute(state, year) {
+    if (blocked(state, year)) return refusal(year);
+    const profile = profileOf(state, year);
+    const c = collect(state, year);
+    const incomeCents = sum(c.income.map((x) => x.cents));
+    const byLine = {};
+    for (const l of LINES) byLine[l.id] = { id: l.id, label: l.label, sc: l.sc, cents: 0, grossCents: 0, count: 0 };
+    const unmapped = { cents: 0, grossCents: 0, count: 0 };
+    for (const x of c.expense) {
+      const b = x.line ? byLine[x.line] : unmapped;
+      b.cents += x.cents; b.grossCents += x.grossCents; b.count++;
+    }
+    const unrated = c.trips.filter((x) => x.cents === null).length;
+    const mileageCents = sum(c.trips.map((x) => x.cents || 0));
+    byLine.car.cents = mileageCents; byLine.car.count = c.trips.length;
+    const ho = (state.homeOffice || {})[String(year)];
+    const expenseCents = sum(c.expense.map((x) => x.cents));
+    // SEC-74: the simplified home-office deduction cannot exceed the business's gross income less its other business expenses (it can
+    // never create or increase a loss, and the simplified method has no carryover).
+    const homeFull = profile ? homeOfficeCents(profile, ho) : 0;
+    const homeCents = Math.min(homeFull, Math.max(0, incomeCents - expenseCents - mileageCents));
+    byLine.homeOffice.cents = homeCents; byLine.homeOffice.count = homeCents ? 1 : 0;
+    const profitCents = incomeCents - expenseCents - mileageCents - homeCents;
+    // Reimbursed totals are informational only: reimbursable expenses billed on a paid invoice. Nothing is netted.
+    const paid = new Set((state.invoices || []).filter((i) => i.status === 'paid').map((i) => i.id));
+    const reimbursedCents = sum(c.expense.filter((x) => x.e.reimbursable && x.e.billedInvoiceId && paid.has(x.e.billedInvoiceId)).map((x) => x.grossCents));
+    const out = { blocked: false, year, notice: NOTICE, hasProfile: !!profile, incomeCents, expenseCents, mileageCents, homeOfficeCents: homeCents, homeOfficeFullCents: homeFull, homeOfficeLimited: homeCents < homeFull, profitCents, unmapped, lines: LINES.map((l) => byLine[l.id]), reimbursedCents, unratedTrips: unrated, tripCount: c.trips.length };
+    out.byLineOfWork = lineBreakdown(state, c, year, profile, homeCents);
+    if (!profile) return out;
+    out.se = seTax(profile, profitCents);
+    const base = Math.max(0, profitCents - out.se.deductionCents);
+    out.incomeBaseCents = base;
+    out.federalTaxCents = profile.federalEffectiveRate === null ? null : mulDiv(base, ppm(profile.federalEffectiveRate), 1e6);
+    // SEC-75: NJ does not allow the federal deduction for half of SE tax; its base is the business profit itself (floored at 0).
+    out.njBaseCents = Math.max(0, profitCents);
+    out.njTaxCents = profile.njEffectiveRate === null ? null : mulDiv(out.njBaseCents, ppm(profile.njEffectiveRate), 1e6);
+    out.needRates = profile.federalEffectiveRate === null || profile.njEffectiveRate === null;
+    out.setAsideCents = out.needRates ? null : out.se.totalCents + out.federalTaxCents + out.njTaxCents;
+    // SEC-77: a private account or balance entry may be (or belong to) the reserve; while closed the reserve is hidden, never guessed.
+    out.reserveHidden = reserveHidden(state);
+    const reserve = out.reserveHidden ? null : reserveBalance(state);
+    out.reserveCents = reserve;
+    out.gapCents = out.setAsideCents === null || reserve === null ? null : out.setAsideCents - reserve;
+    out.payments = paymentTotals(state, year);
+    out.safeHarbor = safeHarbor(state, year, out);
+    out.due = dueDates(profile);
+    return out;
+  }
+  function reserveHidden(state) {
+    if (!state || (L.priv && L.priv.isView && L.priv.isView(state))) return false;
+    const id = state.settings && state.settings.business && state.settings.business.reserveAccountId;
+    const m = state.priv && Array.isArray(state.priv.marks) ? state.priv.marks : [];
+    return !!id && (m.includes('business-reserve') || m.includes('business'));
+  }
+  function reserveBalance(state) {
+    const id = state.settings && state.settings.business && state.settings.business.reserveAccountId;
+    if (!id) return null;
+    const a = (state.accounts || []).find((x) => x.id === id);
+    if (!a) return null;
+    // latest balance entry of the account (a liability account shows its balance as typed)
+    let best = null;
+    for (const e of state.entries || []) if (e.type === 'balance' && e.accountId === id && (!best || e.date >= best.date)) best = e;
+    return best ? centsOf(best.value) : null;
+  }
+  function paymentTotals(state, year) {
+    const o = { federal: 0, nj: 0, byQuarter: { federal: [0, 0, 0, 0], nj: [0, 0, 0, 0] } };
+    for (const p of state.taxPayments || []) if (p.year === year) { o[p.jurisdiction] += p.amountCents; o.byQuarter[p.jurisdiction][p.quarter - 1] += p.amountCents; }
+    return o;
+  }
+  // Split a target into four installments; the remainder cents go to the earliest quarters, so the four always add up exactly.
+  function installments(target) {
+    const q = Math.floor(target / 4), r = target - q * 4;
+    return [0, 1, 2, 3].map((i) => q + (i < r ? 1 : 0));
+  }
+  // Safe-harbor targets, shown only when the prior-year figure of that jurisdiction is entered.
+  // Federal: 100% of prior-year tax (110% when the prior-year AGI flag is set), compared with 90% of the current estimate (income tax
+  // plus SE tax). NJ: the smaller of 80% of the current-year tax or 100% of prior-year tax. The target is the smaller figure of the
+  // two that are known; with no rate entered the current-year side is "set your rate" and the target is the prior-year side.
+  function safeHarbor(state, year, c) {
+    const p = profileOf(state, year), out = { federal: null, nj: null };
+    if (!p) return out;
+    if (p.priorYearFederalTax !== null) {
+      const sh = p.safeHarbor;
+      const prior = mulDiv(p.priorYearFederalTax, p.priorYearAgiOver150k ? sh.federalPriorHighPct : sh.federalPriorPct, 100);
+      const cur = c.federalTaxCents === null ? null : mulDiv(c.se.totalCents + c.federalTaxCents, sh.federalCurrentPct, 100);
+      const target = cur === null ? prior : Math.min(prior, cur);
+      out.federal = { priorBasedCents: prior, currentBasedCents: cur, targetCents: target, installments: installments(target), paidCents: c.payments.federal, remainingCents: Math.max(0, target - c.payments.federal) };
+    }
+    if (p.priorYearNjTax !== null) {
+      const sh = p.safeHarbor;
+      const prior = mulDiv(p.priorYearNjTax, sh.njPriorPct, 100);
+      const cur = c.njTaxCents === null ? null : mulDiv(c.njTaxCents, sh.njCurrentPct, 100);
+      const target = cur === null ? prior : Math.min(prior, cur);
+      out.nj = { priorBasedCents: prior, currentBasedCents: cur, targetCents: target, installments: installments(target), paidCents: c.payments.nj, remainingCents: Math.max(0, target - c.payments.nj) };
+    }
+    return out;
+  }
+
+  // ---- Schedule C per line of work (and per parent rollup) ----
+  // Rows: every line of work with business money or trips in the year, then Unassigned (no line, plus the home office). Parent rows
+  // are rollups of the lines under them. Each total column adds up exactly to the year's totals.
+  function lineBreakdown(state, c, year, profile, homeCents) {
+    const rows = new Map();
+    const row = (id) => { if (!rows.has(id)) rows.set(id, { projectId: id, incomeCents: 0, expenseCents: 0, mileageCents: 0, homeOfficeCents: 0 }); return rows.get(id); };
+    const known = new Set((state.projects || []).map((p) => p.id));
+    const key = (pid) => (pid && known.has(pid) ? pid : null);
+    for (const x of c.income) row(key(x.e.projectId)).incomeCents += x.cents;
+    for (const x of c.expense) row(key(x.e.projectId)).expenseCents += x.cents;
+    for (const x of c.trips) row(key(x.t.projectId)).mileageCents += x.cents || 0;
+    if (homeCents) row(null).homeOfficeCents += homeCents;
+    const lines = [...rows.values()].map((r) => Object.assign(r, { netCents: r.incomeCents - r.expenseCents - r.mileageCents - r.homeOfficeCents }));
+    const byId = new Map((state.projects || []).map((p) => [p.id, p]));
+    const rollups = [];
+    for (const p of state.projects || []) {
+      if (p.parentId) continue;
+      const kids = lines.filter((r) => r.projectId && byId.get(r.projectId).parentId === p.id), own = lines.find((r) => r.projectId === p.id);
+      if (!kids.length) continue;
+      const all = (own ? [own] : []).concat(kids), tot = (k) => sum(all.map((r) => r[k]));
+      rollups.push({ projectId: p.id, incomeCents: tot('incomeCents'), expenseCents: tot('expenseCents'), mileageCents: tot('mileageCents'), homeOfficeCents: 0, netCents: tot('netCents') });
+    }
+    const order = (r) => (r.projectId ? (byId.get(r.projectId).name || '') : '￿');
+    return { lines: lines.sort((a, b) => order(a).localeCompare(order(b))), rollups: rollups.sort((a, b) => order(a).localeCompare(order(b))) };
+  }
+
+  // ---- 1099-NEC payees ----
+  // Totals per payee for the year from business contractor expenses (cardPaid expenses are excluded from the 1099 total).
+  function payeeTotals(state, year) {
+    if (blocked(state, year)) return refusal(year);
+    const p = profileOf(state, year), ys = String(year), tot = new Map(), card = new Map(), biz = bizTest(state);
+    for (const e of state.entries || []) {
+      if (!biz(e) || e.type !== 'expense' || !e.payeeId || e.date.slice(0, 4) !== ys) continue;
+      const m = e.cardPaid ? card : tot;
+      m.set(e.payeeId, (m.get(e.payeeId) || 0) + centsOf(e.value));
+    }
+    const ids = new Set([...tot.keys(), ...card.keys()]);
+    const rows = (state.payees || []).filter((x) => ids.has(x.id)).map((x) => {
+      const t = tot.get(x.id) || 0;
+      return { payeeId: x.id, totalCents: t, cardCents: card.get(x.id) || 0, reaches: p ? t >= p.nec1099Threshold : false, nearCents: p ? p.nec1099Threshold - t : null, tinOnFile: x.tinOnFile, w9Date: x.w9Date || null };
+    }).sort((a, b) => b.totalCents - a.totalCents);
+    return { blocked: false, year, hasProfile: !!p, thresholdCents: p ? p.nec1099Threshold : null, rows, due: p ? dueDates(p).nec1099 : null, notice: NOTICE };
+  }
+
+  // ---- Admin timeline rows and digest numbers ----
+  // Estimated payment dates and the 1099-NEC reminder; omitted for a year the vault refuses (no partial answers).
+  function timelineRows(state) {
+    const out = [];
+    for (const y of years(state)) {
+      if (blocked(state, y)) continue;
+      const p = profileOf(state, y), d = dueDates(p), paid = paymentTotals(state, y);
+      for (const j of JURISDICTIONS) for (const q of d[j]) {
+        out.push({ src: 'taxpay', id: 'taxpay:' + j + ':' + y + ':' + q.quarter, title: (j === 'nj' ? 'NJ' : 'Federal') + ' estimated tax, quarter ' + q.quarter + ' of ' + y, kind: 'estimated tax', date: q.date, closed: paid.byQuarter[j][q.quarter - 1] > 0 ? '' : null });
+      }
+      const pt = payeeTotals(state, y);
+      if (!pt.blocked && pt.rows.some((r) => r.reaches)) out.push({ src: 'taxpay', id: 'nec1099:' + y, title: '1099-NEC filing for ' + y, kind: '1099-NEC', date: pt.due.date, closed: null });
+    }
+    return out;
+  }
+  // Digest numbers (the only tax numbers that ever leave this module toward a prompt): business profit to date, estimated tax to
+  // date, set-aside gap. null when there is no profile for the year or the private vault hides business records.
+  function digest(state, ws) {
+    const year = yearOfDate(L.metrics.addDays(ws, 6));
+    if (blocked(state, year) || !profileOf(state, year)) return null;
+    const c = compute(state, year);
+    const o = { profitCents: c.profitCents };
+    if (c.setAsideCents !== null) o.estimatedTaxCents = c.setAsideCents;
+    if (c.gapCents !== null) o.gapCents = c.gapCents;
+    return o;
+  }
+
+  // ---- new year: offered, never applied ----
+  // A proposal copied from the latest profile before `year`, with dates moved one year per year step. Nothing is stored; the user
+  // confirms it (applyNewYear) and can edit afterwards.
+  function shiftYearStr(d, n) { return String(+d.slice(0, 4) + n).padStart(4, '0') + d.slice(4); }
+  function proposeYear(state, year) {
+    const ys = years(state).filter((y) => y < year);
+    if (!ys.length) return null;
+    const from = ys[ys.length - 1], src = profileOf(state, from), n = year - from, p = JSON.parse(JSON.stringify(src));
+    p.dueDates.federal = p.dueDates.federal.map((d) => shiftYearStr(d, n)); p.dueDates.nj = p.dueDates.nj.map((d) => shiftYearStr(d, n));
+    p.nec1099Due = shiftYearStr(p.nec1099Due, n);
+    p.mileageRates = p.mileageRates.map((r) => Object.assign({}, r, { from: shiftYearStr(r.from, n) }));
+    p.holidays = p.holidays.map((d) => shiftYearStr(d, n));
+    p.priorYearFederalTax = null; p.priorYearNjTax = null;
+    p.sourceNote = 'Copied from ' + from + '. Dates moved forward by calendar year; check every rate, threshold, holiday and mileage rate before you rely on this year.';
+    return cleanProfile(p);
+  }
+  function applyNewYear(state, year) {
+    if (profileOf(state, year)) throw new Error('That year already has a profile');
+    const p = proposeYear(state, year) || (defaultProfile(year) ? cleanProfile(defaultProfile(year)) : null);
+    if (!p) throw new Error('There is no earlier profile to copy');
+    if (!state.taxYears) state.taxYears = {};
+    if (Object.keys(state.taxYears).length >= YEAR_CAP) throw new Error('You can keep up to ' + YEAR_CAP + ' tax years');
+    state.taxYears[String(year)] = p;
+    return p;
+  }
+
+  // ---- mutators (run inside a commit; each follows one user tap) ----
+  function setProfile(state, year, input) {
+    if (!Number.isInteger(year) || year < 1990 || year > 2200) throw new Error('Enter a tax year.');
+    const p = cleanProfile(input);
+    if (!state.taxYears) state.taxYears = {};
+    if (!profileOf(state, year) && Object.keys(state.taxYears).length >= YEAR_CAP) throw new Error('You can keep up to ' + YEAR_CAP + ' tax years');
+    state.taxYears[String(year)] = p;
+    return p;
+  }
+  function startDefaultYear(state, year) {
+    const d = defaultProfile(year);
+    if (!d) throw new Error('There are no built-in defaults for ' + year);
+    return setProfile(state, year, d);
+  }
+  function setLineMap(state, category, line) {
+    const k = String(category || '').trim();
+    if (!k) throw new Error('Choose a category.');
+    if (line !== '' && line !== null && !MAPPABLE.includes(line)) throw new Error(line === 'car' || line === 'homeOffice' ? 'That line is filled from its log only.' : 'Unknown tax line.');
+    const rest = (state.taxMap || []).filter((x) => x.category.toLowerCase() !== k.toLowerCase());
+    if (line) rest.push({ category: k, line });
+    state.taxMap = cleanTaxMap(rest);
+  }
+  function addPayment(state, input) {
+    if ((state.taxPayments || []).length >= PAYMENT_CAP) throw new Error('You can keep up to ' + PAYMENT_CAP + ' payments');
+    if (!input || typeof input !== 'object') throw new Error('Enter a payment.');
+    if (L.admin) L.admin.checkNoSecrets([input.confirmation], 'That looks like an ID number or a card number. Do not enter ID numbers, account numbers or passwords here.');
+    const o = { id: L.store.newId(), year: input.year, jurisdiction: input.jurisdiction, quarter: input.quarter, amountCents: input.amountCents, paidOn: input.paidOn };
+    if (input.confirmation) o.confirmation = input.confirmation;
+    const clean = cleanPayments([o])[0];
+    state.taxPayments = (state.taxPayments || []).concat([clean]);
+    return clean;
+  }
+  function deletePayment(state, id) {
+    if (!(state.taxPayments || []).some((x) => x.id === id)) throw new Error('Payment not found');
+    state.taxPayments = state.taxPayments.filter((x) => x.id !== id);
+  }
+
+  // ---- accountant package ----
+  const DANGER = /^[=+\-@\t\r\n]/, PLAIN_NUM = /^-?\d+(\.\d+)?$/;
+  function csvCell(v) {
+    let s = v === undefined || v === null ? '' : String(v);
+    if (DANGER.test(s) && !PLAIN_NUM.test(s)) s = "'" + s;
+    return '"' + s.replace(/"/g, '""') + '"';
+  }
+  const money = (c) => (c === null || c === undefined ? '' : (c < 0 ? '-' : '') + Math.floor(Math.abs(c) / 100) + '.' + String(Math.abs(c) % 100).padStart(2, '0'));
+  // Plain-data package (also the print view's source). Refuses like every tax figure; carries payee names, never a tax ID.
+  function accountantPackage(state, year) {
+    if (blocked(state, year)) return refusal(year);
+    const profile = profileOf(state, year);
+    const c = collect(state, year), t = compute(state, year), ys = String(year);
+    const projName = (id) => { const p = (state.projects || []).find((x) => x.id === id); return p ? p.name : ''; };
+    const payeeName = (id) => { const p = (state.payees || []).find((x) => x.id === id); return p ? p.name : ''; };
+    const pt = payeeTotals(state, year);
+    return {
+      blocked: false, year, notice: NOTICE, hasProfile: !!profile, summary: t,
+      income: c.income.map((x) => ({ date: x.e.date, title: x.e.title, line: projName(x.e.projectId), cents: x.cents })).sort((a, b) => a.date.localeCompare(b.date)),
+      expenses: c.expense.map((x) => ({ date: x.e.date, title: x.e.title, category: x.e.category || '', taxLine: x.line ? lineById(x.line).label : 'Unmapped', grossCents: x.grossCents, deductibleCents: x.cents, line: projName(x.e.projectId), payee: payeeName(x.e.payeeId), reimbursable: !!x.e.reimbursable })).sort((a, b) => a.date.localeCompare(b.date)),
+      trips: c.trips.map((x) => ({ date: x.t.date, from: x.t.from, to: x.t.to, miles: x.t.miles, roundTrip: !!x.t.roundTrip, purpose: x.t.purpose, line: projName(x.t.projectId), cents: x.cents })).sort((a, b) => a.date.localeCompare(b.date)),
+      homeOffice: (state.homeOffice || {})[ys] || null,
+      payees: pt.rows.map((r) => ({ name: payeeName(r.payeeId), totalCents: r.totalCents, cardCents: r.cardCents, reaches: r.reaches, w9: r.tinOnFile ? (r.w9Date || 'on file') : 'not on file' })),
+      payments: (state.taxPayments || []).filter((p) => p.year === year).map((p) => ({ jurisdiction: p.jurisdiction, quarter: p.quarter, amountCents: p.amountCents, paidOn: p.paidOn, confirmation: p.confirmation || '' })),
+    };
+  }
+  // SEC-78 (deviation b): the accountant export leaves private records out unless the user ticks "Include private records" (offered only
+  // while the vault is open). Left out, the totals would be incomplete whenever a business record of the year is private, so the export
+  // refuses and says why; it never produces a Schedule C total that silently excludes private income.
+  const LEFT_OUT_MESSAGE = 'Private business records of this year are left out, so the totals would be incomplete. Tick "Include private records" or move them out of the private vault.';
+  function exportPackage(state, year, includePrivate) {
+    const isView = !!(L.priv && L.priv.isView && L.priv.isView(state));
+    if (includePrivate) {
+      if (!isView && blocked(state, year)) return refusal(year);
+      const pkg = accountantPackage(state, year);
+      if (!pkg.blocked) pkg.privateIncluded = isView;
+      return pkg;
+    }
+    const main = isView ? L.priv.mainOnly(state) : state;
+    if (blocked(main, year)) return isView ? Object.assign(refusal(year), { leftOut: true, message: LEFT_OUT_MESSAGE }) : refusal(year);
+    const pkg = accountantPackage(main, year);
+    if (!pkg.blocked) pkg.privateIncluded = false;
+    return pkg;
+  }
+  function exportCsv(pkg, lineName) {
+    if (pkg.blocked) throw new Error(pkg.message || BLOCK_MESSAGE);
+    const out = [], row = (a) => out.push(a.map(csvCell).join(','));
+    const sec = (title, head, rows) => { if (out.length) out.push(''); row([title]); row(head); for (const r of rows) row(r); };
+    const s = pkg.summary;
+    row([NOTICE]); row(['Tax year', pkg.year]);
+    row(['Private records', pkg.privateIncluded ? 'included' : 'not included (no private business record of this year)']);
+    sec('Schedule C summary', ['Line', 'Schedule C line', 'Amount'], [['Gross receipts', '1', money(s.incomeCents)]].concat(
+      s.lines.map((l) => [l.label, l.sc, money(l.cents)]), [['Unmapped expenses', '', money(s.unmapped.cents)], ['Total deductions', '', money(s.expenseCents + s.mileageCents + s.homeOfficeCents)], ['Net profit', '31', money(s.profitCents)], ['Reimbursed expenses (information only, already counted gross)', '', money(s.reimbursedCents)]]));
+    sec('By line of work', ['Line of work', 'Income', 'Expenses', 'Mileage', 'Home office', 'Net'], s.byLineOfWork.lines.map((r) => [lineName(r.projectId), money(r.incomeCents), money(r.expenseCents), money(r.mileageCents), money(r.homeOfficeCents), money(r.netCents)]));
+    sec('By parent rollup', ['Parent line of work', 'Income', 'Expenses', 'Mileage', 'Home office', 'Net'], s.byLineOfWork.rollups.map((r) => [lineName(r.projectId), money(r.incomeCents), money(r.expenseCents), money(r.mileageCents), money(r.homeOfficeCents), money(r.netCents)]));
+    sec('Business income', ['Date', 'Description', 'Line of work', 'Amount'], pkg.income.map((x) => [x.date, x.title, x.line, money(x.cents)]));
+    sec('Business expenses', ['Date', 'Description', 'Category', 'Tax line', 'Paid', 'Deductible', 'Line of work', 'Payee', 'Reimbursable'], pkg.expenses.map((x) => [x.date, x.title, x.category, x.taxLine, money(x.grossCents), money(x.deductibleCents), x.line, x.payee, x.reimbursable ? 'yes' : '']));
+    sec('Mileage log', ['Date', 'From', 'To', 'Miles', 'Round trip', 'Purpose', 'Line of work', 'Deduction'], pkg.trips.map((x) => [x.date, x.from, x.to, x.miles, x.roundTrip ? 'yes' : '', x.purpose, x.line, x.cents === null ? 'no rate' : money(x.cents)]));
+    sec('Home office (simplified method)', ['Square feet', 'Months used', 'Deduction'], pkg.homeOffice ? [[pkg.homeOffice.squareFeet, pkg.homeOffice.monthsUsed, money(s.homeOfficeCents)]] : []);
+    sec('1099-NEC payees', ['Payee', 'Total (excluding card payments)', 'Card payments', 'At or over threshold', 'W-9'], pkg.payees.map((x) => [x.name, money(x.totalCents), money(x.cardCents), x.reaches ? 'yes' : '', x.w9]));
+    sec('Estimated tax payments', ['Jurisdiction', 'Quarter', 'Amount', 'Paid on', 'Confirmation'], pkg.payments.map((x) => [x.jurisdiction === 'nj' ? 'NJ' : 'Federal', x.quarter, money(x.amountCents), x.paidOn, x.confirmation]));
+    return out.join('\r\n') + '\r\n';
+  }
+  const EXPORT_WARNING = 'This file is not encrypted. It contains your business records, payee names and mileage log. Store it somewhere safe.';
+
+  L.tax = {
+    NOTICE, BLOCK_MESSAGE, EXPORT_WARNING, FILING, FILING_LABEL, JURISDICTIONS, LINES, LINE_IDS, MAPPABLE, DEFAULT_CATEGORY_LINES, THRESHOLD_BY_STATUS, THRESHOLD_NOTE,
+    SE_MIN_DEFAULT, SE_MIN_NOTE, mulDiv, ppm, defaultProfile, cleanProfile, cleanTaxYears, cleanHomeOffice, cleanTaxMap, cleanPayments, profileOf, years, blocked, refusal,
+    shiftDue, dueDates, lineFor, rateFor, tripCents, homeOfficeCents, seTax, compute, installments, safeHarbor, payeeTotals, timelineRows, digest,
+    proposeYear, applyNewYear, setProfile, startDefaultYear, setLineMap, addPayment, deletePayment, accountantPackage, exportPackage, LEFT_OUT_MESSAGE, exportCsv, money,
+    bizTest, centsOf, lineById,
+  };
+})();
+
+;
+(function () {
+  'use strict';
+  // v1.1.0: business records: scope defaults, settings, invoices and receivables, mileage trips, home office, payees (1099-NEC) and
+  // project budgets. Pure functions over state; every mutator runs inside a commit and does one thing a user tapped. Nothing posts on
+  // its own: an invoice never creates income until the user taps it. Money is integer cents; an invoice line total is
+  // round(quantity x unit price) half away from zero (quantity has two decimals, held as hundredths), see tax.mulDiv.
+  const L = (globalThis.LifeOS = globalThis.LifeOS || {});
+  const V = () => L.validate;
+  const T = () => L.tax;
+
+  const INVOICE_CAP = 5000, TRIP_CAP = 10000, PAYEE_CAP = 1000, LINE_CAP = 50, MAX_CENTS = 1e11;
+  const BUSINESS_KINDS = Object.freeze(['venture', 'client', 'website', 'podcast']);
+  const INVOICE_STATES = Object.freeze(['draft', 'sent', 'paid', 'void']);
+  const BUDGET_PERIODS = Object.freeze(['month', 'project']);
+  const BUCKETS = Object.freeze([['current', 'Current'], ['d1_30', '1 to 30 days'], ['d31_60', '31 to 60 days'], ['d61_90', '61 to 90 days'], ['over90', 'Over 90 days']]);
+  const DEFAULT_FORMAT = 'INV-{NNNN}';
+  const days = (a, b) => L.home.dates.daysBetween(a, b);
+  const isDate = (s) => L.home.dates.isDate(s);
+  const list = (st, k) => (st && Array.isArray(st[k]) ? st[k] : []);
+  const centsOf = (v) => Math.round(Number(v) * 100);
+  const sum = (a) => a.reduce((x, y) => x + y, 0);
+  const text = (v, max, name, empty) => L.home.text(v, max, name, empty);
+  const reqDate = (v, name) => { const d = V().date(v, name); if (!isDate(d)) V().fail(name + ' is out of range'); return d; };
+  const noSecrets = (fields, msg) => { if (L.admin) L.admin.checkNoSecrets(fields, msg || L.admin.SECRET_MESSAGE_FIELD); };
+  const noTaxId = (fields) => { for (const f of fields) if (L.admin.looksTaxId(f)) throw new Error(L.admin.TAXID_MESSAGE); };
+  // SEC-79: invoice fields and the business details printed on invoices refuse an EIN shape (12-3456789) as well as the SSN and card
+  // shapes the general guard catches. A tax ID is never stored anywhere in LifeOS.
+  const noIds = (fields) => { noSecrets(fields); noTaxId(fields.filter((f) => typeof f === 'string')); };
+
+  // ---- scope: business or personal ----
+  const isBusinessLine = (state, projectId) => {
+    const p = projectId ? list(state, 'projects').find((x) => x.id === projectId) : null;
+    return !!p && BUSINESS_KINDS.includes(p.kind);
+  };
+  const defaultScope = (state, projectId) => (isBusinessLine(state, projectId) ? 'business' : 'personal');
+  const moneyEntries = (state) => list(state, 'entries').filter((e) => e.domain === 'money' && (e.type === 'income' || e.type === 'expense'));
+  // An entry with no scope takes the one its line of work implies (business kinds are business); the migration to schema 12 leaves
+  // every entry as it is and the owner confirms the counts once. Confirming fixes each visible entry's scope.
+  const scopeOf = (state, e) => e.scope || defaultScope(state, e.projectId);
+  const isBiz = (state) => { const ids = new Set(list(state, 'projects').filter((p) => BUSINESS_KINDS.includes(p.kind)).map((p) => p.id)); return (e) => (e.scope ? e.scope === 'business' : !!e.projectId && ids.has(e.projectId)); };
+  const scopeCounts = (state) => {
+    const b = isBiz(state), m = moneyEntries(state), n = m.filter(b).length;
+    return { business: n, personal: m.length - n };
+  };
+  function confirmScope(state) {
+    const b = isBiz(state);
+    for (const e of moneyEntries(state)) if (!e.scope) e.scope = b(e) ? 'business' : 'personal';
+    state.settings.business.scopeConfirmed = true;
+  }
+  function setScope(state, ids, scope) {
+    if (scope !== 'business' && scope !== 'personal') throw new Error('Scope must be business or personal');
+    const set = new Set(ids), b = isBiz(state);
+    let n = 0;
+    for (const e of moneyEntries(state)) if (set.has(e.id)) { if ((b(e) ? 'business' : 'personal') !== scope) n++; e.scope = scope; }
+    return n;
+  }
+
+  // ---- settings ----
+  const defaultSettings = (scopeConfirmed) => ({ name: '', address: '', paymentTerms: '', invoiceFormat: DEFAULT_FORMAT, invoiceNext: 1, scopeConfirmed: scopeConfirmed !== false });
+  function cleanFormat(f) {
+    const s = V().str(V().strip(f).trim(), 40, 'invoice number format');
+    if (!/\{N+\}/.test(s)) V().fail('invoice number format needs a counter such as {NNNN}');
+    if (s.replace(/\{(N+|YYYY|YY)\}/g, '').match(/[{}]/)) V().fail('invoice number format has an unknown token');
+    return s;
+  }
+  function cleanSettings(x) {
+    if (x === undefined || x === null) return defaultSettings(true);
+    if (!V().isObj(x)) V().fail('business settings');
+    const o = {
+      name: text(x.name, 120, 'business name', true), address: text(x.address, 300, 'business address', true), paymentTerms: text(x.paymentTerms, 300, 'payment terms', true),
+      invoiceFormat: x.invoiceFormat === undefined ? DEFAULT_FORMAT : cleanFormat(x.invoiceFormat),
+      invoiceNext: V().num(x.invoiceNext === undefined ? 1 : x.invoiceNext, 1, 1e9, 'invoice counter', true),
+      scopeConfirmed: V().bool(x.scopeConfirmed, 'scopeConfirmed', true),
+    };
+    for (const k of ['reserveAccountId', 'pinnedProjectId']) if (x[k] !== undefined && x[k] !== null && x[k] !== '') o[k] = V().str(x[k], 100, k);
+    return o;
+  }
+  function saveSettings(state, input) {
+    const cur = state.settings.business, o = Object.assign({}, cur);
+    for (const k of ['name', 'address', 'paymentTerms']) if (input[k] !== undefined) o[k] = input[k];
+    noIds([o.name, o.address, o.paymentTerms]);
+    for (const k of ['invoiceFormat', 'invoiceNext']) if (input[k] !== undefined) o[k] = input[k];
+    for (const k of ['reserveAccountId', 'pinnedProjectId']) if (input[k] !== undefined) { if (input[k]) o[k] = input[k]; else delete o[k]; }
+    state.settings.business = cleanSettings(o);
+    return state.settings.business;
+  }
+
+  // ---- payees (1099-NEC). The tax ID itself is never stored, only whether a W-9 is on file ----
+  function cleanPayees(l) {
+    if (l === undefined || l === null) return [];
+    const seen = new Set();
+    return V().arr(l, PAYEE_CAP, 'payees').map((x) => {
+      if (!V().isObj(x)) V().fail('payee');
+      const id = V().str(x.id, 100, 'payee id');
+      if (seen.has(id)) V().fail('duplicate payee id');
+      seen.add(id);
+      const o = { id, name: text(x.name, 120, 'payee name'), tinOnFile: V().bool(x.tinOnFile, 'tinOnFile', false) };
+      if (x.w9Date !== undefined && x.w9Date !== null && x.w9Date !== '') o.w9Date = reqDate(x.w9Date, 'W-9 date');
+      o.archived = V().bool(x.archived, 'archived', false);
+      return o;
+    });
+  }
+  function addPayee(state, input) {
+    if (list(state, 'payees').length >= PAYEE_CAP) throw new Error('You can keep up to ' + PAYEE_CAP + ' payees');
+    if (!input || typeof input.name !== 'string' || !input.name.trim()) throw new Error('Enter a name.');
+    noTaxId([input.name]);
+    const o = { id: L.store.newId(), name: input.name, tinOnFile: !!input.tinOnFile, archived: false };
+    if (input.w9Date) o.w9Date = input.w9Date;
+    const clean = cleanPayees([o])[0];
+    state.payees = list(state, 'payees').concat([clean]);
+    return clean;
+  }
+  function updatePayee(state, id, patch) {
+    const p = list(state, 'payees').find((x) => x.id === id);
+    if (!p) throw new Error('Payee not found');
+    const o = Object.assign({}, p);
+    if (patch.name !== undefined) { noTaxId([patch.name]); o.name = patch.name; }
+    if (patch.tinOnFile !== undefined) o.tinOnFile = !!patch.tinOnFile;
+    if (patch.w9Date !== undefined) { if (patch.w9Date) o.w9Date = patch.w9Date; else delete o.w9Date; }
+    if (patch.archived !== undefined) o.archived = !!patch.archived;
+    const clean = cleanPayees([o])[0];
+    state.payees = state.payees.map((x) => (x.id === id ? clean : x));
+    return clean;
+  }
+  // Deleting a payee unlinks its expenses (never deletes them).
+  function deletePayee(state, id) {
+    if (!list(state, 'payees').some((x) => x.id === id)) throw new Error('Payee not found');
+    let n = 0;
+    for (const e of list(state, 'entries')) if (e.payeeId === id) { delete e.payeeId; n++; }
+    state.payees = state.payees.filter((x) => x.id !== id);
+    return n;
+  }
+  function assignPayee(state, entryId, payeeId, opts) {
+    const e = list(state, 'entries').find((x) => x.id === entryId);
+    if (!e || e.type !== 'expense') throw new Error('Choose an expense.');
+    if (payeeId && !list(state, 'payees').some((x) => x.id === payeeId)) throw new Error('Payee not found');
+    if (payeeId) e.payeeId = payeeId; else delete e.payeeId;
+    if (opts && opts.cardPaid !== undefined) { if (opts.cardPaid) e.cardPaid = true; else delete e.cardPaid; }
+    return e;
+  }
+
+  // ---- invoices ----
+  const qtyH = (q) => Math.round(q * 100);
+  const lineTotal = (ln) => T().mulDiv(qtyH(ln.qty), ln.unitCents, 100);
+  const invoiceTotal = (inv) => sum(inv.lines.map(lineTotal));
+  function cleanInvoices(l, opts) {
+    if (l === undefined || l === null) return [];
+    const seen = new Set(), nums = new Set(), merged = !!(opts && opts.merged);
+    return V().arr(l, INVOICE_CAP, 'invoices').map((x) => {
+      if (!V().isObj(x)) V().fail('invoice');
+      const id = V().str(x.id, 100, 'invoice id');
+      if (seen.has(id)) V().fail('duplicate invoice id');
+      seen.add(id);
+      const number = text(x.number, 40, 'invoice number');
+      const nk = number.toLowerCase();
+      if (!merged && nums.has(nk)) V().fail('duplicate invoice number');
+      nums.add(nk);
+      const o = { id, number };
+      if (x.projectId !== undefined && x.projectId !== null && x.projectId !== '') o.projectId = V().str(x.projectId, 100, 'invoice line of work');
+      o.issueDate = reqDate(x.issueDate, 'issue date'); o.dueDate = reqDate(x.dueDate, 'due date');
+      if (o.dueDate < o.issueDate) V().fail('due date is before the issue date');
+      if (!Array.isArray(x.lines)) V().fail('invoice lines must be a list');
+      if (x.lines.length > LINE_CAP) V().fail('invoice has too many lines');
+      o.lines = x.lines.map((ln) => {
+        if (!V().isObj(ln)) V().fail('invoice line');
+        const q = V().num(ln.qty, 0.01, 1e6, 'quantity');
+        if (Math.round(q * 100) / 100 !== q) V().fail('quantity allows two decimals');
+        const r = { description: text(ln.description, 200, 'line description'), qty: q, unitCents: V().num(ln.unitCents, 0, MAX_CENTS, 'unit price', true) };
+        if (ln.expenseId !== undefined && ln.expenseId !== null && ln.expenseId !== '') r.expenseId = V().str(ln.expenseId, 100, 'line expense');
+        return r;
+      });
+      if (invoiceTotal(o) > MAX_CENTS) V().fail('invoice total too large');
+      o.status = V().oneOf(x.status, INVOICE_STATES, 'invoice status');
+      if (o.status === 'paid') o.paidOn = reqDate(x.paidOn, 'paid on'); else if (x.paidOn !== undefined && x.paidOn !== null && x.paidOn !== '') V().fail('only a paid invoice has a paid date');
+      if (x.incomeId !== undefined && x.incomeId !== null && x.incomeId !== '') o.incomeId = V().str(x.incomeId, 100, 'invoice income');
+      o.notes = text(x.notes, 2000, 'invoice notes', true);
+      return o;
+    });
+  }
+  const findInvoice = (state, id) => {
+    const i = list(state, 'invoices').find((x) => x.id === id);
+    if (!i) throw new Error('Invoice not found');
+    return i;
+  };
+  const numberTaken = (state, n) => list(state, 'invoices').some((i) => i.number.toLowerCase() === String(n).trim().toLowerCase());
+  // {YYYY} year of the issue date, {YY} its last two digits, {N...} the counter padded to that many digits.
+  function formatNumber(fmt, n, issueDate) {
+    return fmt.replace(/\{(N+|YYYY|YY)\}/g, (m, t) => (t === 'YYYY' ? issueDate.slice(0, 4) : t === 'YY' ? issueDate.slice(2, 4) : String(n).padStart(t.length, '0')));
+  }
+  // SEC-80: one set of taken numbers per call (linear), not a scan of every invoice per candidate number.
+  function nextNumber(state, issueDate) {
+    const b = state.settings.business, taken = new Set(list(state, 'invoices').map((i) => i.number.toLowerCase()));
+    let n = b.invoiceNext;
+    for (let i = 0; i < 100000; i++, n++) { const s = formatNumber(b.invoiceFormat, n, issueDate); if (!taken.has(s.trim().toLowerCase())) return { number: s, counter: n }; }
+    throw new Error('Could not find a free invoice number');
+  }
+  function checkLines(lines) {
+    noIds((lines || []).map((l) => l && l.description));
+  }
+  // A new draft. With no number given the next one from the user's format is used and the counter moves on; a typed number is
+  // used as is. A duplicate number is refused either way.
+  function createInvoice(state, input) {
+    if (list(state, 'invoices').length >= INVOICE_CAP) throw new Error('You can keep up to ' + INVOICE_CAP + ' invoices');
+    if (!input || typeof input !== 'object') throw new Error('Enter an invoice.');
+    noIds([input.notes, input.number]); checkLines(input.lines);
+    const issue = input.issueDate;
+    if (!isDate(issue)) throw new Error('Enter the issue date.');
+    let number = typeof input.number === 'string' ? input.number.trim() : '', counter = null;
+    if (!number) { const nx = nextNumber(state, issue); number = nx.number; counter = nx.counter; }
+    else if (numberTaken(state, number)) throw new Error('That invoice number is already used.');
+    const o = { id: L.store.newId(), number, issueDate: issue, dueDate: input.dueDate, lines: (input.lines || []).slice(), status: 'draft', notes: input.notes || '' };
+    if (input.projectId) o.projectId = input.projectId;
+    const clean = cleanInvoices([o])[0];
+    state.invoices = list(state, 'invoices').concat([clean]);
+    if (counter !== null) state.settings.business.invoiceNext = counter + 1;
+    return clean;
+  }
+  function editDraft(state, id, patch) {
+    const inv = findInvoice(state, id);
+    if (inv.status !== 'draft') throw new Error('Only a draft can be edited.');
+    noIds([patch.notes, patch.number]); if (patch.lines) checkLines(patch.lines);
+    const o = Object.assign({}, inv);
+    for (const k of ['issueDate', 'dueDate', 'notes', 'lines']) if (patch[k] !== undefined) o[k] = patch[k];
+    if (patch.projectId !== undefined) { if (patch.projectId) o.projectId = patch.projectId; else delete o.projectId; }
+    if (patch.number !== undefined) {
+      const n = String(patch.number).trim();
+      if (!n) throw new Error('Enter an invoice number.');
+      if (n.toLowerCase() !== inv.number.toLowerCase() && numberTaken(state, n)) throw new Error('That invoice number is already used.');
+      o.number = n;
+    }
+    // lines that left the draft free their expenses again
+    const keep = new Set((o.lines || []).map((l) => l.expenseId).filter(Boolean));
+    for (const l of inv.lines) if (l.expenseId && !keep.has(l.expenseId)) unbill(state, l.expenseId, id);
+    const clean = cleanInvoices([o])[0];
+    state.invoices = state.invoices.map((x) => (x.id === id ? clean : x));
+    return clean;
+  }
+  function unbill(state, expenseId, invoiceId) {
+    const e = list(state, 'entries').find((x) => x.id === expenseId);
+    if (e && e.billedInvoiceId === invoiceId) delete e.billedInvoiceId;
+  }
+  // Unbilled billable expenses of a client line, newest first (never netted: they stay deductions on their own tax lines).
+  function unbilled(state, projectId) {
+    return list(state, 'entries').filter((e) => e.domain === 'money' && e.type === 'expense' && e.billable && !e.billedInvoiceId && (!projectId || e.projectId === projectId)).sort((a, b) => b.date.localeCompare(a.date));
+  }
+  // "Add to invoice": one tap per expense. Gross treatment: the invoice line carries the full amount and the expense keeps its deduction.
+  function addBillable(state, invoiceId, expenseId) {
+    const inv = findInvoice(state, invoiceId);
+    if (inv.status !== 'draft') throw new Error('Expenses can only be added to a draft invoice.');
+    const e = list(state, 'entries').find((x) => x.id === expenseId);
+    if (!e || e.type !== 'expense') throw new Error('Expense not found');
+    if (!e.billable) throw new Error('That expense is not marked billable.');
+    if (e.billedInvoiceId) throw new Error('That expense is already on an invoice.');
+    if (inv.lines.length >= LINE_CAP) throw new Error('An invoice has up to ' + LINE_CAP + ' lines');
+    if (inv.projectId && e.projectId && e.projectId !== inv.projectId) throw new Error('That expense belongs to another line of work.');
+    inv.lines.push({ description: e.title.slice(0, 200), qty: 1, unitCents: centsOf(e.value), expenseId: e.id });
+    e.billedInvoiceId = inv.id;
+    return inv;
+  }
+  function markSent(state, id) {
+    const inv = findInvoice(state, id);
+    if (inv.status !== 'draft') throw new Error('Only a draft can be marked sent.');
+    if (!inv.lines.length) throw new Error('Add at least one line first.');
+    inv.status = 'sent';
+    return inv;
+  }
+  // Offered after "sent": one expected income entry for the total, due on the invoice due date. One income per invoice.
+  function createExpectedIncome(state, id) {
+    const inv = findInvoice(state, id);
+    if (inv.status !== 'sent') throw new Error('Only a sent invoice can have expected income.');
+    const cur = inv.incomeId && list(state, 'entries').find((e) => e.id === inv.incomeId);
+    if (cur) throw new Error('This invoice already has an income entry.');
+    const total = invoiceTotal(inv);
+    if (total <= 0) throw new Error('The invoice total must be more than zero.');
+    const e = L.metrics.validateEntry({ domain: 'money', type: 'income', date: inv.issueDate, title: 'Invoice ' + inv.number, value: total / 100, status: 'expected', dueDate: inv.dueDate, projectId: inv.projectId || undefined, scope: 'business' });
+    e.id = L.store.newId();
+    state.entries.push(e);
+    inv.incomeId = e.id;
+    return e;
+  }
+  function markPaid(state, id, paidOn) {
+    const inv = findInvoice(state, id);
+    if (inv.status !== 'sent' && inv.status !== 'draft') throw new Error('Only a draft or sent invoice can be marked paid.');
+    if (!isDate(paidOn)) throw new Error('Enter the date paid.');
+    inv.status = 'paid'; inv.paidOn = paidOn;
+    return inv;
+  }
+  // Offered after "paid": the linked expected income becomes received on the paid date (counted once, when received). With no usable
+  // linked income, one received income entry is created. An income already received is never touched or duplicated.
+  function settleIncome(state, id) {
+    const inv = findInvoice(state, id);
+    if (inv.status !== 'paid') throw new Error('Mark the invoice paid first.');
+    const cur = inv.incomeId ? list(state, 'entries').find((e) => e.id === inv.incomeId) : null;
+    if (cur && cur.type === 'income' && (!cur.status || cur.status === 'received')) throw new Error('This invoice\'s income is already counted.');
+    if (cur && cur.status === 'expected') { cur.status = 'received'; cur.date = inv.paidOn; return cur; }
+    const total = invoiceTotal(inv);
+    if (total <= 0) throw new Error('The invoice total must be more than zero.');
+    const e = L.metrics.validateEntry({ domain: 'money', type: 'income', date: inv.paidOn, title: 'Invoice ' + inv.number, value: total / 100, projectId: inv.projectId || undefined, scope: 'business' });
+    e.id = L.store.newId();
+    state.entries.push(e);
+    inv.incomeId = e.id;
+    return e;
+  }
+  // Void: the invoice keeps its record, loses its link to the income entry (which is never deleted) and frees its billed expenses.
+  function voidInvoice(state, id) {
+    const inv = findInvoice(state, id);
+    if (inv.status === 'void') throw new Error('Already void.');
+    if (inv.status === 'paid') throw new Error('A paid invoice cannot be voided.');
+    delete inv.incomeId;
+    for (const l of inv.lines) if (l.expenseId) unbill(state, l.expenseId, id);
+    inv.status = 'void';
+    return inv;
+  }
+  function deleteInvoice(state, id) {
+    const inv = findInvoice(state, id);
+    if (inv.status === 'sent' || inv.status === 'paid') throw new Error('Void a sent invoice instead of deleting it.');
+    for (const l of inv.lines) if (l.expenseId) unbill(state, l.expenseId, id);
+    state.invoices = state.invoices.filter((x) => x.id !== id);
+  }
+  // Aging of open (sent) invoices on a date: current, 1 to 30, 31 to 60, 61 to 90 and over 90 days past the due date.
+  const bucketOf = (past) => (past <= 0 ? 'current' : past <= 30 ? 'd1_30' : past <= 60 ? 'd31_60' : past <= 90 ? 'd61_90' : 'over90');
+  function aging(state, today) {
+    const out = { buckets: {}, openCount: 0, openCents: 0, overdueCount: 0, overdueCents: 0 };
+    for (const [k] of BUCKETS) out.buckets[k] = { count: 0, cents: 0 };
+    for (const i of list(state, 'invoices')) {
+      if (i.status !== 'sent') continue;
+      const c = invoiceTotal(i), b = out.buckets[bucketOf(days(today, i.dueDate))];
+      b.count++; b.cents += c; out.openCount++; out.openCents += c;
+      if (i.dueDate < today) { out.overdueCount++; out.overdueCents += c; }
+    }
+    return out;
+  }
+  // ---- trips ----
+  function cleanTrips(l, projects) {
+    if (l === undefined || l === null) return [];
+    const seen = new Set();
+    return V().arr(l, TRIP_CAP, 'trips').map((x) => {
+      if (!V().isObj(x)) V().fail('trip');
+      const id = V().str(x.id, 100, 'trip id');
+      if (seen.has(id)) V().fail('duplicate trip id');
+      seen.add(id);
+      const m = V().num(x.miles, 0.1, 9999.9, 'miles');
+      if (Math.round(m * 10) / 10 !== m) V().fail('miles allows one decimal');
+      const o = { id, date: reqDate(x.date, 'trip date'), from: text(x.from, 120, 'trip from', true), to: text(x.to, 120, 'trip to', true), miles: m, purpose: text(x.purpose, 200, 'trip purpose', true) };
+      if (x.projectId !== undefined && x.projectId !== null && x.projectId !== '') o.projectId = V().str(x.projectId, 100, 'trip line of work');
+      o.roundTrip = V().bool(x.roundTrip, 'roundTrip', false);
+      return o;
+    });
+  }
+  function addTrip(state, input) {
+    if (list(state, 'trips').length >= TRIP_CAP) throw new Error('You can keep up to ' + TRIP_CAP + ' trips');
+    if (!input || typeof input !== 'object') throw new Error('Enter a trip.');
+    noSecrets([input.from, input.to, input.purpose]);
+    const m = typeof input.miles === 'string' ? Number(input.miles.trim()) : input.miles;
+    const o = { id: L.store.newId(), date: input.date, from: input.from || '', to: input.to || '', miles: m, purpose: input.purpose || '', roundTrip: !!input.roundTrip };
+    if (input.projectId) o.projectId = input.projectId;
+    const clean = cleanTrips([o])[0];
+    state.trips = list(state, 'trips').concat([clean]);
+    return clean;
+  }
+  function deleteTrip(state, id) {
+    if (!list(state, 'trips').some((x) => x.id === id)) throw new Error('Trip not found');
+    state.trips = state.trips.filter((x) => x.id !== id);
+  }
+  function setHomeOffice(state, year, input) {
+    const x = T().cleanHomeOffice({ [String(year)]: input })[String(year)];
+    if (!state.homeOffice) state.homeOffice = {};
+    state.homeOffice[String(year)] = x;
+    return x;
+  }
+
+  // ---- project budgets ----
+  function setBudget(state, projectId, cents, period) {
+    const p = list(state, 'projects').find((x) => x.id === projectId);
+    if (!p) throw new Error('Line of work not found');
+    if (!cents) { delete p.budgetCents; delete p.budgetPeriod; return p; }
+    if (!Number.isSafeInteger(cents) || cents < 0 || cents > MAX_CENTS) throw new Error('Enter a budget amount.');
+    if (!BUDGET_PERIODS.includes(period)) throw new Error('Choose a month or project budget.');
+    p.budgetCents = cents; p.budgetPeriod = period;
+    return p;
+  }
+  // Budget vs actual for one project. Actual = the project's expenses (all of them, business or personal): this month for a monthly
+  // budget, all time for a project budget. status is a colour class only: none, ok or over.
+  function budgetFor(state, projectId, today, ids) {
+    const p = list(state, 'projects').find((x) => x.id === projectId);
+    if (!p) return null;
+    const set = new Set(ids || [projectId]), mo = today.slice(0, 7);
+    return budgetRow(state, p, p.budgetCents === undefined ? null : p.budgetCents, p.budgetPeriod || null, set, mo);
+  }
+  function budgetRow(state, p, budget, period, set, mo) {
+    let actual = 0;
+    for (const e of list(state, 'entries')) if (e.domain === 'money' && e.type === 'expense' && e.projectId && set.has(e.projectId) && (period !== 'month' || e.date.slice(0, 7) === mo)) actual += centsOf(e.value);
+    return { projectId: p.id, budgetCents: budget, period, actualCents: actual, remainingCents: budget === null ? null : budget - actual, status: budget === null ? 'none' : actual > budget ? 'over' : 'ok' };
+  }
+  // A parent's rollup counts its own and its children's expenses against the parent's budget; with none, against the children's
+  // budgets added together when they all share one period (otherwise there is no rollup budget).
+  function budgetRollup(state, parentId, today) {
+    const ps = list(state, 'projects'), par = ps.find((x) => x.id === parentId);
+    if (!par) return null;
+    const kids = ps.filter((x) => x.parentId === parentId), set = new Set([parentId].concat(kids.map((k) => k.id))), mo = today.slice(0, 7);
+    if (par.budgetCents !== undefined) return budgetRow(state, par, par.budgetCents, par.budgetPeriod, set, mo);
+    const withB = kids.filter((k) => k.budgetCents !== undefined), periods = new Set(withB.map((k) => k.budgetPeriod));
+    if (!withB.length || periods.size !== 1) return budgetRow(state, par, null, null, set, mo);
+    return budgetRow(state, par, sum(withB.map((k) => k.budgetCents)), withB[0].budgetPeriod, set, mo);
+  }
+
+  // ---- digest: open invoice numbers (the tax numbers come from tax.digest) ----
+  function digest(state, ws) {
+    const we = L.metrics.addDays(ws, 6), a = aging(state, we);
+    const o = { openInvoices: a.openCount, openInvoiceCents: a.openCents, overdueInvoices: a.overdueCount };
+    const t = T().digest(state, ws);
+    if (t) o.tax = t;
+    return o;
+  }
+
+  L.business = {
+    BUSINESS_KINDS, INVOICE_STATES, BUDGET_PERIODS, BUCKETS, DEFAULT_FORMAT, INVOICE_CAP, TRIP_CAP, PAYEE_CAP, LINE_CAP,
+    isBusinessLine, defaultScope, scopeOf, isBiz, scopeCounts, confirmScope, setScope, defaultSettings, cleanSettings, saveSettings,
+    cleanPayees, addPayee, updatePayee, deletePayee, assignPayee,
+    lineTotal, invoiceTotal, cleanInvoices, formatNumber, nextNumber, createInvoice, editDraft, unbilled, addBillable, markSent, createExpectedIncome, markPaid, settleIncome, voidInvoice, deleteInvoice, aging, bucketOf,
+    cleanTrips, addTrip, deleteTrip, setHomeOffice, setBudget, budgetFor, budgetRollup, digest,
+  };
+})();
+
+;
+(function () {
+  'use strict';
   // v0.12.0: customizable home. A layout is a list of { id, size, hidden } kept per viewport class in settings.layouts
   // ({ narrow, wide }; narrow is a viewport under 720 px). Ids are whitelisted: unknown ids are dropped, modules a saved layout does
   // not mention are appended (visible) at the end, so modules added by later builds appear without breaking saved layouts.
@@ -5603,7 +6822,11 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     mod('priorities', 'Priorities', ['small', 'wide'], 'wide'),
   ].concat(
     TILE_DOMAINS.map((d) => mod('tile-' + d[0], d[1], ['small', 'wide'], 'small')),
-    [mod('rev-month', 'Revenue this month', ['small', 'wide'], 'small'), mod('rev-net-line', 'Net by line of work', ['wide', 'small'], 'wide'), mod('rev-expected', 'Expected and overdue income', ['small', 'wide'], 'small')]
+    [mod('rev-month', 'Revenue this month', ['small', 'wide'], 'small'), mod('rev-net-line', 'Net by line of work', ['wide', 'small'], 'wide'), mod('rev-expected', 'Expected and overdue income', ['small', 'wide'], 'small'),
+      // v1.1.0 business modules
+      mod('tax-setaside', 'Tax set-aside vs reserve', ['small', 'wide'], 'small'), mod('tax-next', 'Next estimated payment due', ['small', 'wide'], 'small'),
+      mod('inv-open', 'Open invoices and aging', ['small', 'wide'], 'small'), mod('budget-pinned', 'Budget vs actual (pinned line)', ['small', 'wide'], 'small'),
+      mod('payees-near', '1099 payees near the threshold', ['small', 'wide'], 'small')]
   ));
   const BY_ID = new Map(MODULES.map((m) => [m.id, m]));
   const KEYS = Object.freeze(['narrow', 'wide']);
@@ -6217,6 +7440,8 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       // Revenue: money totals and counts only, never a line of work name, a description, a category or imported text.
       const rv = dg.revenue;
       if (rv && (rv.revenueWeekCents || rv.expensesWeekCents || rv.revenueMonthCents || rv.expensesMonthCents || rv.expectedNext30Cents || rv.overdueCount)) lines.push('- revenue detail: received this week ' + fm(rv.revenueWeekCents) + ', expenses this week ' + fm(rv.expensesWeekCents) + ', net this week ' + fm(rv.netWeekCents) + ', received this month ' + fm(rv.revenueMonthCents) + ', expenses this month ' + fm(rv.expensesMonthCents) + ', net this month ' + fm(rv.netMonthCents) + ', expected in the next 30 days ' + fm(rv.expectedNext30Cents) + ', overdue expected income ' + rv.overdueCount + ', lines of work ' + rv.lines);
+      const bz = dg.business;
+      if (bz && (bz.openInvoices || bz.tax)) lines.push('- business detail (numbers only): open invoices ' + bz.openInvoices + ' totalling ' + fm(bz.openInvoiceCents) + ', overdue ' + bz.overdueInvoices + (bz.tax ? ', business profit this year ' + fm(bz.tax.profitCents) + (bz.tax.estimatedTaxCents !== undefined ? ', estimated tax set-aside ' + fm(bz.tax.estimatedTaxCents) : '') + (bz.tax.gapCents !== undefined ? ', set-aside gap ' + fm(bz.tax.gapCents) : '') : ''));
       ctx = approvedAll.filter((i) => !isBodyInsight(i)).slice(-CTX_MAX);
       lines.push('Approved insights so far:');
     } else {
@@ -6955,14 +8180,15 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     money: ['entries', 'recurring', 'budgets', 'activities'], assets: ['entries', 'accounts'], work: ['entries', 'projects', 'pipeline'],
     health: ['entries', 'habits', 'habitLog', 'cycle', 'activities'], activities: ['activities', 'entries', 'people'],
     social: ['people', 'contacts', 'groups', 'activities'], learning: ['learningItems', 'studySessions', 'takeaways'],
-    home: ['properties', 'vehicles', 'maintenance', 'recurring'], admin: ['renewals', 'documents', 'taxItems', 'learningItems', 'recurring'],
+    home: ['properties', 'vehicles', 'maintenance', 'recurring'], admin: ['renewals', 'documents', 'taxItems', 'learningItems', 'recurring', 'business-*'],
     goals: null, wellbeing: ['entries', 'wellbeing']
   };
   // A small lock marker (no counts, no names) wherever a number or list could be affected by hidden private items.
   function lockMark(colls) {
     if (!L.store.isUnlocked() || L.priv.isOpen()) return null;
     var m = L.priv.marks(mainState());
-    if (!m.length || (colls && !colls.some(function (c) { return m.indexOf(c) >= 0; }))) return null;
+    // 'business-*' stands for any year mark: a year whose tax rows (Admin timeline) are refused while the vault is closed (SEC-82).
+    if (!m.length || (colls && !colls.some(function (c) { return c === 'business-*' ? m.some(function (x) { return /^business-\d{4}$/.test(x) || x === 'business'; }) : m.indexOf(c) >= 0; }))) return null;
     return lockIcon('Some private items are hidden', 'lockmark');
   }
   function lockIcon(label, cls) {
@@ -7074,10 +8300,12 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
         : view.name === 'memory' ? memoryScreen(s)
         : view.name === 'settings' ? settingsScreen(s)
         : view.name === 'private' ? privScreen(s)
+        : view.name === 'business' ? businessScreen(s)
+        : view.name === 'print' ? printScreen(s)
         : dashScreen(s);
     } catch (e) { body = h('p', { text: friendly(e) }); }
     var cur = view.name === 'domain' ? (view.domain === 'money' || view.domain === 'assets' || view.domain === 'work' || view.domain === 'health' ? view.domain : 'dashboard') : view.name;
-    var nav = h('nav', { class: 'nav', 'aria-label': 'Main' }, [['dashboard', 'Home'], ['money', 'Money'], ['assets', 'Assets'], ['work', 'Work'], ['health', 'Health'], ['review', 'Review'], ['memory', 'Memory'], ['settings', 'Settings']].map(function (n) {
+    var nav = h('nav', { class: 'nav', 'aria-label': 'Main' }, [['dashboard', 'Home'], ['money', 'Money'], ['assets', 'Assets'], ['work', 'Work'], ['health', 'Health'], ['business', 'Business'], ['review', 'Review'], ['memory', 'Memory'], ['settings', 'Settings']].map(function (n) {
       return h('button', { type: 'button', text: n[1], 'aria-current': n[0] === cur ? 'page' : null, onclick: function () { if (n[0] === 'money' || n[0] === 'assets' || n[0] === 'work' || n[0] === 'health') go('domain', { domain: n[0] }); else go(n[0]); } });
     }));
     root.appendChild(h('div', { class: 'app' },
@@ -7101,7 +8329,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   function screenMark() {
     var colls = null;
     if (view.name === 'domain') { if (view.domain === 'wellbeing') return null; colls = DOMAIN_COLLS[view.domain]; }
-    else if (view.name === 'dashboard' || view.name === 'settings' || view.name === 'memory' || view.name === 'private') return null;
+    else if (view.name === 'dashboard' || view.name === 'settings' || view.name === 'memory' || view.name === 'private' || view.name === 'business' || view.name === 'print') return null;
     var m = lockMark(colls === undefined ? null : colls);
     return m ? h('p', { class: 'small mut lockrow' }, m, ' Some private items are hidden.') : null;
   }
@@ -7199,6 +8427,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     built['rev-month'] = revMonthTile(s, t);
     built['rev-net-line'] = revNetLineCard(s, t);
     built['rev-expected'] = revExpectedTile(s, t);
+    built['tax-setaside'] = taxSetAsideMod(s); built['tax-next'] = taxNextMod(s); built['inv-open'] = invOpenMod(s); built['budget-pinned'] = budgetPinnedMod(s); built['payees-near'] = payeesNearMod(s);
     var due = L.metrics.dueRecurring(s, t).length;
     var w = L.layout.which(window.innerWidth), list = L.layout.get(s.settings, w);
     var mods = [];
@@ -7333,6 +8562,14 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       fs.push(field('Category (optional)', refs.category));
       refs.line = sel('f-line', lineOptions(s, '(no line of work)'), '');
       fs.push(field('Line of work (optional)', refs.line));
+      refs.scope = sel('f-scope', [{ v: '', t: 'Automatic (by line of work)' }, { v: 'business', t: 'Business' }, { v: 'personal', t: 'Personal' }], '');
+      fs.push(field('Business or personal', refs.scope));
+      if (tid === 'expense') {
+        refs.billable = h('input', { type: 'checkbox', id: 'f-billable' }); refs.reimb = h('input', { type: 'checkbox', id: 'f-reimb' }); refs.card = h('input', { type: 'checkbox', id: 'f-cardpaid' });
+        refs.payee = sel('f-payee', [{ v: '', t: '(no payee)' }].concat((s.payees || []).filter(function (x) { return !x.archived; }).map(function (x) { return { v: x.id, t: x.name }; })), '');
+        fs.push(h('label', { class: 'field check' }, refs.billable, h('span', { text: 'Billable to a client' })), h('label', { class: 'field check' }, refs.reimb, h('span', { text: 'Reimbursable' })),
+          field('Payee (1099 contractor)', refs.payee), h('label', { class: 'field check' }, refs.card, h('span', { text: 'Paid by card (left out of the 1099 total)' })));
+      }
       if (tid === 'income') {
         refs.mstatus = sel('f-mstatus', [{ v: 'received', t: 'Received' }, { v: 'expected', t: 'Expected (not counted until received)' }], 'received');
         refs.mdue = h('input', { type: 'date', id: 'f-mdue' });
@@ -7361,6 +8598,11 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
           if (refs.category && refs.category.value) p.category = refs.category.value;
           if (refs.line && refs.line.value) p.projectId = refs.line.value;
           if (refs.mstatus && refs.mstatus.value === 'expected') p.status = 'expected';
+          if (refs.scope && refs.scope.value) p.scope = refs.scope.value;
+          if (refs.billable && refs.billable.checked) p.billable = true;
+          if (refs.reimb && refs.reimb.checked) p.reimbursable = true;
+          if (refs.payee && refs.payee.value) p.payeeId = refs.payee.value;
+          if (refs.card && refs.card.checked && refs.payee && refs.payee.value) p.cardPaid = true;
           if (refs.mdue && refs.mdue.value) p.dueDate = refs.mdue.value;
           if (refs.person && refs.person.value.trim()) p.person = refs.person.value.trim();
           if (refs.due && refs.due.value) p.due = refs.due.value;
@@ -9856,7 +11098,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   var PRIV_LABEL = { entries: 'Entries', accounts: 'Accounts', recurring: 'Recurring items', budgets: 'Budgets', projects: 'Projects', pipeline: 'Pipeline', goals: 'Goals',
     maintenance: 'Maintenance', vehicles: 'Vehicles', properties: 'Properties', renewals: 'Renewals', documents: 'Documents', taxItems: 'Tax items', learningItems: 'Learning items',
     studySessions: 'Study sessions', takeaways: 'Takeaways', activities: 'Activities', people: 'People', groups: 'Groups', contacts: 'Logged contacts', habits: 'Daily checks',
-    habitLog: 'Daily check ticks', cycle: 'Training cycle' };
+    habitLog: 'Daily check ticks', cycle: 'Training cycle', invoices: 'Invoices', trips: 'Mileage trips', payees: 'Payees', taxPayments: 'Tax payments' };
   function privKey(c, r) { return c === 'cycle' ? 'cycle' : c === 'budgets' ? r.category : c === 'habitLog' ? r.habitId + '|' + r.date : r.id; }
   function privList(s, c) { return c === 'cycle' ? (s.cycle ? [s.cycle] : []) : (s[c] || []); }
   function privText(c, r, s) {
@@ -9869,6 +11111,9 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       case 'contacts': return r.date + ' ' + r.channel + (r.notes ? ' ' + String(r.notes).slice(0, 40) : '');
       case 'habitLog': return r.date + ' ' + ((s.habits || []).filter(function (x) { return x.id === r.habitId; })[0] || { name: 'check' }).name;
       case 'cycle': return 'Training cycle from ' + r.startDate;
+      case 'invoices': return 'Invoice ' + r.number;
+      case 'trips': return 'Trip ' + r.date + ', ' + r.miles + ' mi';
+      case 'taxPayments': return 'Tax payment ' + r.year + ' ' + r.jurisdiction + ' quarter ' + r.quarter;
       default: return r.title || r.name || r.id;
     }
   }
@@ -9964,12 +11209,12 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   }
   function privMoveDialog(s, c, r, dir) {
     var key = privKey(c, r), kids = L.priv.childrenOf(s, c, key);
-    var pair = (c === 'activities' && r.expenseId) || (c === 'entries' && privList(s, 'activities').some(function (a) { return a.expenseId === key; }));
+    var pair = (c === 'activities' && r.expenseId) || (c === 'entries' && privList(s, 'activities').some(function (a) { return a.expenseId === key; })) || (c === 'invoices' && r.incomeId) || (c === 'entries' && privList(s, 'invoices').some(function (a) { return a.incomeId === key; }));
     var chk = h('input', { type: 'checkbox', id: 'priv-kids', checked: true });
     openDialog({
       title: dir === 'in' ? 'Move to the private vault?' : 'Move out of the private vault?', yes: dir === 'in' ? 'Move in' : 'Move out',
       body: [h('p', { class: 'mut', text: dir === 'in' ? 'It disappears from every screen, total and export while the vault is closed.' : 'It becomes an ordinary item again, visible with the app unlocked.' }),
-        pair ? h('p', { class: 'small', id: 'priv-pair', text: 'An activity and its Money expense always move together.' }) : null,
+        pair ? h('p', { class: 'small', id: 'priv-pair', text: 'An activity and its Money expense, or an invoice and its income entry, always move together.' }) : null,
         c === 'habits' ? h('p', { class: 'small', text: 'Its ticks move with it.' }) : null,
         kids.length ? h('label', { class: 'row small' }, chk, h('span', { text: 'Also move ' + kids.length + ' linked ' + (kids.length === 1 ? 'item' : 'items') + ' (default)' })) : null],
       onYes: function () {
@@ -10340,7 +11585,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       }, field('Restore from a backup file (64 MB max)', bf), field('Backup passphrase', ip),
         h('button', { type: 'submit', class: 'btn', text: 'Import backup' }))));
 
-    out.push(h('p', { class: 'mut small', id: 'app-version', text: 'LifeOS v1.0.0' }));
+    out.push(h('p', { class: 'mut small', id: 'app-version', text: 'LifeOS v1.1.0' }));
 
     if (L.syncUI) out.push(L.syncUI.section(syncCtx()));
 
@@ -10620,6 +11865,480 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       card.appendChild(body);
     }
     return card;
+  }
+
+  // ---------- business, invoices and tax (v1.1.0) ----------
+  // Every tax view carries the same estimate line (L.tax.NOTICE). While the private vault is closed and holds a business record of the
+  // year, no tax figure is computed or shown (L.tax.compute refuses; the views show the lock marker and the refusal sentence).
+  var BZ_TABS = [['tax', 'Tax'], ['entries', 'Entries'], ['invoices', 'Invoices'], ['mileage', 'Mileage'], ['payees', 'Payees'], ['budgets', 'Budgets'], ['settings', 'Settings'], ['export', 'Export']];
+  function bzYear() { return view.year || Number(today().slice(0, 4)); }
+  function cents$(v, o) { return Math.round(parseAmount(v, o) * 100); }
+  function optCents$(v) { return String(v == null ? '' : v).trim() === '' ? null : cents$(v, { zero: true }); }
+  function dollarText(c) { return c === null || c === undefined ? '' : (c / 100).toFixed(2); }
+  function pctText(r) { return r === null || r === undefined ? '' : String(Math.round(r * 1e6) / 1e4); }
+  function pctToRate(v, optional) {
+    v = String(v == null ? '' : v).trim().replace(/%$/, '');
+    if (v === '' && optional) return null;
+    if (!/^\d{1,3}(\.\d{1,4})?$/.test(v) || Number(v) > 100) throw new Error('Enter a percentage like 22.5.');
+    return Math.round(Number(v) * 1e4) / 1e6;
+  }
+  function taxNotice() { return h('p', { class: 'small tax-notice', text: L.tax.NOTICE }); }
+  function lockedTax() { return h('p', { class: 'warn small tax-blocked', role: 'status' }, lockIcon('Some private items are hidden', 'lockmark'), ' ', L.tax.BLOCK_MESSAGE); }
+  function bzYearNav() {
+    var y = bzYear();
+    return h('div', { class: 'row sp' }, btn('Previous year', function () { view.year = y - 1; render(); }, 'sm', { id: 'bz-year-prev' }), h('strong', { id: 'bz-year', text: String(y) }), btn('Next year', function () { view.year = y + 1; render(); }, 'sm', { id: 'bz-year-next' }));
+  }
+  function bzGo(tab, extra) { view = Object.assign({ name: 'business', tab: tab, year: view.year }, extra || {}); notice = null; render(); }
+  function bzAct(fn, ok, audit) { return act(function () { return commit(fn, audit).then(function () { render(); }); }, ok); }
+  function bzLineName(s, id) { return id ? (projName(s, id) || 'Unknown line') : 'No line of work'; }
+  function bzMoney(s, c) { return c === null || c === undefined ? '-' : fmtC(s, c); }
+
+  function businessScreen(s) {
+    var tab = view.tab || 'tax';
+    var tabs = h('div', { class: 'chips bz-tabs', role: 'group', 'aria-label': 'Business sections' }, BZ_TABS.map(function (x) {
+      return h('button', { type: 'button', class: 'chipbtn', id: 'bz-tab-' + x[0], 'aria-pressed': x[0] === tab ? 'true' : 'false', text: x[1], onclick: function () { bzGo(x[0]); } });
+    }));
+    var fn = { tax: bzTax, entries: bzEntries, invoices: bzInvoices, mileage: bzMileage, payees: bzPayees, budgets: bzBudgets, settings: bzSettings, 'export': bzExport }[tab] || bzTax;
+    return h('div', { id: 'business' },
+      btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'),
+      h('div', { class: 'row sp' }, h('h1', { text: 'Business' }), lockMark(['entries', 'projects', 'invoices', 'trips', 'payees', 'taxPayments'])),
+      bzScopeBanner(s), tabs, fn(s));
+  }
+  // The migration to schema 12 leaves every entry as it is; the owner confirms the business and personal counts once.
+  function bzScopeBanner(s) {
+    if (s.settings.business.scopeConfirmed) return null;
+    var c = L.business.scopeCounts(s);
+    return h('div', { class: 'card', id: 'bz-scope-banner' }, h('h2', { text: 'Confirm business and personal entries' }),
+      h('p', { class: 'small', id: 'bz-scope-counts', text: 'Money entries marked business: ' + c.business + '. Marked personal: ' + c.personal + '. An entry on a venture, client, website or podcast line of work is business; everything else is personal. Change any entry under Entries.' }),
+      btn('Confirm these', function () { bzAct(function (x) { L.business.confirmScope(x); }, 'Confirmed.', 'scope confirmed'); }, 'pri', { id: 'bz-scope-confirm' }));
+  }
+
+  // ---- Tax ----
+  function bzTax(s) {
+    var y = bzYear(), t = L.tax.compute(s, y), out = [bzYearNav(), taxNotice()];
+    if (t.blocked) { out.push(lockedTax()); return out; }
+    var p = L.tax.profileOf(s, y);
+    if (!p) out.push(bzNoProfile(s, y));
+    var rate = function (c) { return c === null || c === undefined ? 'set your rate' : fmtC(s, c); };
+    out.push(h('div', { class: 'card', id: 'tx-card' }, h('h2', { text: 'Business profit, ' + y }),
+      h('div', { class: 'stats' }, stat('Business income received', fmtC(s, t.incomeCents), 'tx-income'), stat('Deductible expenses', fmtC(s, t.expenseCents), 'tx-expenses'), stat('Mileage deduction', fmtC(s, t.mileageCents), 'tx-mileage'), stat('Home office', fmtC(s, t.homeOfficeCents), 'tx-home')),
+      h('div', { class: 'stats' }, stat('Net business profit', fmtC(s, t.profitCents), 'tx-profit')),
+      t.homeOfficeLimited ? h('p', { class: 'small', id: 'tx-home-limited', text: 'Home office limited to ' + fmtC(s, t.homeOfficeCents) + ' of ' + fmtC(s, t.homeOfficeFullCents) + ': it cannot exceed business income less other business expenses.' }) : null,
+      t.unratedTrips ? h('p', { class: 'small', id: 'tx-unrated', text: t.unratedTrips + ' trip' + (t.unratedTrips === 1 ? ' has' : 's have') + ' no mileage rate for its date: set your rate. They deduct nothing.' }) : null,
+      t.unmapped.count ? h('p', { class: 'small', id: 'tx-unmapped', text: 'Unmapped: ' + t.unmapped.count + ' business expense' + (t.unmapped.count === 1 ? '' : 's') + ' totalling ' + fmtC(s, t.unmapped.cents) + ' have no tax line. They are counted in full. Map their categories under Settings.' }) : null));
+    if (p) {
+      var se = t.se;
+      out.push(h('div', { class: 'card', id: 'tx-est' }, h('h2', { text: 'Estimated tax, ' + y }),
+        h('div', { class: 'stats' }, stat('Self-employment tax', fmtC(s, se.totalCents), 'tx-se'), stat('Social Security part', fmtC(s, se.ssCents), 'tx-ss'), stat('Medicare part', fmtC(s, se.medicareCents), 'tx-medicare'), stat('Additional Medicare', fmtC(s, se.addlCents), 'tx-addl')),
+        h('div', { class: 'stats' }, stat('Half of SE tax, Social Security and Medicare parts only (reduces the federal income tax base)', fmtC(s, se.deductionCents), 'tx-half'), stat('Federal income tax base', fmtC(s, t.incomeBaseCents), 'tx-base'), stat('Federal income tax', rate(t.federalTaxCents), 'tx-fed'), stat('NJ income tax base (no SE deduction)', fmtC(s, t.njBaseCents), 'tx-nj-base'), stat('NJ income tax', rate(t.njTaxCents), 'tx-nj')),
+        se.belowMinimum ? h('p', { class: 'small', id: 'tx-se-min', text: 'Net earnings are under ' + fmtC(s, p.seMinNetEarningsCents) + ': no self-employment tax.' }) : null,
+        h('div', { class: 'stats' }, stat('Set aside to date', rate(t.setAsideCents), 'tx-setaside'), stat('Reserve account balance', t.reserveHidden ? 'hidden while the private vault is closed' : t.reserveCents === null ? 'no reserve account chosen' : fmtC(s, t.reserveCents), 'tx-reserve'),
+          stat('Set-aside gap', t.setAsideCents === null ? 'set your rate' : t.reserveHidden ? 'hidden while the private vault is closed' : t.gapCents === null ? 'no reserve account chosen' : fmtC(s, t.gapCents), 'tx-gap')),
+        h('div', { class: 'stats' }, stat('Federal paid', fmtC(s, t.payments.federal), 'tx-paid-fed'), stat('NJ paid', fmtC(s, t.payments.nj), 'tx-paid-nj'))));
+      out.push(bzSafeCard(s, t), bzPaymentsCard(s, y, t));
+    }
+    out.push(bzScheduleC(s, t));
+    if (p) out.push(bzProfileForm(s, y, p));
+    return out;
+  }
+  function bzNoProfile(s, y) {
+    var prop = null;
+    try { prop = L.tax.proposeYear(s, y); } catch (e) { prop = null; }
+    var def = L.tax.defaultProfile(y);
+    return h('div', { class: 'card', id: 'tx-noprofile' }, h('h2', { text: 'No ' + y + ' tax profile yet' }),
+      h('p', { class: 'small', text: 'Rates, thresholds, dates and holidays live in a profile for the year. Nothing is estimated until you start one. Effective income tax rates are yours to enter; until then the views say "set your rate".' }),
+      def ? btn('Start the ' + y + ' defaults', function () { bzAct(function (x) { L.tax.startDefaultYear(x, y); }, 'Profile started. Check each figure and enter your rates.', 'tax profile started'); }, 'pri', { id: 'pf-start' }) : null,
+      prop ? h('div', null, h('p', { class: 'small', id: 'pf-offer', text: 'Copy the ' + (L.tax.years(s).filter(function (v) { return v < y; }).pop()) + ' profile forward? It is offered, not applied: dates move one year and nothing else changes until you edit it.' }),
+        btn('Copy the earlier profile', function () { bzAct(function (x) { L.tax.applyNewYear(x, y); }, 'Profile copied. Check every figure.', 'tax profile copied'); }, 'pri', { id: 'pf-copy' })) : null);
+  }
+  function bzSafeCard(s, t) {
+    var sh = t.safeHarbor, rows = [];
+    function add(name, x) {
+      if (!x) return;
+      rows.push({ cells: [name, fmtC(s, x.priorBasedCents), x.currentBasedCents === null ? 'set your rate' : fmtC(s, x.currentBasedCents), fmtC(s, x.targetCents)].concat(x.installments.map(function (c) { return fmtC(s, c); }), [fmtC(s, x.paidCents), fmtC(s, x.remainingCents)]) });
+    }
+    add('Federal', sh.federal); add('NJ', sh.nj);
+    if (!rows.length) return h('div', { class: 'card', id: 'tx-safe' }, h('h2', { text: 'Safe-harbor targets' }), h('p', { class: 'mut small', text: 'Shown once you enter last year\'s federal or NJ tax in the profile below.' }));
+    return h('div', { class: 'card', id: 'tx-safe' }, h('h2', { text: 'Safe-harbor targets' }), tbl('safe-table', ['', 'Prior year basis', 'Current year basis', 'Target', 'Q1', 'Q2', 'Q3', 'Q4', 'Paid', 'Remaining'], rows));
+  }
+  function bzPaymentsCard(s, y, t) {
+    var jur = sel('pay-juris', [{ v: 'federal', t: 'Federal' }, { v: 'nj', t: 'NJ' }], 'federal');
+    var q = sel('pay-q', [1, 2, 3, 4].map(function (n) { return { v: String(n), t: 'Quarter ' + n }; }), '1');
+    var amt = h('input', { type: 'text', id: 'pay-amount', inputmode: 'decimal', maxlength: '14' });
+    var on = h('input', { type: 'date', id: 'pay-date', value: today(), required: true });
+    var conf = h('input', { type: 'text', id: 'pay-conf', maxlength: '100' });
+    var due = [];
+    ['federal', 'nj'].forEach(function (j) { t.due[j].forEach(function (d) { due.push({ cells: [j === 'nj' ? 'NJ' : 'Federal', 'Quarter ' + d.quarter, d.nominal === d.date ? d.date : d.date + ' (moved from ' + d.nominal + ')', fmtC(s, t.payments.byQuarter[j][d.quarter - 1])] }); }); });
+    due.push({ cells: ['1099-NEC filing', '', t.due.nec1099.nominal === t.due.nec1099.date ? t.due.nec1099.date : t.due.nec1099.date + ' (moved from ' + t.due.nec1099.nominal + ')', ''] });
+    var list = (s.taxPayments || []).filter(function (p) { return p.year === y; }).sort(function (a, b) { return a.paidOn.localeCompare(b.paidOn); });
+    return h('div', { class: 'card', id: 'tx-pay' }, h('h2', { text: 'Estimated payments and due dates' }),
+      tbl('due-table', ['For', 'Quarter', 'Due', 'Paid so far'], due),
+      list.map(function (p) {
+        return h('div', ROW({ class: 'item' }, 'taxPayments', p), h('div', null, h('div', { class: 'entry-t', text: (p.jurisdiction === 'nj' ? 'NJ' : 'Federal') + ' quarter ' + p.quarter + ': ' + fmtC(s, p.amountCents) }), h('div', { class: 'mut small', text: 'Paid ' + p.paidOn + (p.confirmation ? ' | ' + p.confirmation : '') })),
+          btn('Delete', function () { bzAct(function (x) { L.tax.deletePayment(x, p.id); }, 'Payment removed.', 'tax payment delete'); }, 'sm bad', { 'aria-label': 'Delete payment of ' + fmtC(s, p.amountCents) }));
+      }),
+      h('form', { onsubmit: function (e) {
+        e.preventDefault();
+        bzAct(function (x) { L.tax.addPayment(x, { year: y, jurisdiction: jur.value, quarter: Number(q.value), amountCents: cents$(amt.value), paidOn: on.value, confirmation: conf.value.trim() }); }, 'Payment logged.', 'tax payment add');
+      } }, field('For', jur), field('Quarter', q), field('Amount', amt), field('Paid on', on), field('Confirmation (optional)', conf), h('button', { type: 'submit', class: 'btn pri', text: 'Log payment' })));
+  }
+  function bzScheduleC(s, t) {
+    var rows = [{ cells: ['Gross receipts', '1', fmtC(s, t.incomeCents)] }];
+    t.lines.forEach(function (l) { rows.push({ cat: l.id, cells: [l.label, l.sc, fmtC(s, l.cents)] }); });
+    rows.push({ cat: 'unmapped', cells: ['Unmapped expenses', '', fmtC(s, t.unmapped.cents)] },
+      { cat: 'total', cells: ['Total deductions', '', fmtC(s, t.expenseCents + t.mileageCents + t.homeOfficeCents)] }, { cat: 'profit', cells: ['Net profit', '31', fmtC(s, t.profitCents)] },
+      { cat: 'reimbursed', cells: ['Reimbursed expenses (information only, already counted in full)', '', fmtC(s, t.reimbursedCents)] });
+    var lw = t.byLineOfWork, lr = function (r) { return { cells: [bzLineName(s, r.projectId), fmtC(s, r.incomeCents), fmtC(s, r.expenseCents), fmtC(s, r.mileageCents), fmtC(s, r.homeOfficeCents), fmtC(s, r.netCents)] }; };
+    var heads = ['Line of work', 'Income', 'Expenses', 'Mileage', 'Home office', 'Net'];
+    return h('div', { class: 'card', id: 'tx-sc' }, h('h2', { text: 'Schedule C summary, ' + t.year }),
+      tbl('sc-table', ['Line', 'Schedule C', 'Amount'], rows),
+      h('h3', { text: 'By line of work' }), h('p', { class: 'mut small', text: 'Each line of work is shown on its own so your accountant can decide whether it belongs on the same Schedule C. The app makes no such decision.' }),
+      tbl('sc-lines', heads, lw.lines.map(lr)),
+      lw.rollups.length ? [h('h3', { text: 'By parent rollup' }), tbl('sc-rollups', heads, lw.rollups.map(lr))] : null);
+  }
+  var PF_PCT = [['federalEffectiveRate', 'Federal effective income tax rate (%)', true], ['njEffectiveRate', 'NJ effective income tax rate (%)', true], ['ssRate', 'Social Security rate (%)'], ['medicareRate', 'Medicare rate (%)'], ['addlMedicareRate', 'Additional Medicare rate (%)'], ['seFactor', 'Share of profit subject to SE tax (%)']];
+  var PF_USD = [['ssWageBase', 'Social Security wage base ($)'], ['otherSsEarningsCents', 'W-2 wages already counted for Social Security and Medicare ($)'], ['seMinNetEarningsCents', 'No SE tax when net earnings are under ($)'], ['addlMedicareThreshold', 'Additional Medicare threshold ($)'], ['homeOfficeRate', 'Home office rate ($ per square foot)'], ['nec1099Threshold', '1099-NEC threshold ($)'], ['priorYearFederalTax', 'Prior-year federal tax ($, optional)', true], ['priorYearNjTax', 'Prior-year NJ tax ($, optional)', true]];
+  var PF_INT = [['homeOfficeMaxSqFt', 'Home office square-foot cap'], ['mealsPct', 'Meals deductible (%)'], ['seDeductionPct', 'Share of SE tax that reduces the income tax base (%)']];
+  var PF_SAFE = [['federalCurrentPct', 'Safe harbor, federal: share of current-year estimate (%)'], ['federalPriorPct', 'Safe harbor, federal: share of prior-year tax (%)'], ['federalPriorHighPct', 'Safe harbor, federal: share of prior-year tax with the AGI flag (%)'], ['njCurrentPct', 'Safe harbor, NJ: share of current-year tax (%)'], ['njPriorPct', 'Safe harbor, NJ: share of prior-year tax (%)']];
+  function bzProfileForm(s, y, p) {
+    var f = {};
+    f.fs = sel('pf-filing', L.tax.FILING.map(function (k) { return { v: k, t: L.tax.FILING_LABEL[k] }; }), p.filingStatus, function (e) {
+      var old = L.tax.THRESHOLD_BY_STATUS[p.filingStatus];
+      if (cents$(f.addlMedicareThreshold.value, { zero: true }) === old || true) f.addlMedicareThreshold.value = dollarText(L.tax.THRESHOLD_BY_STATUS[e.target.value]);
+    });
+    var inputs = [field('Filing status', f.fs)];
+    function box(k, label, val, opt) { f[k] = h('input', { type: 'text', id: 'pf-' + k, value: val, maxlength: '20', inputmode: 'decimal' }); inputs.push(field(label, f[k])); }
+    PF_PCT.forEach(function (x) { box(x[0], x[1], pctText(p[x[0]])); });
+    PF_USD.forEach(function (x) { box(x[0], x[1], dollarText(p[x[0]])); });
+    PF_INT.forEach(function (x) { box(x[0], x[1], String(p[x[0]])); });
+    PF_SAFE.forEach(function (x) { box(x[0], x[1], String(p.safeHarbor[x[0]])); });
+    f.agi = h('input', { type: 'checkbox', id: 'pf-priorYearAgiOver150k', checked: p.priorYearAgiOver150k });
+    inputs.push(h('label', { class: 'field check' }, f.agi, h('span', { text: 'Use the higher prior-year percentage (prior-year AGI flag)' })));
+    f.nec = h('input', { type: 'date', id: 'pf-nec1099Due', value: p.nec1099Due }); inputs.push(field('1099-NEC filing date before any weekend or holiday move', f.nec));
+    f.fd = p.dueDates.federal.map(function (d, i) { return h('input', { type: 'date', id: 'pf-fed' + (i + 1), value: d }); });
+    f.nd = p.dueDates.nj.map(function (d, i) { return h('input', { type: 'date', id: 'pf-nj' + (i + 1), value: d }); });
+    f.fd.forEach(function (n, i) { inputs.push(field('Federal estimate date, quarter ' + (i + 1), n)); });
+    f.nd.forEach(function (n, i) { inputs.push(field('NJ estimate date, quarter ' + (i + 1), n)); });
+    f.hol = h('textarea', { id: 'pf-holidays', rows: '4', maxlength: '2000' }); f.hol.value = p.holidays.join('\n');
+    f.mil = h('textarea', { id: 'pf-mileage', rows: '3', maxlength: '2000' }); f.mil.value = p.mileageRates.map(function (r) { return r.from + ', ' + r.centsPerMile + (r.note ? ', ' + r.note : ''); }).join('\n');
+    f.note = h('textarea', { id: 'pf-note', rows: '3', maxlength: '1200' }); f.note.value = p.sourceNote;
+    inputs.push(field('Holidays (one date per line; a due date on one moves to the next business day)', f.hol), field('Mileage rates (one per line: start date, cents per mile, note)', f.mil), field('Source note', f.note));
+    return details('pf-card', 'Tax profile for ' + y + ' (rates, thresholds, dates)', [
+      h('p', { class: 'mut small', id: 'pf-source', text: p.sourceNote }),
+      h('form', { id: 'pf-form', onsubmit: function (e) {
+        e.preventDefault();
+        bzAct(function (x) {
+          var o = { filingStatus: f.fs.value, safeHarbor: {}, dueDates: { federal: f.fd.map(function (n) { return n.value; }), nj: f.nd.map(function (n) { return n.value; }) } };
+          PF_PCT.forEach(function (k) { o[k[0]] = pctToRate(f[k[0]].value, k[2]); });
+          o.seRate = Math.round((Math.round(o.ssRate * 1e6) + Math.round(o.medicareRate * 1e6))) / 1e6;
+          PF_USD.forEach(function (k) { o[k[0]] = k[2] ? optCents$(f[k[0]].value) : cents$(f[k[0]].value, { zero: true }); });
+          PF_INT.forEach(function (k) { o[k[0]] = intIn(f[k[0]].value, 0, 100000, k[1]); });
+          PF_SAFE.forEach(function (k) { o.safeHarbor[k[0]] = intIn(f[k[0]].value, 0, 1000, k[1]); });
+          o.priorYearAgiOver150k = !!f.agi.checked; o.nec1099Due = f.nec.value;
+          o.holidays = f.hol.value.split(/\s+/).filter(Boolean);
+          o.mileageRates = f.mil.value.split('\n').map(function (l) { return l.trim(); }).filter(Boolean).map(function (l) {
+            var q = l.split(','); if (q.length < 2) throw new Error('A mileage rate line needs a start date and cents per mile.');
+            var r = { from: q[0].trim(), centsPerMile: Number(q[1].trim()) }; if (q.slice(2).join(',').trim()) r.note = q.slice(2).join(',').trim(); return r;
+          });
+          o.sourceNote = f.note.value;
+          L.tax.setProfile(x, y, o);
+        }, 'Profile saved.', 'tax profile saved');
+      } }, inputs, h('button', { type: 'submit', class: 'btn pri', id: 'pf-save', text: 'Save profile' }))], view.open === 'pf');
+  }
+
+  // ---- Entries: business or personal, billable, reimbursable, payee ----
+  function bzEntries(s) {
+    var y = bzYear(), biz = L.business.isBiz(s), ents = s.entries.filter(function (e) { return e.domain === 'money' && (e.type === 'income' || e.type === 'expense') && e.date.slice(0, 4) === String(y); })
+      .sort(function (a, b) { return b.date.localeCompare(a.date); });
+    var shown = view.shown || 40, payees = (s.payees || []).filter(function (x) { return !x.archived; });
+    var rows = ents.slice(0, shown).map(function (e) {
+      var isB = biz(e), kids = [];
+      kids.push(btn(isB ? 'Make personal' : 'Make business', function () { bzAct(function (x) { L.business.setScope(x, [e.id], isB ? 'personal' : 'business'); }, 'Updated.', 'entry scope'); }, 'sm', { 'aria-label': (isB ? 'Make personal: ' : 'Make business: ') + e.title }));
+      if (e.type === 'expense') {
+        kids.push(btn(e.billable ? 'Billable: on' : 'Billable: off', function () { bzAct(function (x) { x.entries.forEach(function (z) { if (z.id === e.id) { if (z.billedInvoiceId && z.billable) throw new Error('It is already on an invoice.'); if (z.billable) delete z.billable; else z.billable = true; } }); }, 'Updated.', 'entry billable'); }, 'sm', { 'aria-pressed': e.billable ? 'true' : 'false', 'aria-label': 'Toggle billable: ' + e.title }));
+        kids.push(btn(e.reimbursable ? 'Reimbursable: on' : 'Reimbursable: off', function () { bzAct(function (x) { x.entries.forEach(function (z) { if (z.id === e.id) { if (z.reimbursable) delete z.reimbursable; else z.reimbursable = true; } }); }, 'Updated.', 'entry reimbursable'); }, 'sm', { 'aria-pressed': e.reimbursable ? 'true' : 'false', 'aria-label': 'Toggle reimbursable: ' + e.title }));
+        var ps = sel(null, [{ v: '', t: '(no payee)' }].concat(payees.map(function (x) { return { v: x.id, t: x.name }; })), e.payeeId || '', function (ev) { var v = ev.target.value; bzAct(function (x) { L.business.assignPayee(x, e.id, v); }, 'Updated.', 'entry payee'); });
+        ps.setAttribute('aria-label', 'Payee for ' + e.title); ps.setAttribute('name', 'payee-' + e.id);
+        kids.push(ps);
+        if (e.payeeId) kids.push(btn(e.cardPaid ? 'Card payment: on' : 'Card payment: off', function () { bzAct(function (x) { L.business.assignPayee(x, e.id, e.payeeId, { cardPaid: !e.cardPaid }); }, 'Updated.', 'entry card paid'); }, 'sm', { 'aria-pressed': e.cardPaid ? 'true' : 'false', 'aria-label': 'Toggle card payment: ' + e.title }));
+      }
+      var line = L.tax.lineFor(s, e.category);
+      return h('div', ROW({ class: 'item', 'data-scope': isB ? 'business' : 'personal' }, 'entries', e), h('div', null, h('div', { class: 'entry-t', text: e.title }),
+        h('div', { class: 'mut small', text: e.date + ' | ' + (e.type === 'income' ? 'Income ' : 'Expense ') + fmtC(s, L.metrics.cents(e.value)) + ' | ' + (isB ? 'Business' : 'Personal') + (e.type === 'expense' && isB ? ' | ' + (line ? L.tax.lineById(line).label : 'Unmapped') : '') + (e.status ? ' | ' + e.status : '') })),
+        h('div', { class: 'row' }, kids));
+    });
+    return [bzYearNav(), h('div', { class: 'card', id: 'bz-entries' }, h('h2', { text: 'Money entries, ' + y }), h('p', { class: 'mut small', text: 'Business entries count toward the tax figures. Income counts when it is received. Billable and reimbursable expenses are shown gross: the invoice counts as income when received and the expense is deducted on its own line.' }),
+      rows.length ? rows : h('p', { class: 'mut', text: 'No money entries this year.' }), ents.length > shown ? btn('Show more', function () { view.shown = shown + 40; render(); }) : null)];
+  }
+
+  // ---- Invoices ----
+  function bzInvoices(s) {
+    if (view.invoiceId) { var inv = (s.invoices || []).filter(function (x) { return x.id === view.invoiceId; })[0]; if (inv) return bzInvoiceDetail(s, inv); }
+    var t = today(), ag = L.business.aging(s, t), tot = L.business.invoiceTotal;
+    var aging = h('div', { class: 'card', id: 'inv-aging' }, h('h2', { text: 'Receivables' }), h('div', { class: 'stats' }, stat('Open invoices', String(ag.openCount), 'inv-open-n'), stat('Open total', fmtC(s, ag.openCents), 'inv-open-total'), stat('Overdue', String(ag.overdueCount), 'inv-overdue-n', ag.overdueCount ? 'bad-t' : ''), stat('Overdue total', fmtC(s, ag.overdueCents), 'inv-overdue-total')),
+      tbl('inv-aging-table', ['Age past due', 'Invoices', 'Total'], L.business.BUCKETS.map(function (b) { return { cat: b[0], cells: [b[1], String(ag.buckets[b[0]].count), fmtC(s, ag.buckets[b[0]].cents)] }; })));
+    var line = sel('iv-line', lineOptions(s, '(no line of work)'), ''), issue = h('input', { type: 'date', id: 'iv-issue', value: t, required: true }), due = h('input', { type: 'date', id: 'iv-due', value: addDays(t, 30), required: true });
+    var num = h('input', { type: 'text', id: 'iv-number', maxlength: '40', placeholder: 'Next number: ' + safeNext(s, t) }), notes = h('input', { type: 'text', id: 'iv-notes', maxlength: '200' });
+    var ld = h('input', { type: 'text', id: 'iv-desc', maxlength: '200' }), lq = h('input', { type: 'text', id: 'iv-qty', value: '1', inputmode: 'decimal', maxlength: '9' }), lu = h('input', { type: 'text', id: 'iv-unit', inputmode: 'decimal', maxlength: '14' });
+    var form = h('form', { id: 'iv-form', onsubmit: function (e) {
+      e.preventDefault();
+      var made = null;
+      act(function () {
+        var lines = [];
+        if (ld.value.trim()) lines.push({ description: ld.value.trim(), qty: Number(lq.value), unitCents: cents$(lu.value, { zero: true }) });
+        return commit(function (x) { made = L.business.createInvoice(x, { projectId: line.value || undefined, issueDate: issue.value, dueDate: due.value, number: num.value.trim(), lines: lines, notes: notes.value.trim() }); }, 'invoice add').then(function () { setNotice('ok', 'Invoice added as a draft.'); bzGo('invoices', { invoiceId: made.id }); });
+      });
+    } }, field('Line of work (client)', line), field('Issue date', issue), field('Due date', due), field('Invoice number (blank uses your format)', num), field('First line description (optional)', ld), field('Quantity', lq), field('Unit price', lu), field('Notes (optional)', notes), h('button', { type: 'submit', class: 'btn pri', text: 'Add invoice' }));
+    var list = (s.invoices || []).slice().sort(function (a, b) { return b.issueDate.localeCompare(a.issueDate) || b.number.localeCompare(a.number); });
+    var rows = list.map(function (i) {
+      return h('div', ROW({ class: 'item', 'data-invoice': i.number }, 'invoices', i), h('div', null, h('div', { class: 'entry-t', text: i.number + ' | ' + fmtC(s, tot(i)) }),
+        h('div', { class: 'mut small' }, bzLineName(s, i.projectId) + ' | issued ' + i.issueDate + ' | due ' + i.dueDate + ' | ', chipEl(i.status, i.status === 'paid' ? 'ok' : i.status === 'sent' && i.dueDate < t ? 'bad' : ''))),
+        h('div', { class: 'row' }, btn('Open', function () { bzGo('invoices', { invoiceId: i.id }); }, 'sm', { 'aria-label': 'Open invoice ' + i.number })));
+    });
+    return [aging, h('div', { class: 'card' }, h('h2', { text: 'New invoice' }), form), h('div', { class: 'card', id: 'inv-list' }, h('h2', { text: 'Invoices (' + list.length + ')' }), rows.length ? rows : h('p', { class: 'mut', text: 'No invoices yet.' }))];
+  }
+  function safeNext(s, t) { try { return L.business.nextNumber(s, t).number; } catch (e) { return ''; } }
+  function bzInvoiceDetail(s, inv) {
+    var total = L.business.invoiceTotal(inv), t = today(), draft = inv.status === 'draft';
+    var income = inv.incomeId ? s.entries.filter(function (e) { return e.id === inv.incomeId; })[0] : null;
+    var lineRows = inv.lines.map(function (l, i) {
+      return h('div', { class: 'item' }, h('div', null, h('div', { class: 'entry-t', text: l.description }), h('div', { class: 'mut small', text: l.qty + ' x ' + fmtC(s, l.unitCents) + ' = ' + fmtC(s, L.business.lineTotal(l)) })),
+        draft ? btn('Remove line', function () { bzAct(function (x) { var v = x.invoices.filter(function (z) { return z.id === inv.id; })[0]; var ls = v.lines.slice(); ls.splice(i, 1); L.business.editDraft(x, inv.id, { lines: ls }); }, 'Line removed.', 'invoice line remove'); }, 'sm bad', { 'aria-label': 'Remove line ' + l.description }) : null);
+    });
+    var ld = h('input', { type: 'text', id: 'il-desc', maxlength: '200' }), lq = h('input', { type: 'text', id: 'il-qty', value: '1', inputmode: 'decimal', maxlength: '9' }), lu = h('input', { type: 'text', id: 'il-unit', inputmode: 'decimal', maxlength: '14' });
+    var addLine = draft ? h('form', { id: 'il-form', onsubmit: function (e) {
+      e.preventDefault();
+      bzAct(function (x) { var v = x.invoices.filter(function (z) { return z.id === inv.id; })[0]; L.business.editDraft(x, inv.id, { lines: v.lines.concat([{ description: ld.value.trim(), qty: Number(lq.value), unitCents: cents$(lu.value, { zero: true }) }]) }); }, 'Line added.', 'invoice line add');
+    } }, field('Description', ld), field('Quantity', lq), field('Unit price', lu), h('button', { type: 'submit', class: 'btn', text: 'Add line' })) : null;
+    var avail = draft ? L.business.unbilled(s, inv.projectId || null) : [];
+    var bill = draft ? h('div', { class: 'card', id: 'inv-billable' }, h('h3', { text: 'Unbilled billable expenses' }), avail.length ? avail.map(function (e) {
+      return h('div', { class: 'item' }, h('div', null, h('div', { class: 'entry-t', text: e.title }), h('div', { class: 'mut small', text: e.date + ' | ' + fmtC(s, L.metrics.cents(e.value)) })),
+        btn('Add to invoice', function () { bzAct(function (x) { L.business.addBillable(x, inv.id, e.id); }, 'Added. The expense keeps its own deduction.', 'invoice expense add'); }, 'sm', { 'aria-label': 'Add ' + e.title + ' to invoice' }));
+    }) : h('p', { class: 'mut small', text: 'None for this line of work.' })) : null;
+    var acts = [];
+    if (draft) acts.push(btn('Mark sent', function () { bzAct(function (x) { L.business.markSent(x, inv.id); }, 'Marked sent.', 'invoice sent'); }, 'pri', { id: 'inv-sent' }));
+    if (inv.status === 'sent' || draft) acts.push(btn('Mark paid', function () { markPaidDialog(inv); }, inv.status === 'sent' ? 'pri' : '', { id: 'inv-paid' }));
+    if (inv.status === 'draft' || inv.status === 'sent') acts.push(btn('Void', function () { openDialog({ title: 'Void invoice ' + inv.number + '?', yes: 'Void', danger: true, body: h('p', { class: 'mut', text: 'Its income entry is unlinked, never deleted. Billed expenses become unbilled again.' }), onYes: function () { return commit(function (x) { L.business.voidInvoice(x, inv.id); }, 'invoice void').then(render); } }); }, 'bad', { id: 'inv-void' }));
+    if (inv.status === 'draft' || inv.status === 'void') acts.push(btn('Delete', function () { openDialog({ title: 'Delete invoice ' + inv.number + '?', yes: 'Delete', danger: true, body: h('p', { class: 'mut', text: 'Billed expenses become unbilled again.' }), onYes: function () { return commit(function (x) { L.business.deleteInvoice(x, inv.id); }, 'invoice delete').then(function () { bzGo('invoices'); }); } }); }, 'bad', { id: 'inv-delete' }));
+    acts.push(btn('Print view', function () { go('print', { kind: 'invoice', id: inv.id, from: 'invoices' }); }, '', { id: 'inv-print' }));
+    // offers: nothing posts without a tap
+    var offers = [];
+    if (inv.status === 'sent' && !income && total > 0) offers.push(h('div', { class: 'card', id: 'inv-offer-income' }, h('p', { class: 'small', text: 'Offer: create one expected income entry of ' + fmtC(s, total) + ' due ' + inv.dueDate + '. It is not counted until it is received.' }),
+      btn('Create expected income', function () { bzAct(function (x) { L.business.createExpectedIncome(x, inv.id); }, 'Expected income created.', 'invoice expected income'); }, 'pri', { id: 'inv-make-income' })));
+    if (inv.status === 'paid' && !(income && income.type === 'income' && (!income.status || income.status === 'received')) && total > 0) offers.push(h('div', { class: 'card', id: 'inv-offer-received' }, h('p', { class: 'small', text: 'Offer: count ' + fmtC(s, total) + ' as business income received on ' + inv.paidOn + '. Income counts once, when it is received.' }),
+      btn('Mark income received', function () { bzAct(function (x) { L.business.settleIncome(x, inv.id); }, 'Income counted.', 'invoice income received'); }, 'pri', { id: 'inv-settle' })));
+    return h('div', { id: 'inv-detail', 'data-status': inv.status },
+      btn('Back to invoices', function () { bzGo('invoices'); }, 'sm back'),
+      h('div', { class: 'card' }, h('h2', { text: 'Invoice ' + inv.number }), h('p', { class: 'mut small', text: bzLineName(s, inv.projectId) + ' | issued ' + inv.issueDate + ' | due ' + inv.dueDate + (inv.paidOn ? ' | paid ' + inv.paidOn : '') }),
+        h('div', { class: 'row' }, chipEl(inv.status, inv.status === 'paid' ? 'ok' : ''), h('strong', { id: 'inv-total', text: fmtC(s, total) })),
+        inv.incomeId ? h('p', { class: 'mut small', id: 'inv-income-note', text: income ? 'Linked income entry: ' + (income.status || 'received') + '.' : 'The linked income entry no longer exists.' }) : null,
+        lineRows.length ? lineRows : h('p', { class: 'mut', text: 'No lines yet.' }), addLine, h('div', { class: 'row' }, acts)),
+      offers, bill);
+  }
+  function markPaidDialog(inv) {
+    var d = h('input', { type: 'date', id: 'ip-date', value: today(), required: true });
+    openDialog({ title: 'Mark invoice ' + inv.number + ' paid', yes: 'Mark paid', body: field('Date paid', d), onYes: function () { return commit(function (x) { L.business.markPaid(x, inv.id, d.value); }, 'invoice paid').then(render); } });
+  }
+
+  // ---- Mileage and home office ----
+  function bzMileage(s) {
+    var y = bzYear(), t = L.tax.compute(s, y), p = L.tax.profileOf(s, y);
+    if (t.blocked) return [bzYearNav(), taxNotice(), lockedTax()];
+    var trips = (s.trips || []).filter(function (x) { return x.date.slice(0, 4) === String(y); }).sort(function (a, b) { return b.date.localeCompare(a.date); });
+    var d = h('input', { type: 'date', id: 'tr-date', value: today(), required: true }), from = h('input', { type: 'text', id: 'tr-from', maxlength: '120' }), to = h('input', { type: 'text', id: 'tr-to', maxlength: '120' });
+    var mi = h('input', { type: 'text', id: 'tr-miles', inputmode: 'decimal', maxlength: '8' }), rt = h('input', { type: 'checkbox', id: 'tr-round' }), why = h('input', { type: 'text', id: 'tr-purpose', maxlength: '200' }), ln = sel('tr-line', lineOptions(s, '(no line of work)'), '');
+    var rows = trips.map(function (x) {
+      var c = p ? L.tax.tripCents(p, x) : null;
+      return h('div', ROW({ class: 'item' }, 'trips', x), h('div', null, h('div', { class: 'entry-t', text: x.date + ': ' + x.miles + ' mi' + (x.roundTrip ? ' (round trip)' : '') }), h('div', { class: 'mut small', text: (x.from || '-') + ' to ' + (x.to || '-') + (x.purpose ? ' | ' + x.purpose : '') + ' | ' + (c === null ? 'no mileage rate: set your rate' : fmtC(s, c)) })),
+        btn('Delete', function () { bzAct(function (z) { L.business.deleteTrip(z, x.id); }, 'Trip removed.', 'trip delete'); }, 'sm bad', { 'aria-label': 'Delete trip on ' + x.date }));
+    });
+    var ho = (s.homeOffice || {})[String(y)] || { squareFeet: 0, monthsUsed: 0 };
+    var sq = h('input', { type: 'text', id: 'ho-sqft', inputmode: 'numeric', value: String(ho.squareFeet), maxlength: '6' }), mo = h('input', { type: 'text', id: 'ho-months', inputmode: 'numeric', value: String(ho.monthsUsed), maxlength: '2' });
+    return [bzYearNav(), taxNotice(),
+      h('div', { class: 'card', id: 'mi-card' }, h('h2', { text: 'Mileage log, ' + y }), h('div', { class: 'stats' }, stat('Trips', String(t.tripCount), 'mi-count'), stat('Mileage deduction', fmtC(s, t.mileageCents), 'mi-total')),
+        !p ? h('p', { class: 'small', id: 'mi-norate', text: 'Start the ' + y + ' tax profile to price trips: set your rate.' }) : (!p.mileageRates.length ? h('p', { class: 'small', id: 'mi-norate', text: 'The profile has no mileage rate: set your rate. Trips deduct nothing until then.' }) : null),
+        h('p', { class: 'mut small', text: 'Trip text stays in the vault only. Each trip is priced by the rate period that contains its date.' }),
+        rows.length ? rows : h('p', { class: 'mut', text: 'No trips this year.' }),
+        h('form', { id: 'tr-form', onsubmit: function (e) {
+          e.preventDefault();
+          bzAct(function (x) { L.business.addTrip(x, { date: d.value, from: from.value.trim(), to: to.value.trim(), miles: mi.value, purpose: why.value.trim(), projectId: ln.value || undefined, roundTrip: rt.checked }); }, 'Trip logged.', 'trip add');
+        } }, field('Date', d), field('From', from), field('To', to), field('Miles (one decimal)', mi), h('label', { class: 'field check' }, rt, h('span', { text: 'Round trip (counts the miles twice)' })), field('Purpose', why), field('Line of work (optional)', ln), h('button', { type: 'submit', class: 'btn pri', text: 'Log trip' }))),
+      h('div', { class: 'card', id: 'ho-card' }, h('h2', { text: 'Home office, simplified method, ' + y }),
+        p ? h('p', { class: 'mut small', text: 'Rate ' + fmtC(s, p.homeOfficeRate) + ' per square foot, up to ' + p.homeOfficeMaxSqFt + ' square feet, from the profile.' }) : h('p', { class: 'small', text: 'Start the ' + y + ' tax profile for the rate and the square-foot cap.' }),
+        h('div', { class: 'stats' }, stat('Home office deduction', fmtC(s, t.homeOfficeCents), 'ho-result')),
+        h('form', { id: 'ho-form', onsubmit: function (e) {
+          e.preventDefault();
+          bzAct(function (x) { L.business.setHomeOffice(x, y, { squareFeet: intIn(sq.value, 0, 100000, 'Square feet'), monthsUsed: intIn(mo.value, 0, 12, 'Months used') }); }, 'Home office saved.', 'home office saved');
+        } }, field('Square feet used for business', sq), field('Months used (0 to 12)', mo), h('button', { type: 'submit', class: 'btn pri', id: 'ho-save', text: 'Save home office' })))];
+  }
+
+  // ---- Payees (1099-NEC) ----
+  function bzPayees(s) {
+    var y = bzYear(), pt = L.tax.payeeTotals(s, y);
+    var out = [bzYearNav(), taxNotice()];
+    if (pt.blocked) { out.push(lockedTax()); return out; }
+    var nm = h('input', { type: 'text', id: 'pe-name', maxlength: '120' }), w9 = h('input', { type: 'checkbox', id: 'pe-w9' }), w9d = h('input', { type: 'date', id: 'pe-w9date' });
+    var byId = {}; pt.rows.forEach(function (r) { byId[r.payeeId] = r; });
+    var rows = (s.payees || []).filter(function (x) { return !x.archived; }).map(function (x) {
+      var r = byId[x.id] || { totalCents: 0, cardCents: 0, reaches: false };
+      return h('div', ROW({ class: 'item', 'data-payee-total': String(r.totalCents) }, 'payees', x), h('div', null, h('div', { class: 'entry-t', text: x.name }),
+        h('div', { class: 'mut small' }, 'Year total ' + fmtC(s, r.totalCents) + (r.cardCents ? ' (card payments ' + fmtC(s, r.cardCents) + ' excluded)' : '') + ' | W-9 ' + (x.tinOnFile ? (x.w9Date || 'on file') : 'not on file') + ' ', r.reaches ? chipEl('At or over the threshold', 'bad') : null)),
+        h('div', { class: 'row' }, btn(x.tinOnFile ? 'W-9: on file' : 'W-9: not on file', function () { bzAct(function (z) { L.business.updatePayee(z, x.id, { tinOnFile: !x.tinOnFile }); }, 'Updated.', 'payee w9'); }, 'sm', { 'aria-pressed': x.tinOnFile ? 'true' : 'false', 'aria-label': 'Toggle W-9 for ' + x.name }),
+          btn('Delete', function () { openDialog({ title: 'Delete ' + x.name + '?', yes: 'Delete', danger: true, body: h('p', { class: 'mut', text: 'Their expenses are kept and unlinked.' }), onYes: function () { return commit(function (z) { L.business.deletePayee(z, x.id); }, 'payee delete').then(render); } }); }, 'sm bad', { 'aria-label': 'Delete payee ' + x.name })));
+    });
+    out.push(h('div', { class: 'card', id: 'pe-card' }, h('h2', { text: '1099-NEC payees, ' + y }),
+      pt.hasProfile ? h('p', { class: 'small', id: 'pe-threshold', text: 'Threshold ' + fmtC(s, pt.thresholdCents) + '. Filing reminder ' + pt.due.date + (pt.due.date !== pt.due.nominal ? ' (moved from ' + pt.due.nominal + ')' : '') + '.' }) : h('p', { class: 'small', text: 'Start the ' + y + ' tax profile for the threshold.' }),
+      h('p', { class: 'mut small', text: 'A payee\'s tax ID is never stored, only whether a W-9 is on file. Pay with a card? Mark the expense as a card payment so it is left out of the 1099 total.' }),
+      rows.length ? rows : h('p', { class: 'mut', text: 'No payees yet.' }),
+      h('form', { id: 'pe-form', onsubmit: function (e) {
+        e.preventDefault();
+        bzAct(function (x) { L.business.addPayee(x, { name: nm.value, tinOnFile: w9.checked, w9Date: w9d.value || undefined }); }, 'Payee added.', 'payee add');
+      } }, field('Name', nm), h('label', { class: 'field check' }, w9, h('span', { text: 'A W-9 is on file' })), field('W-9 date (optional)', w9d), h('button', { type: 'submit', class: 'btn pri', text: 'Add payee' }))));
+    return out;
+  }
+
+  // ---- Budgets ----
+  function bzBudgets(s) {
+    var t = today(), lines = liveLines(s), cur = s.settings.currency;
+    var ln = sel('bd-line', lineOptions(s, '(choose a line)'), ''), amt = h('input', { type: 'text', id: 'bd-amount', inputmode: 'decimal', maxlength: '14' }), per = sel('bd-period', [{ v: 'month', t: 'Per month' }, { v: 'project', t: 'For the project' }], 'month');
+    var stateText = function (b) { return b.budgetCents === null ? 'no budget' : fmtC(s, b.actualCents) + ' of ' + fmtC(s, b.budgetCents) + (b.period === 'month' ? ' this month' : ' to date'); };
+    var rows = lines.filter(function (p) { return p.budgetCents !== undefined; }).map(function (p) {
+      var b = L.business.budgetFor(s, p.id, t);
+      return h('div', ROW({ class: 'item', 'data-budget-status': b.status }, 'projects', p), h('div', null, h('div', { class: 'entry-t', text: p.name }), h('div', { class: 'small ' + (b.status === 'over' ? 'bad-t' : 'mut'), text: stateText(b) })), btn('Remove budget', function () { bzAct(function (x) { L.business.setBudget(x, p.id, 0); }, 'Budget removed.', 'budget remove'); }, 'sm', { 'aria-label': 'Remove budget for ' + p.name }));
+    });
+    var roll = lines.filter(function (p) { return !p.parentId && (s.projects || []).some(function (k) { return k.parentId === p.id; }); }).map(function (p) {
+      var b = L.business.budgetRollup(s, p.id, t);
+      return h('div', { class: 'item', 'data-rollup': p.id, 'data-budget-status': b.status }, h('div', null, h('div', { class: 'entry-t', text: p.name + ' (with the lines under it)' }), h('div', { class: 'small ' + (b.status === 'over' ? 'bad-t' : 'mut'), text: stateText(b) })));
+    });
+    var un = lines.map(function (p) { return { p: p, items: L.business.unbilled(s, p.id) }; }).filter(function (x) { return x.items.length; });
+    var drafts = (s.invoices || []).filter(function (i) { return i.status === 'draft'; });
+    return [h('div', { class: 'card', id: 'bd-card' }, h('h2', { text: 'Project budgets' }), h('p', { class: 'mut small', text: 'Actual is the line\'s expenses: this month for a monthly budget, all time for a project budget. Over budget changes the colour only.' }),
+      rows.length ? rows : h('p', { class: 'mut', text: 'No budgets yet.' }), roll.length ? [h('h3', { text: 'Parent rollups' }), roll] : null,
+      h('form', { id: 'bd-form', onsubmit: function (e) { e.preventDefault(); bzAct(function (x) { if (!ln.value) throw new Error('Choose a line of work.'); L.business.setBudget(x, ln.value, cents$(amt.value, { zero: true }), per.value); }, 'Budget saved.', 'budget set'); } },
+        field('Line of work', ln), field('Budget (0 removes it)', amt), field('Period', per), h('button', { type: 'submit', class: 'btn pri', text: 'Save line budget' }))),
+      h('div', { class: 'card', id: 'bd-unbilled' }, h('h2', { text: 'Unbilled billable expenses' }), un.length ? un.map(function (x) {
+        var ds = drafts.filter(function (i) { return !i.projectId || i.projectId === x.p.id; });
+        return h('div', null, h('h3', { text: x.p.name }), x.items.map(function (e) {
+          var pick = sel(null, ds.map(function (i) { return { v: i.id, t: i.number }; }), ds.length ? ds[0].id : '');
+          pick.setAttribute('aria-label', 'Draft invoice for ' + e.title); pick.setAttribute('name', 'bd-draft-' + e.id);
+          return h('div', { class: 'item' }, h('div', null, h('div', { class: 'entry-t', text: e.title }), h('div', { class: 'mut small', text: e.date + ' | ' + fmtC(s, L.metrics.cents(e.value)) })),
+            ds.length ? h('div', { class: 'row' }, pick, btn('Add to invoice', function () { bzAct(function (z) { L.business.addBillable(z, pick.value, e.id); }, 'Added to the invoice.', 'invoice expense add'); }, 'sm', { 'aria-label': 'Add ' + e.title + ' to the chosen invoice' })) : h('span', { class: 'mut small', text: 'Add a draft invoice first.' }));
+        }));
+      }) : h('p', { class: 'mut', text: 'Nothing waiting to be billed.' }))];
+  }
+
+  // ---- Settings: business details, invoice numbers, reserve account, pinned line, tax line map ----
+  function bzSettings(s) {
+    var b = s.settings.business;
+    var nm = h('input', { type: 'text', id: 'bs-name', value: b.name, maxlength: '120' }), ad = h('textarea', { id: 'bs-address', rows: '3', maxlength: '300' }), tm = h('textarea', { id: 'bs-terms', rows: '2', maxlength: '300' });
+    ad.value = b.address; tm.value = b.paymentTerms;
+    var fm = h('input', { type: 'text', id: 'bs-format', value: b.invoiceFormat, maxlength: '40' }), nx = h('input', { type: 'text', id: 'bs-next', value: String(b.invoiceNext), inputmode: 'numeric', maxlength: '10' });
+    var accts = (s.accounts || []).filter(function (a) { return !a.archived && !a.liability; });
+    var rs = sel('bs-reserve', [{ v: '', t: '(none)' }].concat(accts.map(function (a) { return { v: a.id, t: a.name }; })), b.reserveAccountId || '');
+    var pn = sel('bs-pinned', lineOptions(s, '(none)'), b.pinnedProjectId || '');
+    var cats = (s.categories.expense || []), lineOpts = [{ v: '', t: '(default by name)' }].concat(L.tax.MAPPABLE.map(function (id) { return { v: id, t: L.tax.lineById(id).label }; }));
+    var missing = L.tax.DEFAULT_CATEGORY_LINES.filter(function (x) { return !cats.some(function (c) { return c.toLowerCase() === x[0].toLowerCase(); }); });
+    var maps = cats.map(function (c) {
+      var cur = (s.taxMap || []).filter(function (x) { return x.category.toLowerCase() === c.toLowerCase(); })[0];
+      var ls = sel(null, lineOpts, cur ? cur.line : '', function (e) { var v = e.target.value; bzAct(function (x) { L.tax.setLineMap(x, c, v); }, 'Mapping saved.', 'tax line map'); });
+      ls.setAttribute('aria-label', 'Tax line for ' + c); ls.setAttribute('name', 'map-' + c);
+      var eff = L.tax.lineFor(s, c);
+      return h('div', { class: 'item' }, h('div', null, h('div', { class: 'entry-t', text: c }), h('div', { class: 'mut small', text: eff ? 'Schedule C: ' + L.tax.lineById(eff).label : 'Unmapped in tax views' })), ls);
+    });
+    return [h('div', { class: 'card', id: 'bs-card' }, h('h2', { text: 'Business details and invoices' }),
+      h('form', { id: 'bs-form', onsubmit: function (e) {
+        e.preventDefault();
+        bzAct(function (x) { L.business.saveSettings(x, { name: nm.value, address: ad.value, paymentTerms: tm.value, invoiceFormat: fm.value, invoiceNext: intIn(nx.value, 1, 1e9, 'Next invoice number'), reserveAccountId: rs.value, pinnedProjectId: pn.value }); }, 'Saved.', 'business settings');
+      } }, field('Business name', nm), field('Address', ad), field('Payment terms', tm), field('Invoice number format ({YYYY}, {YY}, {NNNN} for the counter)', fm), field('Next counter', nx),
+        field('Tax reserve account', rs), field('Pinned line of work (dashboard budget module)', pn), h('button', { type: 'submit', class: 'btn pri', id: 'bs-save', text: 'Save business settings' }))),
+      h('div', { class: 'card', id: 'bs-map' }, h('h2', { text: 'Expense categories and Schedule C lines' }),
+        h('p', { class: 'mut small', text: 'Car and truck and the home office come from their logs only. A business expense whose category has no line shows as Unmapped in tax views and is still counted.' }),
+        missing.length ? btn('Add the business categories', function () { bzAct(function (x) { missing.forEach(function (m) { if (x.categories.expense.length < 50) x.categories.expense.push(m[0]); }); }, 'Categories added.', 'business categories'); }, '', { id: 'bs-addcats' }) : null,
+        maps)];
+  }
+
+  // ---- Export ----
+  // SEC-78: private records stay out of the file unless "Include private records" is ticked (default off, offered only while the vault is open).
+  function bzExport(s) {
+    var y = bzYear(), inc = !!view.exPriv && L.priv.isOpen(), pkg = L.tax.exportPackage(s, y, inc), out = [bzYearNav(), taxNotice()];
+    var tick = L.priv.isOpen() ? h('label', { class: 'field check' }, h('input', { type: 'checkbox', id: 'ex-private', checked: inc, onchange: function (e) { view.exPriv = e.target.checked; render(); } }), h('span', { text: 'Include private records' })) : null;
+    if (pkg.blocked) { out.push(tick, pkg.leftOut ? h('p', { class: 'warn small', id: 'ex-left-out', role: 'status' }, lockIcon('Some private items are hidden', 'lockmark'), ' ', pkg.message) : lockedTax()); return out; }
+    out.push(h('div', { class: 'card', id: 'ex-card' }, h('h2', { text: 'Year-end accountant package, ' + y }),
+      h('p', { class: 'warn small', id: 'ex-warning', text: L.tax.EXPORT_WARNING }), tick,
+      h('p', { class: 'small', id: 'ex-private-note', text: pkg.privateIncluded ? 'Private records are included in this file.' : 'Private records are not included. No business record of this year is private, so the totals are complete.' }),
+      h('p', { class: 'mut small', text: pkg.income.length + ' income entries, ' + pkg.expenses.length + ' expenses, ' + pkg.trips.length + ' trips, ' + pkg.payees.length + ' payees, ' + pkg.payments.length + ' payments. The file goes to your device only. Nothing is sent anywhere.' }),
+      h('div', { class: 'row' }, btn('Download CSV', function () {
+        openDialog({ title: 'Download an unencrypted file?', yes: 'Download', body: h('p', { id: 'ex-confirm-text', text: L.tax.EXPORT_WARNING }), onYes: function () {
+          var again = L.tax.exportPackage(st(), y, inc && L.priv.isOpen());
+          if (again.blocked) throw new Error(again.message || L.tax.BLOCK_MESSAGE);
+          download('lifeos-accountant-' + y + '.csv', L.tax.exportCsv(again, function (id) { return id ? projName(st(), id) : 'No line of work'; }), 'text/csv');
+        } });
+      }, 'pri', { id: 'ex-download' }), btn('Open print view', function () { go('print', { kind: 'tax', year: y, from: 'export', includePrivate: inc }); }, '', { id: 'ex-print' }))));
+    return out;
+  }
+
+  // ---- print views (no network; the browser prints to PDF) ----
+  function printScreen(s) {
+    var back = btn('Back', function () { if (view.kind === 'invoice') bzGo('invoices', { invoiceId: view.id }); else bzGo('export', { year: view.year }); }, 'sm back noprint', { id: 'pv-back' });
+    var pbtn = btn('Print', function () { window.print(); }, 'pri noprint', { id: 'pv-print' });
+    if (view.kind === 'invoice') {
+      var inv = (s.invoices || []).filter(function (x) { return x.id === view.id; })[0];
+      if (!inv) return h('div', null, back, h('p', { text: 'That invoice no longer exists.' }));
+      var b = s.settings.business, total = L.business.invoiceTotal(inv);
+      return h('div', { class: 'printview', id: 'print-invoice' }, h('div', { class: 'row noprint' }, back, pbtn),
+        h('h1', { text: 'Invoice ' + inv.number }), h('p', { class: 'pv-from' }, h('strong', { text: b.name || 'Your business' }), h('br'), b.address),
+        h('p', { text: 'Bill to: ' + (inv.projectId ? bzLineName(s, inv.projectId) : '') }), h('p', { text: 'Issued ' + inv.issueDate + '. Due ' + inv.dueDate + '.' + (inv.paidOn ? ' Paid ' + inv.paidOn + '.' : '') }),
+        tbl('pv-lines', ['Description', 'Quantity', 'Unit price', 'Amount'], inv.lines.map(function (l) { return { cells: [l.description, String(l.qty), fmtC(s, l.unitCents), fmtC(s, L.business.lineTotal(l))] }; })),
+        h('p', null, h('strong', { id: 'pv-total', text: 'Total ' + fmtC(s, total) })), b.paymentTerms ? h('p', { text: 'Payment terms: ' + b.paymentTerms }) : null, inv.notes ? h('p', { text: inv.notes }) : null);
+    }
+    var y = view.year || bzYear(), pkg = L.tax.exportPackage(s, y, !!view.includePrivate && L.priv.isOpen());
+    if (pkg.blocked) return h('div', { class: 'printview' }, h('div', { class: 'row noprint' }, back), taxNotice(), pkg.leftOut ? h('p', { class: 'warn small', role: 'status', text: pkg.message }) : lockedTax());
+    var t = pkg.summary, rows = [{ cells: ['Gross receipts', fmtC(s, t.incomeCents)] }].concat(t.lines.map(function (l) { return { cells: [l.label, fmtC(s, l.cents)] }; }), [{ cells: ['Unmapped expenses', fmtC(s, t.unmapped.cents)] }, { cells: ['Net profit', fmtC(s, t.profitCents)] }, { cells: ['Reimbursed expenses (information only)', fmtC(s, t.reimbursedCents)] }]);
+    return h('div', { class: 'printview', id: 'print-tax' }, h('p', { class: 'warn small', id: 'pv-warning', text: L.tax.EXPORT_WARNING }), h('div', { class: 'row noprint' }, back, pbtn), h('h1', { text: 'Accountant package, ' + y }), taxNotice(), h('p', { class: 'small', id: 'pv-private', text: pkg.privateIncluded ? 'Private records are included.' : 'Private records are not included (none of this year).' }),
+      h('h2', { text: 'Schedule C summary' }), tbl('pv-sc', ['Line', 'Amount'], rows),
+      h('h2', { text: 'By line of work' }), tbl('pv-lw', ['Line of work', 'Income', 'Expenses', 'Mileage', 'Home office', 'Net'], t.byLineOfWork.lines.concat(t.byLineOfWork.rollups).map(function (r) { return { cells: [bzLineName(s, r.projectId) + (t.byLineOfWork.rollups.indexOf(r) >= 0 ? ' (rollup)' : ''), fmtC(s, r.incomeCents), fmtC(s, r.expenseCents), fmtC(s, r.mileageCents), fmtC(s, r.homeOfficeCents), fmtC(s, r.netCents)] }; })),
+      h('h2', { text: '1099-NEC payees' }), tbl('pv-payees', ['Payee', 'Total', 'Card payments', 'W-9'], pkg.payees.map(function (x) { return { cells: [x.name, fmtC(s, x.totalCents), fmtC(s, x.cardCents), x.w9] }; })),
+      h('h2', { text: 'Mileage log' }), tbl('pv-trips', ['Date', 'From', 'To', 'Miles', 'Purpose', 'Deduction'], pkg.trips.map(function (x) { return { cells: [x.date, x.from, x.to, String(x.miles), x.purpose, x.cents === null ? 'no rate' : fmtC(s, x.cents)] }; })),
+      h('h2', { text: 'Estimated payments' }), tbl('pv-pay', ['For', 'Quarter', 'Amount', 'Paid on'], pkg.payments.map(function (x) { return { cells: [x.jurisdiction === 'nj' ? 'NJ' : 'Federal', String(x.quarter), fmtC(s, x.amountCents), x.paidOn] }; })));
+  }
+
+  // ---- dashboard modules ----
+  function bzModLock(title) { return h('div', { class: 'card' }, h('h2', { text: title }), lockedTax()); }
+  function taxSetAsideMod(s) {
+    var y = Number(today().slice(0, 4)), t = L.tax.compute(s, y);
+    if (t.blocked) return bzModLock('Tax set-aside');
+    if (!t.hasProfile) return h('div', { class: 'card', id: 'mod-taxset' }, h('h2', { text: 'Tax set-aside' }), h('p', { class: 'mut small', text: 'No ' + y + ' tax profile yet.' }), btn('Open Business', function () { go('business'); }, 'sm'));
+    return h('div', { class: 'card', id: 'mod-taxset' }, h('h2', { text: 'Tax set-aside' }),
+      h('div', { class: 'stats' }, stat('Set aside to date', t.setAsideCents === null ? 'set your rate' : fmtC(s, t.setAsideCents), 'mod-setaside'), stat('Reserve', t.reserveHidden ? 'hidden while the private vault is closed' : t.reserveCents === null ? 'no reserve account' : fmtC(s, t.reserveCents), 'mod-reserve'), stat('Gap', t.gapCents === null ? '-' : fmtC(s, t.gapCents), 'mod-gap')), taxNotice());
+  }
+  function taxNextMod(s) {
+    var t = today(), best = null, blockedAny = false;
+    L.tax.years(s).forEach(function (y) {
+      var c = L.tax.compute(s, y);
+      if (c.blocked) { if (y >= Number(t.slice(0, 4)) - 1) blockedAny = true; return; }
+      ['federal', 'nj'].forEach(function (j) { c.due[j].forEach(function (d) { if (d.date >= t && c.payments.byQuarter[j][d.quarter - 1] === 0 && (!best || d.date < best.date)) best = { date: d.date, j: j, q: d.quarter, y: y }; }); });
+    });
+    // SEC-81: a refused year could hold an earlier unpaid date, so the module refuses rather than show a later one as "next".
+    if (blockedAny) return bzModLock('Next estimated payment');
+    return h('div', { class: 'card', id: 'mod-taxnext' }, h('h2', { text: 'Next estimated payment' }), best ? h('p', { id: 'mod-taxnext-date', text: best.date + ': ' + (best.j === 'nj' ? 'NJ' : 'Federal') + ' quarter ' + best.q + ' of ' + best.y }) : h('p', { class: 'mut small', text: 'No unpaid estimate dates ahead.' }), taxNotice());
+  }
+  function invOpenMod(s) {
+    var ag = L.business.aging(s, today());
+    return h('div', { class: 'card', id: 'mod-inv' }, h('h2', null, 'Open invoices ', lockMark(['invoices'])), h('div', { class: 'stats' }, stat('Open', String(ag.openCount), 'mod-inv-n'), stat('Total', fmtC(s, ag.openCents), 'mod-inv-total'), stat('Overdue', String(ag.overdueCount), 'mod-inv-overdue')),
+      L.business.BUCKETS.map(function (b) { return h('p', { class: 'mut small', text: b[1] + ': ' + ag.buckets[b[0]].count + ' (' + fmtC(s, ag.buckets[b[0]].cents) + ')' }); }), btn('Open invoices', function () { bzGo('invoices'); }, 'sm'));
+  }
+  function budgetPinnedMod(s) {
+    var id = s.settings.business.pinnedProjectId, p = id ? (s.projects || []).filter(function (x) { return x.id === id; })[0] : null;
+    if (!p) return h('div', { class: 'card', id: 'mod-budget' }, h('h2', null, 'Budget vs actual ', lockMark(['projects'])), h('p', { class: 'mut small', text: 'Pin a line of work under Business, Settings.' }));
+    var b = L.business.budgetFor(s, p.id, today());
+    return h('div', { class: 'card', id: 'mod-budget', 'data-budget-status': b.status }, h('h2', null, 'Budget: ' + p.name + ' ', lockMark(['entries', 'projects'])), b.budgetCents === null ? h('p', { class: 'mut small', text: 'No budget set.' }) : h('p', { class: b.status === 'over' ? 'bad-t' : '', text: fmtC(s, b.actualCents) + ' of ' + fmtC(s, b.budgetCents) + (b.period === 'month' ? ' this month' : ' to date') }));
+  }
+  function payeesNearMod(s) {
+    var y = Number(today().slice(0, 4)), pt = L.tax.payeeTotals(s, y);
+    if (pt.blocked) return bzModLock('1099 payees');
+    var nm = {}; (s.payees || []).forEach(function (x) { nm[x.id] = x.name; });
+    return h('div', { class: 'card', id: 'mod-payees' }, h('h2', { text: '1099 payees, ' + y }), pt.hasProfile ? null : h('p', { class: 'mut small', text: 'No ' + y + ' tax profile yet.' }),
+      pt.rows.slice(0, 5).map(function (r) { return h('p', { class: r.reaches ? 'bad-t small' : 'small', text: nm[r.payeeId] + ': ' + fmtC(s, r.totalCents) + (pt.hasProfile ? ' of ' + fmtC(s, pt.thresholdCents) : '') }); }), pt.rows.length ? null : h('p', { class: 'mut small', text: 'No payees with payments this year.' }));
   }
 
   // ---------- boot ----------

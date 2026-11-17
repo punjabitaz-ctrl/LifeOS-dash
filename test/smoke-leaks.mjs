@@ -182,6 +182,39 @@ async function run(label, viewport) {
       const audit = await page.evaluate(() => JSON.stringify(globalThis.LifeOS.store.getState().audit));
       if (!audit.includes('ledger import')) throw new Error('ledger import not in the audit log');
     });
+    await step('Business (v1.1.0): every tab, the invoice, both print views, the export dialog and the review prompt hold no marker outside the screens', async () => {
+      await page.evaluate(`(async () => {
+        const L = globalThis.LifeOS, M = ${JSON.stringify(ADV_MARK)};
+        await L.store.commit((x) => {
+          if (!x.taxYears['2026']) L.tax.startDefaultYear(x, 2026);
+          L.business.confirmScope(x);
+          L.business.saveSettings(x, { name: M + 'biz name', address: M + 'biz address', paymentTerms: M + 'terms' });
+        });
+      })()`);
+      await nav('Business'); await page.waitForSelector('#bz-tab-tax', T);
+      for (const tab of ['tax', 'entries', 'invoices', 'mileage', 'payees', 'budgets', 'settings', 'export']) {
+        await page.click('#bz-tab-' + tab); await page.waitForSelector('#bz-tab-' + tab + '[aria-pressed="true"]', T);
+        await page.waitForTimeout(40); await grab('business ' + tab);
+      }
+      const shown = await page.evaluate(() => document.querySelector('#business').textContent);
+      await page.click('#bz-tab-invoices'); await page.waitForSelector('#inv-list .item', T);
+      await page.click('#inv-list .item button:has-text("Open")'); await page.waitForSelector('#inv-detail', T); await grab('invoice detail');
+      await page.click('#inv-print'); await page.waitForSelector('#print-invoice', T); await grab('invoice print');
+      await page.click('#pv-back'); await page.waitForSelector('#inv-detail', T);
+      await page.click('#bz-tab-export'); await page.waitForSelector('#ex-download', T); await page.click('#ex-print'); await page.waitForSelector('#print-tax', T);
+      if (!(await page.textContent('#pv-warning')).includes('This file is not encrypted')) throw new Error('print view lacks the warning');
+      await grab('tax print'); await page.click('#pv-back'); await page.waitForSelector('#ex-download', T);
+      await page.click('#ex-download'); await page.waitForSelector('#ex-confirm-text', T); await grab('export confirm');
+      await page.click('.dialog button:has-text("Cancel")');
+      await nav('Review'); await page.waitForSelector('#rv-revenue', T);
+      await page.click('button:has-text("Suggest with AI")'); await page.waitForSelector('#ai-prompt', T);
+      const p = await page.$eval('#ai-prompt', (t) => t.value);
+      if (!/business detail/.test(p)) throw new Error('business line missing from the prompt: ' + p.slice(0, 80));
+      prompts.push(p);
+      const audit = await page.evaluate(() => JSON.stringify(globalThis.LifeOS.store.getState().audit));
+      if (audit.includes('LEAK')) throw new Error('the audit log holds a marker');
+      if (!shown.includes(ADV_MARK) && !shown.length) throw new Error('nothing shown');
+    });
     await step('lock, unlock and reload', async () => {
       await page.click('.top .lockbtn'); await page.waitForSelector('#pass', T);
       if ((await page.textContent('body')).includes(ADV_MARK)) throw new Error('locked page shows data');
@@ -225,6 +258,9 @@ const PRIV_SETUP = `(async () => {
   await L.store.commit((x) => {
     const clean = (a) => a.filter((c) => !c.includes('LEAK'));
     x.categories.expense = clean(x.categories.expense); x.categories.income = clean(x.categories.income); x.kinds = clean(x.kinds); x.activityCategories = clean(x.activityCategories);
+    // v1.1.0 audit: business settings are not records (they stay in the main state), so they carry no marker here; a 2026 tax profile makes the tax views refuse
+    x.settings.business = Object.assign({}, x.settings.business, { name: 'Plain business', address: '', paymentTerms: '' });
+    if (!x.taxYears['2026']) L.tax.startDefaultYear(x, 2026);
     x.budgets.push({ category: 'LEAK budget <img src=x onerror=1>', value: 5 });
     x.cycle = { startDate: '2026-10-01', sprintDays: 42, sprintsPerCycle: 2, restDays: 7, alternateHeavyLight: true, firstWeek: 'heavy' };
     x.habitLog.push({ habitId: 'h1', date: '2026-11-10' });
@@ -273,6 +309,18 @@ async function runPriv(label, viewport) {
     bucket.push(await dom());
     for (const id of ids) { await nav('Home'); await page.waitForSelector('.tile', T); await page.click('.tile[data-domain="' + id + '"]'); await page.waitForSelector('h1', T); await page.waitForTimeout(40); bucket.push(await dom()); }
     for (const n of ['Money', 'Assets', 'Work', 'Health', 'Review', 'Memory', 'Settings']) { await nav(n); await page.waitForTimeout(40); bucket.push(await dom()); }
+    // v1.1.0 audit: every Business tab and the tax print view; closed, every tax view refuses with the lock marker
+    const closed = !(await page.$('#priv-bar'));
+    for (const t of ['tax', 'entries', 'invoices', 'mileage', 'payees', 'budgets', 'settings', 'export']) {
+      await nav('Business'); await page.click('#bz-tab-' + t); await page.waitForSelector('#bz-tab-' + t + '[aria-pressed="true"]', T); await page.waitForTimeout(30);
+      if (closed && ['tax', 'mileage', 'payees', 'export'].includes(t) && !(await page.$('#business .tax-blocked .lockmark'))) throw new Error('business ' + t + ' does not refuse while closed');
+      bucket.push(await dom());
+    }
+    if (!closed) { await page.click('#ex-private'); await page.waitForSelector('#ex-print', T); await page.click('#ex-print'); await page.waitForSelector('#print-tax', T); bucket.push(await dom()); await page.click('#pv-back'); }
+    if (closed) {
+      const dg = await page.evaluate(() => JSON.stringify(globalThis.LifeOS.metrics.weeklyDigest(globalThis.LifeOS.store.getState(), '2026-11-09').business || null));
+      if (/"tax"|profitCents/.test(dg)) throw new Error('closed digest carries tax fields: ' + dg);
+    }
     await page.click('#nav-private'); await page.waitForSelector('h1:has-text("Private vault")', T); bucket.push(await dom());
   };
   const promptNow = async () => {

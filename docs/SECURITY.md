@@ -520,3 +520,62 @@ SEC-01 to SEC-70 through the existing tests (all pass), the leak smoke (all coll
 
 ### Never tested for real
 Google sign-in and Drive (all tests mock Google, including whether Drive honours If-Match), a physical phone (tests use desktop Chrome at 390x844), a real AI call (simulated providers only), and the live site's response headers (Cloudflare Access blocks outside checks). Autofill was checked in desktop Chrome only, not Safari, Firefox or Chrome on Android.
+
+## v1.1.0 audit
+
+Date: 2026-11-16. Auditor: independent review (did not write the code).
+
+### Scope
+The uncommitted v1.1.0 delta (`git diff HEAD` plus untracked files): `src/core/tax.js`, `src/core/business.js`, schema 12 in `src/core/store.js`, the business marks and pair rules in `src/core/priv.js`, the timeline rows in `src/core/admin.js`, the five home modules in `src/core/layout.js`, the digest and prompt fields in `src/core/metrics.js` and `src/core/memory.js`, the Business screen and both print views in `src/ui/app.js`, `src/ui/styles.css`, and the tests. Checked against the hard rules, the v0.11.0 private vault rules, the v1.1.0 addendum and the v1.1.0 amendment (which overrides it).
+
+### Method
+- Read the delta line by line, then proved each finding with a test before fixing it. Regression tests: `test/v110-audit.test.mjs` (28 tests, every expected figure hand-computed in the comment beside it). Builder tests whose expected values encoded a finding were corrected to the hand-computed figures (`test/tax.test.mjs`, `test/smoke-business.mjs`: NJ estimate and set-aside, SEC-75); no assertion was removed or loosened.
+- Extended `test/smoke-leaks.mjs`: with every record moved into the private vault, closed and open, every Business tab and the tax print view are swept; closed, the tax, mileage, payee and export tabs must refuse with the lock marker and the digest must carry no tax field. Extended `test/smoke-business.mjs` with the export tick (SEC-78).
+- Tax proofs by test with hand-computed values: SE tax at, below and above the wage base with and without W-2 wages, the $400 floor (just under and exactly at), the half-SE deduction, the additional Medicare threshold by filing status less W-2 wages, mileage on 2026-06-30 and 2026-07-01, round trips, an out-of-order and an empty rate list, meals at 50% and 80%, the home-office square-foot cap, months and income limit, gross reimbursables, invoice to expected to received with no double counting, void, an invoice with no line of work, 1099-NEC just under and exactly at the threshold with card payments left out, weekend and holiday shifts (2027-02-01 for the 2026 1099 date), federal safe harbor (100% and 110% of prior year against 90% of current), NJ safe harbor (lesser of 80% of current or 100% of prior), and installments (2,000 seeded targets: no cent lost or created, remainder to the earliest quarters).
+- Grepped the source for tax numbers: rates, thresholds, the wage base, mileage rates, the 1099 threshold and date, the $400 floor, meals and safe-harbor percentages and holidays live only in the 2026 profile defaults (`tax.defaultProfile`, `THRESHOLD_BY_STATUS`, `DEFAULT_HOLIDAYS_2026`); logic reads the profile.
+- Grepped the delta for DOM sinks, inline styles, eval, network calls, console, storage and URL use, and em dashes: none. Every new input, textarea and form gets autocomplete off from `h()`; the business smoke checks it on every tab.
+- Re-checks: SEC-01 to SEC-70 and CR, PV and UI findings through the existing tests and smokes (all pass).
+
+### Findings
+
+| ID | Severity | Location | Issue | Status |
+|---|---|---|---|---|
+| SEC-71 | High (tax) | `tax.seTax` | The deduction for half of SE tax included the 0.9% Additional Medicare Tax. That tax is not part of SE tax for the deduction and is not deductible. At $300,000 profit (single) the deduction was 1,580,295 cents instead of 1,545,623, understating federal tax. | Fixed: the deduction is half of the Social Security and Medicare parts only. Test SEC-71. |
+| SEC-72 | Medium (tax) | `tax.seTax` | Additional Medicare used the full filing-status threshold even when W-2 wages were entered, so with $150,000 of wages and $100,000 profit it showed 0 instead of 38,115 cents. | Fixed: the threshold is reduced by the W-2 wages already counted (the profile's `otherSsEarningsCents`, relabelled "W-2 wages already counted for Social Security and Medicare"), floored at 0. Test SEC-72. |
+| SEC-73 | Medium (tax) | `tax.seTax`, profile | No $400 floor: any positive profit produced SE tax. | Fixed: new profile field `seMinNetEarningsCents` (default 40000, in the source note, editable in the profile form; older profiles get the default). Net earnings under it give no SE tax. Tests at 39,988 and exactly 40,000 cents. |
+| SEC-74 | Medium (tax) | `tax.compute` | The simplified home-office deduction could create or increase a loss. It is limited to business income less the other business expenses and has no carryover. | Fixed: the deduction is capped at that figure (floored at 0); the Tax view says when it is limited, and the by-line table uses the limited figure. |
+| SEC-75 | Low (tax) | `tax.compute` | The NJ estimate used the federal base (profit less half of SE tax). NJ allows no deduction for SE tax (it does not follow federal adjustments), so the NJ estimate was too low. | Fixed: the NJ base is the profit, floored at 0, shown as its own figure. Owner's accountant to confirm. |
+| SEC-76 | Medium | `priv.bizMarks`, `tax.blocked` (deviation a) | Any private payee or business line of work set a wildcard mark that refused every year, and any link overlay did too. The mark list was capped at 40 extra names, so private business records spread over more than 39 years would make the whole state fail validation on the next load. | Fixed: a year is marked exactly when a business record of that year is private, or a public record of that year points at a private line of work, payee, invoice or parent line. While closed, a public money entry, trip or invoice that is new, changes year or changes line marks its years whenever hidden links exist (never under-refuses). Unscoped private entries with a line still count as business (can only over-refuse). Cap raised to 400 year marks. Tests both directions. |
+| SEC-77 | Low | `tax.compute` reserve | A reserve account or its balance entries kept private gave a wrong reserve balance and set-aside gap while closed. | Fixed: mark `business-reserve`; the reserve and gap show "hidden while the private vault is closed". |
+| SEC-78 | Medium | Export tab, tax print view (deviation b) | With the vault open the accountant export and print view included private records with no explicit choice. | Fixed: "Include private records" tick, default off, offered only while open. Off, the export uses the main state and refuses with a plain reason when a business record of the year is private, so no Schedule C total silently excludes private income; the file and print view say whether private records are included. |
+| SEC-79 | Low | `business` invoice and settings guards | Invoice numbers had no secrets guard, and invoice lines, notes and the business details accepted an EIN shape (12-3456789). | Fixed: SSN, card and EIN shapes are refused in invoice numbers, lines and notes, business name, address and terms, and payee names. |
+| SEC-80 | Low (performance) | `business.nextNumber` | Each candidate number scanned every invoice; at 5,000 invoices this ran on every Invoices render. | Fixed: one set per call. Caps test: 5,000 invoices of 50 lines, 10,000 trips and 50,000 entries validate and compute in about 0.9 s in Node. |
+| SEC-81 | Low | "Next estimated payment" module | When a current or previous year refused, the module still showed a later year's date as "next". | Fixed: it refuses with the lock marker. |
+| SEC-82 | Low | Admin timeline, open invoices and budget modules | No lock marker where private records change the numbers (tax rows omitted for a refused year, private invoices, private entries of the pinned line). | Fixed: markers added. |
+| SEC-83 | Medium | `tax.blocked` | A public money entry may keep the id of a private line of work while closed (PV-2). Unscoped, it counted as personal, so the year's figures were partial without a refusal. | Fixed: such an entry refuses its year. |
+
+Counts: 13 findings, all fixed with regression tests (High 1, Medium 6, Low 6). Tax-correctness findings: SEC-71 to SEC-75.
+
+### Deviation verdicts
+- (a) Wildcard refusal: wrong (over-refused, and missed SEC-83); fixed as SEC-76 and SEC-83.
+- (b) Export including private records: wrong; fixed as SEC-78.
+- (c) Derived scope instead of rewriting: acceptable. The migration writes nothing, the Business screen shows the counts and asks once, nothing is lost, and the counts are identical after a backup round trip, after validation of a synced copy and with the vault open; older apps refuse schema 12 and the downgrade guards list business marks and records. Residual: an entry left on "Automatic" follows its line's kind if the kind changes later; confirming while closed leaves private entries unscoped (treated as business by the marks).
+- (d) homeOffice and taxYears in the main state: acceptable. homeOffice holds two integers per year; unknown fields are dropped. taxYears holds numbers, dates and two free-text fields (source note, 1,200 characters; mileage rate notes, 200), control characters stripped, inside the encrypted main state, never in the digest, prompt, audit or errors (tested). Caps: 30 years, 80 holidays, 24 rate periods; prototype keys refused.
+- (e) Optional invoice line of work: acceptable. Line totals, aging and expected income do not depend on it; income without a line shows as Unassigned (tested).
+
+### Leak check
+`test/smoke-leaks.mjs` passes at desktop and 390x844: the adversarial marker in every new free-text field (invoice number, lines and notes, payee name, trip text, payment confirmation, business details, billable expense) never reaches a prompt, the digest, the audit log, an error, the console, the URL, storage, the IndexedDB bytes, a backup or a Drive upload; with records of every collection in the private vault and the vault closed, it is absent from every screen including every Business tab, the tax views refuse with the marker and the digest has no tax fields; open, it shows in the DOM only.
+
+### Residual risks
+- Every figure is an estimate: income tax uses effective rates the owner enters, figures are year to date and not annualised, and the safe-harbor targets use those year-to-date figures. The owner's accountant must confirm every number before any payment or filing.
+- The 2026 defaults (Social Security wage base $184,500, mileage 72.5 cents from 2026-01-01 and 76 cents from 2026-07-01 with their IRS notice numbers, the 1099-NEC threshold $2,000, the holiday list) were taken from the builder's spec and were not independently verified by this audit. The owner should check each against its source.
+- The W-2 field is used for both Social Security room and the Additional Medicare threshold. If W-2 Social Security wages (box 3) and Medicare wages (box 5) differ, the figure is approximate.
+- The home office uses months used over 12 as an approximation of the monthly average of allowable square feet.
+- 1099-NEC flags use the payee total only; exemptions (for example corporations) are the accountant's call.
+- While the vault is closed, the mark list names the years that hold private business records (no counts, no names) to anyone with the main passphrase.
+
+### Final results
+`node --test test/` passes 580 of 580 in the default zone, TZ=America/New_York and TZ=Pacific/Auckland. `node build.mjs` succeeds. `node test/smokes.mjs` (17 scripts) passed twice in a row (Playwright with Chrome at /usr/bin/google-chrome).
+
+### Not tested
+Printing to PDF on a real printer driver, a physical phone, a real accountant reading the CSV, and tax figures against an actual filed return.

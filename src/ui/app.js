@@ -196,14 +196,15 @@
     money: ['entries', 'recurring', 'budgets', 'activities'], assets: ['entries', 'accounts'], work: ['entries', 'projects', 'pipeline'],
     health: ['entries', 'habits', 'habitLog', 'cycle', 'activities'], activities: ['activities', 'entries', 'people'],
     social: ['people', 'contacts', 'groups', 'activities'], learning: ['learningItems', 'studySessions', 'takeaways'],
-    home: ['properties', 'vehicles', 'maintenance', 'recurring'], admin: ['renewals', 'documents', 'taxItems', 'learningItems', 'recurring'],
+    home: ['properties', 'vehicles', 'maintenance', 'recurring'], admin: ['renewals', 'documents', 'taxItems', 'learningItems', 'recurring', 'business-*'],
     goals: null, wellbeing: ['entries', 'wellbeing']
   };
   // A small lock marker (no counts, no names) wherever a number or list could be affected by hidden private items.
   function lockMark(colls) {
     if (!L.store.isUnlocked() || L.priv.isOpen()) return null;
     var m = L.priv.marks(mainState());
-    if (!m.length || (colls && !colls.some(function (c) { return m.indexOf(c) >= 0; }))) return null;
+    // 'business-*' stands for any year mark: a year whose tax rows (Admin timeline) are refused while the vault is closed (SEC-82).
+    if (!m.length || (colls && !colls.some(function (c) { return c === 'business-*' ? m.some(function (x) { return /^business-\d{4}$/.test(x) || x === 'business'; }) : m.indexOf(c) >= 0; }))) return null;
     return lockIcon('Some private items are hidden', 'lockmark');
   }
   function lockIcon(label, cls) {
@@ -315,10 +316,12 @@
         : view.name === 'memory' ? memoryScreen(s)
         : view.name === 'settings' ? settingsScreen(s)
         : view.name === 'private' ? privScreen(s)
+        : view.name === 'business' ? businessScreen(s)
+        : view.name === 'print' ? printScreen(s)
         : dashScreen(s);
     } catch (e) { body = h('p', { text: friendly(e) }); }
     var cur = view.name === 'domain' ? (view.domain === 'money' || view.domain === 'assets' || view.domain === 'work' || view.domain === 'health' ? view.domain : 'dashboard') : view.name;
-    var nav = h('nav', { class: 'nav', 'aria-label': 'Main' }, [['dashboard', 'Home'], ['money', 'Money'], ['assets', 'Assets'], ['work', 'Work'], ['health', 'Health'], ['review', 'Review'], ['memory', 'Memory'], ['settings', 'Settings']].map(function (n) {
+    var nav = h('nav', { class: 'nav', 'aria-label': 'Main' }, [['dashboard', 'Home'], ['money', 'Money'], ['assets', 'Assets'], ['work', 'Work'], ['health', 'Health'], ['business', 'Business'], ['review', 'Review'], ['memory', 'Memory'], ['settings', 'Settings']].map(function (n) {
       return h('button', { type: 'button', text: n[1], 'aria-current': n[0] === cur ? 'page' : null, onclick: function () { if (n[0] === 'money' || n[0] === 'assets' || n[0] === 'work' || n[0] === 'health') go('domain', { domain: n[0] }); else go(n[0]); } });
     }));
     root.appendChild(h('div', { class: 'app' },
@@ -342,7 +345,7 @@
   function screenMark() {
     var colls = null;
     if (view.name === 'domain') { if (view.domain === 'wellbeing') return null; colls = DOMAIN_COLLS[view.domain]; }
-    else if (view.name === 'dashboard' || view.name === 'settings' || view.name === 'memory' || view.name === 'private') return null;
+    else if (view.name === 'dashboard' || view.name === 'settings' || view.name === 'memory' || view.name === 'private' || view.name === 'business' || view.name === 'print') return null;
     var m = lockMark(colls === undefined ? null : colls);
     return m ? h('p', { class: 'small mut lockrow' }, m, ' Some private items are hidden.') : null;
   }
@@ -440,6 +443,7 @@
     built['rev-month'] = revMonthTile(s, t);
     built['rev-net-line'] = revNetLineCard(s, t);
     built['rev-expected'] = revExpectedTile(s, t);
+    built['tax-setaside'] = taxSetAsideMod(s); built['tax-next'] = taxNextMod(s); built['inv-open'] = invOpenMod(s); built['budget-pinned'] = budgetPinnedMod(s); built['payees-near'] = payeesNearMod(s);
     var due = L.metrics.dueRecurring(s, t).length;
     var w = L.layout.which(window.innerWidth), list = L.layout.get(s.settings, w);
     var mods = [];
@@ -574,6 +578,14 @@
       fs.push(field('Category (optional)', refs.category));
       refs.line = sel('f-line', lineOptions(s, '(no line of work)'), '');
       fs.push(field('Line of work (optional)', refs.line));
+      refs.scope = sel('f-scope', [{ v: '', t: 'Automatic (by line of work)' }, { v: 'business', t: 'Business' }, { v: 'personal', t: 'Personal' }], '');
+      fs.push(field('Business or personal', refs.scope));
+      if (tid === 'expense') {
+        refs.billable = h('input', { type: 'checkbox', id: 'f-billable' }); refs.reimb = h('input', { type: 'checkbox', id: 'f-reimb' }); refs.card = h('input', { type: 'checkbox', id: 'f-cardpaid' });
+        refs.payee = sel('f-payee', [{ v: '', t: '(no payee)' }].concat((s.payees || []).filter(function (x) { return !x.archived; }).map(function (x) { return { v: x.id, t: x.name }; })), '');
+        fs.push(h('label', { class: 'field check' }, refs.billable, h('span', { text: 'Billable to a client' })), h('label', { class: 'field check' }, refs.reimb, h('span', { text: 'Reimbursable' })),
+          field('Payee (1099 contractor)', refs.payee), h('label', { class: 'field check' }, refs.card, h('span', { text: 'Paid by card (left out of the 1099 total)' })));
+      }
       if (tid === 'income') {
         refs.mstatus = sel('f-mstatus', [{ v: 'received', t: 'Received' }, { v: 'expected', t: 'Expected (not counted until received)' }], 'received');
         refs.mdue = h('input', { type: 'date', id: 'f-mdue' });
@@ -602,6 +614,11 @@
           if (refs.category && refs.category.value) p.category = refs.category.value;
           if (refs.line && refs.line.value) p.projectId = refs.line.value;
           if (refs.mstatus && refs.mstatus.value === 'expected') p.status = 'expected';
+          if (refs.scope && refs.scope.value) p.scope = refs.scope.value;
+          if (refs.billable && refs.billable.checked) p.billable = true;
+          if (refs.reimb && refs.reimb.checked) p.reimbursable = true;
+          if (refs.payee && refs.payee.value) p.payeeId = refs.payee.value;
+          if (refs.card && refs.card.checked && refs.payee && refs.payee.value) p.cardPaid = true;
           if (refs.mdue && refs.mdue.value) p.dueDate = refs.mdue.value;
           if (refs.person && refs.person.value.trim()) p.person = refs.person.value.trim();
           if (refs.due && refs.due.value) p.due = refs.due.value;
@@ -3097,7 +3114,7 @@
   var PRIV_LABEL = { entries: 'Entries', accounts: 'Accounts', recurring: 'Recurring items', budgets: 'Budgets', projects: 'Projects', pipeline: 'Pipeline', goals: 'Goals',
     maintenance: 'Maintenance', vehicles: 'Vehicles', properties: 'Properties', renewals: 'Renewals', documents: 'Documents', taxItems: 'Tax items', learningItems: 'Learning items',
     studySessions: 'Study sessions', takeaways: 'Takeaways', activities: 'Activities', people: 'People', groups: 'Groups', contacts: 'Logged contacts', habits: 'Daily checks',
-    habitLog: 'Daily check ticks', cycle: 'Training cycle' };
+    habitLog: 'Daily check ticks', cycle: 'Training cycle', invoices: 'Invoices', trips: 'Mileage trips', payees: 'Payees', taxPayments: 'Tax payments' };
   function privKey(c, r) { return c === 'cycle' ? 'cycle' : c === 'budgets' ? r.category : c === 'habitLog' ? r.habitId + '|' + r.date : r.id; }
   function privList(s, c) { return c === 'cycle' ? (s.cycle ? [s.cycle] : []) : (s[c] || []); }
   function privText(c, r, s) {
@@ -3110,6 +3127,9 @@
       case 'contacts': return r.date + ' ' + r.channel + (r.notes ? ' ' + String(r.notes).slice(0, 40) : '');
       case 'habitLog': return r.date + ' ' + ((s.habits || []).filter(function (x) { return x.id === r.habitId; })[0] || { name: 'check' }).name;
       case 'cycle': return 'Training cycle from ' + r.startDate;
+      case 'invoices': return 'Invoice ' + r.number;
+      case 'trips': return 'Trip ' + r.date + ', ' + r.miles + ' mi';
+      case 'taxPayments': return 'Tax payment ' + r.year + ' ' + r.jurisdiction + ' quarter ' + r.quarter;
       default: return r.title || r.name || r.id;
     }
   }
@@ -3205,12 +3225,12 @@
   }
   function privMoveDialog(s, c, r, dir) {
     var key = privKey(c, r), kids = L.priv.childrenOf(s, c, key);
-    var pair = (c === 'activities' && r.expenseId) || (c === 'entries' && privList(s, 'activities').some(function (a) { return a.expenseId === key; }));
+    var pair = (c === 'activities' && r.expenseId) || (c === 'entries' && privList(s, 'activities').some(function (a) { return a.expenseId === key; })) || (c === 'invoices' && r.incomeId) || (c === 'entries' && privList(s, 'invoices').some(function (a) { return a.incomeId === key; }));
     var chk = h('input', { type: 'checkbox', id: 'priv-kids', checked: true });
     openDialog({
       title: dir === 'in' ? 'Move to the private vault?' : 'Move out of the private vault?', yes: dir === 'in' ? 'Move in' : 'Move out',
       body: [h('p', { class: 'mut', text: dir === 'in' ? 'It disappears from every screen, total and export while the vault is closed.' : 'It becomes an ordinary item again, visible with the app unlocked.' }),
-        pair ? h('p', { class: 'small', id: 'priv-pair', text: 'An activity and its Money expense always move together.' }) : null,
+        pair ? h('p', { class: 'small', id: 'priv-pair', text: 'An activity and its Money expense, or an invoice and its income entry, always move together.' }) : null,
         c === 'habits' ? h('p', { class: 'small', text: 'Its ticks move with it.' }) : null,
         kids.length ? h('label', { class: 'row small' }, chk, h('span', { text: 'Also move ' + kids.length + ' linked ' + (kids.length === 1 ? 'item' : 'items') + ' (default)' })) : null],
       onYes: function () {
@@ -3581,7 +3601,7 @@
       }, field('Restore from a backup file (64 MB max)', bf), field('Backup passphrase', ip),
         h('button', { type: 'submit', class: 'btn', text: 'Import backup' }))));
 
-    out.push(h('p', { class: 'mut small', id: 'app-version', text: 'LifeOS v1.0.0' }));
+    out.push(h('p', { class: 'mut small', id: 'app-version', text: 'LifeOS v1.1.0' }));
 
     if (L.syncUI) out.push(L.syncUI.section(syncCtx()));
 
@@ -3861,6 +3881,480 @@
       card.appendChild(body);
     }
     return card;
+  }
+
+  // ---------- business, invoices and tax (v1.1.0) ----------
+  // Every tax view carries the same estimate line (L.tax.NOTICE). While the private vault is closed and holds a business record of the
+  // year, no tax figure is computed or shown (L.tax.compute refuses; the views show the lock marker and the refusal sentence).
+  var BZ_TABS = [['tax', 'Tax'], ['entries', 'Entries'], ['invoices', 'Invoices'], ['mileage', 'Mileage'], ['payees', 'Payees'], ['budgets', 'Budgets'], ['settings', 'Settings'], ['export', 'Export']];
+  function bzYear() { return view.year || Number(today().slice(0, 4)); }
+  function cents$(v, o) { return Math.round(parseAmount(v, o) * 100); }
+  function optCents$(v) { return String(v == null ? '' : v).trim() === '' ? null : cents$(v, { zero: true }); }
+  function dollarText(c) { return c === null || c === undefined ? '' : (c / 100).toFixed(2); }
+  function pctText(r) { return r === null || r === undefined ? '' : String(Math.round(r * 1e6) / 1e4); }
+  function pctToRate(v, optional) {
+    v = String(v == null ? '' : v).trim().replace(/%$/, '');
+    if (v === '' && optional) return null;
+    if (!/^\d{1,3}(\.\d{1,4})?$/.test(v) || Number(v) > 100) throw new Error('Enter a percentage like 22.5.');
+    return Math.round(Number(v) * 1e4) / 1e6;
+  }
+  function taxNotice() { return h('p', { class: 'small tax-notice', text: L.tax.NOTICE }); }
+  function lockedTax() { return h('p', { class: 'warn small tax-blocked', role: 'status' }, lockIcon('Some private items are hidden', 'lockmark'), ' ', L.tax.BLOCK_MESSAGE); }
+  function bzYearNav() {
+    var y = bzYear();
+    return h('div', { class: 'row sp' }, btn('Previous year', function () { view.year = y - 1; render(); }, 'sm', { id: 'bz-year-prev' }), h('strong', { id: 'bz-year', text: String(y) }), btn('Next year', function () { view.year = y + 1; render(); }, 'sm', { id: 'bz-year-next' }));
+  }
+  function bzGo(tab, extra) { view = Object.assign({ name: 'business', tab: tab, year: view.year }, extra || {}); notice = null; render(); }
+  function bzAct(fn, ok, audit) { return act(function () { return commit(fn, audit).then(function () { render(); }); }, ok); }
+  function bzLineName(s, id) { return id ? (projName(s, id) || 'Unknown line') : 'No line of work'; }
+  function bzMoney(s, c) { return c === null || c === undefined ? '-' : fmtC(s, c); }
+
+  function businessScreen(s) {
+    var tab = view.tab || 'tax';
+    var tabs = h('div', { class: 'chips bz-tabs', role: 'group', 'aria-label': 'Business sections' }, BZ_TABS.map(function (x) {
+      return h('button', { type: 'button', class: 'chipbtn', id: 'bz-tab-' + x[0], 'aria-pressed': x[0] === tab ? 'true' : 'false', text: x[1], onclick: function () { bzGo(x[0]); } });
+    }));
+    var fn = { tax: bzTax, entries: bzEntries, invoices: bzInvoices, mileage: bzMileage, payees: bzPayees, budgets: bzBudgets, settings: bzSettings, 'export': bzExport }[tab] || bzTax;
+    return h('div', { id: 'business' },
+      btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'),
+      h('div', { class: 'row sp' }, h('h1', { text: 'Business' }), lockMark(['entries', 'projects', 'invoices', 'trips', 'payees', 'taxPayments'])),
+      bzScopeBanner(s), tabs, fn(s));
+  }
+  // The migration to schema 12 leaves every entry as it is; the owner confirms the business and personal counts once.
+  function bzScopeBanner(s) {
+    if (s.settings.business.scopeConfirmed) return null;
+    var c = L.business.scopeCounts(s);
+    return h('div', { class: 'card', id: 'bz-scope-banner' }, h('h2', { text: 'Confirm business and personal entries' }),
+      h('p', { class: 'small', id: 'bz-scope-counts', text: 'Money entries marked business: ' + c.business + '. Marked personal: ' + c.personal + '. An entry on a venture, client, website or podcast line of work is business; everything else is personal. Change any entry under Entries.' }),
+      btn('Confirm these', function () { bzAct(function (x) { L.business.confirmScope(x); }, 'Confirmed.', 'scope confirmed'); }, 'pri', { id: 'bz-scope-confirm' }));
+  }
+
+  // ---- Tax ----
+  function bzTax(s) {
+    var y = bzYear(), t = L.tax.compute(s, y), out = [bzYearNav(), taxNotice()];
+    if (t.blocked) { out.push(lockedTax()); return out; }
+    var p = L.tax.profileOf(s, y);
+    if (!p) out.push(bzNoProfile(s, y));
+    var rate = function (c) { return c === null || c === undefined ? 'set your rate' : fmtC(s, c); };
+    out.push(h('div', { class: 'card', id: 'tx-card' }, h('h2', { text: 'Business profit, ' + y }),
+      h('div', { class: 'stats' }, stat('Business income received', fmtC(s, t.incomeCents), 'tx-income'), stat('Deductible expenses', fmtC(s, t.expenseCents), 'tx-expenses'), stat('Mileage deduction', fmtC(s, t.mileageCents), 'tx-mileage'), stat('Home office', fmtC(s, t.homeOfficeCents), 'tx-home')),
+      h('div', { class: 'stats' }, stat('Net business profit', fmtC(s, t.profitCents), 'tx-profit')),
+      t.homeOfficeLimited ? h('p', { class: 'small', id: 'tx-home-limited', text: 'Home office limited to ' + fmtC(s, t.homeOfficeCents) + ' of ' + fmtC(s, t.homeOfficeFullCents) + ': it cannot exceed business income less other business expenses.' }) : null,
+      t.unratedTrips ? h('p', { class: 'small', id: 'tx-unrated', text: t.unratedTrips + ' trip' + (t.unratedTrips === 1 ? ' has' : 's have') + ' no mileage rate for its date: set your rate. They deduct nothing.' }) : null,
+      t.unmapped.count ? h('p', { class: 'small', id: 'tx-unmapped', text: 'Unmapped: ' + t.unmapped.count + ' business expense' + (t.unmapped.count === 1 ? '' : 's') + ' totalling ' + fmtC(s, t.unmapped.cents) + ' have no tax line. They are counted in full. Map their categories under Settings.' }) : null));
+    if (p) {
+      var se = t.se;
+      out.push(h('div', { class: 'card', id: 'tx-est' }, h('h2', { text: 'Estimated tax, ' + y }),
+        h('div', { class: 'stats' }, stat('Self-employment tax', fmtC(s, se.totalCents), 'tx-se'), stat('Social Security part', fmtC(s, se.ssCents), 'tx-ss'), stat('Medicare part', fmtC(s, se.medicareCents), 'tx-medicare'), stat('Additional Medicare', fmtC(s, se.addlCents), 'tx-addl')),
+        h('div', { class: 'stats' }, stat('Half of SE tax, Social Security and Medicare parts only (reduces the federal income tax base)', fmtC(s, se.deductionCents), 'tx-half'), stat('Federal income tax base', fmtC(s, t.incomeBaseCents), 'tx-base'), stat('Federal income tax', rate(t.federalTaxCents), 'tx-fed'), stat('NJ income tax base (no SE deduction)', fmtC(s, t.njBaseCents), 'tx-nj-base'), stat('NJ income tax', rate(t.njTaxCents), 'tx-nj')),
+        se.belowMinimum ? h('p', { class: 'small', id: 'tx-se-min', text: 'Net earnings are under ' + fmtC(s, p.seMinNetEarningsCents) + ': no self-employment tax.' }) : null,
+        h('div', { class: 'stats' }, stat('Set aside to date', rate(t.setAsideCents), 'tx-setaside'), stat('Reserve account balance', t.reserveHidden ? 'hidden while the private vault is closed' : t.reserveCents === null ? 'no reserve account chosen' : fmtC(s, t.reserveCents), 'tx-reserve'),
+          stat('Set-aside gap', t.setAsideCents === null ? 'set your rate' : t.reserveHidden ? 'hidden while the private vault is closed' : t.gapCents === null ? 'no reserve account chosen' : fmtC(s, t.gapCents), 'tx-gap')),
+        h('div', { class: 'stats' }, stat('Federal paid', fmtC(s, t.payments.federal), 'tx-paid-fed'), stat('NJ paid', fmtC(s, t.payments.nj), 'tx-paid-nj'))));
+      out.push(bzSafeCard(s, t), bzPaymentsCard(s, y, t));
+    }
+    out.push(bzScheduleC(s, t));
+    if (p) out.push(bzProfileForm(s, y, p));
+    return out;
+  }
+  function bzNoProfile(s, y) {
+    var prop = null;
+    try { prop = L.tax.proposeYear(s, y); } catch (e) { prop = null; }
+    var def = L.tax.defaultProfile(y);
+    return h('div', { class: 'card', id: 'tx-noprofile' }, h('h2', { text: 'No ' + y + ' tax profile yet' }),
+      h('p', { class: 'small', text: 'Rates, thresholds, dates and holidays live in a profile for the year. Nothing is estimated until you start one. Effective income tax rates are yours to enter; until then the views say "set your rate".' }),
+      def ? btn('Start the ' + y + ' defaults', function () { bzAct(function (x) { L.tax.startDefaultYear(x, y); }, 'Profile started. Check each figure and enter your rates.', 'tax profile started'); }, 'pri', { id: 'pf-start' }) : null,
+      prop ? h('div', null, h('p', { class: 'small', id: 'pf-offer', text: 'Copy the ' + (L.tax.years(s).filter(function (v) { return v < y; }).pop()) + ' profile forward? It is offered, not applied: dates move one year and nothing else changes until you edit it.' }),
+        btn('Copy the earlier profile', function () { bzAct(function (x) { L.tax.applyNewYear(x, y); }, 'Profile copied. Check every figure.', 'tax profile copied'); }, 'pri', { id: 'pf-copy' })) : null);
+  }
+  function bzSafeCard(s, t) {
+    var sh = t.safeHarbor, rows = [];
+    function add(name, x) {
+      if (!x) return;
+      rows.push({ cells: [name, fmtC(s, x.priorBasedCents), x.currentBasedCents === null ? 'set your rate' : fmtC(s, x.currentBasedCents), fmtC(s, x.targetCents)].concat(x.installments.map(function (c) { return fmtC(s, c); }), [fmtC(s, x.paidCents), fmtC(s, x.remainingCents)]) });
+    }
+    add('Federal', sh.federal); add('NJ', sh.nj);
+    if (!rows.length) return h('div', { class: 'card', id: 'tx-safe' }, h('h2', { text: 'Safe-harbor targets' }), h('p', { class: 'mut small', text: 'Shown once you enter last year\'s federal or NJ tax in the profile below.' }));
+    return h('div', { class: 'card', id: 'tx-safe' }, h('h2', { text: 'Safe-harbor targets' }), tbl('safe-table', ['', 'Prior year basis', 'Current year basis', 'Target', 'Q1', 'Q2', 'Q3', 'Q4', 'Paid', 'Remaining'], rows));
+  }
+  function bzPaymentsCard(s, y, t) {
+    var jur = sel('pay-juris', [{ v: 'federal', t: 'Federal' }, { v: 'nj', t: 'NJ' }], 'federal');
+    var q = sel('pay-q', [1, 2, 3, 4].map(function (n) { return { v: String(n), t: 'Quarter ' + n }; }), '1');
+    var amt = h('input', { type: 'text', id: 'pay-amount', inputmode: 'decimal', maxlength: '14' });
+    var on = h('input', { type: 'date', id: 'pay-date', value: today(), required: true });
+    var conf = h('input', { type: 'text', id: 'pay-conf', maxlength: '100' });
+    var due = [];
+    ['federal', 'nj'].forEach(function (j) { t.due[j].forEach(function (d) { due.push({ cells: [j === 'nj' ? 'NJ' : 'Federal', 'Quarter ' + d.quarter, d.nominal === d.date ? d.date : d.date + ' (moved from ' + d.nominal + ')', fmtC(s, t.payments.byQuarter[j][d.quarter - 1])] }); }); });
+    due.push({ cells: ['1099-NEC filing', '', t.due.nec1099.nominal === t.due.nec1099.date ? t.due.nec1099.date : t.due.nec1099.date + ' (moved from ' + t.due.nec1099.nominal + ')', ''] });
+    var list = (s.taxPayments || []).filter(function (p) { return p.year === y; }).sort(function (a, b) { return a.paidOn.localeCompare(b.paidOn); });
+    return h('div', { class: 'card', id: 'tx-pay' }, h('h2', { text: 'Estimated payments and due dates' }),
+      tbl('due-table', ['For', 'Quarter', 'Due', 'Paid so far'], due),
+      list.map(function (p) {
+        return h('div', ROW({ class: 'item' }, 'taxPayments', p), h('div', null, h('div', { class: 'entry-t', text: (p.jurisdiction === 'nj' ? 'NJ' : 'Federal') + ' quarter ' + p.quarter + ': ' + fmtC(s, p.amountCents) }), h('div', { class: 'mut small', text: 'Paid ' + p.paidOn + (p.confirmation ? ' | ' + p.confirmation : '') })),
+          btn('Delete', function () { bzAct(function (x) { L.tax.deletePayment(x, p.id); }, 'Payment removed.', 'tax payment delete'); }, 'sm bad', { 'aria-label': 'Delete payment of ' + fmtC(s, p.amountCents) }));
+      }),
+      h('form', { onsubmit: function (e) {
+        e.preventDefault();
+        bzAct(function (x) { L.tax.addPayment(x, { year: y, jurisdiction: jur.value, quarter: Number(q.value), amountCents: cents$(amt.value), paidOn: on.value, confirmation: conf.value.trim() }); }, 'Payment logged.', 'tax payment add');
+      } }, field('For', jur), field('Quarter', q), field('Amount', amt), field('Paid on', on), field('Confirmation (optional)', conf), h('button', { type: 'submit', class: 'btn pri', text: 'Log payment' })));
+  }
+  function bzScheduleC(s, t) {
+    var rows = [{ cells: ['Gross receipts', '1', fmtC(s, t.incomeCents)] }];
+    t.lines.forEach(function (l) { rows.push({ cat: l.id, cells: [l.label, l.sc, fmtC(s, l.cents)] }); });
+    rows.push({ cat: 'unmapped', cells: ['Unmapped expenses', '', fmtC(s, t.unmapped.cents)] },
+      { cat: 'total', cells: ['Total deductions', '', fmtC(s, t.expenseCents + t.mileageCents + t.homeOfficeCents)] }, { cat: 'profit', cells: ['Net profit', '31', fmtC(s, t.profitCents)] },
+      { cat: 'reimbursed', cells: ['Reimbursed expenses (information only, already counted in full)', '', fmtC(s, t.reimbursedCents)] });
+    var lw = t.byLineOfWork, lr = function (r) { return { cells: [bzLineName(s, r.projectId), fmtC(s, r.incomeCents), fmtC(s, r.expenseCents), fmtC(s, r.mileageCents), fmtC(s, r.homeOfficeCents), fmtC(s, r.netCents)] }; };
+    var heads = ['Line of work', 'Income', 'Expenses', 'Mileage', 'Home office', 'Net'];
+    return h('div', { class: 'card', id: 'tx-sc' }, h('h2', { text: 'Schedule C summary, ' + t.year }),
+      tbl('sc-table', ['Line', 'Schedule C', 'Amount'], rows),
+      h('h3', { text: 'By line of work' }), h('p', { class: 'mut small', text: 'Each line of work is shown on its own so your accountant can decide whether it belongs on the same Schedule C. The app makes no such decision.' }),
+      tbl('sc-lines', heads, lw.lines.map(lr)),
+      lw.rollups.length ? [h('h3', { text: 'By parent rollup' }), tbl('sc-rollups', heads, lw.rollups.map(lr))] : null);
+  }
+  var PF_PCT = [['federalEffectiveRate', 'Federal effective income tax rate (%)', true], ['njEffectiveRate', 'NJ effective income tax rate (%)', true], ['ssRate', 'Social Security rate (%)'], ['medicareRate', 'Medicare rate (%)'], ['addlMedicareRate', 'Additional Medicare rate (%)'], ['seFactor', 'Share of profit subject to SE tax (%)']];
+  var PF_USD = [['ssWageBase', 'Social Security wage base ($)'], ['otherSsEarningsCents', 'W-2 wages already counted for Social Security and Medicare ($)'], ['seMinNetEarningsCents', 'No SE tax when net earnings are under ($)'], ['addlMedicareThreshold', 'Additional Medicare threshold ($)'], ['homeOfficeRate', 'Home office rate ($ per square foot)'], ['nec1099Threshold', '1099-NEC threshold ($)'], ['priorYearFederalTax', 'Prior-year federal tax ($, optional)', true], ['priorYearNjTax', 'Prior-year NJ tax ($, optional)', true]];
+  var PF_INT = [['homeOfficeMaxSqFt', 'Home office square-foot cap'], ['mealsPct', 'Meals deductible (%)'], ['seDeductionPct', 'Share of SE tax that reduces the income tax base (%)']];
+  var PF_SAFE = [['federalCurrentPct', 'Safe harbor, federal: share of current-year estimate (%)'], ['federalPriorPct', 'Safe harbor, federal: share of prior-year tax (%)'], ['federalPriorHighPct', 'Safe harbor, federal: share of prior-year tax with the AGI flag (%)'], ['njCurrentPct', 'Safe harbor, NJ: share of current-year tax (%)'], ['njPriorPct', 'Safe harbor, NJ: share of prior-year tax (%)']];
+  function bzProfileForm(s, y, p) {
+    var f = {};
+    f.fs = sel('pf-filing', L.tax.FILING.map(function (k) { return { v: k, t: L.tax.FILING_LABEL[k] }; }), p.filingStatus, function (e) {
+      var old = L.tax.THRESHOLD_BY_STATUS[p.filingStatus];
+      if (cents$(f.addlMedicareThreshold.value, { zero: true }) === old || true) f.addlMedicareThreshold.value = dollarText(L.tax.THRESHOLD_BY_STATUS[e.target.value]);
+    });
+    var inputs = [field('Filing status', f.fs)];
+    function box(k, label, val, opt) { f[k] = h('input', { type: 'text', id: 'pf-' + k, value: val, maxlength: '20', inputmode: 'decimal' }); inputs.push(field(label, f[k])); }
+    PF_PCT.forEach(function (x) { box(x[0], x[1], pctText(p[x[0]])); });
+    PF_USD.forEach(function (x) { box(x[0], x[1], dollarText(p[x[0]])); });
+    PF_INT.forEach(function (x) { box(x[0], x[1], String(p[x[0]])); });
+    PF_SAFE.forEach(function (x) { box(x[0], x[1], String(p.safeHarbor[x[0]])); });
+    f.agi = h('input', { type: 'checkbox', id: 'pf-priorYearAgiOver150k', checked: p.priorYearAgiOver150k });
+    inputs.push(h('label', { class: 'field check' }, f.agi, h('span', { text: 'Use the higher prior-year percentage (prior-year AGI flag)' })));
+    f.nec = h('input', { type: 'date', id: 'pf-nec1099Due', value: p.nec1099Due }); inputs.push(field('1099-NEC filing date before any weekend or holiday move', f.nec));
+    f.fd = p.dueDates.federal.map(function (d, i) { return h('input', { type: 'date', id: 'pf-fed' + (i + 1), value: d }); });
+    f.nd = p.dueDates.nj.map(function (d, i) { return h('input', { type: 'date', id: 'pf-nj' + (i + 1), value: d }); });
+    f.fd.forEach(function (n, i) { inputs.push(field('Federal estimate date, quarter ' + (i + 1), n)); });
+    f.nd.forEach(function (n, i) { inputs.push(field('NJ estimate date, quarter ' + (i + 1), n)); });
+    f.hol = h('textarea', { id: 'pf-holidays', rows: '4', maxlength: '2000' }); f.hol.value = p.holidays.join('\n');
+    f.mil = h('textarea', { id: 'pf-mileage', rows: '3', maxlength: '2000' }); f.mil.value = p.mileageRates.map(function (r) { return r.from + ', ' + r.centsPerMile + (r.note ? ', ' + r.note : ''); }).join('\n');
+    f.note = h('textarea', { id: 'pf-note', rows: '3', maxlength: '1200' }); f.note.value = p.sourceNote;
+    inputs.push(field('Holidays (one date per line; a due date on one moves to the next business day)', f.hol), field('Mileage rates (one per line: start date, cents per mile, note)', f.mil), field('Source note', f.note));
+    return details('pf-card', 'Tax profile for ' + y + ' (rates, thresholds, dates)', [
+      h('p', { class: 'mut small', id: 'pf-source', text: p.sourceNote }),
+      h('form', { id: 'pf-form', onsubmit: function (e) {
+        e.preventDefault();
+        bzAct(function (x) {
+          var o = { filingStatus: f.fs.value, safeHarbor: {}, dueDates: { federal: f.fd.map(function (n) { return n.value; }), nj: f.nd.map(function (n) { return n.value; }) } };
+          PF_PCT.forEach(function (k) { o[k[0]] = pctToRate(f[k[0]].value, k[2]); });
+          o.seRate = Math.round((Math.round(o.ssRate * 1e6) + Math.round(o.medicareRate * 1e6))) / 1e6;
+          PF_USD.forEach(function (k) { o[k[0]] = k[2] ? optCents$(f[k[0]].value) : cents$(f[k[0]].value, { zero: true }); });
+          PF_INT.forEach(function (k) { o[k[0]] = intIn(f[k[0]].value, 0, 100000, k[1]); });
+          PF_SAFE.forEach(function (k) { o.safeHarbor[k[0]] = intIn(f[k[0]].value, 0, 1000, k[1]); });
+          o.priorYearAgiOver150k = !!f.agi.checked; o.nec1099Due = f.nec.value;
+          o.holidays = f.hol.value.split(/\s+/).filter(Boolean);
+          o.mileageRates = f.mil.value.split('\n').map(function (l) { return l.trim(); }).filter(Boolean).map(function (l) {
+            var q = l.split(','); if (q.length < 2) throw new Error('A mileage rate line needs a start date and cents per mile.');
+            var r = { from: q[0].trim(), centsPerMile: Number(q[1].trim()) }; if (q.slice(2).join(',').trim()) r.note = q.slice(2).join(',').trim(); return r;
+          });
+          o.sourceNote = f.note.value;
+          L.tax.setProfile(x, y, o);
+        }, 'Profile saved.', 'tax profile saved');
+      } }, inputs, h('button', { type: 'submit', class: 'btn pri', id: 'pf-save', text: 'Save profile' }))], view.open === 'pf');
+  }
+
+  // ---- Entries: business or personal, billable, reimbursable, payee ----
+  function bzEntries(s) {
+    var y = bzYear(), biz = L.business.isBiz(s), ents = s.entries.filter(function (e) { return e.domain === 'money' && (e.type === 'income' || e.type === 'expense') && e.date.slice(0, 4) === String(y); })
+      .sort(function (a, b) { return b.date.localeCompare(a.date); });
+    var shown = view.shown || 40, payees = (s.payees || []).filter(function (x) { return !x.archived; });
+    var rows = ents.slice(0, shown).map(function (e) {
+      var isB = biz(e), kids = [];
+      kids.push(btn(isB ? 'Make personal' : 'Make business', function () { bzAct(function (x) { L.business.setScope(x, [e.id], isB ? 'personal' : 'business'); }, 'Updated.', 'entry scope'); }, 'sm', { 'aria-label': (isB ? 'Make personal: ' : 'Make business: ') + e.title }));
+      if (e.type === 'expense') {
+        kids.push(btn(e.billable ? 'Billable: on' : 'Billable: off', function () { bzAct(function (x) { x.entries.forEach(function (z) { if (z.id === e.id) { if (z.billedInvoiceId && z.billable) throw new Error('It is already on an invoice.'); if (z.billable) delete z.billable; else z.billable = true; } }); }, 'Updated.', 'entry billable'); }, 'sm', { 'aria-pressed': e.billable ? 'true' : 'false', 'aria-label': 'Toggle billable: ' + e.title }));
+        kids.push(btn(e.reimbursable ? 'Reimbursable: on' : 'Reimbursable: off', function () { bzAct(function (x) { x.entries.forEach(function (z) { if (z.id === e.id) { if (z.reimbursable) delete z.reimbursable; else z.reimbursable = true; } }); }, 'Updated.', 'entry reimbursable'); }, 'sm', { 'aria-pressed': e.reimbursable ? 'true' : 'false', 'aria-label': 'Toggle reimbursable: ' + e.title }));
+        var ps = sel(null, [{ v: '', t: '(no payee)' }].concat(payees.map(function (x) { return { v: x.id, t: x.name }; })), e.payeeId || '', function (ev) { var v = ev.target.value; bzAct(function (x) { L.business.assignPayee(x, e.id, v); }, 'Updated.', 'entry payee'); });
+        ps.setAttribute('aria-label', 'Payee for ' + e.title); ps.setAttribute('name', 'payee-' + e.id);
+        kids.push(ps);
+        if (e.payeeId) kids.push(btn(e.cardPaid ? 'Card payment: on' : 'Card payment: off', function () { bzAct(function (x) { L.business.assignPayee(x, e.id, e.payeeId, { cardPaid: !e.cardPaid }); }, 'Updated.', 'entry card paid'); }, 'sm', { 'aria-pressed': e.cardPaid ? 'true' : 'false', 'aria-label': 'Toggle card payment: ' + e.title }));
+      }
+      var line = L.tax.lineFor(s, e.category);
+      return h('div', ROW({ class: 'item', 'data-scope': isB ? 'business' : 'personal' }, 'entries', e), h('div', null, h('div', { class: 'entry-t', text: e.title }),
+        h('div', { class: 'mut small', text: e.date + ' | ' + (e.type === 'income' ? 'Income ' : 'Expense ') + fmtC(s, L.metrics.cents(e.value)) + ' | ' + (isB ? 'Business' : 'Personal') + (e.type === 'expense' && isB ? ' | ' + (line ? L.tax.lineById(line).label : 'Unmapped') : '') + (e.status ? ' | ' + e.status : '') })),
+        h('div', { class: 'row' }, kids));
+    });
+    return [bzYearNav(), h('div', { class: 'card', id: 'bz-entries' }, h('h2', { text: 'Money entries, ' + y }), h('p', { class: 'mut small', text: 'Business entries count toward the tax figures. Income counts when it is received. Billable and reimbursable expenses are shown gross: the invoice counts as income when received and the expense is deducted on its own line.' }),
+      rows.length ? rows : h('p', { class: 'mut', text: 'No money entries this year.' }), ents.length > shown ? btn('Show more', function () { view.shown = shown + 40; render(); }) : null)];
+  }
+
+  // ---- Invoices ----
+  function bzInvoices(s) {
+    if (view.invoiceId) { var inv = (s.invoices || []).filter(function (x) { return x.id === view.invoiceId; })[0]; if (inv) return bzInvoiceDetail(s, inv); }
+    var t = today(), ag = L.business.aging(s, t), tot = L.business.invoiceTotal;
+    var aging = h('div', { class: 'card', id: 'inv-aging' }, h('h2', { text: 'Receivables' }), h('div', { class: 'stats' }, stat('Open invoices', String(ag.openCount), 'inv-open-n'), stat('Open total', fmtC(s, ag.openCents), 'inv-open-total'), stat('Overdue', String(ag.overdueCount), 'inv-overdue-n', ag.overdueCount ? 'bad-t' : ''), stat('Overdue total', fmtC(s, ag.overdueCents), 'inv-overdue-total')),
+      tbl('inv-aging-table', ['Age past due', 'Invoices', 'Total'], L.business.BUCKETS.map(function (b) { return { cat: b[0], cells: [b[1], String(ag.buckets[b[0]].count), fmtC(s, ag.buckets[b[0]].cents)] }; })));
+    var line = sel('iv-line', lineOptions(s, '(no line of work)'), ''), issue = h('input', { type: 'date', id: 'iv-issue', value: t, required: true }), due = h('input', { type: 'date', id: 'iv-due', value: addDays(t, 30), required: true });
+    var num = h('input', { type: 'text', id: 'iv-number', maxlength: '40', placeholder: 'Next number: ' + safeNext(s, t) }), notes = h('input', { type: 'text', id: 'iv-notes', maxlength: '200' });
+    var ld = h('input', { type: 'text', id: 'iv-desc', maxlength: '200' }), lq = h('input', { type: 'text', id: 'iv-qty', value: '1', inputmode: 'decimal', maxlength: '9' }), lu = h('input', { type: 'text', id: 'iv-unit', inputmode: 'decimal', maxlength: '14' });
+    var form = h('form', { id: 'iv-form', onsubmit: function (e) {
+      e.preventDefault();
+      var made = null;
+      act(function () {
+        var lines = [];
+        if (ld.value.trim()) lines.push({ description: ld.value.trim(), qty: Number(lq.value), unitCents: cents$(lu.value, { zero: true }) });
+        return commit(function (x) { made = L.business.createInvoice(x, { projectId: line.value || undefined, issueDate: issue.value, dueDate: due.value, number: num.value.trim(), lines: lines, notes: notes.value.trim() }); }, 'invoice add').then(function () { setNotice('ok', 'Invoice added as a draft.'); bzGo('invoices', { invoiceId: made.id }); });
+      });
+    } }, field('Line of work (client)', line), field('Issue date', issue), field('Due date', due), field('Invoice number (blank uses your format)', num), field('First line description (optional)', ld), field('Quantity', lq), field('Unit price', lu), field('Notes (optional)', notes), h('button', { type: 'submit', class: 'btn pri', text: 'Add invoice' }));
+    var list = (s.invoices || []).slice().sort(function (a, b) { return b.issueDate.localeCompare(a.issueDate) || b.number.localeCompare(a.number); });
+    var rows = list.map(function (i) {
+      return h('div', ROW({ class: 'item', 'data-invoice': i.number }, 'invoices', i), h('div', null, h('div', { class: 'entry-t', text: i.number + ' | ' + fmtC(s, tot(i)) }),
+        h('div', { class: 'mut small' }, bzLineName(s, i.projectId) + ' | issued ' + i.issueDate + ' | due ' + i.dueDate + ' | ', chipEl(i.status, i.status === 'paid' ? 'ok' : i.status === 'sent' && i.dueDate < t ? 'bad' : ''))),
+        h('div', { class: 'row' }, btn('Open', function () { bzGo('invoices', { invoiceId: i.id }); }, 'sm', { 'aria-label': 'Open invoice ' + i.number })));
+    });
+    return [aging, h('div', { class: 'card' }, h('h2', { text: 'New invoice' }), form), h('div', { class: 'card', id: 'inv-list' }, h('h2', { text: 'Invoices (' + list.length + ')' }), rows.length ? rows : h('p', { class: 'mut', text: 'No invoices yet.' }))];
+  }
+  function safeNext(s, t) { try { return L.business.nextNumber(s, t).number; } catch (e) { return ''; } }
+  function bzInvoiceDetail(s, inv) {
+    var total = L.business.invoiceTotal(inv), t = today(), draft = inv.status === 'draft';
+    var income = inv.incomeId ? s.entries.filter(function (e) { return e.id === inv.incomeId; })[0] : null;
+    var lineRows = inv.lines.map(function (l, i) {
+      return h('div', { class: 'item' }, h('div', null, h('div', { class: 'entry-t', text: l.description }), h('div', { class: 'mut small', text: l.qty + ' x ' + fmtC(s, l.unitCents) + ' = ' + fmtC(s, L.business.lineTotal(l)) })),
+        draft ? btn('Remove line', function () { bzAct(function (x) { var v = x.invoices.filter(function (z) { return z.id === inv.id; })[0]; var ls = v.lines.slice(); ls.splice(i, 1); L.business.editDraft(x, inv.id, { lines: ls }); }, 'Line removed.', 'invoice line remove'); }, 'sm bad', { 'aria-label': 'Remove line ' + l.description }) : null);
+    });
+    var ld = h('input', { type: 'text', id: 'il-desc', maxlength: '200' }), lq = h('input', { type: 'text', id: 'il-qty', value: '1', inputmode: 'decimal', maxlength: '9' }), lu = h('input', { type: 'text', id: 'il-unit', inputmode: 'decimal', maxlength: '14' });
+    var addLine = draft ? h('form', { id: 'il-form', onsubmit: function (e) {
+      e.preventDefault();
+      bzAct(function (x) { var v = x.invoices.filter(function (z) { return z.id === inv.id; })[0]; L.business.editDraft(x, inv.id, { lines: v.lines.concat([{ description: ld.value.trim(), qty: Number(lq.value), unitCents: cents$(lu.value, { zero: true }) }]) }); }, 'Line added.', 'invoice line add');
+    } }, field('Description', ld), field('Quantity', lq), field('Unit price', lu), h('button', { type: 'submit', class: 'btn', text: 'Add line' })) : null;
+    var avail = draft ? L.business.unbilled(s, inv.projectId || null) : [];
+    var bill = draft ? h('div', { class: 'card', id: 'inv-billable' }, h('h3', { text: 'Unbilled billable expenses' }), avail.length ? avail.map(function (e) {
+      return h('div', { class: 'item' }, h('div', null, h('div', { class: 'entry-t', text: e.title }), h('div', { class: 'mut small', text: e.date + ' | ' + fmtC(s, L.metrics.cents(e.value)) })),
+        btn('Add to invoice', function () { bzAct(function (x) { L.business.addBillable(x, inv.id, e.id); }, 'Added. The expense keeps its own deduction.', 'invoice expense add'); }, 'sm', { 'aria-label': 'Add ' + e.title + ' to invoice' }));
+    }) : h('p', { class: 'mut small', text: 'None for this line of work.' })) : null;
+    var acts = [];
+    if (draft) acts.push(btn('Mark sent', function () { bzAct(function (x) { L.business.markSent(x, inv.id); }, 'Marked sent.', 'invoice sent'); }, 'pri', { id: 'inv-sent' }));
+    if (inv.status === 'sent' || draft) acts.push(btn('Mark paid', function () { markPaidDialog(inv); }, inv.status === 'sent' ? 'pri' : '', { id: 'inv-paid' }));
+    if (inv.status === 'draft' || inv.status === 'sent') acts.push(btn('Void', function () { openDialog({ title: 'Void invoice ' + inv.number + '?', yes: 'Void', danger: true, body: h('p', { class: 'mut', text: 'Its income entry is unlinked, never deleted. Billed expenses become unbilled again.' }), onYes: function () { return commit(function (x) { L.business.voidInvoice(x, inv.id); }, 'invoice void').then(render); } }); }, 'bad', { id: 'inv-void' }));
+    if (inv.status === 'draft' || inv.status === 'void') acts.push(btn('Delete', function () { openDialog({ title: 'Delete invoice ' + inv.number + '?', yes: 'Delete', danger: true, body: h('p', { class: 'mut', text: 'Billed expenses become unbilled again.' }), onYes: function () { return commit(function (x) { L.business.deleteInvoice(x, inv.id); }, 'invoice delete').then(function () { bzGo('invoices'); }); } }); }, 'bad', { id: 'inv-delete' }));
+    acts.push(btn('Print view', function () { go('print', { kind: 'invoice', id: inv.id, from: 'invoices' }); }, '', { id: 'inv-print' }));
+    // offers: nothing posts without a tap
+    var offers = [];
+    if (inv.status === 'sent' && !income && total > 0) offers.push(h('div', { class: 'card', id: 'inv-offer-income' }, h('p', { class: 'small', text: 'Offer: create one expected income entry of ' + fmtC(s, total) + ' due ' + inv.dueDate + '. It is not counted until it is received.' }),
+      btn('Create expected income', function () { bzAct(function (x) { L.business.createExpectedIncome(x, inv.id); }, 'Expected income created.', 'invoice expected income'); }, 'pri', { id: 'inv-make-income' })));
+    if (inv.status === 'paid' && !(income && income.type === 'income' && (!income.status || income.status === 'received')) && total > 0) offers.push(h('div', { class: 'card', id: 'inv-offer-received' }, h('p', { class: 'small', text: 'Offer: count ' + fmtC(s, total) + ' as business income received on ' + inv.paidOn + '. Income counts once, when it is received.' }),
+      btn('Mark income received', function () { bzAct(function (x) { L.business.settleIncome(x, inv.id); }, 'Income counted.', 'invoice income received'); }, 'pri', { id: 'inv-settle' })));
+    return h('div', { id: 'inv-detail', 'data-status': inv.status },
+      btn('Back to invoices', function () { bzGo('invoices'); }, 'sm back'),
+      h('div', { class: 'card' }, h('h2', { text: 'Invoice ' + inv.number }), h('p', { class: 'mut small', text: bzLineName(s, inv.projectId) + ' | issued ' + inv.issueDate + ' | due ' + inv.dueDate + (inv.paidOn ? ' | paid ' + inv.paidOn : '') }),
+        h('div', { class: 'row' }, chipEl(inv.status, inv.status === 'paid' ? 'ok' : ''), h('strong', { id: 'inv-total', text: fmtC(s, total) })),
+        inv.incomeId ? h('p', { class: 'mut small', id: 'inv-income-note', text: income ? 'Linked income entry: ' + (income.status || 'received') + '.' : 'The linked income entry no longer exists.' }) : null,
+        lineRows.length ? lineRows : h('p', { class: 'mut', text: 'No lines yet.' }), addLine, h('div', { class: 'row' }, acts)),
+      offers, bill);
+  }
+  function markPaidDialog(inv) {
+    var d = h('input', { type: 'date', id: 'ip-date', value: today(), required: true });
+    openDialog({ title: 'Mark invoice ' + inv.number + ' paid', yes: 'Mark paid', body: field('Date paid', d), onYes: function () { return commit(function (x) { L.business.markPaid(x, inv.id, d.value); }, 'invoice paid').then(render); } });
+  }
+
+  // ---- Mileage and home office ----
+  function bzMileage(s) {
+    var y = bzYear(), t = L.tax.compute(s, y), p = L.tax.profileOf(s, y);
+    if (t.blocked) return [bzYearNav(), taxNotice(), lockedTax()];
+    var trips = (s.trips || []).filter(function (x) { return x.date.slice(0, 4) === String(y); }).sort(function (a, b) { return b.date.localeCompare(a.date); });
+    var d = h('input', { type: 'date', id: 'tr-date', value: today(), required: true }), from = h('input', { type: 'text', id: 'tr-from', maxlength: '120' }), to = h('input', { type: 'text', id: 'tr-to', maxlength: '120' });
+    var mi = h('input', { type: 'text', id: 'tr-miles', inputmode: 'decimal', maxlength: '8' }), rt = h('input', { type: 'checkbox', id: 'tr-round' }), why = h('input', { type: 'text', id: 'tr-purpose', maxlength: '200' }), ln = sel('tr-line', lineOptions(s, '(no line of work)'), '');
+    var rows = trips.map(function (x) {
+      var c = p ? L.tax.tripCents(p, x) : null;
+      return h('div', ROW({ class: 'item' }, 'trips', x), h('div', null, h('div', { class: 'entry-t', text: x.date + ': ' + x.miles + ' mi' + (x.roundTrip ? ' (round trip)' : '') }), h('div', { class: 'mut small', text: (x.from || '-') + ' to ' + (x.to || '-') + (x.purpose ? ' | ' + x.purpose : '') + ' | ' + (c === null ? 'no mileage rate: set your rate' : fmtC(s, c)) })),
+        btn('Delete', function () { bzAct(function (z) { L.business.deleteTrip(z, x.id); }, 'Trip removed.', 'trip delete'); }, 'sm bad', { 'aria-label': 'Delete trip on ' + x.date }));
+    });
+    var ho = (s.homeOffice || {})[String(y)] || { squareFeet: 0, monthsUsed: 0 };
+    var sq = h('input', { type: 'text', id: 'ho-sqft', inputmode: 'numeric', value: String(ho.squareFeet), maxlength: '6' }), mo = h('input', { type: 'text', id: 'ho-months', inputmode: 'numeric', value: String(ho.monthsUsed), maxlength: '2' });
+    return [bzYearNav(), taxNotice(),
+      h('div', { class: 'card', id: 'mi-card' }, h('h2', { text: 'Mileage log, ' + y }), h('div', { class: 'stats' }, stat('Trips', String(t.tripCount), 'mi-count'), stat('Mileage deduction', fmtC(s, t.mileageCents), 'mi-total')),
+        !p ? h('p', { class: 'small', id: 'mi-norate', text: 'Start the ' + y + ' tax profile to price trips: set your rate.' }) : (!p.mileageRates.length ? h('p', { class: 'small', id: 'mi-norate', text: 'The profile has no mileage rate: set your rate. Trips deduct nothing until then.' }) : null),
+        h('p', { class: 'mut small', text: 'Trip text stays in the vault only. Each trip is priced by the rate period that contains its date.' }),
+        rows.length ? rows : h('p', { class: 'mut', text: 'No trips this year.' }),
+        h('form', { id: 'tr-form', onsubmit: function (e) {
+          e.preventDefault();
+          bzAct(function (x) { L.business.addTrip(x, { date: d.value, from: from.value.trim(), to: to.value.trim(), miles: mi.value, purpose: why.value.trim(), projectId: ln.value || undefined, roundTrip: rt.checked }); }, 'Trip logged.', 'trip add');
+        } }, field('Date', d), field('From', from), field('To', to), field('Miles (one decimal)', mi), h('label', { class: 'field check' }, rt, h('span', { text: 'Round trip (counts the miles twice)' })), field('Purpose', why), field('Line of work (optional)', ln), h('button', { type: 'submit', class: 'btn pri', text: 'Log trip' }))),
+      h('div', { class: 'card', id: 'ho-card' }, h('h2', { text: 'Home office, simplified method, ' + y }),
+        p ? h('p', { class: 'mut small', text: 'Rate ' + fmtC(s, p.homeOfficeRate) + ' per square foot, up to ' + p.homeOfficeMaxSqFt + ' square feet, from the profile.' }) : h('p', { class: 'small', text: 'Start the ' + y + ' tax profile for the rate and the square-foot cap.' }),
+        h('div', { class: 'stats' }, stat('Home office deduction', fmtC(s, t.homeOfficeCents), 'ho-result')),
+        h('form', { id: 'ho-form', onsubmit: function (e) {
+          e.preventDefault();
+          bzAct(function (x) { L.business.setHomeOffice(x, y, { squareFeet: intIn(sq.value, 0, 100000, 'Square feet'), monthsUsed: intIn(mo.value, 0, 12, 'Months used') }); }, 'Home office saved.', 'home office saved');
+        } }, field('Square feet used for business', sq), field('Months used (0 to 12)', mo), h('button', { type: 'submit', class: 'btn pri', id: 'ho-save', text: 'Save home office' })))];
+  }
+
+  // ---- Payees (1099-NEC) ----
+  function bzPayees(s) {
+    var y = bzYear(), pt = L.tax.payeeTotals(s, y);
+    var out = [bzYearNav(), taxNotice()];
+    if (pt.blocked) { out.push(lockedTax()); return out; }
+    var nm = h('input', { type: 'text', id: 'pe-name', maxlength: '120' }), w9 = h('input', { type: 'checkbox', id: 'pe-w9' }), w9d = h('input', { type: 'date', id: 'pe-w9date' });
+    var byId = {}; pt.rows.forEach(function (r) { byId[r.payeeId] = r; });
+    var rows = (s.payees || []).filter(function (x) { return !x.archived; }).map(function (x) {
+      var r = byId[x.id] || { totalCents: 0, cardCents: 0, reaches: false };
+      return h('div', ROW({ class: 'item', 'data-payee-total': String(r.totalCents) }, 'payees', x), h('div', null, h('div', { class: 'entry-t', text: x.name }),
+        h('div', { class: 'mut small' }, 'Year total ' + fmtC(s, r.totalCents) + (r.cardCents ? ' (card payments ' + fmtC(s, r.cardCents) + ' excluded)' : '') + ' | W-9 ' + (x.tinOnFile ? (x.w9Date || 'on file') : 'not on file') + ' ', r.reaches ? chipEl('At or over the threshold', 'bad') : null)),
+        h('div', { class: 'row' }, btn(x.tinOnFile ? 'W-9: on file' : 'W-9: not on file', function () { bzAct(function (z) { L.business.updatePayee(z, x.id, { tinOnFile: !x.tinOnFile }); }, 'Updated.', 'payee w9'); }, 'sm', { 'aria-pressed': x.tinOnFile ? 'true' : 'false', 'aria-label': 'Toggle W-9 for ' + x.name }),
+          btn('Delete', function () { openDialog({ title: 'Delete ' + x.name + '?', yes: 'Delete', danger: true, body: h('p', { class: 'mut', text: 'Their expenses are kept and unlinked.' }), onYes: function () { return commit(function (z) { L.business.deletePayee(z, x.id); }, 'payee delete').then(render); } }); }, 'sm bad', { 'aria-label': 'Delete payee ' + x.name })));
+    });
+    out.push(h('div', { class: 'card', id: 'pe-card' }, h('h2', { text: '1099-NEC payees, ' + y }),
+      pt.hasProfile ? h('p', { class: 'small', id: 'pe-threshold', text: 'Threshold ' + fmtC(s, pt.thresholdCents) + '. Filing reminder ' + pt.due.date + (pt.due.date !== pt.due.nominal ? ' (moved from ' + pt.due.nominal + ')' : '') + '.' }) : h('p', { class: 'small', text: 'Start the ' + y + ' tax profile for the threshold.' }),
+      h('p', { class: 'mut small', text: 'A payee\'s tax ID is never stored, only whether a W-9 is on file. Pay with a card? Mark the expense as a card payment so it is left out of the 1099 total.' }),
+      rows.length ? rows : h('p', { class: 'mut', text: 'No payees yet.' }),
+      h('form', { id: 'pe-form', onsubmit: function (e) {
+        e.preventDefault();
+        bzAct(function (x) { L.business.addPayee(x, { name: nm.value, tinOnFile: w9.checked, w9Date: w9d.value || undefined }); }, 'Payee added.', 'payee add');
+      } }, field('Name', nm), h('label', { class: 'field check' }, w9, h('span', { text: 'A W-9 is on file' })), field('W-9 date (optional)', w9d), h('button', { type: 'submit', class: 'btn pri', text: 'Add payee' }))));
+    return out;
+  }
+
+  // ---- Budgets ----
+  function bzBudgets(s) {
+    var t = today(), lines = liveLines(s), cur = s.settings.currency;
+    var ln = sel('bd-line', lineOptions(s, '(choose a line)'), ''), amt = h('input', { type: 'text', id: 'bd-amount', inputmode: 'decimal', maxlength: '14' }), per = sel('bd-period', [{ v: 'month', t: 'Per month' }, { v: 'project', t: 'For the project' }], 'month');
+    var stateText = function (b) { return b.budgetCents === null ? 'no budget' : fmtC(s, b.actualCents) + ' of ' + fmtC(s, b.budgetCents) + (b.period === 'month' ? ' this month' : ' to date'); };
+    var rows = lines.filter(function (p) { return p.budgetCents !== undefined; }).map(function (p) {
+      var b = L.business.budgetFor(s, p.id, t);
+      return h('div', ROW({ class: 'item', 'data-budget-status': b.status }, 'projects', p), h('div', null, h('div', { class: 'entry-t', text: p.name }), h('div', { class: 'small ' + (b.status === 'over' ? 'bad-t' : 'mut'), text: stateText(b) })), btn('Remove budget', function () { bzAct(function (x) { L.business.setBudget(x, p.id, 0); }, 'Budget removed.', 'budget remove'); }, 'sm', { 'aria-label': 'Remove budget for ' + p.name }));
+    });
+    var roll = lines.filter(function (p) { return !p.parentId && (s.projects || []).some(function (k) { return k.parentId === p.id; }); }).map(function (p) {
+      var b = L.business.budgetRollup(s, p.id, t);
+      return h('div', { class: 'item', 'data-rollup': p.id, 'data-budget-status': b.status }, h('div', null, h('div', { class: 'entry-t', text: p.name + ' (with the lines under it)' }), h('div', { class: 'small ' + (b.status === 'over' ? 'bad-t' : 'mut'), text: stateText(b) })));
+    });
+    var un = lines.map(function (p) { return { p: p, items: L.business.unbilled(s, p.id) }; }).filter(function (x) { return x.items.length; });
+    var drafts = (s.invoices || []).filter(function (i) { return i.status === 'draft'; });
+    return [h('div', { class: 'card', id: 'bd-card' }, h('h2', { text: 'Project budgets' }), h('p', { class: 'mut small', text: 'Actual is the line\'s expenses: this month for a monthly budget, all time for a project budget. Over budget changes the colour only.' }),
+      rows.length ? rows : h('p', { class: 'mut', text: 'No budgets yet.' }), roll.length ? [h('h3', { text: 'Parent rollups' }), roll] : null,
+      h('form', { id: 'bd-form', onsubmit: function (e) { e.preventDefault(); bzAct(function (x) { if (!ln.value) throw new Error('Choose a line of work.'); L.business.setBudget(x, ln.value, cents$(amt.value, { zero: true }), per.value); }, 'Budget saved.', 'budget set'); } },
+        field('Line of work', ln), field('Budget (0 removes it)', amt), field('Period', per), h('button', { type: 'submit', class: 'btn pri', text: 'Save line budget' }))),
+      h('div', { class: 'card', id: 'bd-unbilled' }, h('h2', { text: 'Unbilled billable expenses' }), un.length ? un.map(function (x) {
+        var ds = drafts.filter(function (i) { return !i.projectId || i.projectId === x.p.id; });
+        return h('div', null, h('h3', { text: x.p.name }), x.items.map(function (e) {
+          var pick = sel(null, ds.map(function (i) { return { v: i.id, t: i.number }; }), ds.length ? ds[0].id : '');
+          pick.setAttribute('aria-label', 'Draft invoice for ' + e.title); pick.setAttribute('name', 'bd-draft-' + e.id);
+          return h('div', { class: 'item' }, h('div', null, h('div', { class: 'entry-t', text: e.title }), h('div', { class: 'mut small', text: e.date + ' | ' + fmtC(s, L.metrics.cents(e.value)) })),
+            ds.length ? h('div', { class: 'row' }, pick, btn('Add to invoice', function () { bzAct(function (z) { L.business.addBillable(z, pick.value, e.id); }, 'Added to the invoice.', 'invoice expense add'); }, 'sm', { 'aria-label': 'Add ' + e.title + ' to the chosen invoice' })) : h('span', { class: 'mut small', text: 'Add a draft invoice first.' }));
+        }));
+      }) : h('p', { class: 'mut', text: 'Nothing waiting to be billed.' }))];
+  }
+
+  // ---- Settings: business details, invoice numbers, reserve account, pinned line, tax line map ----
+  function bzSettings(s) {
+    var b = s.settings.business;
+    var nm = h('input', { type: 'text', id: 'bs-name', value: b.name, maxlength: '120' }), ad = h('textarea', { id: 'bs-address', rows: '3', maxlength: '300' }), tm = h('textarea', { id: 'bs-terms', rows: '2', maxlength: '300' });
+    ad.value = b.address; tm.value = b.paymentTerms;
+    var fm = h('input', { type: 'text', id: 'bs-format', value: b.invoiceFormat, maxlength: '40' }), nx = h('input', { type: 'text', id: 'bs-next', value: String(b.invoiceNext), inputmode: 'numeric', maxlength: '10' });
+    var accts = (s.accounts || []).filter(function (a) { return !a.archived && !a.liability; });
+    var rs = sel('bs-reserve', [{ v: '', t: '(none)' }].concat(accts.map(function (a) { return { v: a.id, t: a.name }; })), b.reserveAccountId || '');
+    var pn = sel('bs-pinned', lineOptions(s, '(none)'), b.pinnedProjectId || '');
+    var cats = (s.categories.expense || []), lineOpts = [{ v: '', t: '(default by name)' }].concat(L.tax.MAPPABLE.map(function (id) { return { v: id, t: L.tax.lineById(id).label }; }));
+    var missing = L.tax.DEFAULT_CATEGORY_LINES.filter(function (x) { return !cats.some(function (c) { return c.toLowerCase() === x[0].toLowerCase(); }); });
+    var maps = cats.map(function (c) {
+      var cur = (s.taxMap || []).filter(function (x) { return x.category.toLowerCase() === c.toLowerCase(); })[0];
+      var ls = sel(null, lineOpts, cur ? cur.line : '', function (e) { var v = e.target.value; bzAct(function (x) { L.tax.setLineMap(x, c, v); }, 'Mapping saved.', 'tax line map'); });
+      ls.setAttribute('aria-label', 'Tax line for ' + c); ls.setAttribute('name', 'map-' + c);
+      var eff = L.tax.lineFor(s, c);
+      return h('div', { class: 'item' }, h('div', null, h('div', { class: 'entry-t', text: c }), h('div', { class: 'mut small', text: eff ? 'Schedule C: ' + L.tax.lineById(eff).label : 'Unmapped in tax views' })), ls);
+    });
+    return [h('div', { class: 'card', id: 'bs-card' }, h('h2', { text: 'Business details and invoices' }),
+      h('form', { id: 'bs-form', onsubmit: function (e) {
+        e.preventDefault();
+        bzAct(function (x) { L.business.saveSettings(x, { name: nm.value, address: ad.value, paymentTerms: tm.value, invoiceFormat: fm.value, invoiceNext: intIn(nx.value, 1, 1e9, 'Next invoice number'), reserveAccountId: rs.value, pinnedProjectId: pn.value }); }, 'Saved.', 'business settings');
+      } }, field('Business name', nm), field('Address', ad), field('Payment terms', tm), field('Invoice number format ({YYYY}, {YY}, {NNNN} for the counter)', fm), field('Next counter', nx),
+        field('Tax reserve account', rs), field('Pinned line of work (dashboard budget module)', pn), h('button', { type: 'submit', class: 'btn pri', id: 'bs-save', text: 'Save business settings' }))),
+      h('div', { class: 'card', id: 'bs-map' }, h('h2', { text: 'Expense categories and Schedule C lines' }),
+        h('p', { class: 'mut small', text: 'Car and truck and the home office come from their logs only. A business expense whose category has no line shows as Unmapped in tax views and is still counted.' }),
+        missing.length ? btn('Add the business categories', function () { bzAct(function (x) { missing.forEach(function (m) { if (x.categories.expense.length < 50) x.categories.expense.push(m[0]); }); }, 'Categories added.', 'business categories'); }, '', { id: 'bs-addcats' }) : null,
+        maps)];
+  }
+
+  // ---- Export ----
+  // SEC-78: private records stay out of the file unless "Include private records" is ticked (default off, offered only while the vault is open).
+  function bzExport(s) {
+    var y = bzYear(), inc = !!view.exPriv && L.priv.isOpen(), pkg = L.tax.exportPackage(s, y, inc), out = [bzYearNav(), taxNotice()];
+    var tick = L.priv.isOpen() ? h('label', { class: 'field check' }, h('input', { type: 'checkbox', id: 'ex-private', checked: inc, onchange: function (e) { view.exPriv = e.target.checked; render(); } }), h('span', { text: 'Include private records' })) : null;
+    if (pkg.blocked) { out.push(tick, pkg.leftOut ? h('p', { class: 'warn small', id: 'ex-left-out', role: 'status' }, lockIcon('Some private items are hidden', 'lockmark'), ' ', pkg.message) : lockedTax()); return out; }
+    out.push(h('div', { class: 'card', id: 'ex-card' }, h('h2', { text: 'Year-end accountant package, ' + y }),
+      h('p', { class: 'warn small', id: 'ex-warning', text: L.tax.EXPORT_WARNING }), tick,
+      h('p', { class: 'small', id: 'ex-private-note', text: pkg.privateIncluded ? 'Private records are included in this file.' : 'Private records are not included. No business record of this year is private, so the totals are complete.' }),
+      h('p', { class: 'mut small', text: pkg.income.length + ' income entries, ' + pkg.expenses.length + ' expenses, ' + pkg.trips.length + ' trips, ' + pkg.payees.length + ' payees, ' + pkg.payments.length + ' payments. The file goes to your device only. Nothing is sent anywhere.' }),
+      h('div', { class: 'row' }, btn('Download CSV', function () {
+        openDialog({ title: 'Download an unencrypted file?', yes: 'Download', body: h('p', { id: 'ex-confirm-text', text: L.tax.EXPORT_WARNING }), onYes: function () {
+          var again = L.tax.exportPackage(st(), y, inc && L.priv.isOpen());
+          if (again.blocked) throw new Error(again.message || L.tax.BLOCK_MESSAGE);
+          download('lifeos-accountant-' + y + '.csv', L.tax.exportCsv(again, function (id) { return id ? projName(st(), id) : 'No line of work'; }), 'text/csv');
+        } });
+      }, 'pri', { id: 'ex-download' }), btn('Open print view', function () { go('print', { kind: 'tax', year: y, from: 'export', includePrivate: inc }); }, '', { id: 'ex-print' }))));
+    return out;
+  }
+
+  // ---- print views (no network; the browser prints to PDF) ----
+  function printScreen(s) {
+    var back = btn('Back', function () { if (view.kind === 'invoice') bzGo('invoices', { invoiceId: view.id }); else bzGo('export', { year: view.year }); }, 'sm back noprint', { id: 'pv-back' });
+    var pbtn = btn('Print', function () { window.print(); }, 'pri noprint', { id: 'pv-print' });
+    if (view.kind === 'invoice') {
+      var inv = (s.invoices || []).filter(function (x) { return x.id === view.id; })[0];
+      if (!inv) return h('div', null, back, h('p', { text: 'That invoice no longer exists.' }));
+      var b = s.settings.business, total = L.business.invoiceTotal(inv);
+      return h('div', { class: 'printview', id: 'print-invoice' }, h('div', { class: 'row noprint' }, back, pbtn),
+        h('h1', { text: 'Invoice ' + inv.number }), h('p', { class: 'pv-from' }, h('strong', { text: b.name || 'Your business' }), h('br'), b.address),
+        h('p', { text: 'Bill to: ' + (inv.projectId ? bzLineName(s, inv.projectId) : '') }), h('p', { text: 'Issued ' + inv.issueDate + '. Due ' + inv.dueDate + '.' + (inv.paidOn ? ' Paid ' + inv.paidOn + '.' : '') }),
+        tbl('pv-lines', ['Description', 'Quantity', 'Unit price', 'Amount'], inv.lines.map(function (l) { return { cells: [l.description, String(l.qty), fmtC(s, l.unitCents), fmtC(s, L.business.lineTotal(l))] }; })),
+        h('p', null, h('strong', { id: 'pv-total', text: 'Total ' + fmtC(s, total) })), b.paymentTerms ? h('p', { text: 'Payment terms: ' + b.paymentTerms }) : null, inv.notes ? h('p', { text: inv.notes }) : null);
+    }
+    var y = view.year || bzYear(), pkg = L.tax.exportPackage(s, y, !!view.includePrivate && L.priv.isOpen());
+    if (pkg.blocked) return h('div', { class: 'printview' }, h('div', { class: 'row noprint' }, back), taxNotice(), pkg.leftOut ? h('p', { class: 'warn small', role: 'status', text: pkg.message }) : lockedTax());
+    var t = pkg.summary, rows = [{ cells: ['Gross receipts', fmtC(s, t.incomeCents)] }].concat(t.lines.map(function (l) { return { cells: [l.label, fmtC(s, l.cents)] }; }), [{ cells: ['Unmapped expenses', fmtC(s, t.unmapped.cents)] }, { cells: ['Net profit', fmtC(s, t.profitCents)] }, { cells: ['Reimbursed expenses (information only)', fmtC(s, t.reimbursedCents)] }]);
+    return h('div', { class: 'printview', id: 'print-tax' }, h('p', { class: 'warn small', id: 'pv-warning', text: L.tax.EXPORT_WARNING }), h('div', { class: 'row noprint' }, back, pbtn), h('h1', { text: 'Accountant package, ' + y }), taxNotice(), h('p', { class: 'small', id: 'pv-private', text: pkg.privateIncluded ? 'Private records are included.' : 'Private records are not included (none of this year).' }),
+      h('h2', { text: 'Schedule C summary' }), tbl('pv-sc', ['Line', 'Amount'], rows),
+      h('h2', { text: 'By line of work' }), tbl('pv-lw', ['Line of work', 'Income', 'Expenses', 'Mileage', 'Home office', 'Net'], t.byLineOfWork.lines.concat(t.byLineOfWork.rollups).map(function (r) { return { cells: [bzLineName(s, r.projectId) + (t.byLineOfWork.rollups.indexOf(r) >= 0 ? ' (rollup)' : ''), fmtC(s, r.incomeCents), fmtC(s, r.expenseCents), fmtC(s, r.mileageCents), fmtC(s, r.homeOfficeCents), fmtC(s, r.netCents)] }; })),
+      h('h2', { text: '1099-NEC payees' }), tbl('pv-payees', ['Payee', 'Total', 'Card payments', 'W-9'], pkg.payees.map(function (x) { return { cells: [x.name, fmtC(s, x.totalCents), fmtC(s, x.cardCents), x.w9] }; })),
+      h('h2', { text: 'Mileage log' }), tbl('pv-trips', ['Date', 'From', 'To', 'Miles', 'Purpose', 'Deduction'], pkg.trips.map(function (x) { return { cells: [x.date, x.from, x.to, String(x.miles), x.purpose, x.cents === null ? 'no rate' : fmtC(s, x.cents)] }; })),
+      h('h2', { text: 'Estimated payments' }), tbl('pv-pay', ['For', 'Quarter', 'Amount', 'Paid on'], pkg.payments.map(function (x) { return { cells: [x.jurisdiction === 'nj' ? 'NJ' : 'Federal', String(x.quarter), fmtC(s, x.amountCents), x.paidOn] }; })));
+  }
+
+  // ---- dashboard modules ----
+  function bzModLock(title) { return h('div', { class: 'card' }, h('h2', { text: title }), lockedTax()); }
+  function taxSetAsideMod(s) {
+    var y = Number(today().slice(0, 4)), t = L.tax.compute(s, y);
+    if (t.blocked) return bzModLock('Tax set-aside');
+    if (!t.hasProfile) return h('div', { class: 'card', id: 'mod-taxset' }, h('h2', { text: 'Tax set-aside' }), h('p', { class: 'mut small', text: 'No ' + y + ' tax profile yet.' }), btn('Open Business', function () { go('business'); }, 'sm'));
+    return h('div', { class: 'card', id: 'mod-taxset' }, h('h2', { text: 'Tax set-aside' }),
+      h('div', { class: 'stats' }, stat('Set aside to date', t.setAsideCents === null ? 'set your rate' : fmtC(s, t.setAsideCents), 'mod-setaside'), stat('Reserve', t.reserveHidden ? 'hidden while the private vault is closed' : t.reserveCents === null ? 'no reserve account' : fmtC(s, t.reserveCents), 'mod-reserve'), stat('Gap', t.gapCents === null ? '-' : fmtC(s, t.gapCents), 'mod-gap')), taxNotice());
+  }
+  function taxNextMod(s) {
+    var t = today(), best = null, blockedAny = false;
+    L.tax.years(s).forEach(function (y) {
+      var c = L.tax.compute(s, y);
+      if (c.blocked) { if (y >= Number(t.slice(0, 4)) - 1) blockedAny = true; return; }
+      ['federal', 'nj'].forEach(function (j) { c.due[j].forEach(function (d) { if (d.date >= t && c.payments.byQuarter[j][d.quarter - 1] === 0 && (!best || d.date < best.date)) best = { date: d.date, j: j, q: d.quarter, y: y }; }); });
+    });
+    // SEC-81: a refused year could hold an earlier unpaid date, so the module refuses rather than show a later one as "next".
+    if (blockedAny) return bzModLock('Next estimated payment');
+    return h('div', { class: 'card', id: 'mod-taxnext' }, h('h2', { text: 'Next estimated payment' }), best ? h('p', { id: 'mod-taxnext-date', text: best.date + ': ' + (best.j === 'nj' ? 'NJ' : 'Federal') + ' quarter ' + best.q + ' of ' + best.y }) : h('p', { class: 'mut small', text: 'No unpaid estimate dates ahead.' }), taxNotice());
+  }
+  function invOpenMod(s) {
+    var ag = L.business.aging(s, today());
+    return h('div', { class: 'card', id: 'mod-inv' }, h('h2', null, 'Open invoices ', lockMark(['invoices'])), h('div', { class: 'stats' }, stat('Open', String(ag.openCount), 'mod-inv-n'), stat('Total', fmtC(s, ag.openCents), 'mod-inv-total'), stat('Overdue', String(ag.overdueCount), 'mod-inv-overdue')),
+      L.business.BUCKETS.map(function (b) { return h('p', { class: 'mut small', text: b[1] + ': ' + ag.buckets[b[0]].count + ' (' + fmtC(s, ag.buckets[b[0]].cents) + ')' }); }), btn('Open invoices', function () { bzGo('invoices'); }, 'sm'));
+  }
+  function budgetPinnedMod(s) {
+    var id = s.settings.business.pinnedProjectId, p = id ? (s.projects || []).filter(function (x) { return x.id === id; })[0] : null;
+    if (!p) return h('div', { class: 'card', id: 'mod-budget' }, h('h2', null, 'Budget vs actual ', lockMark(['projects'])), h('p', { class: 'mut small', text: 'Pin a line of work under Business, Settings.' }));
+    var b = L.business.budgetFor(s, p.id, today());
+    return h('div', { class: 'card', id: 'mod-budget', 'data-budget-status': b.status }, h('h2', null, 'Budget: ' + p.name + ' ', lockMark(['entries', 'projects'])), b.budgetCents === null ? h('p', { class: 'mut small', text: 'No budget set.' }) : h('p', { class: b.status === 'over' ? 'bad-t' : '', text: fmtC(s, b.actualCents) + ' of ' + fmtC(s, b.budgetCents) + (b.period === 'month' ? ' this month' : ' to date') }));
+  }
+  function payeesNearMod(s) {
+    var y = Number(today().slice(0, 4)), pt = L.tax.payeeTotals(s, y);
+    if (pt.blocked) return bzModLock('1099 payees');
+    var nm = {}; (s.payees || []).forEach(function (x) { nm[x.id] = x.name; });
+    return h('div', { class: 'card', id: 'mod-payees' }, h('h2', { text: '1099 payees, ' + y }), pt.hasProfile ? null : h('p', { class: 'mut small', text: 'No ' + y + ' tax profile yet.' }),
+      pt.rows.slice(0, 5).map(function (r) { return h('p', { class: r.reaches ? 'bad-t small' : 'small', text: nm[r.payeeId] + ': ' + fmtC(s, r.totalCents) + (pt.hasProfile ? ' of ' + fmtC(s, pt.thresholdCents) : '') }); }), pt.rows.length ? null : h('p', { class: 'mut small', text: 'No payees with payments this year.' }));
   }
 
   // ---------- boot ----------

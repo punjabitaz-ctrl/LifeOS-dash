@@ -12,9 +12,9 @@ const withLayouts = (lay) => { const s = S.defaultState(); s.settings.layouts = 
 
 test('modules: the old dashboard order first, then the revenue modules; default list shows everything', () => {
   const ids = IDS();
-  assert.equal(ids.length, 16); assert.equal(new Set(ids).size, 16);
+  assert.equal(ids.length, 21); assert.equal(new Set(ids).size, 21);
   assert.deepEqual(ids.slice(0, 3), ['glance', 'priorities', 'tile-money']);
-  assert.deepEqual(ids.slice(-3), ['rev-month', 'rev-net-line', 'rev-expected']);
+  assert.deepEqual(ids.slice(-8), ['rev-month', 'rev-net-line', 'rev-expected', 'tax-setaside', 'tax-next', 'inv-open', 'budget-pinned', 'payees-near']);
   const d = Y.defaultList();
   assert.deepEqual(d.map((x) => x.id), ids); assert.ok(d.every((x) => x.hidden === false));
   assert.equal(Y.which(719), 'narrow'); assert.equal(Y.which(720), 'wide'); assert.equal(Y.which(390), 'narrow'); assert.equal(Y.which(1280), 'wide');
@@ -46,7 +46,7 @@ test('unknown ids and repeats are dropped, new modules are appended visible, bad
   assert.deepEqual(c.map((x) => x.id), ['tile-money', 'priorities', 'glance', 'rev-month']);
   assert.equal(c[2].size, 'wide', 'glance supports wide only'); assert.equal(c[3].size, 'wide'); assert.equal(c[1].hidden, true);
   const r = Y.resolve(c);
-  assert.equal(r.length, 16); assert.deepEqual(r.slice(0, 4).map((x) => x.id), ['tile-money', 'priorities', 'glance', 'rev-month']);
+  assert.equal(r.length, 21); assert.deepEqual(r.slice(0, 4).map((x) => x.id), ['tile-money', 'priorities', 'glance', 'rev-month']);
   assert.ok(r.slice(4).every((x) => x.hidden === false)); assert.deepEqual(r.slice(4).map((x) => x.id), IDS().filter((id) => !['tile-money', 'priorities', 'glance', 'rev-month'].includes(id)));
   // a layout saved by an older build that knew fewer modules gets the new ones at the end
   const old = Y.defaultList().slice(0, 13);
@@ -71,7 +71,7 @@ test('reset to default clears only the chosen width; set refuses unknown widths 
   Y.move(l, 'glance', 5); Y.moveTo(l, 'glance', 99); Y.setHidden(l, 'glance', true); Y.setSize(l, 'glance', 'small');
   assert.equal(JSON.stringify(l), before);
   assert.equal(Y.moveTo(l, 'glance', 99).at(-1).id, 'glance'); assert.equal(Y.moveTo(l, 'tile-admin', -4)[0].id, 'tile-admin');
-  assert.equal(Y.move(l, 'glance', -1)[0].id, 'glance'); assert.equal(Y.moveTo(l, 'nope', 0).length, 16);
+  assert.equal(Y.move(l, 'glance', -1)[0].id, 'glance'); assert.equal(Y.moveTo(l, 'nope', 0).length, 21);
   assert.equal(Y.setSize(l, 'glance', 'small').find((x) => x.id === 'glance').size, 'wide', 'a size the module lacks is ignored');
   assert.equal(Y.setSize(l, 'tile-money', 'wide').find((x) => x.id === 'tile-money').size, 'wide');
 });

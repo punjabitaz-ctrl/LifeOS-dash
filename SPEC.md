@@ -311,3 +311,63 @@ Owner decisions: the command center lives inside LifeOS (same vault and passphra
 - "New items are private" applies to add forms and add dialogs only; other new records follow SEC-62.
 - Recurring items may carry `anchorDay` (1 to 31) while their next date is clamped to a short month's end. Schema stays 11.
 - Every input, textarea and form has autocomplete off, except the main passphrase fields.
+
+## v1.1.0 addendum: Business expenses, invoices and tax (NJ single-member LLC)
+
+Owner decisions (15 Nov 2026): AYiN Advisors is a single-member LLC, taxed like a sole proprietor (Schedule C, self-employment tax, federal and NJ quarterly estimates). In scope: project budgets with billable and reimbursable expenses, invoices and receivables, mileage and home-office logs, tax estimates with set-asides and a payment calendar, and 1099-NEC payee tracking. Out of scope: split receipts, payroll, S corp, NJ BAIT (NJ does not allow single-member LLCs or sole proprietors to elect it), and sales tax filing.
+
+This builds on v1.0.0: lines of work are Work projects, income carries `status` expected/received, and the ledger import and customizable home already exist. Schema 12, with tested migrations from 1 to 11 (no data loss), downgrade guards extended, and private vault rules (part A) applied to every new collection and write path. Integer cents throughout.
+
+### Business vs personal
+- Money income and expense entries gain `scope:'business'|'personal'`. Existing entries default to personal unless they are linked to a project of kind `venture`, `client`, `website` or `podcast`, which defaults to business. The migration shows the counts, and the user confirms them once.
+- Expense categories gain an optional `taxLine`, mapped to Schedule C lines. Defaults: advertising, car and truck (from the mileage log only), contract labor, insurance, legal and professional, office expense, rent, supplies, travel, meals (50%, editable), utilities, software and subscriptions (other expenses), education, bank and payment fees, home office (from the home-office log only). Users can edit the mapping. An unmapped business expense shows as "Unmapped" in tax views and is never dropped.
+
+### Project budgets
+- Projects gain optional `budgetCents` with `budgetPeriod:'month'|'project'`. Budget vs actual per project and per parent rollup. Over-budget shows a status color only, never advice wording.
+- Expenses gain `billable:bool` and `reimbursable:bool`, plus `billedInvoiceId?`. Unbilled billable expenses are listed per client project, and "Add to invoice" is offered with one tap.
+
+### Invoices and receivables
+- `invoices:[{id,number,projectId,issueDate,dueDate,lines:[{description,qty,unitCents,expenseId?}] (max 50),status:'draft'|'sent'|'paid'|'void',paidOn?,incomeId?,notes}]`, cap 5000. Number format is a user setting with an auto-increment counter, and duplicate numbers are refused.
+- Marking an invoice sent offers (never automatically) one expected income entry for the total with the due date. Marking it paid offers to mark that income received on `paidOn`. Cash basis: income counts when it is received. One income per invoice; voiding unlinks it and never deletes it.
+- Aging: current, 1 to 30, 31 to 60, 61 to 90, and over 90 days past due. These feed the existing overdue-income module.
+- Print view: a clean invoice page with business name, address and payment terms from settings. It prints to PDF with the browser. No network calls.
+
+### Mileage and home office
+- `trips:[{id,date,from,to,miles (one decimal),purpose,projectId?,roundTrip:bool}]`, cap 10000. The deduction uses the tax-year rate (default 72.5 cents per mile for 2026, editable). Trip text stays in the vault only.
+- Home office (simplified method only): `homeOffice:{year:{squareFeet,monthsUsed}}`. The rate and square-foot cap are settings in the tax-year profile (default $5 per square foot, 300 square feet). The result shows on the Schedule C summary as its own line.
+
+### Contractors and 1099-NEC
+- Expenses in categories mapped to contract labor (or flagged as `contractor`) carry `payeeId`. `payees:[{id,name,tinOnFile:bool,w9Date?,archived}]`. The tax ID itself is never stored, only whether a W-9 is on file.
+- Per payee, the year's total is shown and flagged once it reaches the 1099-NEC threshold in the tax-year profile (default $2,000 for 2026), with a January 31 filing reminder in the Admin timeline. Card payments can be marked so they are excluded from the 1099 total.
+
+### Tax-year profile (user-editable, nothing hard-coded in logic)
+- `taxYears:{YYYY:{seRate:0.153, ssWageBase, ssRate:0.124, medicareRate:0.029, addlMedicareRate:0.009, addlMedicareThreshold, seFactor:0.9235, mileageRate, homeOfficeRate, homeOfficeMaxSqFt, nec1099Threshold, federalEffectiveRate, njEffectiveRate, priorYearFederalTax?, priorYearNjTax?, priorYearAgiOver150k:bool, dueDates:{federal:[...4], nj:[...4]}, sourceNote}}`.
+- 2026 defaults, each shown with its source note: Social Security wage base $184,500; mileage 72.5 cents; 1099-NEC threshold $2,000; federal and NJ estimate dates Apr 15, Jun 15, Sep 15 and Jan 15 of the next year (moved when a date falls on a weekend or holiday). The effective income tax rates have no default: the user enters them, and until then the views show "set your rate". Each new year copies the last profile, and nothing changes until the user confirms it.
+
+### Tax estimate, set-aside and calendar
+- Net business profit = business income received minus deductible business expenses (meals at their percentage), mileage and home office, year to date.
+- Self-employment tax is computed exactly: profit times the SE factor; 12.4% up to the wage base and 2.9% on all of it; plus 0.9% above the threshold. Half of SE tax reduces the income tax base.
+- Federal and NJ income tax are estimated from the user's effective rates. These are labelled as estimates.
+- Set-aside: the recommended reserve to date, compared with an optional "tax reserve" account balance (an existing Money account picked by the user).
+- Quarterly payment log per jurisdiction: `taxPayments:[{id,year,jurisdiction:'federal'|'nj',quarter,amountCents,paidOn,confirmation?}]`. Due dates appear in the Admin 30/60/90 timeline and as a home module.
+- Safe-harbor targets (shown only when the prior-year figures are entered). Federal: 100% of prior-year tax, or 110% when the prior-year AGI flag is set, compared with 90% of the current estimate. NJ: the smaller of 80% of current-year tax or 100% of prior-year tax. Each target is split into quarterly installments, with paid-to-date vs target.
+- Wording rule: "Estimate. Numbers only, not tax advice. Confirm with your accountant." appears on every tax view. No advice wording anywhere.
+
+### Year-end accountant package
+- One export (CSV plus a print view): Schedule C totals by line, the business income list, the expense list with tax lines, the mileage log, the home-office figures, 1099 payee totals (names, totals and W-9 status, never a tax ID), and quarterly payments. Export goes to a file only, with no network calls.
+
+### Home modules (added to the v1.0.0 layout whitelist)
+- Tax set-aside vs reserve, next estimated payment due, open invoices and aging, budget vs actual for one pinned project, and 1099 payees near the threshold.
+
+### Privacy, AI and tests
+- Invoice text, payee names, trip text, notes and confirmations never reach prompts, the digest, insights, errors, audit entries or URLs. The digest gains numbers only: business profit to date, estimated tax to date, set-aside gap, open invoice count and total, and overdue count. Extend test/smoke-leaks.mjs to every new free-text path.
+- Tests must cover: SE tax at, below and above the wage base and the additional Medicare threshold; a negative profit (no SE tax); meals at 50%; mileage and home-office caps; invoice to income to paid with no double counting; void handling; 1099 threshold edges (just under and exactly at); safe-harbor for both jurisdictions with and without prior-year figures; the schema 11 to 12 migration; and the private vault excluding private projects' invoices, trips and payments.
+
+### v1.1.0 amendment (owner decisions, 16 Nov 2026; overrides the addendum where they differ)
+1. Mileage rates are dated periods inside each tax-year profile: `mileageRates:[{from:'YYYY-MM-DD',centsPerMile}]` (cents with one decimal allowed, stored as tenths of a cent or another exact integer form; no floating point in totals). Each trip is priced by the period containing its date. 2026 defaults: 72.5 cents from 2026-01-01 (IRS Notice 2026-10) and 76 cents from 2026-07-01 (IRS Announcement 2026-11), each with its source note. Replaces the single `mileageRate`. Tests: trips on 2026-06-30 and 2026-07-01, a year with one period, a period list out of order (sorted, not refused), an empty list (shows "set your rate", deducts nothing).
+2. The 1099-NEC filing reminder uses the same weekend and holiday shift as the estimate dates: for 2026 payments it is 2027-02-01 (January 31, 2027 is a Sunday). The holiday list is part of the profile, editable.
+3. Reimbursable and billable expenses are treated gross: the full invoice counts as business income when received, and the expense is deducted on its own tax line. Nothing nets them. The Schedule C summary shows reimbursed totals as an informational line so the accountant can see them.
+4. Filing status is a profile field (`filingStatus:'single'|'mfj'|'mfs'|'hoh'`), set to single for the owner. The additional Medicare threshold defaults from it (single and hoh 200000, mfj 250000, mfs 125000 dollars), editable, with a source note.
+5. The owner has 1099 contract income this year. All self-employment income is entered as business income on its own line of work (a project of kind `client`), so it flows into net profit and SE tax with everything else. The Schedule C summary and the accountant export show totals per line of work and per parent rollup, so the accountant can decide whether it belongs on the same Schedule C or a separate one; the app makes no such determination. Add an optional profile field `otherSsEarningsCents` (W-2 Social Security wages, default 0) that reduces the room under the Social Security wage base before the 12.4% part is computed. Tests: SE tax with other earnings at, below and above the wage base.
+6. If any business record of the selected year (income, expense, invoice, trip, payment, payee, or a project they belong to) is in the private vault and the vault is closed, every tax figure (profit, SE tax, income tax estimates, set-aside, safe harbor, Schedule C summary, export, tax home modules, tax digest numbers) refuses to compute and shows "Open the private vault to see tax figures." with the lock marker. No partial tax numbers anywhere, including the weekly digest (the tax fields are omitted, not zero). Non-tax views keep the normal marker behaviour.
+7. The accountant export shows a plain warning before download ("This file is not encrypted. It contains your business records, payee names and mileage log. Store it somewhere safe.") and requires a confirm tap. The print view carries the same line at the top. No network calls.

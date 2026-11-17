@@ -2,7 +2,7 @@
   'use strict';
   const L = (globalThis.LifeOS = globalThis.LifeOS || {});
   const KEY = 'envelope';
-  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 11, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
+  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 12, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
   const HABIT_CAP = 8, HABIT_LOG_CAP = 100000, KIND_CAP = 30;
   const RENEWAL_TOTAL_CAP = 2000;
   const ENTRY_CAP = 50000, INSIGHT_CAP = 5000, REVIEW_CAP = 1000, LESSON_CAP = 30, AUDIT_CAP = 200;
@@ -121,6 +121,8 @@
       learning: schema >= 7 ? L.learning.cleanSettings(s.learning) : { weeklyMinutes: 0 },
       privAutoLockSec: schema >= 10 && s.privAutoLockSec !== undefined ? num(s.privAutoLockSec, 15, 1800, 'privAutoLockSec', true) : 60,
       layouts: schema >= 11 ? L.layout.cleanLayouts(s.layouts) : { narrow: [], wide: [] },
+      // v1.1.0: business settings. Migrating from an older schema asks the owner to confirm the business or personal scope once.
+      business: schema >= 12 ? L.business.cleanSettings(s.business) : L.business.defaultSettings(false),
     };
   }
   // 6 decimals, like converted weights, so a unit switch round trip does not drift.
@@ -237,6 +239,10 @@
       };
       if (x.nextDate !== undefined && x.nextDate !== '') o.nextDate = date(x.nextDate, 'nextDate');
       o.archived = bool(x.archived, 'archived', false);
+      if (x.budgetCents !== undefined && x.budgetCents !== null) {
+        o.budgetCents = num(x.budgetCents, 0, 1e11, 'project budget', true);
+        o.budgetPeriod = oneOf(x.budgetPeriod, ['month', 'project'], 'budget period');
+      }
       if (x.parentId !== undefined && x.parentId !== null && x.parentId !== '') o.parentId = str(x.parentId, 100, 'project parent');
       return o;
     });
@@ -341,6 +347,19 @@
       for (const k of ['netWeekCents', 'netMonthCents']) o[k] = num(x[k], -Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, 'digest revenue', true);
       for (const k of ['overdueCount', 'lines']) o[k] = num(x[k], 0, 1e9, 'digest revenue', true);
       out.revenue = o;
+    }
+    if (d.business !== undefined) {
+      if (!isObj(d.business)) fail('digest business');
+      const x = d.business, o = {};
+      for (const k of ['openInvoices', 'overdueInvoices']) o[k] = num(x[k], 0, 1e9, 'digest business', true);
+      o.openInvoiceCents = num(x.openInvoiceCents, 0, Number.MAX_SAFE_INTEGER, 'digest business', true);
+      if (x.tax !== undefined) {
+        if (!isObj(x.tax)) fail('digest tax');
+        o.tax = { profitCents: num(x.tax.profitCents, -Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, 'digest tax', true) };
+        if (x.tax.estimatedTaxCents !== undefined) o.tax.estimatedTaxCents = num(x.tax.estimatedTaxCents, 0, Number.MAX_SAFE_INTEGER, 'digest tax', true);
+        if (x.tax.gapCents !== undefined) o.tax.gapCents = num(x.tax.gapCents, -Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, 'digest tax', true);
+      }
+      out.business = o;
     }
     for (const k of ['home', 'admin']) {
       if (d[k] === undefined) continue;
@@ -591,7 +610,7 @@
   function validateStateRaw(o, opts) {
     if (!isObj(o)) fail('state must be an object');
     scan(o, 0, { n: 4e6 });
-    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, SCHEMA].includes(o.schema)) fail('unsupported schema');
+    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, SCHEMA].includes(o.schema)) fail('unsupported schema');
     if (!L.metrics) fail('metrics module missing');
     const settings = cleanSettings(o.settings, o.schema), entries = cleanEntries(o.entries);
     const out = { schema: SCHEMA, settings, entries };
@@ -668,6 +687,31 @@
       out.contacts = So.cleanContacts(m.contacts, out.people);
       out.entries = m.entries;
     }
+    // Schema 12 adds business records (payees, invoices, trips, estimated payments), the tax-year profiles, the home-office figures and
+    // the category to Schedule C line map. Older formats get empty collections, and each money entry takes the scope its line of work implies.
+    const Bz = L.business, Tx = L.tax, twelve = o.schema >= 12;
+    out.payees = twelve ? Bz.cleanPayees(o.payees) : [];
+    out.invoices = twelve ? Bz.cleanInvoices(o.invoices, { merged }) : [];
+    out.trips = twelve ? Bz.cleanTrips(o.trips) : [];
+    out.taxPayments = twelve ? Tx.cleanPayments(o.taxPayments) : [];
+    out.taxYears = twelve ? Tx.cleanTaxYears(o.taxYears) : {};
+    out.homeOffice = twelve ? Tx.cleanHomeOffice(o.homeOffice) : {};
+    out.taxMap = twelve ? Tx.cleanTaxMap(o.taxMap) : [];
+    // No money entry is rewritten by the migration: an entry with no scope takes the one its line of work implies (business.scopeOf),
+    // and the owner confirms the counts once (business.confirmScope then fixes each visible entry's scope).
+    if (!twelve && !out.entries.some((e) => e.domain === 'money' && (e.type === 'income' || e.type === 'expense'))) out.settings.business.scopeConfirmed = true;
+    {
+      const payeeIds = new Set(out.payees.map((x) => x.id)), invIds = new Set(out.invoices.map((x) => x.id)), entIds = new Set(out.entries.map((x) => x.id));
+      for (const e of out.entries) {
+        if (e.payeeId !== undefined && !payeeIds.has(e.payeeId)) delete e.payeeId;
+        if (e.billedInvoiceId !== undefined && !invIds.has(e.billedInvoiceId)) delete e.billedInvoiceId;
+      }
+      for (const i of out.invoices) {
+        if (i.projectId !== undefined && !pids.has(i.projectId)) delete i.projectId;
+        if (i.incomeId !== undefined && !entIds.has(i.incomeId)) delete i.incomeId;
+      }
+      for (const t of out.trips) if (t.projectId !== undefined && !pids.has(t.projectId)) delete t.projectId;
+    }
     out.memory = cleanMemory(o.memory);
     out.audit = cleanAudit(o.audit);
     // Schema 10 adds the private vault: checked structurally only (types, base64, sizes, iteration count, mark names); the key is never needed.
@@ -716,6 +760,17 @@
       const ls = cur.settings && cur.settings.layouts;
       if (ls && ((ls.narrow || []).length || (ls.wide || []).length)) out.push('dashboard layouts');
     }
+    if (src < 12) {
+      // v1.1.0: business records, tax profiles, the home-office figures and budgets.
+      for (const [k, n] of [['invoices', 'invoices'], ['trips', 'mileage trips'], ['payees', 'payees'], ['taxPayments', 'estimated tax payments'], ['taxMap', 'tax line mappings']]) if ((cur[k] || []).length) out.push(n);
+      if (Object.keys(cur.taxYears || {}).length) out.push('tax year profiles');
+      if (Object.keys(cur.homeOffice || {}).length) out.push('home-office figures');
+      if ((cur.projects || []).some((p) => p.budgetCents !== undefined)) out.push('project budgets');
+      const money = (cur.entries || []).filter((e) => e.domain === 'money');
+      if (money.some((e) => e.scope === 'business' || e.billable || e.reimbursable || e.billedInvoiceId || e.payeeId || e.contractor || e.cardPaid)) out.push('business expense and income marks');
+      const b = cur.settings && cur.settings.business;
+      if (b && (b.name || b.address || b.paymentTerms || b.invoiceNext > 1 || b.reserveAccountId || b.pinnedProjectId)) out.push('business settings');
+    }
     if (src < 4) {
       if (cur.cycle) out.push('training cycle');
       if ((cur.habits || []).length) out.push('daily checks');
@@ -728,7 +783,7 @@
   const dropsWork = (cur, next) => droppedData(cur, next).length > 0;
   const andList = (l) => (l.length > 1 ? l.slice(0, -1).join(', ') + ' and ' + l[l.length - 1] : l.join(''));
   // Plain-language list for warnings, with counts: "3 projects and 4 pipeline items". Names only, never values.
-  const COUNTED = { properties: 'properties', vehicles: 'vehicles', 'maintenance items': 'maintenance', renewals: 'renewals', documents: 'documents', 'tax items': 'taxItems', 'learning items': 'learningItems', 'study sessions': 'studySessions', takeaways: 'takeaways', activities: 'activities', 'social groups': 'groups', people: 'people', 'logged contacts': 'contacts' };
+  const COUNTED = { properties: 'properties', vehicles: 'vehicles', 'maintenance items': 'maintenance', renewals: 'renewals', documents: 'documents', 'tax items': 'taxItems', 'learning items': 'learningItems', 'study sessions': 'studySessions', takeaways: 'takeaways', activities: 'activities', 'social groups': 'groups', people: 'people', 'logged contacts': 'contacts', invoices: 'invoices', 'mileage trips': 'trips', payees: 'payees', 'estimated tax payments': 'taxPayments' };
   function lossText(cur, next) {
     return andList(droppedData(cur, next).map((n) => (n === 'projects' ? cur.projects.length + ' projects' : n === 'pipeline items' ? cur.pipeline.length + ' pipeline items' : n === 'daily checks' ? cur.habits.length + ' daily checks' : n === 'goals' ? cur.goals.length + ' goals' : COUNTED[n] ? cur[COUNTED[n]].length + ' ' + n : 'your ' + n)));
   }
@@ -747,6 +802,7 @@
         learning: { weeklyMinutes: 0 },
         privAutoLockSec: 60,
         layouts: { narrow: [], wide: [] },
+        business: L.business.defaultSettings(true),
       },
       entries: [],
       accounts: [], recurring: [], budgets: [], categories: defaultCategories(),
@@ -755,6 +811,7 @@
       learningItems: [], studySessions: [], takeaways: [],
       activities: [], activityCategories: L.activities.DEFAULT_CATEGORIES.slice(),
       groups: [], people: [], contacts: [],
+      payees: [], invoices: [], trips: [], taxPayments: [], taxYears: {}, homeOffice: {}, taxMap: [],
       cycle: null, kinds: L.metrics.DEFAULT_KINDS.slice(), habits: [], habitLog: [],
       memory: { insights: [], lessons: [], reviews: [] },
       audit: [],

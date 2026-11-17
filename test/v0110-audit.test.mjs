@@ -220,13 +220,14 @@ test('settings cannot carry private or wellbeing data: only whitelisted numbers,
   await vault(full());
   await P.moveIn('people', 'sp1');
   await P.write((x) => { x.settings.wellbeing = { mood: 5 }; x.settings.note = ADV_MARK + 'settings'; x.settings.targets.extra = 'x ' + ADV_MARK; x.settings.learning.title = ADV_MARK; x.settings.health.note = ADV_MARK; x.settings.home.x = ADV_MARK; });
-  const set = text(S.getState().settings);
+  // (v1.1.0: the business name, address and payment terms are typed settings, public by design)
+  const set = text(Object.assign({}, S.getState().settings, { business: 0 }));
   assert.ok(!set.includes('LEAK') && !set.includes('wellbeing') && !set.includes('mood'), set);
   await assert.rejects(P.write((x) => { x.settings.sync.clientId = ADV_MARK; }), /Invalid data/);
   await assert.rejects(P.write((x) => { x.settings.sync.fileId = 'has spaces ' + ADV_MARK; }), /Invalid data/);
   await assert.rejects(P.write((x) => { x.settings.currency = 'LEAK MARK'; }), /Invalid data/);
   // the only free text left in settings is what the user types into the AI provider form
-  assert.deepEqual(Object.keys(S.getState().settings).sort(), ['autoLockMin', 'currency', 'health', 'home', 'layouts', 'learning', 'privAutoLockSec', 'provider', 'sync', 'targets']);
+  assert.deepEqual(Object.keys(S.getState().settings).sort(), ['autoLockMin', 'business', 'currency', 'health', 'home', 'layouts', 'learning', 'privAutoLockSec', 'provider', 'sync', 'targets']);
 });
 
 // ---------------------------------------------------------------- SEC-68

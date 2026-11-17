@@ -46,6 +46,16 @@ export function buildAdversarial(L) {
   s.people.push({ id: 'sp1', name: m('person name').slice(0, 100), groupId: 'sg1', cadenceDays: 5, importantDates: [{ label: m('date label').slice(0, 100), monthDay: '11-20', year: 1990 }], pipelineIds: ['pl1'], projectIds: ['p1'],
     facts: [{ id: 'sf1', label: m('fact label').slice(0, 40), text: m('fact text').slice(0, 200), addedOn: t }], notes: m('person note'), archived: false, createdAt: '2026-10-01T00:00:00.000Z' });
   s.contacts.push({ id: 'sc1', personId: 'sp1', date: t, channel: 'in person', notes: m('contact note') });
+  // v1.1.0: business records in every new free-text field (payee, invoice, trip, tax payment, business settings, billable expense).
+  s.payees.push({ id: 'pe1', name: m('payee').slice(0, 100), tinOnFile: true, w9Date: t, archived: false });
+  s.entries.push(
+    E({ id: 'ex2', domain: 'money', type: 'expense', date: t, title: m('business expense'), value: 40, category: 'Other', scope: 'business', billable: true, reimbursable: true, payeeId: 'pe1', billedInvoiceId: 'iv1', projectId: 'p1', notes: m('note') }),
+    E({ id: 'in2', domain: 'money', type: 'income', date: t, title: m('invoice income'), value: 100, scope: 'business', status: 'expected', dueDate: '2026-12-01', projectId: 'p1', notes: m('note') }));
+  s.invoices.push({ id: 'iv1', number: m('number').slice(0, 40), projectId: 'p1', issueDate: t, dueDate: '2026-12-01', lines: [{ description: m('invoice line').slice(0, 200), qty: 1, unitCents: 10000, expenseId: 'ex2' }], status: 'sent', incomeId: 'in2', notes: m('invoice note') });
+  s.trips.push({ id: 'tr1', date: t, from: m('trip from').slice(0, 100), to: m('trip to').slice(0, 100), miles: 12.3, purpose: m('trip purpose').slice(0, 190), projectId: 'p1', roundTrip: true });
+  s.taxPayments.push({ id: 'tp1', year: 2026, jurisdiction: 'federal', quarter: 3, amountCents: 50000, paidOn: t, confirmation: m('confirmation').slice(0, 90) });
+  s.projects[0].budgetCents = 100000; s.projects[0].budgetPeriod = 'month';
+  s.settings.business = Object.assign({}, s.settings.business, { name: m('business name').slice(0, 100), address: m('business address').slice(0, 280), paymentTerms: m('payment terms').slice(0, 280) });
   s.settings.provider = { kind: 'manual', baseUrl: '', model: '', apiKey: 'sk-ant-LEAK key 0123456789' };
   return { state: L.store.validateState(JSON.parse(JSON.stringify(s))), count: k };
 }

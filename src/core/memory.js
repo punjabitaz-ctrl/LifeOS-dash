@@ -118,6 +118,8 @@
       // Revenue: money totals and counts only, never a line of work name, a description, a category or imported text.
       const rv = dg.revenue;
       if (rv && (rv.revenueWeekCents || rv.expensesWeekCents || rv.revenueMonthCents || rv.expensesMonthCents || rv.expectedNext30Cents || rv.overdueCount)) lines.push('- revenue detail: received this week ' + fm(rv.revenueWeekCents) + ', expenses this week ' + fm(rv.expensesWeekCents) + ', net this week ' + fm(rv.netWeekCents) + ', received this month ' + fm(rv.revenueMonthCents) + ', expenses this month ' + fm(rv.expensesMonthCents) + ', net this month ' + fm(rv.netMonthCents) + ', expected in the next 30 days ' + fm(rv.expectedNext30Cents) + ', overdue expected income ' + rv.overdueCount + ', lines of work ' + rv.lines);
+      const bz = dg.business;
+      if (bz && (bz.openInvoices || bz.tax)) lines.push('- business detail (numbers only): open invoices ' + bz.openInvoices + ' totalling ' + fm(bz.openInvoiceCents) + ', overdue ' + bz.overdueInvoices + (bz.tax ? ', business profit this year ' + fm(bz.tax.profitCents) + (bz.tax.estimatedTaxCents !== undefined ? ', estimated tax set-aside ' + fm(bz.tax.estimatedTaxCents) : '') + (bz.tax.gapCents !== undefined ? ', set-aside gap ' + fm(bz.tax.gapCents) : '') : ''));
       ctx = approvedAll.filter((i) => !isBodyInsight(i)).slice(-CTX_MAX);
       lines.push('Approved insights so far:');
     } else {

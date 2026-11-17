@@ -163,3 +163,12 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
 .btn.drag{cursor:grab;touch-action:none;user-select:none}
 #rev-lines tr[aria-selected=true],#rev-rollups tr[aria-selected=true]{background:var(--card);outline:2px solid var(--acc)}
 #rev-lines td.c-rev,#rev-lines td.c-exp,#rev-lines td.c-net,#rev-lines td.c-margin,#rev-rollups td.c-rev,#rev-rollups td.c-exp,#rev-rollups td.c-net,#rev-rollups td.c-margin{white-space:nowrap}
+.bz-tabs{margin:0 0 12px}
+.tax-notice{margin:0 0 12px}
+.tax-blocked{display:flex;align-items:center;gap:8px}
+.printview{background:#fff;color:#000;padding:8px}
+.printview table{width:100%;border-collapse:collapse}
+.printview th,.printview td{border:1px solid #888;padding:4px 6px;text-align:left}
+#pf-form .field,#bs-form .field,#tr-form .field,#ho-form .field{max-width:420px}
+#inv-detail .item,#bz-entries .item{flex-wrap:wrap}
+@media print{.top,.nav,.noprint,.notice,.privbar{display:none!important}body{background:#fff}.printview{padding:0}}

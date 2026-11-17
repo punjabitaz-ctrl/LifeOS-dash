@@ -85,7 +85,7 @@ async function run(label, viewport) {
   const order = () => page.$$eval('#dash-grid .mod', (els) => els.map((e) => e.getAttribute('data-mod')));
   const dash = async () => { await nav('Home'); await page.waitForSelector('#dash-grid', T); };
   const unlock = async () => { await page.fill('#pass', PASS); await page.click('button:has-text("Unlock")'); await page.waitForSelector('#dash-grid, .tile', T); };
-  const defaultOrder = ['glance', 'priorities', 'tile-money', 'tile-assets', 'tile-work', 'tile-health', 'tile-activities', 'tile-social', 'tile-learning', 'tile-home', 'tile-admin', 'tile-goals', 'tile-wellbeing', 'rev-month', 'rev-net-line', 'rev-expected'];
+  const defaultOrder = ['glance', 'priorities', 'tile-money', 'tile-assets', 'tile-work', 'tile-health', 'tile-activities', 'tile-social', 'tile-learning', 'tile-home', 'tile-admin', 'tile-goals', 'tile-wellbeing', 'rev-month', 'rev-net-line', 'rev-expected', 'tax-setaside', 'tax-next', 'inv-open', 'budget-pinned', 'payees-near'];
   try {
     await page.clock.install({ time: new Date(2026, 10, 14, 10, 0, 0) });
     await page.goto(pathToFileURL(file).href);
@@ -195,7 +195,7 @@ async function run(label, viewport) {
       await page.click('.mod[data-mod="tile-admin"] .mv-hide');
       await page.waitForSelector('.mod[data-mod="tile-admin"][data-hidden="true"]', T);
       // drag Revenue expected above Net by line with the pointer
-      await page.locator('.mod[data-mod="rev-expected"] .drag').scrollIntoViewIfNeeded();
+      await page.evaluate(() => { const b = document.querySelector('.mod[data-mod="rev-expected"] .drag'); window.scrollBy(0, b.getBoundingClientRect().top - window.innerHeight * 0.85); });
       const h = await page.locator('.mod[data-mod="rev-expected"] .drag').boundingBox();
       const tgt = await page.locator('.mod[data-mod="rev-net-line"]').boundingBox();
       if (!tgt || tgt.y < 0) throw new Error('drag target not on screen');

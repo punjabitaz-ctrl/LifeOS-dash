@@ -14,7 +14,11 @@
     mod('priorities', 'Priorities', ['small', 'wide'], 'wide'),
   ].concat(
     TILE_DOMAINS.map((d) => mod('tile-' + d[0], d[1], ['small', 'wide'], 'small')),
-    [mod('rev-month', 'Revenue this month', ['small', 'wide'], 'small'), mod('rev-net-line', 'Net by line of work', ['wide', 'small'], 'wide'), mod('rev-expected', 'Expected and overdue income', ['small', 'wide'], 'small')]
+    [mod('rev-month', 'Revenue this month', ['small', 'wide'], 'small'), mod('rev-net-line', 'Net by line of work', ['wide', 'small'], 'wide'), mod('rev-expected', 'Expected and overdue income', ['small', 'wide'], 'small'),
+      // v1.1.0 business modules
+      mod('tax-setaside', 'Tax set-aside vs reserve', ['small', 'wide'], 'small'), mod('tax-next', 'Next estimated payment due', ['small', 'wide'], 'small'),
+      mod('inv-open', 'Open invoices and aging', ['small', 'wide'], 'small'), mod('budget-pinned', 'Budget vs actual (pinned line)', ['small', 'wide'], 'small'),
+      mod('payees-near', '1099 payees near the threshold', ['small', 'wide'], 'small')]
   ));
   const BY_ID = new Map(MODULES.map((m) => [m.id, m]));
   const KEYS = Object.freeze(['narrow', 'wide']);

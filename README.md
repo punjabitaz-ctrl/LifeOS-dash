@@ -1,6 +1,6 @@
 # LifeOS
 
-LifeOS (Living Independent and Free Everyday Operating System) is a single-file, offline, local-first life dashboard. It tracks eleven areas (money, assets, work, health and more), keeps a private vault with its own passphrase (Wellbeing lives there), builds weekly reviews, and keeps a memory of insights you approve. Vanilla JS, no dependencies.
+LifeOS (Living Independent and Free Everyday Operating System) is a single-file, offline, local-first life dashboard. It tracks eleven areas (money, assets, work, health and more) plus business records and tax estimates, keeps a private vault with its own passphrase (Wellbeing lives there), builds weekly reviews, and keeps a memory of insights you approve. Vanilla JS, no dependencies.
 
 ## Open it
 
@@ -70,6 +70,16 @@ Build, then open `dist/lifeos.html` in a browser (double-click works, it needs n
 - Important dates (label and name only) appear in the dashboard "At a glance" card; Feb 29 shows on Feb 28 in other years. Pipeline items and projects show linked people and their last contact; unlinking never deletes either side.
 - The weekly review gains a Social step (offers only); Goals gain people overdue and contacts per week. The AI and digest see counts only, with groups numbered by position.
 - Vault schema 9, migrated from schema 1 to 8 with no data loss: each distinct name in old contact entries becomes a person with those entries as the log; an entry that cannot map stays a visible entry. Contact entries added later (for example by CSV import) are offered for conversion, once. `node test/smoke-social.mjs` runs the flow. Audited: names, group names, labels, facts, channels and notes never leave the vault. See the v0.10.0 audit in docs/SECURITY.md.
+
+## v1.1.0: Business expenses, invoices and tax (NJ single-member LLC)
+
+- Business screen (tabs: Tax, Entries, Invoices, Mileage, Payees, Budgets, Settings, Export). Money income and expenses are business or personal; existing entries take the scope their line of work implies and you confirm the counts once.
+- Invoices with your own number format, aging (current, 1 to 30, 31 to 60, 61 to 90, over 90 days), billable and reimbursable expenses added with one tap, and a print view (print to PDF in the browser). Sent and paid only offer the matching income entry; income counts once, when received.
+- Mileage log priced by dated rate periods, the simplified home-office deduction (limited to business income less other expenses), 1099-NEC payee totals (a tax ID is never stored, only whether a W-9 is on file), project budgets with parent rollups.
+- Tax-year profile (every rate, threshold, date and holiday is yours to edit): Schedule C summary per line and per line of work, self-employment tax (with the $400 floor and your W-2 wages), federal and NJ estimates from effective rates you enter, set-aside against a reserve account, safe-harbor targets in four installments, a payment log and due dates moved past weekends and holidays.
+- Every figure is an estimate. Numbers only, not tax advice. Confirm with your accountant.
+- While the private vault is closed and holds a business record of a year, every tax figure for that year refuses ("Open the private vault to see tax figures."). The accountant export leaves private records out unless you tick "Include private records", and refuses rather than produce incomplete totals.
+- Vault schema 12, migrated from schema 1 to 11 with no data loss. `node test/smoke-business.mjs` runs the flow. Audited: see "v1.1.0 audit" in docs/SECURITY.md.
 
 ## v1.0.0: Final complete review
 
