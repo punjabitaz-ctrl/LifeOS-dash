@@ -86,7 +86,7 @@
   }
   function checkInner(p, rev) {
     if (!isObj(p)) throw bad('private data must be an object');
-    for (const k of Object.keys(p)) if (!['schema', 'rev', 'records', 'links', 'wellbeing'].includes(k)) throw bad('private data has an unknown field');
+    for (const k of Object.keys(p)) if (!['schema', 'rev', 'records', 'links', 'wellbeing', 'summaries'].includes(k)) throw bad('private data has an unknown field');
     if (p.schema !== 1) throw bad('private data schema');
     if (rev !== undefined && p.rev !== rev) { const e = new Error('The private vault failed its revision check. It may have been altered.'); e.code = 'PRIVATE_REV'; throw e; }
     if (!Number.isInteger(p.rev) || p.rev < 0 || p.rev > 1e9) throw bad('private data revision');
@@ -106,12 +106,21 @@
     if (!isObj(p.wellbeing) || JSON.stringify(p.wellbeing).length > WELL_MAX) throw bad('private wellbeing data');
     scanKeys(p, 0);
     if (L.wellbeing) { try { p.wellbeing = L.wellbeing.clean(p.wellbeing); } catch (e) { throw bad('private wellbeing data is not valid'); } }
+    // SEC-85: the yearly figures of archived private records (numbers only).
+    if (p.summaries !== undefined) {
+      if (!L.archive) throw bad('private summaries');
+      try { p.summaries = L.archive.cleanPrivSummaries(p.summaries); } catch (e) { throw bad('private summaries are not valid'); }
+      if (!Object.keys(p.summaries).length) delete p.summaries;
+    }
     return p;
   }
   const keySets = (st) => { const o = {}; for (const c of COLLECTIONS) o[c] = new Set(listOf(st, c).map((r) => keyOf(c, r))); return o; };
+  const SUM_MARKS = { money: 'entries', assets: 'entries', revenue: 'entries', health: 'entries', learning: 'studySessions', activities: 'activities', social: 'contacts' };
   function marksOf(p, pub) {
     const m = COLLECTIONS.filter((c) => (p.records[c] || []).length > 0);
     if (Object.keys(p.wellbeing || {}).length) m.push('wellbeing');
+    // SEC-85: figures of archived private records still change what the open vault shows, so the closed views keep the marker.
+    for (const y of Object.keys(p.summaries || {})) for (const sec of Object.keys(p.summaries[y])) { const c = SUM_MARKS[sec]; if (c && !m.includes(c)) m.push(c); }
     return m.concat(bizMarks(p, pub));
   }
   // SEC-76 (deviation a): a year is marked exactly when a business record of that year is private, or a public record of that year belongs
@@ -292,6 +301,7 @@
       for (const c of Object.keys(p.records || {})) { for (const r of p.records[c]) for (const k of Object.keys(r)) delete r[k]; p.records[c].length = 0; delete p.records[c]; }
       if (Array.isArray(p.links)) p.links.length = 0;
       if (p.wellbeing) for (const k of Object.keys(p.wellbeing)) delete p.wellbeing[k];
+      if (p.summaries) for (const k of Object.keys(p.summaries)) delete p.summaries[k];
     } catch (e) { /* ignore */ }
   }
   // Empty working copies (merged views) after a write, so a pending continuation holds no private text.
@@ -462,6 +472,8 @@
     if (!isOpen() || !st || !st.priv || viewBase.has(st)) return st;
     const m = merge(st, inner);
     overlay(m.out, inner.links, true);
+    // SEC-85: archived years read the private vault's own figures on top of the public ones (view only; never written to the main state).
+    if (inner.summaries && L.archive) m.out.summaries = L.archive.addSummaries(st.summaries, inner.summaries, st.archives);
     viewBase.set(m.out, st);
     return m.out;
   }
@@ -487,7 +499,7 @@
     o = o || {};
     fn = noWellbeing(fn);
     if (!isOpen()) {
-      if (o.newPrivate || o.moveIn || o.moveOut) return Promise.reject(new Error('The private vault is closed.'));
+      if (o.newPrivate || o.moveIn || o.moveOut || o.summaries) return Promise.reject(new Error('The private vault is closed.'));
       return S().commit(closedMarks(fn));
     }
     return pserial(() => writeRaw(fn, o));
@@ -519,6 +531,10 @@
         const clean = S().validateState(work, PRIVATE_OK);
         const sp = split(clean, { privKeys: m.privKeys, shadow: m.shadow, idsBefore, moveIn: o.moveIn || {}, moveOut: o.moveOut || {}, newPrivate: !!o.newPrivate, from: Array.isArray(o.from) ? o.from : [], privChanged });
         next = { schema: 1, rev: before.rev + 1, records: sp.records, links: sp.links, wellbeing: next_wb };
+        // SEC-85: archiving sets a year's private figures and restoring removes them, in the same write as the records.
+        const sums = Object.assign({}, before.summaries ? clone(before.summaries) : {});
+        if (o.summaries) { for (const y of Object.keys(o.summaries.set || {})) sums[y] = clone(o.summaries.set[y]); for (const y of o.summaries.del || []) delete sums[y]; }
+        if (Object.keys(sums).length) next.summaries = L.archive ? L.archive.cleanPrivSummaries(sums) : sums;
         if (key !== k) throw new Error('The private vault is closed.');
         const blob = await sealPlain(next, k, sb, sp.pub);
         if (key !== k) throw new Error('The private vault is closed.');
@@ -635,9 +651,26 @@
   const moveOut = (c, id, opts) => pserial(() => move('out', c, id, opts));
   // Which collection keys are private right now (open only): for UI badges and routing checks.
   function isPrivate(c, id) { return isPrivateKey(c, id); }
+  // v1.2.0 part B: archive files keep a year's private records in a box under the private key (own fresh IV, the vault's salt named so the
+  // right passphrase can be asked for later). The key itself never leaves this module.
+  async function sealBox(obj) {
+    if (!isOpen()) throw new Error('The private vault is closed.');
+    const k = key, sb = saltB64;
+    const { iv, ct } = await V().encrypt(k, obj);
+    if (key !== k) throw new Error('The private vault is closed.');
+    return { kdf: { salt: sb }, iv, ct };
+  }
+  async function openBox(box, pass) {
+    if (!box || typeof box !== 'object' || !box.kdf || typeof box.kdf.salt !== 'string' || !/^[A-Za-z0-9+/]{22}==$/.test(box.kdf.salt)) throw new Error('BAD_PRIVATE_PASSPHRASE');
+    let k = null;
+    if (isOpen() && box.kdf.salt === saltB64) k = key;
+    else if (typeof pass === 'string' && pass) k = await bkey(pass, { kdf: { salt: box.kdf.salt } });
+    else { const e = new Error(isOpen() ? 'This archive was sealed with an earlier private passphrase. Enter it to continue.' : 'The private vault is closed.'); e.code = isOpen() ? 'NEED_PRIVATE_PASSPHRASE' : 'PRIVATE_CLOSED'; throw e; }
+    try { return await V().decrypt(k, box); } catch (e) { throw new Error('BAD_PRIVATE_PASSPHRASE'); }
+  }
 
   L.priv = {
     COLLECTIONS, MARK_NAMES, isSetUp, setUp, open, close, isOpen, view, commit, write, moveIn, moveOut, childrenOf, changePassphrase, destroy, marks,
-    touch, checkExpiry, onClose, isView, mainOnly, isPrivateRecord, isPrivate, cleanBlob, matches, getWellbeing, secsLeft: () => (isOpen() ? Math.max(0, Math.ceil((deadline - Date.now()) / 1000)) : 0),
+    touch, checkExpiry, onClose, sealBox, openBox, isView, mainOnly, isPrivateRecord, isPrivate, cleanBlob, matches, getWellbeing, secsLeft: () => (isOpen() ? Math.max(0, Math.ceil((deadline - Date.now()) / 1000)) : 0),
   };
 })();

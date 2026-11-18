@@ -579,3 +579,62 @@ Counts: 13 findings, all fixed with regression tests (High 1, Medium 6, Low 6). 
 
 ### Not tested
 Printing to PDF on a real printer driver, a physical phone, a real accountant reading the CSV, and tax figures against an actual filed return.
+
+## v1.2.0 audit
+
+Date: 2026-11-17. Auditor: independent review (did not write the code).
+
+### Scope
+The uncommitted v1.2.0 delta (`git diff HEAD` plus untracked files): part A, Activity CSV import (`activities.planImport/applyImport/importOffers/createExpenses`, `csv.exportActivities`, schema 13 `importKey`, the import card in `src/ui/app.js`); part B, vault archiving (`src/core/archive.js`, `src/ui/archive-ui.js`, schema 14 `archives` and `summaries`, the summary readers in metrics, revenue, goals, learning, activities and tax, `sync.putNamed/getNamed`, `priv.sealBox/openBox`, the downgrade guards in `store.droppedData`) and spell check off in `h()`. Checked against the hard rules, the private vault rules (v0.11.0), the sync rules, the v1.2.0 addendum parts A and B, SEC-01 to SEC-83, the CR, PV and UI series and docs/review/product-ops.md.
+
+### Method
+- Read the delta, then proved each finding with a failing test before fixing it. Regression tests: `test/v120-audit.test.mjs` (11 tests). One builder test encoded SEC-90 (a private import saved a row with an unknown category under the default one); it now expects the rejection, with the same rows then imported after the category is left blank. No assertion was removed or loosened.
+- Failure injection (proof, `test/v120-audit.test.mjs`): `archiveYear` was made to fail at the write (envelope), the verify (decrypt returns one record fewer), the Drive upload, the Drive re-download (throws, or returns a valid archive of the same year from another vault), with Drive failing and the download not confirmed, and at the commit (storage refuses). After each, the live state, its revision and the stored envelope bytes were identical; the next run then succeeded in exactly one commit.
+- Figures: the builder's comparison (every money month, revenue range and period, net worth history, cashflow, headlines, series, digest, goals, body metrics, streaks) was rerun with private records of the archived year (expenses, income, a balance, workouts, sleep, study sessions, a contact, an activity) while the vault is open and while it is closed, after a restore, and for business budgets and the accountant export.
+- Crafted archive files: the builder's envelope tests were kept (iteration downgrade, tampered ciphertext and IV, swapped year, oversize, prototype keys, wrong kind, counts, hash, records of another year, backup and archive swapped) and extended with a tampered private part, a private part under a foreign salt, and no private key; the live data was unchanged after each.
+- Leaks: `test/smoke-leaks.mjs` gained a private-vault archive step (records of every archived kind and a Wellbeing check-in in the private vault, archived through the screen with the vault open; the file, index, summaries, audit, marks, notices, prompts, digest, backup, Drive upload, storage, URL and IndexedDB bytes hold no marker; the Archive screen shows private records only while open). Markers contain spaces (`LEAK mark `), so base64 cannot match them by chance.
+- Spell check: `test/smoke-archive.mjs` now checks the three attributes on every field of every tile, nav screen, Business tab and the private vault screen, not only the Archive screens; the source test in `test/archive.test.mjs` forbids any other way to make a field.
+- The builder's smoke comparison excluded the "Some private items are hidden" notice and the "Entries (n)" heading. The notice exclusion hid SEC-85 (the closed views dropped the marker while the open view lost the private figures); it is removed and the comparison passes with the notice. "Entries (n)" is the record count of the domain entry list (the balance history on Assets), which archiving is meant to shrink; it hides no figure and stays excluded.
+- Performance (Node, near caps: 49,900 entries with 300-character notes, 2,100 daily ticks): proposal 0.4 s, archiving one year 1.6 s (4.8 MB file), opening an archive 0.14 s, four searches 0.03 s, export copy 0.11 s.
+- smoke-command runtime diagnosed (product-ops review, 287 s): `addMoney` in the test waits for `.entry[data-key] ...` (an element that exists only on the private vault screen) with a 15 s timeout before its fallback selector, nine times per viewport (about 135 s each). A test defect, not a product bug, so it was not changed.
+- Re-checks: SEC-01 to SEC-83 and the CR, PV and UI fixes through the existing tests and smokes (all pass); spot checks of DOM sinks, inline styles, console, storage and URL use and em dashes in the delta: none.
+
+### Findings
+
+| ID | Severity | Location | Issue | Status |
+|---|---|---|---|---|
+| SEC-84 | Medium (data integrity) | `archive.plan` | A one-to-one money link could split across a year boundary: an activity done on 30 Dec with its expense paid on 3 Jan, or an invoice paid in December whose income entry is dated January, archived one half and left the other live. A later restore dropped the dangling link, so the "Add to Money" offer could create a second expense. | Fixed: a candidate whose linked partner stays live (activity expense, invoice income and billed expenses, a billed expense's invoice) stays too. Test SEC-84. |
+| SEC-85 | High (archived figures) | `archive.archiveYear`, `priv` | Summaries held public records only. With the vault open, every figure of an archived year lost the private records' share (money months, categories, net worth history, revenue, goals); closed, the "Some private items are hidden" marker disappeared from views whose numbers still left private figures out. | Fixed: the private share (merged view minus public, numbers only) is stored inside the private vault's encrypted plaintext (`summaries`, validated as numbers only) in the same write, added to the view's summaries while open (never written to the main state), removed on restore, and the closed views keep their marker. Test SEC-85: open and closed figures identical after archiving and after restoring. |
+| SEC-86 | Low (business view) | `business.budgetRow` | A project budget (all time) lost the archived years' expenses, so "actual" fell after archiving. | Fixed: it adds the archived months' project expenses from the summaries. Test SEC-86. |
+| SEC-87 | Medium | `archive.exportState`, Archive screen | The accountant export of an opened archive was built from the merged view while the vault was open, so private records (live and archived) went into an export made without the "Include private records" tick (SEC-78 regression); closed, a year with private business records produced incomplete totals instead of the SEC-76 refusal. | Fixed: without the tick the copy is the main state plus the file's public records, and it refuses when the file's private part holds a business record (always while that part is sealed); "Include private records" is offered while the vault is open. Test SEC-87: the export matches the one made before archiving, refused or with the tick. |
+| SEC-88 | Low | `archive.archiveYear` (Wellbeing) | Wellbeing check-ins had no anchors: archiving could remove the newest check-in (the check-ins-per-week goal turned from 0 to "no data") and break a daily run crossing into the next year. | Fixed: the newest check-in and a run ending 31 December that continues stay live. Test SEC-88. |
+| SEC-89 | Low | `archive.restoreYear` | Restore ran with the private vault closed while it held records, so a restored record's link to a record moved in since then was dropped by validation. | Fixed: restore needs the vault open whenever it holds private records, like archiving. Test SEC-89. |
+| SEC-90 | Low (data) | `activities.planImport` | A private import cannot create categories or health types; rows naming one were saved under the default category or without their type, with only a generic note. | Fixed: such rows are rejected with a reason (never echoing the cell) and the names are listed; nothing is saved without them. Test SEC-90; smoke-leaks checks the rejection on screen. |
+| SEC-91 | Info | `csv.exportActivities` | The private-record filter in `toCsv` sees mapped copies, so it could not exclude a private activity if a caller passed the open view (the UI passes the main state). | Fixed: filtered before mapping. Test SEC-91. |
+| SEC-92 | Low (UI) | `store.droppedData`, backup and sync dialogs, refusals | An older copy listed the archived years twice; the dialogs said "has no private vault" when the reason was archived years, and the refusal said the copy "has no archived years". | Fixed: listed once; the warning names each reason ("still holds years archived here (they would come back into the live vault)"); the refusal names what would be lost. Test SEC-92. |
+
+Counts: 9 findings, all fixed with regression tests (High 1, Medium 2, Low 5, Info 1). Archiving findings: SEC-84, SEC-85, SEC-86, SEC-87, SEC-88, SEC-89, SEC-92.
+
+### Verified as specified (no finding)
+- Nothing leaves the live vault unless the file was written, decrypted back and matched by counts and SHA-256 (public and private parts), a verified copy exists (Drive re-download decrypted, or a download the user confirms), and the plan is unchanged inside the single commit.
+- Nothing open, planned, unpaid, unbilled or referenced by a live record is archived (the fixed point over every id a remaining record holds, with the private link overlays applied while open; archiving refuses while the vault is closed and holds records). Accounts, projects, people, groups, goals, items, payees, properties, vehicles, categories, settings and tax profiles are never candidates. Learning sessions and contacts keep their newest per item and person.
+- Archive files: own fresh salt and IV, 600,000 iterations, the main passphrase; the private part under the private key with a fresh IV. Archive and backup files are not interchangeable.
+- Restore deduplicates by id and key, never overwrites, re-validates through `validateState`, and returns every figure.
+- Older copies: sync download, sync conflict, backup restore and a schema 13 (v1.2.0-a) copy holding an archived year need the explicit tick; older apps refuse schema 14, so the index cannot be dropped by an older version.
+- The proposal only offers; the size is the stored encrypted envelope; `archiveSuggestMB` is an integer from 20 to 60.
+- Audit entries are "archived YYYY" and "restored YYYY" only; the Archive screen uses `h()` and `textContent`, no inline style, and is dropped on navigation and lock.
+- Part A: one expense per activity on a tap, closed-vault refusal (PV-1), import as private only by its own tick (UI-5), ambiguous names credit nobody (SEC-57), the secrets guard and 200-character caps on title, place and notes, rejected reasons without cell text, and export then re-import adds nothing (formula-neutralised cells included).
+
+### Residual risks
+- A money pair whose halves fall in an already archived year and a later one stays live for good (never lost); restoring and archiving again moves it.
+- A restore can be refused with "duplicate invoice number" if a new invoice took an archived invoice's number (typed or after the counter was reset); nothing is lost, and the owner renames one.
+- The proposal's "frees about" figure counts public records only; with private records the real saving is larger.
+- With private figures kept, the closed views show the lock marker in the domains whose archived years hold private figures for as long as those years stay archived, and the activity import asks for the vault to be opened.
+- Planning walks every record; at caps the proposal is recomputed once per save (about 0.4 s in Node, slower on a phone).
+- The baseline smoke run had one failure in smoke-home-admin (mobile, waiting for "Recurring item added."); it passed on every rerun, so it is recorded as a flake, not diagnosed.
+
+### Not tested
+Google Drive for real (all Drive calls are mocked), a physical phone, saving an archive to the NAS, archive files above about 5 MB in a browser, and Safari or Firefox.
+
+### Final results
+See "Final results (v1.2.0)" below.

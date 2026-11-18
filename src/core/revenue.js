@@ -37,7 +37,7 @@
     const byId = new Map(projects.map((p) => [p.id, p]));
     const kids = new Map();
     for (const p of projects) if (p.parentId && byId.has(p.parentId)) { if (!kids.has(p.parentId)) kids.set(p.parentId, []); kids.get(p.parentId).push(p); }
-    return { projects, byId, kids };
+    return { projects, byId, kids, state };
   }
   // scope: {kind:'all'} | {kind:'line', id} | {kind:'rollup', id} (the line and its children) | {kind:'unassigned'}
   function pred(ix, scope) {
@@ -73,6 +73,26 @@
   // ---- totals ----
   const zero = () => ({ revenueCents: 0, expenseCents: 0 });
   const fin = (o) => Object.assign(o, { netCents: o.revenueCents - o.expenseCents, marginBp: marginBp(o.revenueCents, o.revenueCents - o.expenseCents) });
+  // v1.2.0 part B: figures of archived entries come back from the yearly summaries, month by month. `add(projectId|'', rev, exp, n)` is called for
+  // each archived month inside [from, to] (a project that no longer exists counts as Unassigned, like a live entry). A range that cuts an
+  // archived month in two cannot be split, so that month is left out and `partial` says so.
+  function archivedInto(ix, from, to, add, scopePred) {
+    const A = L.archive, out = { partial: false };
+    if (!A) return out;
+    const m = M();
+    for (const mo of A.archivedMonths(ix.state)) {
+      const first = mo + '-01', last = m.monthEnd(mo);
+      if (last < from || first > to) continue;
+      if (first < from || last > to) { out.partial = true; continue; }
+      const rm = A.revenueMonth(ix.state, mo);
+      for (const k of Object.keys(rm)) {
+        const pid = k && ix.byId.has(k) ? k : '';
+        if (scopePred && !scopePred({ projectId: pid || undefined })) continue;
+        add(pid, rm[k][0], rm[k][1], rm[k][2]);
+      }
+    }
+    return out;
+  }
   // One pass over the entries: per line, per rollup, unassigned and the grand total. The grand total is the sum of the lines plus
   // Unassigned, so it equals the Money totals for the same dates exactly.
   function report(state, period) {
@@ -85,6 +105,7 @@
       if (has) { o = own.get(e.projectId); if (!o) { o = zero(); own.set(e.projectId, o); } }
       if (e.type === 'income') o.revenueCents += c; else o.expenseCents += c;
     }
+    const part = archivedInto(ix, from, to, (pid, rev, exp) => { const o = pid ? (own.get(pid) || (own.set(pid, zero()), own.get(pid))) : un; o.revenueCents += rev; o.expenseCents += exp; });
     const total = zero();
     const lines = ix.projects.map((p) => {
       const o = Object.assign(zero(), own.get(p.id) || {});
@@ -99,7 +120,7 @@
       for (const c of ch) { const l = byId.get(c.id); r.revenueCents += l.revenueCents; r.expenseCents += l.expenseCents; }
       rollups.push(fin(r));
     }
-    return { from, to, lines, rollups, unassigned: fin(Object.assign({ id: null, name: 'Unassigned' }, un)), total: fin(total) };
+    return Object.assign({ from, to, lines, rollups, unassigned: fin(Object.assign({ id: null, name: 'Unassigned' }, un)), total: fin(total) }, part.partial ? { archivedPartial: true } : {});
   }
   // Month by month for one scope, ending at endMonth (YYYY-MM), n months (default 12).
   function monthly(state, scope, endMonth, n) {
@@ -113,6 +134,11 @@
       const o = map.get(e.date.slice(0, 7));
       if (!o) continue;
       if (e.type === 'income') o.revenueCents += cents(e.value); else o.expenseCents += cents(e.value);
+    }
+    if (L.archive) for (const mo of map.keys()) {
+      const rm = L.archive.revenueMonth(state, mo);
+      if (!rm) continue;
+      for (const k of Object.keys(rm)) { const pid = k && ix.byId.has(k) ? k : undefined; if (!p({ projectId: pid })) continue; map.get(mo).revenueCents += rm[k][0]; map.get(mo).expenseCents += rm[k][1]; }
     }
     return out.map(fin);
   }
@@ -154,7 +180,8 @@
       n++;
       if (e.type === 'income') o.revenueCents += cents(e.value); else o.expenseCents += cents(e.value);
     }
-    return Object.assign(fin(o), { count: n });
+    const part = archivedInto(ix, from, to, (pid, rev, exp, k) => { o.revenueCents += rev; o.expenseCents += exp; n += k; }, p);
+    return Object.assign(fin(o), { count: n }, part.partial ? { archivedPartial: true } : {});
   }
 
   // ---- digest (numbers only; main state only, the caller passes it) ----
@@ -474,6 +501,6 @@
   L.revenue = {
     STATUSES, PERIODS, KEY_RE, isMoney, isCounted, isExpected, dueOf, divRound, marginBp, marginText, normName, index, scopeOf, periodRange, report, monthly,
     recurringMonthlyCents, expected, totalsIn, digest, goalValue, reviewWeek, markReceived, moveDue, writeOff, filterEntries, assignLine, linkedCounts,
-    unlinkProject, archiveProject, setParent, parseCents, parseDate, importKey, plan, applyPlan,
+    unlinkProject, archiveProject, setParent, parseCents, parseDate, importKey, plan, applyPlan, tidy, sha256Hex,
   };
 })();

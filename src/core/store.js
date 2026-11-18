@@ -2,7 +2,7 @@
   'use strict';
   const L = (globalThis.LifeOS = globalThis.LifeOS || {});
   const KEY = 'envelope';
-  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 12, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
+  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 14, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
   const HABIT_CAP = 8, HABIT_LOG_CAP = 100000, KIND_CAP = 30;
   const RENEWAL_TOTAL_CAP = 2000;
   const ENTRY_CAP = 50000, INSIGHT_CAP = 5000, REVIEW_CAP = 1000, LESSON_CAP = 30, AUDIT_CAP = 200;
@@ -123,6 +123,8 @@
       layouts: schema >= 11 ? L.layout.cleanLayouts(s.layouts) : { narrow: [], wide: [] },
       // v1.1.0: business settings. Migrating from an older schema asks the owner to confirm the business or personal scope once.
       business: schema >= 12 ? L.business.cleanSettings(s.business) : L.business.defaultSettings(false),
+      // v1.2.0 part B: the vault size (MB) that makes the dashboard propose archiving.
+      archiveSuggestMB: schema >= 14 && s.archiveSuggestMB !== undefined ? num(s.archiveSuggestMB, 20, 60, 'archiveSuggestMB', true) : 40,
     };
   }
   // 6 decimals, like converted weights, so a unit switch round trip does not drift.
@@ -610,7 +612,7 @@
   function validateStateRaw(o, opts) {
     if (!isObj(o)) fail('state must be an object');
     scan(o, 0, { n: 4e6 });
-    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, SCHEMA].includes(o.schema)) fail('unsupported schema');
+    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, SCHEMA].includes(o.schema)) fail('unsupported schema');
     if (!L.metrics) fail('metrics module missing');
     const settings = cleanSettings(o.settings, o.schema), entries = cleanEntries(o.entries);
     const out = { schema: SCHEMA, settings, entries };
@@ -712,6 +714,9 @@
       }
       for (const t of out.trips) if (t.projectId !== undefined && !pids.has(t.projectId)) delete t.projectId;
     }
+    // Schema 14 adds the archive index and the yearly summaries (numbers only). Older formats have neither.
+    out.archives = o.schema >= 14 ? L.archive.cleanArchives(o.archives) : [];
+    out.summaries = o.schema >= 14 ? L.archive.cleanSummaries(o.summaries, out.archives) : {};
     out.memory = cleanMemory(o.memory);
     out.audit = cleanAudit(o.audit);
     // Schema 10 adds the private vault: checked structurally only (types, base64, sizes, iteration count, mark names); the key is never needed.
@@ -734,6 +739,11 @@
     const out = [];
     // A copy without a private vault never replaces one that has it silently (any schema).
     if (cur.priv && !next.priv) out.push('private vault');
+    // v1.2.0 part B: a copy that still holds records of an archived year, or has no archive index for it, never replaces silently.
+    // SEC-92: named once (an older-format copy has no index, so comesBack already lists every archived year).
+    const back = L.archive ? L.archive.comesBack(cur, next) : [];
+    if (!back.length && src < 14) for (const a of cur.archives || []) back.push(String(a.year));
+    if (back.length) out.push('archived years ' + andList(back));
     if (src < 3) { if ((cur.projects || []).length) out.push('projects'); if ((cur.pipeline || []).length) out.push('pipeline items'); }
     if (src < 5 && (cur.goals || []).length) out.push('goals');
     if (src < 6) {
@@ -784,8 +794,12 @@
   const andList = (l) => (l.length > 1 ? l.slice(0, -1).join(', ') + ' and ' + l[l.length - 1] : l.join(''));
   // Plain-language list for warnings, with counts: "3 projects and 4 pipeline items". Names only, never values.
   const COUNTED = { properties: 'properties', vehicles: 'vehicles', 'maintenance items': 'maintenance', renewals: 'renewals', documents: 'documents', 'tax items': 'taxItems', 'learning items': 'learningItems', 'study sessions': 'studySessions', takeaways: 'takeaways', activities: 'activities', 'social groups': 'groups', people: 'people', 'logged contacts': 'contacts', invoices: 'invoices', 'mileage trips': 'trips', payees: 'payees', 'estimated tax payments': 'taxPayments' };
-  function lossText(cur, next) {
-    return andList(droppedData(cur, next).map((n) => (n === 'projects' ? cur.projects.length + ' projects' : n === 'pipeline items' ? cur.pipeline.length + ' pipeline items' : n === 'daily checks' ? cur.habits.length + ' daily checks' : n === 'goals' ? cur.goals.length + ' goals' : COUNTED[n] ? cur[COUNTED[n]].length + ' ' + n : 'your ' + n)));
+  function lossText(cur, next, list) {
+    return andList((list || droppedData(cur, next)).map((n) => (n === 'projects' ? cur.projects.length + ' projects' : n === 'pipeline items' ? cur.pipeline.length + ' pipeline items' : n === 'daily checks' ? cur.habits.length + ' daily checks' : n === 'goals' ? cur.goals.length + ' goals' : COUNTED[n] ? cur[COUNTED[n]].length + ' ' + n : 'your ' + n)));
+  }
+  function lossWhy(list, older, what) {
+    const l = list || [], arch = l.some((n) => /^archived years /.test(n)), pv = l.includes('private vault');
+    return (older ? what + ' is from an older version of LifeOS. ' : '') + (pv ? what + ' has no private vault. ' : '') + (arch ? what + ' still holds years archived here (they would come back into the live vault). ' : '');
   }
   const nameList = (l) => (l.length > 1 ? l.slice(0, -1).join(', ') + ' or ' + l[l.length - 1] : l.join(''));
 
@@ -803,6 +817,7 @@
         privAutoLockSec: 60,
         layouts: { narrow: [], wide: [] },
         business: L.business.defaultSettings(true),
+        archiveSuggestMB: 40,
       },
       entries: [],
       accounts: [], recurring: [], budgets: [], categories: defaultCategories(),
@@ -812,6 +827,7 @@
       activities: [], activityCategories: L.activities.DEFAULT_CATEGORIES.slice(),
       groups: [], people: [], contacts: [],
       payees: [], invoices: [], trips: [], taxPayments: [], taxYears: {}, homeOffice: {}, taxMap: [],
+      archives: [], summaries: {},
       cycle: null, kinds: L.metrics.DEFAULT_KINDS.slice(), habits: [], habitLog: [],
       memory: { insights: [], lessons: [], reviews: [] },
       audit: [],
@@ -883,6 +899,7 @@
   }
   function lock() {
     dropPriv();
+    if (L.archive) L.archive.drop();
     // Empty the live state object too, so any reference still held elsewhere no longer reaches plaintext.
     if (state) { try { replaceContents(state, {}); } catch (e) { /* ignore */ } }
     key = null; salt = null; state = null; meta = { rev: 0, updatedAt: '', deviceId: '' };
@@ -939,9 +956,9 @@
       const clean = validateState(next);
       const src = next && typeof next.sourceSchema === 'number' ? next.sourceSchema : clean.sourceSchema;
       if (typeof src !== 'number') throw new Error('Invalid data: unknown format');
-      const probe = Object.defineProperty({ priv: clean.priv }, 'sourceSchema', { value: src, enumerable: false });
+      const probe = Object.defineProperty({ priv: clean.priv, entries: clean.entries, archives: clean.archives, summaries: clean.summaries, invoices: clean.invoices, taxPayments: clean.taxPayments, trips: clean.trips, contacts: clean.contacts, studySessions: clean.studySessions, activities: clean.activities, maintenance: clean.maintenance, renewals: clean.renewals, habitLog: clean.habitLog, memory: clean.memory }, 'sourceSchema', { value: src, enumerable: false });
       if (dropsWork(st, probe) && !(opts && opts.allowWorkLoss === true)) {
-        const e = new Error('This backup is from an older version and has no ' + nameList(droppedData(st, probe)) + '. Nothing was replaced.'); e.code = 'OLDER_FORMAT'; throw e;
+        const e = new Error(lossWhy(droppedData(st, probe), src < 14, 'This backup') + 'Restoring it would remove your ' + lossText(st, probe) + '. Nothing was replaced. Tick the box to go ahead.'); e.code = 'OLDER_FORMAT'; throw e;
       }
       dropPriv();
       // A restored backup never brings its own sync bookkeeping: an older remoteRev would weaken the rollback
@@ -1021,5 +1038,5 @@
 
   // Validation helpers shared with home.js and admin.js (same rules and messages as the rest of validateState).
   L.validate = { fail, isObj, str, num, date, oneOf, bool, arr, strip, ts, newId };
-  L.store = { matchesMain, _setAdapter, exists, init, unlock, lock, isUnlocked, getState, commit, changePassphrase, replaceState, wipe, validateState, newId, defaultState, getMeta, saltId, exportEnvelope, inspectEnvelope, adoptEnvelope, dropsWork, droppedData, nameList, lossText, validateGoals: (list, privOk) => cleanGoals(list, privOk === true) };
+  L.store = { _rawEnvelope: () => getAdapter().get(KEY), matchesMain, _setAdapter, exists, init, unlock, lock, isUnlocked, getState, commit, changePassphrase, replaceState, wipe, validateState, newId, defaultState, getMeta, saltId, exportEnvelope, inspectEnvelope, adoptEnvelope, dropsWork, droppedData, nameList, lossText, lossWhy, validateGoals: (list, privOk) => cleanGoals(list, privOk === true) };
 })();

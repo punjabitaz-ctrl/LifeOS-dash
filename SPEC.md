@@ -371,3 +371,71 @@ This builds on v1.0.0: lines of work are Work projects, income carries `status` 
 5. The owner has 1099 contract income this year. All self-employment income is entered as business income on its own line of work (a project of kind `client`), so it flows into net profit and SE tax with everything else. The Schedule C summary and the accountant export show totals per line of work and per parent rollup, so the accountant can decide whether it belongs on the same Schedule C or a separate one; the app makes no such determination. Add an optional profile field `otherSsEarningsCents` (W-2 Social Security wages, default 0) that reduces the room under the Social Security wage base before the 12.4% part is computed. Tests: SE tax with other earnings at, below and above the wage base.
 6. If any business record of the selected year (income, expense, invoice, trip, payment, payee, or a project they belong to) is in the private vault and the vault is closed, every tax figure (profit, SE tax, income tax estimates, set-aside, safe harbor, Schedule C summary, export, tax home modules, tax digest numbers) refuses to compute and shows "Open the private vault to see tax figures." with the lock marker. No partial tax numbers anywhere, including the weekly digest (the tax fields are omitted, not zero). Non-tax views keep the normal marker behaviour.
 7. The accountant export shows a plain warning before download ("This file is not encrypted. It contains your business records, payee names and mileage log. Store it somewhere safe.") and requires a confirm tap. The print view carries the same line at the top. No network calls.
+
+## v1.2.0 addendum, part A: Activity CSV import
+Closes the roadmap item "activity CSV import". Reuses the existing CSV parser, caps and the ledger import pattern (mapping screen, preview, nothing written until confirm, rejected-row reasons, importKey dedupe). Schema 13: activities gain optional `importKey`; tested no-op migration from 1 to 12 so older apps refuse a vault that carries it; downgrade guards unchanged otherwise.
+- Mapping targets: date, end date, title (required), category, state, minutes, place, people, cost, paid date, return, worth-it, also health (yes/no), health kind, also social (yes/no), notes. Date formats as in the ledger import (DD/MM only when picked). Money via the existing integer-cents parser. People split on a separator the user picks (; or |), max 10 per row.
+- Categories and health kinds matched case and whitespace insensitive; unknown ones listed and offered as new, never created automatically. A row whose state column is missing uses a default state the user picks on the mapping screen (planned, done or skipped); no guessing from the date.
+- importKey = SHA-256 of normalised date, title, category and place; re-importing adds nothing and says so.
+- Costs: imported rows never create Money expenses on their own. After import, rows with a cost that are done or have a paid date are listed with one "Create linked expenses" offer for the batch (one expense per activity, SEC-51/52 rules, skipping rows already linked). Nothing auto-posts.
+- Social: imported people names follow the existing activity rules (ambiguous names credit nobody, SEC-57; unknown names offered as people, never created automatically).
+- Private vault: if private activities exist and the vault is closed, the preview adds nothing and says to open the vault (PV-1 pattern). Imports are public unless the user ticks "Import as private" while the vault is open; the "New items are private" toggle does not apply (UI-5).
+- Secrets guard and 200-character caps on title, place and notes. Imported text never reaches prompts, digest, insights, audit, errors, console, URL or storage outside the vault; extend test/smoke-leaks.mjs to the import path.
+- Activities CSV export already exists or is added with the same columns, formula-neutralised, so an export re-imports to nothing new.
+
+## v1.2.0 addendum, part B: Vault archiving, and spell check off (owner decisions, 17 Nov 2026)
+Built after part A, on the same version. Schema 14 with tested migrations from 1 to 13 (no data loss), downgrade guards extended.
+
+### What stays live
+- The live vault keeps the current calendar year and the two full years before it. A year Y is archivable when Y is earlier than (current year minus 2).
+- Archived: dated records of year Y that are finished (money entries, received or written-off income, paid or void invoices, tax payments, trips, contacts, study sessions, daily-check ticks, done or skipped activities, done maintenance, done renewals, workouts, body metrics, sleep, mood, Wellbeing check-ins, reviews and insights of that year). Never archived: anything open, planned, unpaid or referenced by a live record (accounts, projects, people, groups, goals, items, payees, properties, vehicles, categories, settings), and the tax-year profile.
+- Before removal, yearly totals for year Y are written to `summaries:{YYYY:{...}}` (numbers only, per domain: the figures trends, net worth history, goals and the dashboard use). Every view, chart and goal that spans an archived year reads the summary, so trends keep working. Summaries are numbers only and follow the digest privacy rules.
+
+### The archive file
+- One encrypted file per year, `lifeos-archive-YYYY.json`: an envelope like a backup, encrypted under the main passphrase with its own fresh salt and IV. Private records of year Y go in an inner blob under the private key; archiving a year that has private records requires the private vault open, otherwise that year is refused with a plain message.
+- Archive index in the live state: `archives:[{year, createdAt, sha256, counts, copies:[{where:'drive'|'download', at, verified}]}]`.
+- Removal is a three-step, all-or-nothing operation: write the file, verify it (decrypt it back and compare counts and a SHA-256 of the canonical records), then remove the records from the live vault in one commit. Removal requires at least one verified copy: a Drive upload re-downloaded and decrypted, or a downloaded file the user confirms saving. The owner's choice is both copies: Drive and a downloaded copy kept on his NAS (the browser cannot write to the NAS directly; the download is saved there by the user, and the guide says so). When Drive is connected, both are offered by default.
+- Open an archive read-only: from Drive or a chosen file, decrypted in memory, shown in an Archive screen per domain with search, and usable for that year's accountant export. Closing it or locking the app drops it from memory. Restore a year into the live vault only with an explicit confirm, deduplicated by id, never overwriting live records.
+
+### When it happens (the vault adjusts, and the user can start it)
+- Automatic proposal: whenever the encrypted vault size passes `settings.archiveSuggestMB` (default 40, range 20 to 60) or a new year becomes archivable, the dashboard and the weekly review show which years would move and how much space would be freed. One tap runs it. Nothing is ever removed from the live vault without that tap and a verified copy.
+- User-initiated: Settings, Archive: pick any archivable year and run it at any time.
+- Size is measured as the encrypted envelope's byte length.
+
+### Sync, backup and safety
+- A Drive or backup copy that still holds records of an archived year must not silently bring them back: the restore and sync conflict dialogs say which archived years the other copy still contains, and replacing needs the explicit tick (SEC-27/28 pattern). Archive files never replace the live vault.
+- Archive files and summaries never reach prompts, the digest, insights, audit text or errors; audit entries record only "archived YYYY" and "restored YYYY". Extend test/smoke-leaks.mjs to archive files and the Archive screen.
+
+### Spell check off (owner decision, best practice for a private app)
+- Every input and textarea app-wide sets `spellcheck="false"`, `autocorrect="off"` and `autocapitalize="off"` (passphrase fields keep their current settings), so browser enhanced spell check never sends typed text to a remote service. A test fails if any new field misses them.
+- Final-review fixes PV-6 (rejection reasons stay on the device; only counts reach the AI) and PV-9 (no weight insight) are confirmed as permanent.
+
+## v1.3.0 addendum: Safe to live in (owner decisions, 17 Nov 2026)
+Source: docs/review/product-ops.md items B1, B2, B6, B7, B22, with support for the owner's first real run (B3). Built after v1.2.0 is audited and pushed. Schema change only if a new stored field needs it, with the usual tested migrations and downgrade guards.
+
+### B1 Persistent storage
+- On first unlock and on every unlock until granted, call `navigator.storage.persist()` and record the result. Settings shows "Storage: kept by the browser" or "Storage: may be cleared by the browser" with what to do (install, bookmark, back up). Show `navigator.storage.estimate()` usage. Never block the app if the API is missing.
+
+### B2 Backup safety
+- Record `lastBackupAt` and `lastSyncAt` (dates only) inside the encrypted state. Dashboard module and Settings show both.
+- Reminder: when the last backup or successful sync is older than `settings.backupReminderDays` (default 7, range 1 to 60) or more than 200 saves have happened since, show a non-blocking banner with one-tap Export backup. Snooze for one day. Never automatic.
+- "Verify a backup file": choose a file, enter its passphrase, decrypt in memory, show schema, revision, date and per-collection counts, compare with the live vault, and discard. Nothing is written.
+
+### B6 Release engineering
+- One version source: package.json; build.mjs injects it into the app, README and the HANDOFF header check; a test fails if any other version string disagrees.
+- Tags: add a GitHub Actions workflow that, on push to main, creates tag `v<version>` from package.json if it does not exist (uses the default GITHUB_TOKEN with contents write; no secrets added). Backfill tags v1.0.0, v1.1.0 and v1.2.0 on their commits through the same workflow's manual trigger.
+- docs/CHANGELOG.md from v0.1.0 to now, newest first, one line per change.
+- docs/RUNBOOK.md: how the live copy deploys (Cloudflare builds from main), how to roll back (redeploy an earlier commit in Cloudflare), the schema rule (an older app refuses a newer vault, so roll back the code only to a version with the same schema, or restore a backup made on that version first), how to verify a release (version in Settings, header check), and what to do if the vault will not open. Do NOT add a wrangler or Worker config file: deployment is configured in the Cloudflare dashboard and a config file could change it; document the settings to record instead.
+- test/smokes.mjs gets a per-script timeout (default 420 s) and reports slow scripts; investigate and fix why smoke-command takes about 287 s.
+
+### B7 Local diagnostics (codes only)
+- A capped ring of the last 200 diagnostics `{at, code, area}` inside the encrypted state. Codes are fixed constants (for example SYNC_409, DECRYPT_FAIL, STORAGE_QUOTA, CSV_REJECT, AI_TIMEOUT); no message text, no values, no ids, no names. Uncaught errors map to a code by area, never to their message.
+- Settings: "Copy diagnostics" copies the codes, app version, schema and browser family only. "Clear diagnostics". Leak smoke must prove no marker string can reach the diagnostics ring or the copied text.
+
+### B22 Drive setup and sync habits
+- docs/SYNC-SETUP.md gains a Cloudflare Access section: add the live origin and redirect URI, confirm the redirect lands back after an Access session, and what to do if Access intercepts it.
+- Optional "Remind me to sync" on lock and on tab hide when there are unsynced changes (one-line notice, never automatic).
+
+### B3 support: first real run and live header check
+- scripts/check-live.mjs: fetches the live URL with a Cloudflare Access service token read from the environment variables CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET (never stored in the repo, never logged), and compares the response headers with `_headers` and the built CSP. Prints pass or each mismatch. The owner runs it; tests cover it with a mocked fetch.
+- docs/FIRST-RUN.md: a checklist for the owner's first real run on phone and PC (persist check, backup and verify on a second device, one Drive sync each way, one real AI call in manual and API modes, the header check), with a place to note results.

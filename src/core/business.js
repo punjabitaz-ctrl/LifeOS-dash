@@ -390,6 +390,8 @@
   function budgetRow(state, p, budget, period, set, mo) {
     let actual = 0;
     for (const e of list(state, 'entries')) if (e.domain === 'money' && e.type === 'expense' && e.projectId && set.has(e.projectId) && (period !== 'month' || e.date.slice(0, 7) === mo)) actual += centsOf(e.value);
+    // SEC-86: a project budget counts all time, so the expenses of archived years come back from the yearly summaries.
+    if (period !== 'month' && L.archive) for (const m of L.archive.archivedMonths(state)) { const rm = L.archive.revenueMonth(state, m); for (const k of Object.keys(rm || {})) if (k && set.has(k)) actual += rm[k][1]; }
     return { projectId: p.id, budgetCents: budget, period, actualCents: actual, remainingCents: budget === null ? null : budget - actual, status: budget === null ? 'none' : actual > budget ? 'over' : 'ok' };
   }
   // A parent's rollup counts its own and its children's expenses against the parent's budget; with none, against the children's

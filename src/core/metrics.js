@@ -180,6 +180,12 @@
   // Latest balance per account (non-archived), liabilities subtracted. Balance entries without a usable accountId
   // fall back to the account with the same name, then to an implicit account keyed by title (schema 1 behaviour).
   function netWorthDetail(state, asOf) {
+    // v1.2.0 part B: the balances of an archived year are gone; its month-end net worth comes from the yearly summary.
+    const ar = L.archive && L.archive.isArchivedYear(state, asOf.slice(0, 4)) && L.archive.netWorthAt(state, asOf);
+    if (ar) {
+      const totalC = ar.assets - ar.liab;
+      return { totalCents: totalC, assetsCents: ar.assets, liabilitiesCents: ar.liab, total: dollars(totalC), assets: dollars(ar.assets), liabilities: dollars(ar.liab), count: ar.count, byKind: [], rows: [] };
+    }
     const accts = state.accounts || [];
     const byId = new Map(accts.map((x) => [x.id, x]));
     const byName = new Map();
@@ -230,6 +236,9 @@
       if (e.type === 'income') { if (counted(e)) inc += c; }
       else if (e.type === 'expense') { exp += c; const k = e.category || UNCAT; spent.set(k, (spent.get(k) || 0) + c); }
     }
+    // v1.2.0 part B: an archived month adds back the figures of its archived entries (numbers only, from the yearly summary).
+    const ar = L.archive && L.archive.monthAdd(state, month);
+    if (ar) { inc += ar.inc; exp += ar.exp; for (const k of Object.keys(ar.cats)) spent.set(k, (spent.get(k) || 0) + ar.cats[k]); }
     const budgets = new Map((state.budgets || []).map((x) => [x.category, cents(x.value)]));
     const names = new Set([...spent.keys(), ...budgets.keys()]);
     let budgetC = 0, budgetedSpentC = 0;

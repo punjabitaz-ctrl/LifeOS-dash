@@ -131,5 +131,18 @@
   const exportPipeline = (items) => toCsv(['id', 'title', 'org', 'kind', 'stage', 'source', 'nextStep', 'nextDate', 'updatedAt', 'notes'], items);
   const exportProjects = (items) => toCsv(['id', 'name', 'kind', 'status', 'nextAction', 'nextDate', 'archived'], items);
 
-  L.csv = { parse, toEntries, moneyFields, exportEntries, exportPipeline, exportProjects };
+  // v1.2.0: activities, in the columns the Activity CSV import maps back (so an export re-imports to nothing new). Money is dollars with two
+  // decimals worked out from integer cents; people are joined with a semicolon.
+  const ACTIVITY_COLS = ['title', 'date', 'end date', 'state', 'category', 'minutes', 'place', 'people', 'cost', 'paid date', 'return', 'worth-it', 'also health', 'health kind', 'also social', 'notes'];
+  const dollars = (c) => (Number.isInteger(c) ? String(Math.floor(c / 100)) + '.' + String(c % 100).padStart(2, '0') : '');
+  function exportActivities(items) {
+    // CSV exports never carry private records: filtered before the rows are mapped (toCsv only sees the mapped copies).
+    const rows = (items || []).filter((a) => !(L.priv && L.priv.isPrivateRecord(a))).map((a) => ({
+      'title': a.title, 'date': a.date, 'end date': a.endDate || '', 'state': a.state, 'category': a.category, 'minutes': a.minutes || '', 'place': a.place,
+      'people': (a.withPeople || []).join(';'), 'cost': dollars(a.costCents), 'paid date': a.paidOn || '', 'return': dollars(a.returnCents), 'worth-it': a.worthIt || '',
+      'also health': a.alsoHealth ? 'yes' : 'no', 'health kind': a.healthKind || '', 'also social': a.alsoSocial ? 'yes' : 'no', 'notes': a.notes,
+    }));
+    return toCsv(ACTIVITY_COLS, rows);
+  }
+  L.csv = { parse, toEntries, moneyFields, exportEntries, exportPipeline, exportProjects, exportActivities, ACTIVITY_COLS };
 })();

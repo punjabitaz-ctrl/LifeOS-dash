@@ -65,7 +65,7 @@
           h('p', { class: 'mut', text: conflict ? 'Nothing is merged. Pick the copy to keep. The other copy is saved to a file first.' : 'This device has no changes since the last sync.' }),
           d.passphraseDiffers ? h('p', { class: 'small', id: 'sync-passdiff', text: 'The Drive copy uses a different passphrase from this device. Using the Drive copy switches this device to that passphrase. Keeping this device uploads it under this device\'s passphrase.' }) : null,
           sumList(c, 'This device', d.local), sumList(c, 'Google Drive', d.remote), c.field('Choice', pick),
-          ack ? h('p', { class: 'small', id: 'sync-olderformat', text: (d.remote.schema < 10 ? 'The Drive copy is from an older LifeOS version. ' : 'The Drive copy has no private vault. ') + 'Using it removes this device\'s ' + L.store.lossText(L.store.getState(), { sourceSchema: d.remote.schema, priv: d.remote.priv ? true : undefined }) + '.' }) : null,
+          ack ? h('p', { class: 'small', id: 'sync-olderformat', text: L.store.lossWhy(d.dropped, d.remote.schema < 14, 'The Drive copy') + 'Using it removes this device\'s ' + L.store.lossText(L.store.getState(), null, d.dropped || []) + '.' }) : null,
           ack ? h('label', { class: 'row small' }, ack, h('span', { text: 'I understand. Remove this data if I use the Drive copy.' })) : null],
         onYes: function () {
           return L.sync.apply(d, pick.value, {

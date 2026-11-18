@@ -29,8 +29,10 @@ LifeOS (Living Independent and Free Everyday Operating System): one offline-capa
 | 0.12.0 | Command center, first build, schema 11: lines of work (kinds, parents), revenue tracker and expected income (src/core/revenue.js), ledger CSV import, customizable home (src/core/layout.js); reviewed in the final complete review, released as 1.0.0 |
 | 1.0.0 | Final complete review: three independent reviewers (crypto, privacy, UI), 30 findings (CR-1 to CR-10, PV-1 to PV-10, UI-1 to UI-10) all fixed with regression tests; schema stays 11 | committed |
 | 1.1.0 | Business expenses, invoices and tax (NJ single-member LLC), schema 12: business or personal scope, invoices and aging, billable and reimbursable expenses, mileage with dated rates, home office, 1099-NEC payees, budgets, tax-year profile, SE tax, federal and NJ estimates, safe harbor, payments, accountant export and print views, five home modules (src/core/tax.js, src/core/business.js) | pushed |
+| 1.2.0-a | Activity CSV import, schema 13 (activities gain optional importKey): map, preview, confirm, batch Money offer on a tap, import as private; `activities.planImport/applyImport`, `csv.exportActivities`; audited with 1.2.0 (SEC-90, SEC-91), not committed |
+| 1.2.0 | Vault archiving (src/core/archive.js, src/ui/archive-ui.js), schema 14, spell check off app-wide; verified archive files, summaries keep every figure (private ones inside the private vault); audited (SEC-85 High, SEC-84 and SEC-87 Medium, SEC-86, SEC-88 to SEC-90 and SEC-92 Low, SEC-91 Info, all fixed), not committed |
 
-Schema: 12 as of v1.1.0 (11 at v0.12.0 and v1.0.0, 10 at v0.11.0). Every schema change needs a tested migration and the downgrade guards (SEC-27/28) extended to the new collections.
+Schema: 14 as of v1.2.0 (13 at v1.2.0-a, 12 at v1.1.0, 11 at v0.12.0 and v1.0.0, 10 at v0.11.0). The private vault's inner plaintext may carry `summaries` (numbers only) since the v1.2.0 audit. Every schema change needs a tested migration and the downgrade guards (SEC-27/28) extended to the new collections.
 
 ## How each build cycle runs
 1. Owner picks the next domain and answers scope questions.
@@ -66,13 +68,9 @@ Haiku is used for short, capped research only. Keep prompts lean and cap reply l
 5. Have a lawyer review LICENSE before charging anyone.
 
 ## Roadmap
-Done: Goals (0.6.0), Home and Admin (0.7.0), Learning (0.8.0), Activities (0.9.0), Social (0.10.0), private vault and Wellbeing (0.11.0), command center first build (0.12.0), final complete review (1.0.0), business expenses, invoices and tax (1.1.0).
-1. Recommended first: a real run on phone and PC (owner's to-do 2); nothing has run on a real device yet.
-2. Activity CSV import.
-3. Vault archiving (with several domains at their caps the vault passes 64 MB; export and sync refuse rather than cut).
-4. NAS sync to replace Google Drive.
-5. Command center tabs: job search, websites, podcasts, AYiN Advisors and client projects.
-6. Possible later: custom domain.
+Done: Goals (0.6.0), Home and Admin (0.7.0), Learning (0.8.0), Activities (0.9.0), Social (0.10.0), private vault and Wellbeing (0.11.0), command center first build (0.12.0), final complete review (1.0.0), business expenses, invoices and tax (1.1.0), activity CSV import and vault archiving with spell check off (1.2.0).
+Next: v1.3.0 "Safe to live in" (SPEC.md "v1.3.0 addendum": persistent storage, backup safety, release engineering, local diagnostics, Drive setup, first-run support), then the release order and the full build list B1 to B26 in docs/review/product-ops.md (v1.4.0 phone first, v1.5.0 weekly loop, v1.6.0 job search, v1.7.0 AYiN and media tabs, v2.0.0 NAS sync). A real run on phone and PC (owner's to-do 2) is still the first thing to do; nothing has run on a real device yet.
+Known test defect for v1.3.0 B6: test/smoke-command.mjs waits 15 s nine times per viewport for a selector (`.entry[data-key]`) that only exists on the private vault screen; that is its 280 s runtime (v1.2.0 audit).
 
 ## Open items
 - SEC-30 (Info, accepted): carry-over list has no limit.
@@ -80,4 +78,9 @@ Done: Goals (0.6.0), Home and Admin (0.7.0), Learning (0.8.0), Activities (0.9.0
 - Local model (Ollama) may be unreachable from the hosted HTTPS copy in some browsers; untested.
 
 ## Current step
-v1.1.0 (business expenses, invoices and tax, schema 12) is built and audited; see "v1.1.0 audit" in docs/SECURITY.md. 13 findings fixed with regression tests in test/v110-audit.test.mjs: SEC-71 High (half-SE deduction included Additional Medicare), Medium SEC-72 (Additional Medicare ignored W-2 wages), SEC-73 (no $400 floor; profile field `seMinNetEarningsCents` added), SEC-74 (home office could create a loss), SEC-76 (vault refusal over-refused with a wildcard), SEC-78 (export included private records without a tick), SEC-83 (a public entry on a private line was not refused); Low SEC-75 (NJ base), SEC-77, SEC-79 to SEC-82. Builder deviations (c), (d) and (e) judged acceptable. `node --test test/` passes 580 of 580 in the default zone, New York and Auckland; `node test/smokes.mjs` (17 scripts) passed twice. Version 1.1.0 in package.json. Re-verified by the orchestrator (580 tests in three zones, 17 smokes) and pushed to main on 17 Nov 2026 (UTC). Next: the owner's tax setup (to-do 00) and real-device run. A forgotten private passphrase destroys the private data everywhere; say so to the owner before first use.
+Updated 18 Nov 2026 by the orchestrator.
+
+- On main: v1.2.0 (schema 14): activity CSV import, vault archiving, spell check off. Audited (SEC-84 to SEC-92 in docs/SECURITY.md; the auditor stopped on a usage limit just before its final runs, which the orchestrator ran instead: 645 unit tests in three zones and all 19 smokes twice).
+- Next: v1.3.0 "Safe to live in" (SPEC.md "v1.3.0 addendum"), then v1.4.0 phone first, v1.5.0 weekly loop, v1.6.0 job search, v1.7.0 AYiN and media tabs, v2.0.0 NAS sync. Full build list B1 to B26 in docs/review/product-ops.md.
+- Owner decisions recorded 17 Nov 2026: release order above; backup reminder every 7 days; he creates a Cloudflare Access service token for the live header check (never in the repo or chat); codes-only diagnostics; spell check off; PV-6 and PV-9 permanent.
+- Release blockers for daily use: persistent storage, backup safety, phone navigation, the owner's first real run.

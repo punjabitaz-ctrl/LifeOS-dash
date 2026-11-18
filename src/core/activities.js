@@ -85,6 +85,8 @@
       o.alsoSocial = V().bool(x.alsoSocial, 'alsoSocial', false);
       const gid = link(x.goalId, gids, 'goal link'); if (gid) o.goalId = gid;
       o.notes = T(x.notes, 2000, 'notes', true);
+      // v1.2.0: an imported activity keeps the SHA-256 of its date, title, category and place so a re-import adds nothing.
+      if (given(x.importKey)) { if (typeof x.importKey !== 'string' || !/^[0-9a-f]{64}$/.test(x.importKey)) V().fail('invalid import key'); o.importKey = x.importKey; }
       if (x.createdAt !== undefined && x.createdAt !== null) o.createdAt = V().ts(x.createdAt, 'createdAt');
       return o;
     });
@@ -371,7 +373,8 @@
   // Average worth-it rating over every rated done activity up to asOf.
   function goalRating(state, asOf) {
     const r = doneList(state).filter((a) => typeof a.worthIt === 'number' && a.date <= asOf);
-    return r.length ? avgOf(r.reduce((s, a) => s + a.worthIt, 0), r.length) : null;
+    const ar = L.archive ? L.archive.ratingTotals(state, asOf) : { n: 0, sum: 0 };
+    return r.length + ar.n ? avgOf(r.reduce((s, a) => s + a.worthIt, 0) + ar.sum, r.length + ar.n) : null;
   }
 
   // ---- mutators (run inside store.commit; nothing here is called automatically) ----
@@ -533,6 +536,217 @@
     state.activityCategories = cats.filter((c) => c !== name);
   }
 
+  // ---- v1.2.0: Activity CSV import (reuses the ledger import's parsers, caps, key hashing and preview pattern) ----
+  // planImport() writes nothing and returns the preview; applyImport() runs inside one commit after the user confirms. Imported rows
+  // never create Money expenses: importOffers() lists the eligible ones and createExpenses() makes one expense per activity on a tap.
+  const R = () => L.revenue;
+  const TARGETS = ['date', 'endDate', 'title', 'category', 'state', 'minutes', 'place', 'people', 'cost', 'paidOn', 'returnAmount', 'worthIt', 'alsoHealth', 'healthKind', 'alsoSocial', 'notes'];
+  const SEPARATORS = Object.freeze([';', '|']);
+  const KIND_CAP_IMPORT = 30;
+  const importKey = (date, title, category, place, occurrence) =>
+    R().sha256Hex([date, R().normName(title), R().normName(category), R().normName(place)].concat(occurrence > 0 ? [String(occurrence)] : []).join('\u001f'));
+  const yesNo = (raw) => { const s = R().normName(raw); if (!s) return false; if (['yes', 'y', 'true', '1'].includes(s)) return true; if (['no', 'n', 'false', '0'].includes(s)) return false; return null; };
+  const BIDI_RE = /[؜​-‏‪-‮⁠-⁩﻿]/g;
+  // Keys of what the vault already holds: the stored importKey and the key worked out from each activity's own fields (so rows exported
+  // from here, or typed by hand, are recognised too). Rows that share date, title, category and place get the file's occurrence number.
+  async function haveKeys(state) {
+    const have = new Set(), seen = new Map();
+    for (const a of list(state, 'activities')) {
+      if (a.importKey) have.add(a.importKey);
+      const base = [a.date, R().normName(a.title), R().normName(a.category), R().normName(a.place)].join('\u001f'), occ = seen.get(base) || 0;
+      seen.set(base, occ + 1);
+      have.add(await importKey(a.date, a.title, a.category, a.place, occ));
+    }
+    return have;
+  }
+  // opts: { map:{target: column index}, dateFormat:'auto'|'dmy', separator:';'|'|', defaultState:'planned'|'done'|'skipped',
+  //   createCategories:[names], createKinds:[names], createPeople:[names], asPrivate:bool }
+  async function planImport(parsed, opts, state, today) {
+    if (!parsed || !Array.isArray(parsed.headers) || !Array.isArray(parsed.rows)) throw new Error('Nothing to import');
+    if (!opts || typeof opts.map !== 'object' || !opts.map) throw new Error('Column mapping required');
+    const nh = parsed.headers.length, map = {}, nr = R().normName;
+    for (const k of TARGETS) {
+      const v = opts.map[k];
+      if (v === undefined || v === null || v === '') continue;
+      if (!Number.isInteger(v) || v < 0 || v >= nh) throw new Error('Column not found for ' + k);
+      map[k] = v;
+    }
+    if (map.date === undefined) throw new Error('Choose the date column.');
+    if (map.title === undefined) throw new Error('Choose the title column.');
+    const fmt = opts.dateFormat === 'dmy' ? 'dmy' : 'auto';
+    const sep = opts.separator === undefined ? ';' : opts.separator;
+    if (!SEPARATORS.includes(sep)) throw new Error('People are separated by ; or |');
+    const stateMapped = map.state !== undefined;
+    const dflt = opts.defaultState === undefined ? 'planned' : opts.defaultState;
+    if (!stateMapped && !STATES.includes(dflt)) throw new Error('Pick the state for rows without a state column.');
+    const empty = (extra) => Object.assign({ rows: parsed.rows.length, add: [], rejected: [], duplicates: 0, totals: { count: 0, costCents: 0 }, byState: { planned: 0, done: 0, skipped: 0 }, unknownCategories: [], newCategories: [], unknownKinds: [], newKinds: [], unknownPeople: [], newPeople: [], ambiguousPeople: [], offer: { count: 0, cents: 0 }, asPrivate: !!opts.asPrivate, empty: true }, extra);
+    // PV-1: the main state alone cannot tell which rows were already imported and then moved into the private vault.
+    const pm = state.priv && Array.isArray(state.priv.marks) ? state.priv.marks : [];
+    if (pm.includes('activities')) return empty({ blocked: 'private' });
+    const have = await haveKeys(state);
+    const cats = categories(state), catBy = new Map(cats.map((c) => [nr(c), c]));
+    const kinds = list(state, 'kinds'), kindBy = new Map(kinds.map((c) => [nr(c), c]));
+    const dfltCat = cats.find((c) => c.toLowerCase() === 'other') || cats[0];
+    if (!dfltCat) throw new Error('Add a category first');
+    const So = L.social, peopleList = list(state, 'people');
+    const pcount = new Map();
+    for (const p of peopleList) { const k = So.nameKey(p.name); pcount.set(k, (pcount.get(k) || 0) + 1); }
+    const mkSet = (a) => new Set((a || []).map(nr));
+    const createC = mkSet(opts.asPrivate ? [] : opts.createCategories), createK = mkSet(opts.asPrivate ? [] : opts.createKinds), createP = new Set((opts.createPeople || []).map((n) => So.nameKey(n)));
+    const unkC = new Map(), newC = new Map(), unkK = new Map(), newK = new Map(), unkP = new Map(), newP = new Map(), ambP = new Map();
+    const seenInFile = new Map(), add = [], rejected = [], byState = { planned: 0, done: 0, skipped: 0 };
+    let duplicates = 0, costCents = 0, offerN = 0, offerC = 0;
+    for (let i = 0; i < parsed.rows.length; i++) {
+      const r = parsed.rows[i], rowNo = i + 2;
+      const reject = (why) => rejected.push({ row: rowNo, reason: why });
+      if (!Array.isArray(r) || r.length !== nh) { reject('wrong number of columns'); continue; }
+      const cell = (k) => (map[k] === undefined ? '' : R().tidy(r[map[k]]));
+      const bad = (what) => (fmt === 'dmy' ? what + ' is not a valid DD/MM/YYYY or YYYY-MM-DD date' : what + ' is not a valid YYYY-MM-DD or MM/DD/YYYY date');
+      const date = R().parseDate(cell('date'), fmt);
+      if (!date) { reject(bad('date')); continue; }
+      const title = cell('title');
+      if (!title) { reject('title is empty'); continue; }
+      const catRaw = cell('category'), place = cell('place'), notes = cell('notes'), kindRaw = cell('healthKind');
+      if (title.length > 200) { reject('title is longer than 200 characters'); continue; }
+      if (place.length > 200) { reject('place is longer than 200 characters'); continue; }
+      if (notes.length > NOTE_MAX) { reject('notes are longer than ' + NOTE_MAX + ' characters'); continue; }
+      if (catRaw.length > 40) { reject('category is longer than 40 characters'); continue; }
+      if (kindRaw.length > KIND_MAX) { reject('health type is longer than ' + KIND_MAX + ' characters'); continue; }
+      if ([title, place, notes].some((x) => L.admin.looksSecret(x))) { reject('looks like an ID or card number'); continue; }
+      let st = dflt;
+      if (stateMapped) { st = nr(cell('state')); if (!STATES.includes(st)) { reject('state is not planned, done or skipped'); continue; } }
+      let endDate = '';
+      if (cell('endDate')) {
+        endDate = R().parseDate(cell('endDate'), fmt);
+        if (!endDate) { reject(bad('end date')); continue; }
+        if (endDate < date) { reject('end date is before the start date'); continue; }
+        if (D().daysBetween(endDate, date) > MAX_SPAN) { reject('an activity spans up to ' + MAX_SPAN + ' days'); continue; }
+        if (endDate === date) endDate = '';
+      }
+      let minutes;
+      if (cell('minutes')) {
+        const t = cell('minutes');
+        minutes = /^\d{1,6}$/.test(t) ? Number(t) : NaN;
+        if (!(minutes >= 1 && minutes <= MAX_MIN)) { reject('minutes is not a whole number from 1 to ' + MAX_MIN); continue; }
+      }
+      const money = (k, what) => {
+        const t = cell(k);
+        if (!t) return undefined;
+        const c = R().parseCents(t);
+        if (c === null) return what + ' is not an amount';
+        if (c < 0) return what + ' is negative';
+        if (c > MAX_CENTS) return what + ' is too large';
+        return c;
+      };
+      const cost = money('cost', 'cost'), ret = money('returnAmount', 'return');
+      if (typeof cost === 'string') { reject(cost); continue; }
+      if (typeof ret === 'string') { reject(ret); continue; }
+      let paidOn = '';
+      if (cell('paidOn')) { paidOn = R().parseDate(cell('paidOn'), fmt); if (!paidOn) { reject(bad('paid date')); continue; } }
+      let worth;
+      if (cell('worthIt')) {
+        const t = cell('worthIt');
+        if (!/^[1-5]$/.test(t)) { reject('worth-it rating is not a whole number from 1 to 5'); continue; }
+        if (st !== 'done') { reject('a worth-it rating needs a done activity'); continue; }
+        worth = Number(t);
+      }
+      const ah = yesNo(cell('alsoHealth')), as = yesNo(cell('alsoSocial'));
+      if (ah === null) { reject('also health is not yes or no'); continue; }
+      if (as === null) { reject('also social is not yes or no'); continue; }
+      const people = [];
+      if (cell('people')) {
+        const seen = new Set();
+        for (const part of cell('people').split(sep)) {
+          const n = part.replace(BIDI_RE, '').replace(/\s+/g, ' ').trim();
+          if (n && !seen.has(n.toLowerCase())) { seen.add(n.toLowerCase()); people.push(n); }
+        }
+        if (people.length > PEOPLE_MAX) { reject('more than ' + PEOPLE_MAX + ' people'); continue; }
+        if (people.some((n) => n.length > NAME_MAX)) { reject('a name is longer than ' + NAME_MAX + ' characters'); continue; }
+      }
+      const base = [date, nr(title), nr(catRaw), nr(place)].join('\u001f'), occ = seenInFile.get(base) || 0;
+      seenInFile.set(base, occ + 1);
+      const key = await importKey(date, title, catRaw, place, occ);
+      if (have.has(key)) { duplicates++; continue; }
+      // Category and health type: matched case and whitespace insensitive. An unknown one is listed and offered; unless the user ticks
+      // it, the row takes the default category, or no health type.
+      // SEC-90: a private import cannot create a category or health type (the lists sit outside the vault), so a row naming an unknown one
+      // is rejected with a reason rather than saved under the default category or without its type.
+      if (opts.asPrivate && catRaw && !catBy.has(nr(catRaw))) { if (!unkC.has(nr(catRaw))) unkC.set(nr(catRaw), catRaw); reject('category is not in your list; add it in Activities first, because a private import cannot create one'); continue; }
+      if (opts.asPrivate && kindRaw && ah && !kindBy.has(nr(kindRaw))) { if (!unkK.has(nr(kindRaw))) unkK.set(nr(kindRaw), kindRaw); reject('health type is not in your list; add it first, because a private import cannot create one'); continue; }
+      let category = dfltCat, newCat = '';
+      if (catRaw) {
+        const hit = catBy.get(nr(catRaw));
+        if (hit) category = hit;
+        else { if (!unkC.has(nr(catRaw))) unkC.set(nr(catRaw), catRaw); if (createC.has(nr(catRaw))) { newCat = nr(catRaw); if (!newC.has(newCat)) newC.set(newCat, catRaw); category = newC.get(newCat); } }
+      }
+      let healthKind = '', newKind = '';
+      if (kindRaw && ah) {
+        const hit = kindBy.get(nr(kindRaw));
+        if (hit) healthKind = hit;
+        else { if (!unkK.has(nr(kindRaw))) unkK.set(nr(kindRaw), kindRaw); if (createK.has(nr(kindRaw))) { newKind = nr(kindRaw); if (!newK.has(newKind)) newK.set(newKind, kindRaw); healthKind = newK.get(newKind); } }
+      }
+      const a = { title, category, state: st, date, place, withPeople: people, alsoHealth: ah, alsoSocial: as, notes, importKey: key };
+      if (endDate) a.endDate = endDate;
+      if (minutes !== undefined) a.minutes = minutes;
+      if (cost !== undefined) a.costCents = cost;
+      if (paidOn) a.paidOn = paidOn;
+      if (ret !== undefined) a.returnCents = ret;
+      if (worth !== undefined) a.worthIt = worth;
+      if (healthKind) a.healthKind = healthKind;
+      try { cleanActivities([Object.assign({ id: 'preview' }, a)], [], []); } catch (e) { reject(String(e.message || 'invalid row').slice(0, 120)); continue; }
+      // Social: an exact name key only; a name two people share credits nobody (SEC-57); an unknown name is offered, never added.
+      const newPerson = [];
+      if (as) for (const n of people) {
+        const k = So.nameKey(n), c = pcount.get(k) || 0;
+        if (c > 1) { if (!ambP.has(k)) ambP.set(k, n); } else if (c === 0 && k) { if (!unkP.has(k)) unkP.set(k, n); if (createP.has(k)) { newPerson.push(k); if (!newP.has(k)) newP.set(k, n); } }
+      }
+      add.push({ activity: a, newCategory: newCat, newKind, newPeople: newPerson });
+      byState[st]++;
+      if (cost !== undefined) costCents += cost;
+      if (cost > 0 && (st === 'done' || paidOn)) { offerN++; offerC += cost; }
+    }
+    if (list(state, 'activities').length + add.length > ACTIVITY_CAP) throw new Error('This import would pass the ' + ACTIVITY_CAP + ' activity limit.');
+    if (cats.length + newC.size > CATEGORY_CAP) throw new Error('Creating these categories would pass the ' + CATEGORY_CAP + ' category limit.');
+    if (kinds.length + newK.size > KIND_CAP_IMPORT) throw new Error('Creating these health types would pass the ' + KIND_CAP_IMPORT + ' type limit.');
+    if (peopleList.length + newP.size > So.PEOPLE_CAP) throw new Error('Adding these people would pass the ' + So.PEOPLE_CAP + ' people limit.');
+    return {
+      rows: parsed.rows.length, add, rejected, duplicates, totals: { count: add.length, costCents }, byState,
+      unknownCategories: [...unkC.values()], newCategories: [...newC.values()], unknownKinds: [...unkK.values()], newKinds: [...newK.values()],
+      unknownPeople: [...unkP.values()], newPeople: [...newP.values()], ambiguousPeople: [...ambP.values()],
+      offer: { count: offerN, cents: offerC }, asPrivate: !!opts.asPrivate, empty: add.length === 0,
+    };
+  }
+  // Apply a confirmed plan inside a commit. Only the categories, health types and people the user ticked are created, first.
+  function applyImport(state, pl, now) {
+    if (!pl || !Array.isArray(pl.add)) throw new Error('Nothing to import');
+    if (pl.blocked) return { added: 0, ids: [], created: { categories: 0, kinds: 0, people: 0 } };
+    const pm = state.priv && Array.isArray(state.priv.marks) ? state.priv.marks : [];
+    if (pm.includes('activities')) throw new Error('Open the private vault to import activities.');
+    const made = { categories: 0, kinds: 0, people: 0 };
+    for (const name of pl.newCategories || []) if (!categories(state).some((c) => c.toLowerCase() === name.toLowerCase())) { state.activityCategories = categories(state).concat([name]); made.categories++; }
+    for (const name of pl.newKinds || []) if (!list(state, 'kinds').some((c) => c.toLowerCase() === name.toLowerCase())) { state.kinds = list(state, 'kinds').concat([name]); made.kinds++; }
+    for (const name of pl.newPeople || []) { try { L.social.addPerson(state, { name }); made.people++; } catch (e) { /* already there: nothing to add */ } }
+    const stamp = now || new Date().toISOString(), ids = [], out = list(state, 'activities').slice();
+    for (const x of pl.add) {
+      const rec = Object.assign({}, x.activity, { id: L.store.newId(), createdAt: stamp });
+      out.push(cleanActivities([rec], state.goals, state.entries)[0]);
+      ids.push(rec.id);
+    }
+    state.activities = out;
+    return { added: ids.length, ids, created: made };
+  }
+  // The batch Money offer for the rows of one import: cost above zero, done or paid, and not yet linked. A tap creates them.
+  const importOffers = (state, ids) => (ids || []).map((id) => expenseOffer(state, id)).filter(Boolean);
+  function createExpenses(state, ids) {
+    let created = 0, skipped = 0;
+    for (const id of ids || []) {
+      const a = list(state, 'activities').find((x) => x.id === id);
+      if (!a || a.expenseId || !expenseOffer(state, id)) { skipped++; continue; }
+      createExpense(state, id); created++;
+    }
+    return { created, skipped };
+  }
+
   L.activities = {
     ACTIVITY_CAP, CATEGORY_CAP, PEOPLE_MAX, NOTE_MAX, WINDOW_DAYS, STATES, STATE_LABEL, DEFAULT_CATEGORIES, SECRET_MESSAGE,
     cleanCategories, cleanActivities, legacy, legacyEntries, hasData, current, categories, categoriesInUse,
@@ -542,5 +756,6 @@
     healthSessions, contacts, duplicates, removeDuplicate, expenseOffer, offers, createExpense,
     headline, digest, reviewWeek, goalCount, goalSpend, goalRating,
     addActivity, updateActivity, setState, markDone, markSkipped, markPaid, reschedule, rate, deleteActivity, addCategory, removeCategory,
+    IMPORT_TARGETS: TARGETS, IMPORT_SEPARATORS: SEPARATORS, importKey, planImport, applyImport, importOffers, createExpenses,
   };
 })();

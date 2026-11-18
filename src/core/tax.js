@@ -225,6 +225,8 @@
   // so it refuses whenever such records exist.
   function blocked(state, year) {
     if (!state) return false;
+    // v1.2.0 part B: the year's entries, invoices, trips and payments are in its archive file; the figures come from opening it.
+    if (L.archive && L.archive.isArchivedYear(state, year)) return true;
     if (L.priv && L.priv.isView && L.priv.isView(state)) return false;
     const m = state.priv && Array.isArray(state.priv.marks) ? state.priv.marks : [];
     if (m.includes('business') || m.includes('business-' + year)) return true;
@@ -234,7 +236,8 @@
     const pids = new Set((state.projects || []).map((p) => p.id)), ys = String(year);
     return (state.entries || []).some((e) => isMoney(e) && e.projectId && !pids.has(e.projectId) && e.date.slice(0, 4) === ys);
   }
-  const refusal = (year) => ({ blocked: true, year, message: BLOCK_MESSAGE, notice: NOTICE });
+  const ARCHIVED_MESSAGE = 'This tax year is archived. Open its archive (Settings, Archive) to see it or to make the accountant export.';
+  const refusal = (year, state) => ({ blocked: true, year, message: state && L.archive && L.archive.isArchivedYear(state, year) ? ARCHIVED_MESSAGE : BLOCK_MESSAGE, notice: NOTICE });
 
   // ---- due dates ----
   function shiftDue(nominal, holidays) {
@@ -317,7 +320,7 @@
   }
 
   function compute(state, year) {
-    if (blocked(state, year)) return refusal(year);
+    if (blocked(state, year)) return refusal(year, state);
     const profile = profileOf(state, year);
     const c = collect(state, year);
     const incomeCents = sum(c.income.map((x) => x.cents));
@@ -443,7 +446,7 @@
   // ---- 1099-NEC payees ----
   // Totals per payee for the year from business contractor expenses (cardPaid expenses are excluded from the 1099 total).
   function payeeTotals(state, year) {
-    if (blocked(state, year)) return refusal(year);
+    if (blocked(state, year)) return refusal(year, state);
     const p = profileOf(state, year), ys = String(year), tot = new Map(), card = new Map(), biz = bizTest(state);
     for (const e of state.entries || []) {
       if (!biz(e) || e.type !== 'expense' || !e.payeeId || e.date.slice(0, 4) !== ys) continue;
@@ -558,7 +561,7 @@
   const money = (c) => (c === null || c === undefined ? '' : (c < 0 ? '-' : '') + Math.floor(Math.abs(c) / 100) + '.' + String(Math.abs(c) % 100).padStart(2, '0'));
   // Plain-data package (also the print view's source). Refuses like every tax figure; carries payee names, never a tax ID.
   function accountantPackage(state, year) {
-    if (blocked(state, year)) return refusal(year);
+    if (blocked(state, year)) return refusal(year, state);
     const profile = profileOf(state, year);
     const c = collect(state, year), t = compute(state, year), ys = String(year);
     const projName = (id) => { const p = (state.projects || []).find((x) => x.id === id); return p ? p.name : ''; };
@@ -581,13 +584,13 @@
   function exportPackage(state, year, includePrivate) {
     const isView = !!(L.priv && L.priv.isView && L.priv.isView(state));
     if (includePrivate) {
-      if (!isView && blocked(state, year)) return refusal(year);
+      if (!isView && blocked(state, year)) return refusal(year, state);
       const pkg = accountantPackage(state, year);
       if (!pkg.blocked) pkg.privateIncluded = isView;
       return pkg;
     }
     const main = isView ? L.priv.mainOnly(state) : state;
-    if (blocked(main, year)) return isView ? Object.assign(refusal(year), { leftOut: true, message: LEFT_OUT_MESSAGE }) : refusal(year);
+    if (blocked(main, year)) return isView && !(L.archive && L.archive.isArchivedYear(main, year)) ? Object.assign(refusal(year), { leftOut: true, message: LEFT_OUT_MESSAGE }) : refusal(year, main);
     const pkg = accountantPackage(main, year);
     if (!pkg.blocked) pkg.privateIncluded = false;
     return pkg;

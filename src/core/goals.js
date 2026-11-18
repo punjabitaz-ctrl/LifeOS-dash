@@ -92,7 +92,7 @@
       case 'savingsRate': { const v = m.monthView(state, monthOf(asOf)); return v.savingsRate === null ? null : r2(v.savingsRate * 100); }
       case 'monthlySpend': {
         const mo = monthOf(asOf);
-        if (!ents.some((e) => e.type === 'expense' && monthOf(e.date) === mo)) return null;
+        if (!ents.some((e) => e.type === 'expense' && monthOf(e.date) === mo) && !(L.archive && L.archive.hasExpense(state, mo))) return null;
         return m.monthView(state, mo).spend;
       }
       case 'weight': case 'bodyFat': {

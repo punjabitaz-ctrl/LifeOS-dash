@@ -43,6 +43,11 @@
     // UI-1: browsers keep form history (autofill) in plaintext outside the vault. Every input, textarea and form is excluded unless the
     // caller sets autocomplete itself (only the main passphrase fields do, for the password manager).
     if (!svg && (tag === 'input' || tag === 'textarea' || tag === 'form') && !el.hasAttribute('autocomplete')) el.setAttribute('autocomplete', 'off');
+    // v1.2.0: no browser spell check or auto-correct on any typed text (enhanced spell check can send it to a remote service). Passphrase
+    // fields (type password) keep their own settings.
+    if (!svg && (tag === 'input' || tag === 'textarea') && el.getAttribute('type') !== 'password') {
+      el.setAttribute('spellcheck', 'false'); el.setAttribute('autocorrect', 'off'); el.setAttribute('autocapitalize', 'off');
+    }
     return el;
   }
   function labelled(el, name) { el.setAttribute('aria-label', name); return el; }
@@ -123,7 +128,7 @@
   var vaultExists = false;
   var notice = null, noticeEl = null;
   var busy = false;
-  var csvPending = null, ledger = null, dashEdit = false;
+  var csvPending = null, ledger = null, actImp = null, actImpDone = null, dashEdit = false;
   var ai = null;
   var dlgEl = null, dlgReturn = null;
   var idleTimer = null, lastActive = 0, locking = null;
@@ -212,8 +217,9 @@
       h('svg', { class: 'lockico', viewBox: '0 0 12 14', 'aria-hidden': 'true', focusable: 'false' }, h('rect', { x: '1', y: '6', width: '10', height: '7', rx: '1.5' }), h('path', { d: 'M3 6V4a3 3 0 0 1 6 0v2' })));
   }
   function go(name, extra) {
+    if (name !== 'archive' && L.archive) L.archive.closeArchive();
     view = Object.assign({ name: name }, extra || {});
-    notice = null; csvPending = null; ai = null; ledger = null;
+    notice = null; csvPending = null; ai = null; ledger = null; actImp = null;
     render();
     window.scrollTo(0, 0);
     var t = document.querySelector('h1');
@@ -287,7 +293,7 @@
       L.store.lock();
       privNew = false; goalMemo = new Map();
       closeDialog();
-      csvPending = null; ledger = null; dashEdit = false; ai = null; notice = null; lastActive = 0;
+      csvPending = null; ledger = null; actImp = null; actImpDone = null; dashEdit = false; ai = null; notice = null; lastActive = 0;
       view = { name: 'lock' };
       render();
     }).then(function () { locking = null; }, function () { locking = null; });
@@ -316,6 +322,7 @@
         : view.name === 'memory' ? memoryScreen(s)
         : view.name === 'settings' ? settingsScreen(s)
         : view.name === 'private' ? privScreen(s)
+        : view.name === 'archive' && L.archiveUI ? L.archiveUI.screen(archCtx())
         : view.name === 'business' ? businessScreen(s)
         : view.name === 'print' ? printScreen(s)
         : dashScreen(s);
@@ -354,7 +361,7 @@
   L.priv.onClose(function () {
     privNew = false; privPick = { coll: 'accounts', q: '' }; notice = null; goalMemo = new Map();
     if (!L.store.isUnlocked() || locking) return;
-    closeDialog(); csvPending = null; ledger = null; ai = null;
+    closeDialog(); csvPending = null; ledger = null; actImp = null; actImpDone = null; ai = null;
     view = { name: view.name, domain: view.domain };
     render();
   });
@@ -387,6 +394,9 @@
       h('h1', { text: 'LifeOS' }),
       h('p', { class: 'mut', text: create ? 'Your private life dashboard. Everything stays on this device, encrypted.' : 'Unlock your vault.' }),
       noticeEl, form);
+  }
+  function archCtx() {
+    return { h: h, field: field, btn: btn, openDialog: openDialog, commit: commit, download: download, setNotice: setNotice, render: render, go: go, readFile: readFile, today: today, friendly: friendly };
   }
   function syncCtx() {
     return { h: h, field: field, btn: btn, openDialog: openDialog, commit: commit, download: download, setNotice: setNotice, render: render };
@@ -455,6 +465,7 @@
         h('div', { class: 'modbody', inert: dashEdit ? true : null }, el || h('p', { class: 'mut small', text: L.layout.label(m.id) + ' has nothing to show right now.' }))));
     });
     return h('div', null, h('div', { class: 'row sp' }, h('h1', { text: 'Dashboard' }), h('div', { class: 'row' }, btn('Log study', function () { studyDialog(''); }, 'qa-btn', { id: 'quick-study' }), btn('Add activity', function () { go('domain', { domain: 'activities', open: 'act-add' }); }, 'qa-btn', { id: 'quick-activity' }), btn('Quick add', quickAdd, 'pri qa-btn', { id: 'quick-add' }), btn(dashEdit ? 'Done' : 'Customize', function () { dashEdit = !dashEdit; render(); }, 'qa-btn', { id: 'dash-customize' }))),
+      L.archiveUI ? L.archiveUI.proposal(archCtx()) : null,
       due ? h('div', { class: 'warn' }, due + (due === 1 ? ' recurring item is' : ' recurring items are') + ' due. ', btn('Review', function () { go('domain', { domain: 'money' }); }, 'sm', { id: 'due-review' })) : null,
       dashEdit ? h('div', { class: 'card', id: 'dash-edit' }, h('p', { class: 'small', id: 'dash-edit-note', text: 'Editing the layout for ' + (w === 'narrow' ? 'narrow screens (under 720 px wide)' : 'wide screens (720 px and over)') + '. Drag a module or use Move up and Move down. Hidden modules are dimmed.' }),
         btn('Reset to default', function () { act(function () { return commit(function (x) { L.layout.reset(x.settings, w); }).then(function () { setNotice('ok', 'Layout reset.'); render(); }); }); }, 'sm', { id: 'dash-reset' })) : null,
@@ -1201,6 +1212,7 @@
     });
     return h('div', null, h('h1', { text: 'Weekly review' }),
       h('p', { class: 'mut', text: 'Week of ' + wk }),
+      L.archiveUI ? L.archiveUI.proposal(archCtx()) : null,
       h('h2', { text: '1. This week vs last week' }),
       h('div', { class: 'card' }, h('table', null, h('thead', null, h('tr', null, ['Area', 'This week', 'Last week', 'Change'].map(function (x) { return h('th', { text: x }); }))), h('tbody', null, rows))),
       h('h2', { text: '2. Insights' }),
@@ -2802,8 +2814,116 @@
 
     return h('div', null, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Activities' }),
       h('p', { class: 'mut small', text: 'Outings, events, travel, hobbies, volunteering and classes. Nothing is marked done, skipped, rated or added to Money unless you tap it.' }),
-      stats, offerCard, dupes, lateCard, upCard, laterCard, addCard, recentCard, roiCard, catCard, legacyCard);
+      stats, offerCard, dupes, lateCard, upCard, laterCard, addCard, recentCard, roiCard, catCard, actImportCard(s), legacyCard);
   }
+  // ---- Activity CSV import (v1.2.0): the ledger import's pattern: map, preview, confirm; imports never create Money expenses ----
+  var ACT_FIELDS = [['title', 'Title column', true, /title|name|activity|what/i], ['date', 'Date column', true, /^date$|start/i], ['endDate', 'End date column', false, /end/i], ['state', 'State column (planned, done or skipped)', false, /state|status/i],
+    ['category', 'Category column', false, /categor/i], ['minutes', 'Minutes column', false, /minute|duration/i], ['place', 'Place column', false, /place|where|location/i], ['people', 'People column', false, /people|with|who/i],
+    ['cost', 'Cost column', false, /^cost|price|spend/i], ['paidOn', 'Paid date column', false, /paid/i], ['returnAmount', 'Return column', false, /return|income/i], ['worthIt', 'Worth-it rating column (1 to 5)', false, /worth|rating/i],
+    ['alsoHealth', 'Also Health column (yes or no)', false, /also.?health/i], ['healthKind', 'Health type column', false, /health.?(kind|type)|kind|type/i], ['alsoSocial', 'Also Social column (yes or no)', false, /also.?social/i], ['notes', 'Notes column', false, /note/i]];
+  function actImpStart(parsed) {
+    var hd = parsed.headers, cfg = { fmt: 'auto', sep: ';', dflt: 'planned', asPrivate: false };
+    ACT_FIELDS.forEach(function (f) { var i = hd.findIndex(function (x) { return f[3].test(x); }); cfg[f[0]] = i >= 0 ? String(i) : ''; });
+    if (cfg.healthKind && cfg.healthKind === cfg.state) cfg.healthKind = '';
+    actImp = { parsed: parsed, plan: null, create: { cat: {}, kind: {}, person: {} }, cfg: cfg };
+  }
+  function actImpOpts() {
+    var c = actImp.cfg, map = {}, pick = function (o) { return Object.keys(actImp.create[o]).filter(function (k) { return actImp.create[o][k]; }); };
+    ACT_FIELDS.forEach(function (f) { map[f[0]] = c[f[0]] === '' || c[f[0]] === undefined ? undefined : Number(c[f[0]]); });
+    return { map: map, dateFormat: c.fmt, separator: c.sep, defaultState: c.dflt, createCategories: pick('cat'), createKinds: pick('kind'), createPeople: pick('person'), asPrivate: !!c.asPrivate && L.priv.isOpen() };
+  }
+  function actImpRun() {
+    return act(function () { return L.activities.planImport(actImp.parsed, actImpOpts(), st(), today()).then(function (pl) { actImp.plan = pl; render(); }); });
+  }
+  function actImportCard(s) {
+    var A = L.activities, kids = [];
+    var card = h('div', { class: 'card', id: 'actimp-card' }, h('h2', { text: 'Import an activities CSV' }),
+      h('p', { class: 'mut small', text: 'Map the columns, preview, then confirm. Nothing is saved until you confirm, importing the same file again adds nothing, and no cost goes to Money until you tap.' }),
+      h('div', { class: 'row' }, btn('Export CSV', function () { download('lifeos-activities.csv', L.csv.exportActivities(mainState().activities || []), 'text/csv'); }, 'sm', { id: 'exp-activities' }), lockMark(['activities'])));
+    // The batch Money offer for the rows just imported: one expense per activity, only on this tap.
+    if (actImpDone) {
+      var offs = A.importOffers(s, actImpDone.ids);
+      if (offs.length) {
+        var total = offs.reduce(function (n, o) { return n + o.costCents; }, 0);
+        card.appendChild(h('div', { id: 'actimp-offer' }, h('p', { class: 'small', id: 'actimp-offer-text', text: offs.length + (offs.length === 1 ? ' imported activity has' : ' imported activities have') + ' a cost that is done or paid, ' + fmtC(s, total) + ' in all. Nothing is in Money yet.' }),
+          btn('Create linked expenses', function () {
+            var ids = actImpDone.ids;
+            act(function () {
+              var res;
+              return commit(function (x) { res = A.createExpenses(x, ids); }, 'activity import expenses', ids.map(function (id) { return ['activities', id]; })).then(function () {
+                actImpDone = null; setNotice('ok', 'Added ' + res.created + (res.created === 1 ? ' expense' : ' expenses') + ' to Money.' + (res.skipped ? ' Skipped ' + res.skipped + ' already linked or not eligible.' : '')); render();
+              });
+            });
+          }, 'pri', { id: 'actimp-expenses' })));
+      }
+    }
+    // PV-1: with private activities hidden, rows already imported (and moved in) cannot be recognised.
+    var pm = L.priv.isOpen() ? [] : L.priv.marks(mainState());
+    if (pm.indexOf('activities') >= 0) {
+      card.appendChild(h('p', { class: 'small', id: 'actimp-locked' }, lockIcon('Some private items are hidden', 'lockmark'), ' Open the private vault to import activities. Rows already imported may be private, and they can only be recognised while it is open.'));
+      return card;
+    }
+    var fileIn = h('input', { type: 'file', id: 'actimp-file', accept: '.csv,text/csv' });
+    fileIn.addEventListener('change', function () {
+      var f = fileIn.files && fileIn.files[0];
+      if (!f) return;
+      act(function () { return readFile(f).then(function (text) { if (!L.store.isUnlocked()) return; actImpStart(L.csv.parse(text)); actImpDone = null; render(); }); });
+    });
+    card.appendChild(field('CSV file (5 MB max)', fileIn));
+    if (!actImp) return card;
+    var c = actImp.cfg, hd = actImp.parsed.headers;
+    var opts = [{ v: '', t: '(none)' }].concat(hd.map(function (x, i) { return { v: String(i), t: x || ('Column ' + (i + 1)) }; }));
+    card.appendChild(h('p', { class: 'mut small', id: 'actimp-size', text: hd.length + ' columns, ' + actImp.parsed.rows.length + ' rows.' }));
+    ACT_FIELDS.forEach(function (f) {
+      card.appendChild(field(f[1] + (f[2] ? '' : ' (optional)'), sel('actimp-' + f[0], opts, c[f[0]], function (e) { c[f[0]] = e.target.value; actImp.plan = null; render(); })));
+    });
+    card.appendChild(field('Date format', sel('actimp-datefmt', [{ v: 'auto', t: 'YYYY-MM-DD or MM/DD/YYYY' }, { v: 'dmy', t: 'DD/MM/YYYY (or YYYY-MM-DD)' }], c.fmt, function (e) { c.fmt = e.target.value; actImp.plan = null; })));
+    card.appendChild(field('People are separated by', sel('actimp-sep', [{ v: ';', t: 'a semicolon (;)' }, { v: '|', t: 'a vertical bar (|)' }], c.sep, function (e) { c.sep = e.target.value; actImp.plan = null; })));
+    if (c.state === '') card.appendChild(field('State for every row (no state column)', sel('actimp-default', [{ v: 'planned', t: 'Planned' }, { v: 'done', t: 'Done' }, { v: 'skipped', t: 'Skipped' }], c.dflt, function (e) { c.dflt = e.target.value; actImp.plan = null; })));
+    if (L.priv.isOpen()) card.appendChild(h('label', { class: 'field check' }, h('input', { type: 'checkbox', id: 'actimp-private', checked: !!c.asPrivate, onchange: function (e) { c.asPrivate = !!e.target.checked; actImp.plan = null; render(); } }), h('span', { text: 'Import as private' })));
+    if (c.asPrivate && L.priv.isOpen()) card.appendChild(h('p', { class: 'mut small', id: 'actimp-private-note', text: 'Private rows are saved inside the private vault. New categories and health types cannot be created by a private import (they would sit outside it), so rows that name one are rejected and listed below. Add the category or type first, then preview again.' }));
+    card.appendChild(h('div', { class: 'row' }, btn('Preview', function () { actImpRun(); }, 'pri', { id: 'actimp-preview' }), btn('Cancel', function () { actImp = null; render(); }, null, { id: 'actimp-cancel' })));
+    var pl = actImp.plan;
+    if (pl) {
+      var body = h('div', { id: 'actimp-result' },
+        h('p', { id: 'actimp-summary', text: pl.add.length + ' to add, ' + pl.rejected.length + ' rejected, ' + pl.duplicates + ' already imported.' }),
+        h('p', { class: 'small', id: 'actimp-totals', text: 'Planned ' + pl.byState.planned + ', done ' + pl.byState.done + ', skipped ' + pl.byState.skipped + '. Cost in the rows to add: ' + fmtC(s, pl.totals.costCents) + '. Rows that could be added to Money after import: ' + pl.offer.count + '.' }));
+      var tick = function (kind, list, label, note) {
+        if (!list.length) return;
+        body.appendChild(h('p', { class: 'small', id: 'actimp-unknown-' + kind, text: note }));
+        list.forEach(function (name, i) {
+          var key = kind === 'person' ? L.social.nameKey(name) : L.revenue.normName(name);
+          body.appendChild(h('label', { class: 'field check' }, h('input', { type: 'checkbox', id: 'actimp-create-' + kind + '-' + i, checked: !!actImp.create[kind][key], onchange: function (e) { actImp.create[kind][key] = !!e.target.checked; actImpRun(); } }), h('span', { text: label + ' "' + name + '"' })));
+        });
+      };
+      var privOn = !!c.asPrivate && L.priv.isOpen();
+      if (privOn && (pl.unknownCategories.length || pl.unknownKinds.length)) body.appendChild(h('p', { class: 'small', id: 'actimp-private-unknown', text: 'Not in your lists, so those rows are rejected: ' + pl.unknownCategories.concat(pl.unknownKinds).join(', ') + '.' }));
+      if (!privOn) {
+        tick('cat', pl.unknownCategories, 'Create category', 'These categories are not in your list. Rows for categories you do not create take the default category.');
+        tick('kind', pl.unknownKinds, 'Create health type', 'These health types are not in your list. Rows for types you do not create are imported with no health type.');
+      }
+      tick('person', pl.unknownPeople, 'Add as a person', 'These names are not in People. Nothing is added unless you tick it.');
+      if (pl.ambiguousPeople.length) body.appendChild(h('p', { class: 'small', id: 'actimp-ambiguous', text: pl.ambiguousPeople.length + (pl.ambiguousPeople.length === 1 ? ' name matches' : ' names match') + ' more than one person, so it credits nobody. Rename one of them in Social.' }));
+      if (pl.rejected.length) body.appendChild(h('div', { id: 'actimp-rejected' }, h('p', { class: 'small', text: 'Rejected rows' }),
+        h('ul', null, pl.rejected.slice(0, 25).map(function (r) { return h('li', { class: 'small', text: 'Row ' + r.row + ': ' + r.reason }); })),
+        pl.rejected.length > 25 ? h('p', { class: 'mut small', text: 'And ' + (pl.rejected.length - 25) + ' more.' }) : null));
+      if (!pl.add.length && pl.duplicates) body.appendChild(h('p', { class: 'small', id: 'actimp-nothing', text: 'Nothing new to import: every valid row was already imported.' }));
+      body.appendChild(btn(pl.add.length ? 'Import ' + pl.add.length + (pl.add.length === 1 ? ' row' : ' rows') : 'Nothing to import', function () {
+        act(function () {
+          var res, fn = function (x) { res = A.applyImport(x, pl); addAudit(x, 'activity import'); };
+          var done = pl.asPrivate ? L.priv.write(fn, { newPrivate: true }) : commit(fn);
+          return done.then(function () {
+            actImp = null; actImpDone = { ids: res.ids };
+            setNotice('ok', 'Imported ' + res.added + (res.added === 1 ? ' activity' : ' activities') + '.');
+            render();
+          });
+        });
+      }, 'pri', { id: 'actimp-confirm', disabled: !pl.add.length }));
+      card.appendChild(body);
+    }
+    return card;
+  }
+
   // Weekly review step: past-date planned activities (done, skipped or reschedule), then the worth-it rating, then the Money offers. A tap takes each action.
   function reviewActivitiesCard(s, wk, t) {
     var A = L.activities;
@@ -3568,7 +3688,7 @@
               var ins = state.memory.insights, pv2 = state.settings.provider;
               var nAppr = ins.filter(function (i) { return i.status === 'approved'; }).length;
               var rr = h('input', { type: 'checkbox', id: 'bk-rereview', checked: true });
-              var cur = mainState(), older = L.store.dropsWork(cur, state), oldFmt = state.sourceSchema < 10;
+              var cur = mainState(), older = L.store.dropsWork(cur, state);
               var ack = older ? h('input', { type: 'checkbox', id: 'bk-workloss' }) : null;
               openDialog({
                 title: 'Replace all data with this backup?', yes: 'Replace', danger: true,
@@ -3587,7 +3707,7 @@
                     h('li', { text: 'Provider settings: ' + (pv2.kind === 'none' ? 'none' : 'included (' + pv2.kind + ')') }),
                     h('li', { text: 'API key: ' + (pv2.apiKey ? 'included' : 'not included') })),
                   h('label', { class: 'row small' }, rr, h('span', { text: 'Re-review insights (restore every approved insight as proposed)' })),
-                  older ? h('p', { class: 'small', id: 'bk-older', text: (oldFmt ? 'This backup is from an older LifeOS version. ' : 'This backup has no private vault. ') + 'Restoring it removes your ' + L.store.lossText(cur, state) + '.' }) : null,
+                  older ? h('p', { class: 'small', id: 'bk-older', text: L.store.lossWhy(L.store.droppedData(cur, state), state.sourceSchema < 14, 'This backup') + 'Restoring it removes your ' + L.store.lossText(cur, state) + '.' }) : null,
                   older ? h('label', { class: 'row small' }, ack, h('span', { text: 'I understand. Remove this data.' })) : null,
                   h('p', { class: 'mut', text: 'This replaces everything in this vault with the backup. It cannot be undone.' })],
                 onYes: function () {
@@ -3601,9 +3721,10 @@
       }, field('Restore from a backup file (64 MB max)', bf), field('Backup passphrase', ip),
         h('button', { type: 'submit', class: 'btn', text: 'Import backup' }))));
 
-    out.push(h('p', { class: 'mut small', id: 'app-version', text: 'LifeOS v1.1.0' }));
+    out.push(h('p', { class: 'mut small', id: 'app-version', text: 'LifeOS v1.2.0' }));
 
     if (L.syncUI) out.push(L.syncUI.section(syncCtx()));
+    if (L.archiveUI) out.push(L.archiveUI.section(archCtx()));
 
     // session
     var typed = h('input', { type: 'text', id: 'wipe-confirm', autocomplete: 'off' });

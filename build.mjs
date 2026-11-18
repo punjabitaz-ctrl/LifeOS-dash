@@ -21,7 +21,7 @@ function assemble(root) {
   let html = read(root, 'src/ui/shell.html');
   let css = read(root, 'src/ui/styles.css');
   const optional = (f) => (existsSync(join(root, f)) ? [f] : []);
-  const files = [...CORE, ...optional('src/core/sync.js'), 'src/ui/app.js', ...optional('src/ui/sync-ui.js')];
+  const files = [...CORE, ...optional('src/core/sync.js'), ...optional('src/core/archive.js'), 'src/ui/app.js', ...optional('src/ui/sync-ui.js'), ...optional('src/ui/archive-ui.js')];
   const js = files.map((f) => read(root, f)).join('\n;\n').replace(/<\/script/gi, (m) => '<\\' + m.slice(1)).replace(/<!--/g, '<\\!--').replace(/<script/gi, (m) => '<\\' + m.slice(1));
   // Neutralise </style in CSS: in a CSS escape, \3c is '<', so the text stays inert but the HTML parser never sees the tag.
   css = css.replace(/<\/style/gi, (m) => '\\3c ' + m.slice(1));

@@ -123,6 +123,7 @@
     if (!(tg > 0)) return 0;
     const byWeek = new Map();
     for (const s of list(state, 'studySessions')) if (s.date <= today) { const k = weekStart(s.date); byWeek.set(k, (byWeek.get(k) || 0) + s.minutes); }
+    if (L.archive) for (const [k, v] of L.archive.weekMinutes(state)) if (k <= today) byWeek.set(k, (byWeek.get(k) || 0) + v);
     let ws = weekStart(today), n = 0;
     if ((byWeek.get(ws) || 0) >= tg) n = 1;
     ws = D().addDays(ws, -7);

@@ -17,6 +17,7 @@ import '../src/core/goals.js';
 import '../src/core/memory.js';
 import '../src/core/ai.js';
 import '../src/core/sync.js';
+import '../src/core/archive.js';
 export const L = globalThis.LifeOS;
 export function memAdapter() {
   const m = new Map();

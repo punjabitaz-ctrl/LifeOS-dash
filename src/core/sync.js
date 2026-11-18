@@ -196,6 +196,42 @@
     return file.id;
   }
 
+  // ---- archive files (v1.2.0 part B): one named file per year in the same appDataFolder; the vault file is never touched ----
+  const ARCHIVE_RE = /^lifeos-archive-\d{4}\.json$/;
+  async function findNamed(name) {
+    if (!ARCHIVE_RE.test(name)) throw err('BAD_NAME', 'That is not an archive file name.');
+    const q = encodeURIComponent("name='" + name + "' and trashed=false");
+    const r = await api(API + '/drive/v3/files?spaces=appDataFolder&q=' + q + '&orderBy=modifiedTime%20desc&pageSize=10&fields=' + encodeURIComponent('files(id,size,version)'));
+    const files = json(r.text).files;
+    if (!Array.isArray(files) || !files.length) return null;
+    const f = files[0];
+    if (!f || typeof f.id !== 'string' || !ID_RE.test(f.id)) throw err('REMOTE_INVALID', 'Google Drive sent an unexpected reply.');
+    if (f.size !== undefined && (!isFinite(Number(f.size)) || Number(f.size) > MAX_REMOTE)) throw err('TOO_LARGE', 'The Drive copy is larger than 64 MB, so it was rejected.');
+    return { id: f.id, version: f.version === undefined ? '' : String(f.version).slice(0, 40) };
+  }
+  async function putNamed(name, text) {
+    const file = await findNamed(name);
+    if (text.length > MAX_REMOTE) throw err('TOO_LARGE', 'The archive is larger than 64 MB, so nothing was uploaded.');
+    if (!file) {
+      const b = 'lifeos' + newNonce();
+      const body = '--' + b + '\r\nContent-Type: application/json; charset=UTF-8\r\n\r\n' + JSON.stringify({ name, parents: ['appDataFolder'] }) + '\r\n--' + b +
+        '\r\nContent-Type: application/json\r\n\r\n' + text + '\r\n--' + b + '--';
+      const r = await api(API + '/upload/drive/v3/files?uploadType=multipart&fields=id', { method: 'POST', body, headers: { 'Content-Type': 'multipart/related; boundary=' + b } });
+      const id = json(r.text).id;
+      if (typeof id !== 'string' || !ID_RE.test(id)) throw err('REMOTE_INVALID', 'Google Drive sent an unexpected reply.');
+      return id;
+    }
+    const r = await api(API + '/upload/drive/v3/files/' + file.id + '?uploadType=media&fields=id', { method: 'PATCH', body: text, headers: { 'Content-Type': 'application/json' } });
+    if (r.status === 404) throw err('REMOTE_CHANGED', 'The Drive copy changed while syncing. Nothing was overwritten. Run sync again.');
+    return file.id;
+  }
+  async function getNamed(name) {
+    const file = await findNamed(name);
+    if (!file) throw err('NOT_FOUND', 'That archive is not on Drive.');
+    const r = await download(file);
+    return r.text;
+  }
+
   // ---- change detection ----
   function stable(v) {
     if (Array.isArray(v)) return '[' + v.map(stable).join(',') + ']';
@@ -277,7 +313,7 @@
     }
     const lm = S.getMeta();
     // An older-format Drive copy has no projects, pipeline (before schema 3), cycle, daily checks, workout types, body targets (before schema 4) or goals (before schema 5): using it would drop this device's data.
-    const dropped = S.droppedData(cur, { sourceSchema: info.sourceSchema, priv: info.state.priv }), dropsWork = dropped.length > 0;
+    const dropped = S.droppedData(cur, Object.defineProperty(Object.assign({}, info.state), 'sourceSchema', { value: info.sourceSchema, enumerable: false })), dropsWork = dropped.length > 0;
     return hide(Object.assign({
       kind: localChanged ? 'conflict' : 'download-offer',
       local: summary(lm, cur, cur.schema), remote: summary(info.meta, info.state, info.sourceSchema), passphraseDiffers: keyDiffers, dropsWork, dropped,
@@ -296,7 +332,7 @@
     const wantsLocal = decision.kind === 'conflict' && choice === 'local';
     if (!wantsRemote && !wantsLocal) throw err('BAD_CHOICE', 'Unknown choice.');
     if (wantsRemote && ctx.dropsWork && opts.allowWorkLoss !== true) {
-      throw err('OLDER_FORMAT', 'The Drive copy is from an older version and has no ' + S.nameList(ctx.dropped || []) + '. Nothing was replaced.');
+      throw err('OLDER_FORMAT', S.lossWhy(ctx.dropped || [], ctx.info.sourceSchema < 14, 'The Drive copy') + 'Using it would remove this device\'s ' + S.lossText(S.getState(), null, ctx.dropped || []) + '. Nothing was replaced. Tick the box to go ahead.');
     }
     // CR-6: a passphrase change on this device since the check would be undone by adopting (the fingerprint ignores the key).
     if (S.saltId() !== ctx.saltId) throw err('LOCAL_CHANGED', 'This device changed after the Drive copy was checked. Nothing was replaced. Run sync again.');
@@ -323,6 +359,6 @@
 
   L.sync = {
     SCOPE, FILE_NAME, MAX_REMOTE, isAvailable, validateClientId, buildAuthUrl, begin, parseFragment, consumeReturn, takeReturn,
-    isConnected, expiresAt, disconnect, run, apply, fingerprint, _setFetch, _setToken,
+    isConnected, expiresAt, disconnect, run, apply, fingerprint, putNamed, getNamed, _setFetch, _setToken,
   };
 })();
