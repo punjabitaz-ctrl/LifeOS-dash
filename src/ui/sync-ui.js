@@ -40,8 +40,11 @@
       if (r.copies > 1) say(status.textContent + ' Google Drive holds ' + r.copies + ' LifeOS copies. This device uses the one it synced with last.');
       paint();
     }
+    // SEC-95: a failed sync leaves a fixed code in diagnostics (only a known code key maps; never the message).
+    function diag(e) { try { if (L.ops && !L.ops.recordError(e, 'sync')) L.ops.record('SYNC_FAIL', 'sync'); } catch (x) { /* diagnostics never block */ } }
     function fail(e) {
       if (e && e.code === 'NEED_PASSPHRASE') { askPass(); return; }
+      diag(e);
       say(e && e.message ? String(e.message).slice(0, 300) : 'Sync failed.');
       paint();
     }
@@ -82,7 +85,7 @@
         finish(r);
         return false;
       }, function (e) {
-        if (e && e.code === 'WRONG_PASSPHRASE') say(e.message + ' Check the passphrase and try again.'); else fail(e);
+        if (e && e.code === 'WRONG_PASSPHRASE') { diag(e); say(e.message + ' Check the passphrase and try again.'); } else fail(e);
         paint();
         if (e && e.code === 'WRONG_PASSPHRASE') throw e;
       });

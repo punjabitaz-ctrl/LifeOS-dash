@@ -25,3 +25,14 @@ You do this once. It uses your own Google Cloud project, so no one else holds yo
 - While the app is in testing mode, Google may expire its authorisation after seven days. Reconnect if sign-in fails.
 - If you change your passphrase on one device, the Drive copy still uses the old one until you sync again, and other devices need the old passphrase once to read it.
 - Sync is only offered over https (plus localhost for testing).
+
+## Cloudflare Access in front of the live copy
+
+The live copy sits behind a Cloudflare Access sign-in. Google's sign-in sends the browser back to the LifeOS page, and that return trip has to pass Access too.
+
+1. In step 8 and step 9 use the exact live origin and page address, for example origin `https://lfs-dsh.punjabitaz.workers.dev` and redirect URI `https://lfs-dsh.punjabitaz.workers.dev/dist/lifeos`. The redirect URI must match the address in the browser bar when you press Connect, including any path and trailing slash.
+2. Sign in to Access first, then open LifeOS, unlock and press Connect Google Drive. After you approve at Google, the browser must come back to the same LifeOS address with the vault lock screen. Unlock again; the Connected line shows in Settings.
+3. If Access intercepts the return (you see the Access sign-in or an Access error page instead of LifeOS): sign in to Access again in the same tab and reload the page. If that does not work, close the tab, open LifeOS fresh, and press Connect again. Check that the Access session has not expired and that the Access policy allows your account for the exact path above.
+4. If it keeps failing, test the same sign-in once from `http://localhost` (Sync is offered over localhost as well, see the limits above) to tell an Access problem from a Google Cloud setting problem, then compare the redirect URI in Google Cloud with the address in the browser bar character by character.
+5. The optional "Remind me to sync" setting (Settings, Storage and backup safety) shows a one-line notice on lock and when you leave the tab if this device has changes that are not on Drive. It never syncs by itself.
+

@@ -33,7 +33,7 @@
     const tooBig = () => new Error('The AI provider reply was too large');
     const cl = res.headers && typeof res.headers.get === 'function' ? Number(res.headers.get('content-length')) : NaN;
     if (cl > MAX_BODY) { ctl.abort(); throw tooBig(); }
-    if (!res.body || typeof res.body.getReader !== 'function') throw new Error('The AI provider sent an unreadable reply');
+    if (!res.body || typeof res.body.getReader !== 'function') throw coded(new Error('The AI provider sent an unreadable reply'), 'AI_BAD_REPLY');
     const reader = res.body.getReader();
     const chunks = [];
     let total = 0;
@@ -59,6 +59,8 @@
     return new TextDecoder().decode(buf);
   }
 
+  // v1.3.0: a fixed code on each failure, so diagnostics can name it without keeping any text.
+  const coded = (e, code) => { e.code = code; return e; };
   async function complete(provider, prompt, fetchImpl) {
     // The private vault is always closed before any AI call.
     if (L.priv) L.priv.close('system');
@@ -85,10 +87,10 @@
       res = await doFetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: ctl.signal, credentials: 'omit', redirect: 'error', referrerPolicy: 'no-referrer' });
     } catch (e) {
       clearTimeout(timer);
-      throw new Error(e && e.name === 'AbortError' ? 'The AI request timed out' : 'Could not reach the AI provider');
+      throw coded(new Error(e && e.name === 'AbortError' ? 'The AI request timed out' : 'Could not reach the AI provider'), e && e.name === 'AbortError' ? 'AI_TIMEOUT' : 'AI_NETWORK');
     }
     try {
-      if (!res || !res.ok) throw new Error('The AI provider returned an error' + (res && res.status ? ' (HTTP ' + res.status + ')' : ''));
+      if (!res || !res.ok) throw coded(new Error('The AI provider returned an error' + (res && res.status ? ' (HTTP ' + res.status + ')' : '')), 'AI_HTTP');
       let j;
       const raw = await readCapped(res, ctl);
       try { j = JSON.parse(raw); } catch (e) { throw new Error('The AI provider sent an unreadable reply'); }
@@ -99,7 +101,7 @@
         const c = j && j.choices && j.choices[0] && j.choices[0].message;
         text = c && c.content;
       }
-      if (typeof text !== 'string' || !text || text.length > MAX_OUT) throw new Error('The AI provider sent an unexpected reply');
+      if (typeof text !== 'string' || !text || text.length > MAX_OUT) throw coded(new Error('The AI provider sent an unexpected reply'), 'AI_BAD_REPLY');
       return text;
     } finally { clearTimeout(timer); }
   }

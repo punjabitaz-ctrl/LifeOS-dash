@@ -149,7 +149,7 @@
     root.setAttribute('aria-busy', 'true');
     return Promise.resolve().then(fn).then(function () {
       if (okMsg) setNotice('ok', okMsg);
-    }, function (e) { setNotice('err', friendly(e)); }).then(function () {
+    }, function (e) { try { L.ops.recordError(e); } catch (x) { /* diagnostics never block */ } setNotice('err', friendly(e)); }).then(function () {
       busy = false;
       root.classList.remove('busy');
       root.removeAttribute('aria-busy');
@@ -216,6 +216,13 @@
     return h('span', { class: cls || 'lockmark', role: 'img', 'aria-label': label, title: label },
       h('svg', { class: 'lockico', viewBox: '0 0 12 14', 'aria-hidden': 'true', focusable: 'false' }, h('rect', { x: '1', y: '6', width: '10', height: '7', rx: '1.5' }), h('path', { d: 'M3 6V4a3 3 0 0 1 6 0v2' })));
   }
+  // v1.3.0: the area a diagnostic code is filed under (a fixed list; never a name or a value).
+  function areaOf() {
+    if (!L.store.isUnlocked() || view.name === 'lock') return 'lock';
+    if (view.name === 'domain') return L.ops.AREAS.indexOf(view.domain) >= 0 ? view.domain : 'app';
+    var a = { dashboard: 'dashboard', review: 'review', memory: 'memory', settings: 'settings', private: 'private', archive: 'archive', business: 'business', print: 'business' }[view.name];
+    return a || 'app';
+  }
   function go(name, extra) {
     if (name !== 'archive' && L.archive) L.archive.closeArchive();
     view = Object.assign({ name: name }, extra || {});
@@ -240,7 +247,7 @@
       if (o.adds) markAddIntent();
       Promise.resolve().then(function () { return o.onYes(); }).then(function (keep) {
         if (keep !== false) closeDialog();
-      }, function (e) { err.textContent = friendly(e); });
+      }, function (e) { try { L.ops.recordError(e); } catch (x) { /* diagnostics never block */ } err.textContent = friendly(e); });
     }, o.danger ? 'bad' : 'pri');
     var box = h('div', { class: 'dialog' + (o.adds ? ' adds' : ''), role: 'dialog', 'aria-modal': 'true', 'aria-label': o.title },
       h('h2', { text: o.title }), o.body || null, err,
@@ -289,11 +296,13 @@
     if (L.sync) L.sync.disconnect();
     // Record the lock in the audit log, but never let a slow or stuck write delay the lock itself.
     var p = L.store.isUnlocked() ? Promise.race([commit(null, 'lock').catch(function () {}), new Promise(function (r) { setTimeout(r, 1000); })]) : Promise.resolve();
-    locking = p.then(function () {
+    // v1.3.0 B22: with "Remind me to sync" on, a one-line notice on the lock screen when this device has changes Drive does not have. Never a sync.
+    var remind = unsynced().catch(function () { return false; });
+    locking = Promise.all([p, remind]).then(function (r) {
       L.store.lock();
       privNew = false; goalMemo = new Map();
       closeDialog();
-      csvPending = null; ledger = null; actImp = null; actImpDone = null; dashEdit = false; ai = null; notice = null; lastActive = 0;
+      csvPending = null; ledger = null; actImp = null; actImpDone = null; dashEdit = false; ai = null; notice = r[1] ? { kind: 'ok', text: SYNC_NOTE } : null; lastActive = 0;
       view = { name: 'lock' };
       render();
     }).then(function () { locking = null; }, function () { locking = null; });
@@ -302,7 +311,21 @@
   ['pointerdown', 'keydown', 'touchstart', 'scroll'].forEach(function (ev) {
     window.addEventListener(ev, resetIdle, { capture: true, passive: true });
   });
-  document.addEventListener('visibilitychange', function () { if (!document.hidden) checkIdle(); });
+  var SYNC_NOTE = 'This device has changes that are not synced to Drive.';
+  // True only when the owner turned on "Remind me to sync", Drive sync is set up, and this device differs from the last synced copy.
+  function unsynced() {
+    try {
+      if (!L.store.isUnlocked() || !L.sync) return Promise.resolve(false);
+      var m = mainState(), sy = m.settings.sync || {};
+      if (!m.settings.syncReminder || !sy.clientId) return Promise.resolve(false);
+      return L.sync.fingerprint(m).then(function (fp) { return fp !== sy.fp; });
+    } catch (e) { return Promise.resolve(false); }
+  }
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) { checkIdle(); return; }
+    unsynced().then(function (u) { if (u && L.store.isUnlocked()) setNotice('ok', SYNC_NOTE); }, function () {});
+  });
+  L.ops.install(window);
   window.addEventListener('focus', checkIdle);
   window.addEventListener('pageshow', checkIdle);
   setInterval(checkIdle, 10000);
@@ -311,6 +334,7 @@
   function render() {
     var root = document.getElementById('app');
     clearTimeout(privTimer);
+    L.ops.setArea(areaOf());
     root.replaceChildren();
     noticeEl = h('div', { class: 'notice' + (notice ? ' ' + notice.kind : ''), role: 'status', 'aria-live': 'polite', text: notice ? notice.text : '' });
     if (!L.store.isUnlocked() || view.name === 'lock') { root.appendChild(lockScreen()); return; }
@@ -326,7 +350,7 @@
         : view.name === 'business' ? businessScreen(s)
         : view.name === 'print' ? printScreen(s)
         : dashScreen(s);
-    } catch (e) { body = h('p', { text: friendly(e) }); }
+    } catch (e) { L.ops.record('RENDER_ERROR'); body = h('p', { text: friendly(e) }); }
     var cur = view.name === 'domain' ? (view.domain === 'money' || view.domain === 'assets' || view.domain === 'work' || view.domain === 'health' ? view.domain : 'dashboard') : view.name;
     var nav = h('nav', { class: 'nav', 'aria-label': 'Main' }, [['dashboard', 'Home'], ['money', 'Money'], ['assets', 'Assets'], ['work', 'Work'], ['health', 'Health'], ['business', 'Business'], ['review', 'Review'], ['memory', 'Memory'], ['settings', 'Settings']].map(function (n) {
       return h('button', { type: 'button', text: n[1], 'aria-current': n[0] === cur ? 'page' : null, onclick: function () { if (n[0] === 'money' || n[0] === 'assets' || n[0] === 'work' || n[0] === 'health') go('domain', { domain: n[0] }); else go(n[0]); } });
@@ -336,7 +360,7 @@
         h('span', { class: 'row' }, btn(L.priv.isOpen() ? 'Private (open)' : 'Private', function () { go('private'); }, 'sm', { id: 'nav-private', 'aria-current': view.name === 'private' ? 'page' : null }),
           btn('Lock', function () { lockNow(); }, 'sm lockbtn'))),
       nav,
-      h('main', { class: 'main' }, noticeEl, privBar(), screenMark(), body)));
+      h('main', { class: 'main' }, noticeEl, view.name === 'print' ? null : backupBanner(), privBar(), screenMark(), body)));
     markAddForms();
     decorateRows();
   }
@@ -407,6 +431,138 @@
     view = { name: 'dashboard' };
     render();
     if (L.syncUI) L.syncUI.afterUnlock(syncCtx());
+    // v1.3.0 B1: ask the browser to keep this storage (until granted); the result is recorded. Never blocks and never throws.
+    try { L.ops.persistOnUnlock(navigator.storage, today()).catch(function () {}); } catch (e) { /* the API may be missing */ }
+  }
+  // ---------- backup safety, storage and diagnostics (v1.3.0) ----------
+  function daysAgoText(iso) {
+    if (!iso) return 'none yet';
+    var n = L.ops.daysBetween(iso, today());
+    return iso + (n <= 0 ? ' (today)' : n === 1 ? ' (1 day ago)' : ' (' + n + ' days ago)');
+  }
+  // One tap from the banner opens this dialog (the backup passphrase is typed each time); nothing is exported until the owner confirms.
+  function runExport(p1, p2) {
+    checkPass(p1);
+    if (p1 !== p2) throw new Error('The backup passphrases do not match.');
+    var copy = JSON.parse(JSON.stringify(mainState()));
+    L.ops.markBackup(copy, today(), L.store.getMeta().rev);
+    return L.vault.exportBackup(p1, copy).then(function (text) {
+      download('lifeos-backup-' + today() + '.json', text, 'application/json');
+      return L.store.commit(function (x) { L.ops.markBackup(x, today(), L.store.getMeta().rev); addAudit(x, 'export'); });
+    }, function (e) { L.ops.record('BACKUP_EXPORT_FAIL', 'backup'); throw e; });
+  }
+  function exportDialog() {
+    var a = passOnly('rem-pass', 'new-password'), b = passOnly('rem-pass2', 'new-password');
+    openDialog({
+      title: 'Export an encrypted backup', yes: 'Export backup',
+      body: [field('Backup passphrase (12 characters or more)', a), field('Confirm backup passphrase', b), passNote()],
+      onYes: function () { return runExport(a.value, b.value).then(function () { a.value = ''; b.value = ''; setNotice('ok', 'Backup downloaded.'); render(); }); }
+    });
+  }
+  // Never automatic: the banner only offers. Hidden for a day after "Snooze one day".
+  function backupBanner() {
+    var m, r;
+    try { m = mainState(); r = L.ops.reminder(m, today(), L.store.getMeta().rev); } catch (e) { return null; }
+    if (!r.due) return null;
+    var why = r.why === 'never' ? 'This vault has changes and no backup or sync yet.' : r.why === 'saves' ? 'There have been more than ' + L.ops.SAVES_LIMIT + ' saves since the last backup or sync.' : 'The last backup or sync was ' + r.days + (r.days === 1 ? ' day' : ' days') + ' ago.';
+    return h('div', { class: 'warn', id: 'backup-banner', role: 'status' }, h('span', { text: why + ' ' }),
+      btn('Export backup', exportDialog, 'sm', { id: 'banner-export' }), ' ',
+      btn('Snooze one day', function () { act(function () { return L.store.commit(function (x) { L.ops.snooze(x, today()); }, { quiet: true }).then(function () { render(); }); }); }, 'sm', { id: 'banner-snooze' }));
+  }
+  function fillStorage(statusEl, helpEl, estEl) {
+    var stg = null, rec = 'unknown';
+    try { stg = navigator.storage || null; rec = mainState().ops.persist.result; } catch (e) { /* locked or missing */ }
+    Promise.resolve().then(function () { return stg && typeof stg.persisted === 'function' ? stg.persisted() : null; }).catch(function () { return null; }).then(function (p) {
+      var kept = p === true || (p === null && rec === 'granted');
+      statusEl.textContent = L.ops.storageText(kept);
+      if (helpEl) helpEl.textContent = kept ? '' : 'Browsers can clear storage like this when space runs low. To lower the risk: bookmark this page, install it if your browser offers that, and export a backup.' + (stg && typeof stg.persist === 'function' ? '' : ' This browser does not offer a way to ask for kept storage.');
+    });
+    if (estEl) L.ops.estimate(stg).then(function (e) {
+      estEl.textContent = e ? 'Used on this device: ' + L.ops.bytesText(e.usage) + (e.quota ? ' of about ' + L.ops.bytesText(e.quota) : '') + '.' : 'Storage use is not available in this browser.';
+    });
+  }
+  function safetyCard(s) {
+    var o = s.ops, est = h('p', { class: 'small mut', id: 'safety-estimate', text: '' }), stat = h('p', { class: 'small', id: 'safety-storage', text: 'Storage: checking' });
+    fillStorage(stat, null, est);
+    return h('div', { class: 'card', id: 'safety-card' }, h('h2', { text: 'Backup and storage' }),
+      h('p', { class: 'small', id: 'safety-backup', text: 'Last backup: ' + daysAgoText(o.lastBackupAt) }),
+      h('p', { class: 'small', id: 'safety-sync', text: 'Last sync: ' + daysAgoText(o.lastSyncAt) }),
+      stat, est, btn('Open backup and storage', function () { go('settings'); }, 'sm', { id: 'safety-open' }));
+  }
+  function verifyResult(box, r) {
+    box.replaceChildren();
+    if (!r.ok) { box.appendChild(h('p', { class: 'warn small', id: 'verify-fail', text: r.message })); return; }
+    var cur = mainState();
+    var rows = r.rows.map(function (x) { return h('li', { class: 'small', text: x.label + ': ' + x.backup + ' in the file, ' + x.live + ' in this vault' + (x.backup === x.live ? ' (same)' : ' (differs)') }); });
+    box.appendChild(h('div', { id: 'verify-ok' },
+      h('p', { class: 'ok small', text: 'This backup decrypted and passed every check. It was read in memory only. Nothing was written.' }),
+      h('ul', { class: 'small' },
+        h('li', { id: 'verify-schema', text: 'Schema: ' + r.schema + (r.sourceSchema !== r.schema ? ' (file written as schema ' + r.sourceSchema + ')' : '') + '. This version uses schema ' + cur.schema + '.' }),
+        h('li', { id: 'verify-rev', text: 'Revision: ' + (r.rev !== null ? r.rev : 'not recorded in this file') + '. This vault is at revision ' + L.store.getMeta().rev + '.' }),
+        h('li', { id: 'verify-date', text: 'Made on: ' + (r.madeOn || 'not recorded in this file') }),
+        h('li', { id: 'verify-priv', text: 'Private vault in the file: ' + (r.priv ? 'yes' : 'no') + '. In this vault now: ' + (r.livePriv ? 'yes' : 'no') + '.' })),
+      h('p', { class: 'small', text: 'Counts in the file against this vault' }),
+      rows.length ? h('ul', { id: 'verify-rows' }, rows) : h('p', { class: 'mut small', text: 'Both are empty.' })));
+  }
+  function safetySettings(s) {
+    var set = s.settings, o = s.ops;
+    var stat = h('p', { id: 'storage-status', role: 'status', text: 'Storage: checking' }), help = h('p', { class: 'small mut', id: 'storage-help', text: '' }), est = h('p', { class: 'small', id: 'storage-estimate', text: '' });
+    fillStorage(stat, help, est);
+    var days = h('input', { type: 'number', id: 'rem-days', min: '1', max: '60', step: '1', value: set.backupReminderDays });
+    var syncTick = h('input', { type: 'checkbox', id: 'rem-sync', checked: set.syncReminder });
+    var vf = h('input', { type: 'file', id: 'vf-file', accept: '.json,application/json' }), vp = passOnly('vf-pass', 'off'), vout = h('div', { id: 'verify-out', role: 'status' });
+    var dtext = h('p', { class: 'small mut', id: 'diag-count', text: '' });
+    var paintDiag = function () { var n = (mainState().ops.diag || []).length + L.ops._pending().length; dtext.textContent = n + (n === 1 ? ' code' : ' codes') + ' recorded on this device. Codes only: no text, values, ids or names.'; };
+    paintDiag();
+    var dbox = h('div', { id: 'diag-fallback' });
+    return h('div', { class: 'card', id: 'safety-settings' }, h('h2', { text: 'Storage and backup safety' }),
+      stat, help, est,
+      h('p', { class: 'small', id: 'set-lastbackup', text: 'Last backup: ' + daysAgoText(o.lastBackupAt) + (o.lastBackupAt && o.backupRev ? ', revision ' + o.backupRev : '') }),
+      h('p', { class: 'small', id: 'set-lastsync', text: 'Last sync: ' + daysAgoText(o.lastSyncAt) }),
+      h('form', {
+        onsubmit: function (e) {
+          e.preventDefault();
+          act(function () {
+            var n = Number(days.value), on = !!syncTick.checked;
+            if (!Number.isInteger(n) || n < 1 || n > 60) throw new Error('Enter a whole number of days from 1 to 60.');
+            return L.store.commit(function (x) { x.settings.backupReminderDays = n; x.settings.syncReminder = on; addAudit(x, 'reminder settings'); }).then(function () { setNotice('ok', 'Reminder settings saved.'); render(); });
+          });
+        }
+      }, field('Remind me to back up after this many days (1 to 60)', days),
+        h('label', { class: 'row small' }, syncTick, h('span', { text: 'Remind me to sync when I lock or leave the tab with changes not on Drive' })),
+        h('button', { type: 'submit', class: 'btn', id: 'rem-save', text: 'Save reminder settings' })),
+      h('hr'),
+      h('form', {
+        onsubmit: function (e) {
+          e.preventDefault();
+          var f = vf.files && vf.files[0];
+          if (!f) { setNotice('err', 'Choose a backup file first.'); return; }
+          if (!vp.value) { setNotice('err', 'Enter the backup passphrase.'); return; }
+          var pv = vp.value; vp.value = ''; // never left in the field, whether it works or not
+          act(function () {
+            return readFile(f, L.vault.MAX_BACKUP).then(function (text) { return L.ops.verifyBackup(pv, text, mainState()); }).then(function (r) {
+              if (!L.store.isUnlocked()) return;
+              verifyResult(vout, r);
+              if (r.ok) setNotice('ok', 'Backup file verified. Nothing was written.'); else setNotice('err', r.message);
+            });
+          });
+        }
+      }, field('Verify a backup file (checked in memory, nothing is written)', vf), field('Backup passphrase', vp),
+        h('button', { type: 'submit', class: 'btn', id: 'verify-btn', text: 'Verify backup file' }), vout),
+      h('hr'),
+      h('h3', { text: 'Diagnostics' }), dtext,
+      h('div', { class: 'row' },
+        btn('Copy diagnostics', function () {
+          var text = L.ops.format(mainState(), { version: L.VERSION, userAgent: navigator.userAgent });
+          var p = navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(text) : Promise.reject(new Error('no clipboard'));
+          p.then(function () { setNotice('ok', 'Diagnostics copied. They hold codes, the version, the schema and the browser family only.'); }, function () {
+            dbox.replaceChildren(h('textarea', { id: 'diag-text', readOnly: true, rows: '8', 'aria-label': 'Diagnostics text', value: text }));
+            var ta = dbox.firstChild; ta.focus(); ta.select();
+            setNotice('err', 'The browser blocked copying. Select the text below and copy it.');
+          });
+        }, '', { id: 'diag-copy' }),
+        btn('Clear diagnostics', function () { act(function () { return L.store.commit(function (x) { L.ops.clear(x); addAudit(x, 'diagnostics cleared'); }).then(function () { dbox.replaceChildren(); paintDiag(); setNotice('ok', 'Diagnostics cleared.'); }); }); }, '', { id: 'diag-clear' })),
+        dbox);
   }
 
   // ---------- dashboard ----------
@@ -466,6 +622,7 @@
     });
     return h('div', null, h('div', { class: 'row sp' }, h('h1', { text: 'Dashboard' }), h('div', { class: 'row' }, btn('Log study', function () { studyDialog(''); }, 'qa-btn', { id: 'quick-study' }), btn('Add activity', function () { go('domain', { domain: 'activities', open: 'act-add' }); }, 'qa-btn', { id: 'quick-activity' }), btn('Quick add', quickAdd, 'pri qa-btn', { id: 'quick-add' }), btn(dashEdit ? 'Done' : 'Customize', function () { dashEdit = !dashEdit; render(); }, 'qa-btn', { id: 'dash-customize' }))),
       L.archiveUI ? L.archiveUI.proposal(archCtx()) : null,
+      safetyCard(mainState()),
       due ? h('div', { class: 'warn' }, due + (due === 1 ? ' recurring item is' : ' recurring items are') + ' due. ', btn('Review', function () { go('domain', { domain: 'money' }); }, 'sm', { id: 'due-review' })) : null,
       dashEdit ? h('div', { class: 'card', id: 'dash-edit' }, h('p', { class: 'small', id: 'dash-edit-note', text: 'Editing the layout for ' + (w === 'narrow' ? 'narrow screens (under 720 px wide)' : 'wide screens (720 px and over)') + '. Drag a module or use Move up and Move down. Hidden modules are dimmed.' }),
         btn('Reset to default', function () { act(function () { return commit(function (x) { L.layout.reset(x.settings, w); }).then(function () { setNotice('ok', 'Layout reset.'); render(); }); }); }, 'sm', { id: 'dash-reset' })) : null,
@@ -3653,6 +3810,9 @@
     }, h('h2', { text: 'Change passphrase' }), field('Current passphrase', o), field('New passphrase (12 characters or more)', n1), field('Confirm new passphrase', n2), passNote(),
       h('button', { type: 'submit', class: 'btn', text: 'Change passphrase' })));
 
+    // storage, reminders, verify and diagnostics (v1.3.0)
+    out.push(safetySettings(mainState()));
+
     // backup
     var bp = passOnly('bk-pass', 'new-password'), bp2 = passOnly('bk-pass2', 'new-password');
     var bf = h('input', { type: 'file', id: 'bk-file', accept: '.json,application/json' });
@@ -3662,12 +3822,7 @@
         onsubmit: function (e) {
           e.preventDefault();
           act(function () {
-            checkPass(bp.value);
-            if (bp.value !== bp2.value) throw new Error('The backup passphrases do not match.');
-            return L.vault.exportBackup(bp.value, mainState()).then(function (text) {
-              download('lifeos-backup-' + today() + '.json', text, 'application/json');
-              return commit(null, 'export');
-            }).then(function () { setNotice('ok', 'Backup downloaded.'); });
+            return Promise.resolve().then(function () { return runExport(bp.value, bp2.value); }).then(function () { setNotice('ok', 'Backup downloaded.'); });
           }).then(function () { bp.value = ''; bp2.value = ''; });
         }
       }, field('Backup passphrase (12 characters or more)', bp), field('Confirm backup passphrase', bp2), passNote(),
@@ -3721,7 +3876,7 @@
       }, field('Restore from a backup file (64 MB max)', bf), field('Backup passphrase', ip),
         h('button', { type: 'submit', class: 'btn', text: 'Import backup' }))));
 
-    out.push(h('p', { class: 'mut small', id: 'app-version', text: 'LifeOS v1.2.0' }));
+    out.push(h('p', { class: 'mut small', id: 'app-version', text: 'LifeOS v' + L.VERSION }));
 
     if (L.syncUI) out.push(L.syncUI.section(syncCtx()));
     if (L.archiveUI) out.push(L.archiveUI.section(archCtx()));

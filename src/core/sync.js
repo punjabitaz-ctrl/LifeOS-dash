@@ -241,7 +241,7 @@
   // Fingerprint of the content that counts as "changed": everything except the audit log and sync bookkeeping.
   async function fingerprint(state) {
     const s = JSON.parse(JSON.stringify(state));
-    delete s.audit;
+    delete s.audit; delete s.ops;
     if (s.settings) delete s.settings.sync;
     const d = await L._webcrypto.subtle.digest('SHA-256', new TextEncoder().encode(stable(s)));
     return Array.from(new Uint8Array(d), (x) => x.toString(16).padStart(2, '0')).join('');
@@ -267,6 +267,7 @@
     const S = L.store;
     await S.commit((x) => {
       x.settings.sync = { clientId, remoteRev, fp, fileId, keySalt };
+      if (L.ops && x.ops) L.ops.markSync(x, L.metrics.todayISO(), L.store.getMeta().rev);
       if (!Array.isArray(x.audit)) x.audit = [];
       x.audit.push({ ts: new Date().toISOString(), action });
       while (x.audit.length > 200) x.audit.shift();
@@ -304,7 +305,10 @@
     const keyDiffers = !info.sameKey, remoteChanged = rr > sy.remoteRev;
     const localKeyChanged = keyDiffers && (!remoteChanged || (!!sy.keySalt && sy.keySalt !== S.saltId()));
     const localChanged = fp !== base || localKeyChanged;
-    if (!remoteChanged && !localChanged) return Object.assign({ kind: 'in-sync', rev: rr }, copies);
+    if (!remoteChanged && !localChanged) {
+      await S.commit((x) => { if (L.ops && x.ops) L.ops.markSync(x, L.metrics.todayISO(), S.getMeta().rev); }, { quiet: true });
+      return Object.assign({ kind: 'in-sync', rev: rr }, copies);
+    }
     if (!remoteChanged) {
       const ex = await exportSnap(Math.max(rr, sy.remoteRev) + 1);
       const id = await upload(file, JSON.stringify(ex.env), dl.etag);

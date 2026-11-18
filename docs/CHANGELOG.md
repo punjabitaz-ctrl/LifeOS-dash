@@ -1,0 +1,62 @@
+# LifeOS changelog
+
+Newest first. One line per change. Versions come from package.json (see docs/RUNBOOK.md); fixes by number are described in docs/SECURITY.md.
+
+## 1.3.0 (schema 15): Safe to live in
+- Storage: asks the browser to keep the vault on each unlock until granted, records the result, and shows "kept by the browser" or "may be cleared by the browser" with the storage in use. A missing or refusing API never blocks the app.
+- Backups: last backup and last sync dates are kept inside the encrypted state and shown on the dashboard and in Settings; a non-blocking banner offers Export backup after the chosen number of days (default 7, 1 to 60) or more than 200 saves, with Snooze one day. Never automatic.
+- Verify a backup file: decrypts in memory, shows schema, revision, date and per-collection counts against the vault, writes nothing.
+- Optional "Remind me to sync" notice on lock and when the tab is hidden, only when changes are not on Drive. Never a sync.
+- Diagnostics: a ring of the last 200 fixed codes inside the encrypted state; uncaught errors and unhandled rejections map to a code by area and never keep message text, stack, values, ids or names. Copy diagnostics and Clear diagnostics in Settings.
+- Release engineering: package.json is the one version source (injected into the app and README, checked in HANDOFF, enforced by a test); tag workflow; this changelog; docs/RUNBOOK.md; per-script smoke timeout.
+- scripts/check-live.mjs (live header check with an Access service token from the environment) and docs/FIRST-RUN.md.
+- Fixed: test/smoke-command.mjs waited 15 s nine times per screen size for a selector that never matched (about 287 s in all); it now takes well under a minute.
+- Docs: Cloudflare Access section in docs/SYNC-SETUP.md.
+
+## 1.2.0 (schema 14)
+- Vault archiving: one verified, encrypted file per archivable year, yearly summaries keep every figure, archive screen, restore by year (SEC-84 to SEC-92).
+- Activity CSV import (schema 13): map, preview, confirm, import as private, batch Money offer.
+- Spell check, auto-correct and auto-capitalize are off on every field except passphrases.
+- Audit fixes SEC-84 to SEC-92.
+
+## 1.1.0 (schema 12)
+- Business expenses, invoices and aging, mileage with dated rates, home office, 1099-NEC payees, project budgets, NJ single-member LLC tax profile, self-employment tax, federal and NJ estimates, safe harbor, accountant export and print views, five home modules.
+- Audit fixes SEC-71 to SEC-83.
+
+## 1.0.0 (schema 11)
+- Command center: lines of work, revenue tracker, expected income, ledger CSV import, customizable home.
+- Final complete review by three independent reviewers; 30 findings fixed (CR-1 to CR-10, PV-1 to PV-10, UI-1 to UI-10).
+
+## 0.11.0 (schema 10)
+- Private vault with its own passphrase inside the encrypted state; Wellbeing check-ins only inside it.
+- Audit fixes SEC-62 to SEC-70.
+
+## 0.10.0 (schema 9)
+- Social: groups, people, contact log, important dates, facts, links to Work. Audit fixes SEC-57 to SEC-61.
+
+## 0.9.0 (schema 8)
+- Activities: planned, done and skipped, cost and ROI, provider list, whole-app leak check. Audit fixes SEC-51 to SEC-54.
+
+## 0.8.0 (schema 7)
+- Learning: items, study sessions, takeaways, weekly study target, certification expiry in the Admin timeline. Audit fixes SEC-49 and SEC-50.
+
+## 0.7.0 (schema 6)
+- Home (properties, vehicles, maintenance, household bills) and Admin (renewals, subscriptions, document index, tax checklist, 30/60/90 timeline). Audit fixes SEC-44 to SEC-48.
+
+## 0.6.0 (schema 5)
+- Goals with linked metrics, horizons and a ladder; CSV workout fields. Audit fixes SEC-40 to SEC-43.
+
+## 0.5.0 (schema 4)
+- Health: body metrics, workouts, training cycle, sleep, daily checks; project delete. Audit fixes SEC-32 to SEC-36.
+
+## 0.4.0 (schema 3)
+- Work: projects, weekly outcomes, pipeline. Audit fixes SEC-27 to SEC-29.
+
+## 0.3.0 (schema 2)
+- Money and Assets in depth, Google Drive sync, Cloudflare headers, proprietary licence.
+
+## 0.2.0
+- All first-audit findings fixed, CSV column mapping, phone-size smoke test. Pages entry point added.
+
+## 0.1.0 (schema 1)
+- Ten thin domains, encrypted vault, weekly review memory loop.

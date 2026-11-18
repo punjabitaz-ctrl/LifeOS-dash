@@ -2,7 +2,7 @@
   'use strict';
   const L = (globalThis.LifeOS = globalThis.LifeOS || {});
   const KEY = 'envelope';
-  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 14, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
+  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 15, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
   const HABIT_CAP = 8, HABIT_LOG_CAP = 100000, KIND_CAP = 30;
   const RENEWAL_TOTAL_CAP = 2000;
   const ENTRY_CAP = 50000, INSIGHT_CAP = 5000, REVIEW_CAP = 1000, LESSON_CAP = 30, AUDIT_CAP = 200;
@@ -125,6 +125,8 @@
       business: schema >= 12 ? L.business.cleanSettings(s.business) : L.business.defaultSettings(false),
       // v1.2.0 part B: the vault size (MB) that makes the dashboard propose archiving.
       archiveSuggestMB: schema >= 14 && s.archiveSuggestMB !== undefined ? num(s.archiveSuggestMB, 20, 60, 'archiveSuggestMB', true) : 40,
+      // v1.3.0: backup reminder interval (days) and the optional sync reminder.
+      ...L.ops.cleanSettings(s, schema),
     };
   }
   // 6 decimals, like converted weights, so a unit switch round trip does not drift.
@@ -612,7 +614,7 @@
   function validateStateRaw(o, opts) {
     if (!isObj(o)) fail('state must be an object');
     scan(o, 0, { n: 4e6 });
-    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, SCHEMA].includes(o.schema)) fail('unsupported schema');
+    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, SCHEMA].includes(o.schema)) fail('unsupported schema');
     if (!L.metrics) fail('metrics module missing');
     const settings = cleanSettings(o.settings, o.schema), entries = cleanEntries(o.entries);
     const out = { schema: SCHEMA, settings, entries };
@@ -717,6 +719,8 @@
     // Schema 14 adds the archive index and the yearly summaries (numbers only). Older formats have neither.
     out.archives = o.schema >= 14 ? L.archive.cleanArchives(o.archives) : [];
     out.summaries = o.schema >= 14 ? L.archive.cleanSummaries(o.summaries, out.archives) : {};
+    // Schema 15 adds the device bookkeeping block: backup and sync dates, the save counter, the storage result and the codes-only diagnostics ring.
+    out.ops = L.ops.cleanOps(o.ops, o.schema);
     out.memory = cleanMemory(o.memory);
     out.audit = cleanAudit(o.audit);
     // Schema 10 adds the private vault: checked structurally only (types, base64, sizes, iteration count, mark names); the key is never needed.
@@ -818,6 +822,7 @@
         layouts: { narrow: [], wide: [] },
         business: L.business.defaultSettings(true),
         archiveSuggestMB: 40,
+        backupReminderDays: 7, syncReminder: false,
       },
       entries: [],
       accounts: [], recurring: [], budgets: [], categories: defaultCategories(),
@@ -827,7 +832,7 @@
       activities: [], activityCategories: L.activities.DEFAULT_CATEGORIES.slice(),
       groups: [], people: [], contacts: [],
       payees: [], invoices: [], trips: [], taxPayments: [], taxYears: {}, homeOffice: {}, taxMap: [],
-      archives: [], summaries: {},
+      archives: [], summaries: {}, ops: L.ops.defaultOps(),
       cycle: null, kinds: L.metrics.DEFAULT_KINDS.slice(), habits: [], habitLog: [],
       memory: { insights: [], lessons: [], reviews: [] },
       audit: [],
@@ -912,8 +917,11 @@
       requireUnlocked();
       const st = state, k = key, sl = salt;
       const snapshot = JSON.parse(JSON.stringify(st));
+      let taken = [];
       try {
         await fn(st);
+        // v1.3.0: the queued diagnostic codes join the encrypted ring in the same write.
+        taken = L.ops.flush(st);
         const clean = validateState(st);
         const sealed = await seal(k, sl, clean, opts && opts.quiet ? meta.rev : meta.rev + 1);
         if (key !== k) throw new Error('LOCKED');
@@ -923,6 +931,7 @@
         replaceContents(st, clean);
       } catch (e) {
         if (state === st) replaceContents(st, snapshot);
+        if (taken.length) L.ops.requeue(taken);
         throw e;
       }
     });
@@ -947,6 +956,14 @@
       dropPriv();
     });
   }
+  // v1.3.0: dates, counters, the storage result and diagnostics describe this device, so a restored or downloaded copy never replaces them;
+  // the reminder settings come from the copy only when it is new enough to carry them.
+  function keepLocalOps(target, local, srcSchema) {
+    if (local.ops) target.ops = JSON.parse(JSON.stringify(local.ops));
+    if (typeof srcSchema === 'number' && srcSchema < 15 && local.settings) {
+      target.settings.backupReminderDays = local.settings.backupReminderDays; target.settings.syncReminder = local.settings.syncReminder;
+    }
+  }
   function replaceState(next, opts) {
     return serial(async () => {
       requireUnlocked();
@@ -964,6 +981,7 @@
       // A restored backup never brings its own sync bookkeeping: an older remoteRev would weaken the rollback
       // check, and a different OAuth client ID would be swapped in without the user seeing it.
       clean.settings.sync = Object.assign({}, st.settings.sync);
+      keepLocalOps(clean, st, src);
       const sealed = await seal(key, salt, clean, meta.rev + 1);
       if (state !== st) throw new Error('LOCKED');
       await getAdapter().set(KEY, sealed.env);
@@ -1028,7 +1046,11 @@
       await getAdapter().set(KEY, env);
       if (state !== st) throw new Error('LOCKED');
       key = info.key; salt = info.salt; meta = Object.assign({}, info.meta);
-      replaceContents(st, info.state);
+      // SEC-94: like a restore, a downloaded copy never replaces this device's ops (diagnostics, storage result, dates, snooze).
+      // The sync bookkeeping write that follows every adopt seals this into the stored envelope.
+      const next = JSON.parse(JSON.stringify(info.state));
+      keepLocalOps(next, st, info.sourceSchema);
+      replaceContents(st, next);
     });
   }
   async function wipe() {
@@ -1038,5 +1060,5 @@
 
   // Validation helpers shared with home.js and admin.js (same rules and messages as the rest of validateState).
   L.validate = { fail, isObj, str, num, date, oneOf, bool, arr, strip, ts, newId };
-  L.store = { _rawEnvelope: () => getAdapter().get(KEY), matchesMain, _setAdapter, exists, init, unlock, lock, isUnlocked, getState, commit, changePassphrase, replaceState, wipe, validateState, newId, defaultState, getMeta, saltId, exportEnvelope, inspectEnvelope, adoptEnvelope, dropsWork, droppedData, nameList, lossText, lossWhy, validateGoals: (list, privOk) => cleanGoals(list, privOk === true) };
+  L.store = { SCHEMA, _rawEnvelope: () => getAdapter().get(KEY), matchesMain, _setAdapter, exists, init, unlock, lock, isUnlocked, getState, commit, changePassphrase, replaceState, wipe, validateState, newId, defaultState, getMeta, saltId, exportEnvelope, inspectEnvelope, adoptEnvelope, dropsWork, droppedData, nameList, lossText, lossWhy, validateGoals: (list, privOk) => cleanGoals(list, privOk === true) };
 })();

@@ -4,7 +4,11 @@
   const MAX_BYTES = 5 * 1024 * 1024, MAX_ROWS = 20000, MAX_COLS = 100, MAX_CELL = 10000;
   const DANGER = /^[=+\-@\t\r\n]/;
 
+  // SEC-95: a refused file throws with the fixed code 'CSV', so diagnostics can record CSV_REJECT without keeping any text.
   function parse(text) {
+    try { return parseRaw(text); } catch (e) { if (e && typeof e === 'object') e.code = 'CSV'; throw e; }
+  }
+  function parseRaw(text) {
     if (typeof text !== 'string') throw new Error('CSV must be text');
     if (text.length > MAX_BYTES || (text.length * 3 > MAX_BYTES && new TextEncoder().encode(text).length > MAX_BYTES))
       throw new Error('CSV is larger than 5 MB');

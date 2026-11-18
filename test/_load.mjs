@@ -1,4 +1,5 @@
 import '../src/core/vault.js';
+import '../src/core/ops.js';
 import '../src/core/store.js';
 import '../src/core/priv.js';
 import '../src/core/wellbeing.js';

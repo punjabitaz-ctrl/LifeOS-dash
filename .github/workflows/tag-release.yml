@@ -1,0 +1,54 @@
+# Release tags (v1.3.0, B6). On every push to main this creates the tag v<version> from package.json if it does not exist yet.
+# A manual run can backfill a tag on an older commit: give the version and the full commit hash (see docs/RUNBOOK.md).
+# Uses only the default GITHUB_TOKEN with contents write. No secrets, no other permissions.
+name: tag-release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to tag, for example 1.2.0 (the tag becomes v1.2.0). Leave empty to use package.json on the chosen commit.'
+        required: false
+        type: string
+      commit:
+        description: 'Full commit hash to tag. Leave empty to tag the commit this run checked out.'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  tag:
+    runs-on: ubuntu-latest
+    steps:
+      # Pinned to a full commit hash (actions/checkout v4.4.0), so a moved tag upstream cannot change what runs here.
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          fetch-depth: 0
+      - name: Create the tag if it does not exist
+        env:
+          INPUT_VERSION: ${{ github.event.inputs.version }}
+          INPUT_COMMIT: ${{ github.event.inputs.commit }}
+        run: |
+          set -euo pipefail
+          target="${INPUT_COMMIT:-${GITHUB_SHA:-}}"
+          if ! [[ "$target" =~ ^[0-9a-f]{40}$ ]]; then echo "The commit must be a full 40-character hash."; exit 1; fi
+          git cat-file -e "$target^{commit}"
+          # Only commits already on main are tagged, and the tag is always the package.json version of that commit.
+          if ! git merge-base --is-ancestor "$target" origin/main; then echo "That commit is not on main."; exit 1; fi
+          version="$(git show "$target:package.json" | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).version))')"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then echo "Not a version in package.json: $version"; exit 1; fi
+          if [ -n "${INPUT_VERSION:-}" ] && [ "${INPUT_VERSION:-}" != "$version" ]; then echo "The version box does not match package.json on that commit ($version)."; exit 1; fi
+          tag="v$version"
+          if git ls-remote --exit-code --tags origin "refs/tags/$tag" >/dev/null 2>&1; then
+            echo "Tag $tag already exists. Nothing to do."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "$tag" "$target" -m "LifeOS $tag"
+          git push origin "refs/tags/$tag"
+          echo "Created $tag on $target."

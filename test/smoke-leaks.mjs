@@ -48,8 +48,10 @@ async function run(label, viewport) {
   const seen = [];
   const grab = async (where) => { seen.push({ where, url: page.url(), s: await page.evaluate(() => JSON.stringify([location.href, document.cookie, Object.assign({}, sessionStorage), Object.assign({}, localStorage)])) }); };
   const prompts = [];
-  let archiveFile = '';
+  let archiveFile = '', diagArtefacts = '';
   try {
+    await ctx.grantPermissions(['clipboard-read', 'clipboard-write']).catch(() => {});
+    await page.addInitScript(() => { try { const w = navigator.clipboard.writeText.bind(navigator.clipboard); navigator.clipboard.writeText = (t) => { window.__copied = String(t); return w(t).catch(() => {}); }; } catch (e) { /* no clipboard */ } });
     await page.clock.install({ time: new Date(2026, 10, 14, 10, 0, 0) });
     await page.goto(pathToFileURL(file).href);
     await step('create vault and load the adversarial vault', async () => {
@@ -317,6 +319,35 @@ async function run(label, viewport) {
       if ((await page.textContent('.dialog')).includes(ADV_MARK)) throw new Error('the error echoes data');
       await page.keyboard.press('Escape');
     });
+    await step('Diagnostics (v1.3.0): markers in every domain never reach the diagnostics ring, the Settings screen or the copied text', async () => {
+      // Adversarial errors from every area: synthetic events carrying the marker in every field a handler could read, plus a handled error
+      // with a marker in its message and code. Only fixed codes may be kept.
+      await page.evaluate((M) => {
+        const L = globalThis.LifeOS;
+        for (const a of ['money', 'health', 'social', 'wellbeing', 'sync', 'archive', 'settings']) {
+          L.ops.setArea(a);
+          window.dispatchEvent(new ErrorEvent('error', { message: M + ' message', filename: M + '.js', lineno: 7, error: Object.assign(new Error(M + ' err'), { code: M, stack: M + ' stack' }) }));
+          window.dispatchEvent(new PromiseRejectionEvent('unhandledrejection', { promise: Promise.resolve(), reason: Object.assign(new Error(M + ' rejection'), { code: M }) }));
+        }
+        L.ops.recordError(Object.assign(new Error(M + ' sync'), { code: M }), 'sync');
+        L.ops.recordError(Object.assign(new Error('x'), { code: 'TAMPER' }), 'sync');
+        L.ops.record(M, M);
+        L.ops.setArea('app');
+        return L.store.commit(() => {}, { quiet: true });
+      }, ADV_MARK);
+      await nav('Settings'); await page.waitForSelector('#safety-settings', T);
+      await page.waitForFunction(() => /\d+ codes? recorded/.test(document.querySelector('#diag-count').textContent), null, T);
+      await page.click('#diag-copy'); await page.waitForSelector('.notice.ok:has-text("Diagnostics copied")', T);
+      const copied = await page.evaluate(async () => { try { return await navigator.clipboard.readText(); } catch (e) { return window.__copied || ''; } });
+      const ring = await page.evaluate(() => JSON.stringify(globalThis.LifeOS.store.getState().ops));
+      if (!/UNCAUGHT_MONEY/.test(copied) || !/REJECTION_SYNC/.test(copied) || !/SYNC_TAMPER/.test(copied) || !/UNKNOWN_ERROR/.test(copied)) throw new Error('the copied text holds no codes, so the check proves nothing: ' + copied.slice(0, 200));
+      if (!/^LifeOS diagnostics\nVersion: \d+\.\d+\.\d+\nSchema: \d+\nBrowser: [A-Za-z]+\nCodes: \d+\n/.test(copied)) throw new Error('copied header: ' + copied.slice(0, 120));
+      if (copied.split('\n').slice(5).some((l) => !/^\d{4}-\d{2}-\d{2} [A-Z0-9_]+ [a-z]+$/.test(l))) throw new Error('a copied line is not a code line');
+      const settingsDom = await page.textContent('main');
+      diagArtefacts = [copied, ring, settingsDom].join('\n');
+      if (copied.includes('LEAK') || ring.includes('LEAK') || settingsDom.includes('LEAK')) throw new Error('a marker reached the diagnostics');
+      await grab('settings after diagnostics');
+    });
     await step('lock, unlock and reload', async () => {
       await page.click('.top .lockbtn'); await page.waitForSelector('#pass', T);
       if ((await page.textContent('body')).includes(ADV_MARK)) throw new Error('locked page shows data');
@@ -338,7 +369,7 @@ async function run(label, viewport) {
       if (idb.length < 2) throw new Error('IndexedDB read nothing');
       const env = JSON.parse(idb[1]);
       if (Object.keys(env).sort().join() !== 'ct,deviceId,iv,kdf,rev,updatedAt,v') throw new Error('envelope keys ' + Object.keys(env));
-      const where = { prompts: prompts.join('\n'), audit, idb: idb.join('\n'), console: consoleText.join('\n'), storage: JSON.stringify(seen), urls: urls.join('\n'), 'archive file': archiveFile };
+      const where = { prompts: prompts.join('\n'), audit, idb: idb.join('\n'), console: consoleText.join('\n'), storage: JSON.stringify(seen), urls: urls.join('\n'), 'archive file': archiveFile, diagnostics: diagArtefacts };
       for (const [k, v] of Object.entries(where)) {
         if (v.includes(ADV_MARK) || v.includes('Ignore previous') || v.includes('LEAK key')) throw new Error(k + ' holds a marker: ' + (v.match(/LEAK[^\n]{0,60}/) || [''])[0]);
       }

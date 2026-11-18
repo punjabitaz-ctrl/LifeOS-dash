@@ -75,7 +75,7 @@ async function run(label, viewport) {
     if (line) await page.selectOption('#f-line', { label: line === 'Podcast' ? line : line + ' (under AYiN Advisors)' });
     if (expected) { await page.selectOption('#f-mstatus', 'expected'); await page.fill('#f-mdue', due); }
     await page.click('button:has-text("Add entry")');
-    await page.waitForSelector('.entry[data-key] .entry-t:has-text("' + title + '")', T).catch(() => page.waitForSelector('.entry-t:has-text("' + title + '")', T));
+    await page.waitForSelector('.entry-t:has-text("' + title + '")', T);
   };
   const revenue = async () => {
     await nav('Work'); await page.waitForSelector('#open-revenue', T); await page.click('#open-revenue');

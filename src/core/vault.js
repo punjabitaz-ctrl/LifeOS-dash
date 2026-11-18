@@ -68,14 +68,18 @@
     if (out.length > MAX_BACKUP) throw new Error('The backup would be larger than 64 MB, so no file was made. Your data on this device is unchanged. Delete old entries, study sessions, takeaways, activities, logged contacts, facts or long notes, then try again.');
     return out;
   }
-  async function importBackup(passphrase, text) {
+  // Decrypts a backup file and returns the raw plaintext object, unvalidated (importBackup validates it; verifying a file reads it only).
+  async function readBackupRaw(passphrase, text) {
     if (typeof text !== 'string' || text.length > MAX_BACKUP) throw new Error('Not a LifeOS backup');
     let env;
     try { env = JSON.parse(text); } catch (e) { throw new Error('Not a LifeOS backup'); }
     const { salt } = parseEnvelope(env);
     const key = await deriveKey(passphrase, salt);
-    return L.store.validateState(await decrypt(key, env));
+    return decrypt(key, env);
+  }
+  async function importBackup(passphrase, text) {
+    return L.store.validateState(await readBackupRaw(passphrase, text));
   }
 
-  L.vault = { MAX_BACKUP, newSalt, deriveKey, encrypt, decrypt, exportBackup, importBackup, checkPassphrase, makeEnvelope, parseEnvelope };
+  L.vault = { MAX_BACKUP, newSalt, deriveKey, encrypt, decrypt, exportBackup, importBackup, readBackupRaw, checkPassphrase, makeEnvelope, parseEnvelope };
 })();

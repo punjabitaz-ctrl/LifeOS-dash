@@ -1,6 +1,6 @@
 # LifeOS handoff
 
-Updated 16 Nov 2026. Read this first in any new session, then SPEC.md and docs/SECURITY.md.
+Version <!--version-->1.3.0<!--/version-->. Updated 18 Nov 2026. Read this first in any new session, then SPEC.md and docs/SECURITY.md.
 
 ## What it is
 LifeOS (Living Independent and Free Everyday Operating System): one offline-capable HTML file, vanilla JS, no dependencies. All data sits in one passphrase-encrypted envelope in the browser's IndexedDB. Optional AI (Anthropic key, local model, or copy/paste into Claude) only ever sees weekly numbers. Owner: Taz Abbas. Proprietary licence (see LICENSE).
@@ -31,8 +31,9 @@ LifeOS (Living Independent and Free Everyday Operating System): one offline-capa
 | 1.1.0 | Business expenses, invoices and tax (NJ single-member LLC), schema 12: business or personal scope, invoices and aging, billable and reimbursable expenses, mileage with dated rates, home office, 1099-NEC payees, budgets, tax-year profile, SE tax, federal and NJ estimates, safe harbor, payments, accountant export and print views, five home modules (src/core/tax.js, src/core/business.js) | pushed |
 | 1.2.0-a | Activity CSV import, schema 13 (activities gain optional importKey): map, preview, confirm, batch Money offer on a tap, import as private; `activities.planImport/applyImport`, `csv.exportActivities`; audited with 1.2.0 (SEC-90, SEC-91), not committed |
 | 1.2.0 | Vault archiving (src/core/archive.js, src/ui/archive-ui.js), schema 14, spell check off app-wide; verified archive files, summaries keep every figure (private ones inside the private vault); audited (SEC-85 High, SEC-84 and SEC-87 Medium, SEC-86, SEC-88 to SEC-90 and SEC-92 Low, SEC-91 Info, all fixed), not committed |
+| 1.3.0 | Safe to live in, schema 15 (src/core/ops.js): persistent storage, backup and sync dates, backup reminder and snooze, verify a backup file, codes-only diagnostics, one version source, tag workflow, CHANGELOG, RUNBOOK, FIRST-RUN, scripts/check-live.mjs, smoke time limit | audited (SEC-93 to SEC-97), not committed |
 
-Schema: 14 as of v1.2.0 (13 at v1.2.0-a, 12 at v1.1.0, 11 at v0.12.0 and v1.0.0, 10 at v0.11.0). The private vault's inner plaintext may carry `summaries` (numbers only) since the v1.2.0 audit. Every schema change needs a tested migration and the downgrade guards (SEC-27/28) extended to the new collections.
+Schema: 15 as of v1.3.0 (14 at v1.2.0, 13 at v1.2.0-a, 12 at v1.1.0, 11 at v0.12.0 and v1.0.0, 10 at v0.11.0). The private vault's inner plaintext may carry `summaries` (numbers only) since the v1.2.0 audit. Every schema change needs a tested migration and the downgrade guards (SEC-27/28) extended to the new collections.
 
 ## How each build cycle runs
 1. Owner picks the next domain and answers scope questions.
@@ -78,9 +79,11 @@ Known test defect for v1.3.0 B6: test/smoke-command.mjs waits 15 s nine times pe
 - Local model (Ollama) may be unreachable from the hosted HTTPS copy in some browsers; untested.
 
 ## Current step
-Updated 18 Nov 2026 by the orchestrator.
+Updated 18 Nov 2026 by the v1.3.0 auditor.
 
-- On main: v1.2.0 (schema 14): activity CSV import, vault archiving, spell check off. Audited (SEC-84 to SEC-92 in docs/SECURITY.md; the auditor stopped on a usage limit just before its final runs, which the orchestrator ran instead: 645 unit tests in three zones and all 19 smokes twice).
-- Next: v1.3.0 "Safe to live in" (SPEC.md "v1.3.0 addendum"), then v1.4.0 phone first, v1.5.0 weekly loop, v1.6.0 job search, v1.7.0 AYiN and media tabs, v2.0.0 NAS sync. Full build list B1 to B26 in docs/review/product-ops.md.
+- On main: v1.2.0 (schema 14). Audited (SEC-84 to SEC-92).
+- On disk, not committed: v1.3.0 (schema 15) "Safe to live in": persistent storage, backup dates and reminder, verify-backup, codes-only diagnostics, version source and tag workflow, CHANGELOG, RUNBOOK, FIRST-RUN, scripts/check-live.mjs, smoke time limit. Audited: SEC-93 to SEC-97 (1 Medium, 4 Low) fixed with regression tests in test/v130-audit.test.mjs; see docs/SECURITY.md "v1.3.0 audit". 679 unit tests pass in three zones; all 20 smokes passed twice.
+- Next: commit and push v1.3.0, then run the tag workflow backfill (docs/RUNBOOK.md) and the owner's first real run (docs/FIRST-RUN.md, including the live header check). Then v1.4.0 phone first, v1.5.0 weekly loop, v1.6.0 job search, v1.7.0 AYiN and media tabs, v2.0.0 NAS sync. Full build list B1 to B26 in docs/review/product-ops.md.
+- Not yet run for real: the tag workflow on GitHub, the live header check against Cloudflare Access, persistent storage on a real phone.
 - Owner decisions recorded 17 Nov 2026: release order above; backup reminder every 7 days; he creates a Cloudflare Access service token for the live header check (never in the repo or chat); codes-only diagnostics; spell check off; PV-6 and PV-9 permanent.
-- Release blockers for daily use: persistent storage, backup safety, phone navigation, the owner's first real run.
+- Release blockers for daily use: phone navigation (v1.4.0) and the owner's first real run.

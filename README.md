@@ -1,5 +1,7 @@
 # LifeOS
 
+Version <!--version-->1.3.0<!--/version--> (set by package.json; `node build.mjs` writes it here).
+
 LifeOS (Living Independent and Free Everyday Operating System) is a single-file, offline, local-first life dashboard. It tracks eleven areas (money, assets, work, health and more) plus business records and tax estimates, keeps a private vault with its own passphrase (Wellbeing lives there), builds weekly reviews, and keeps a memory of insights you approve. Vanilla JS, no dependencies.
 
 ## Open it
@@ -70,6 +72,13 @@ Build, then open `dist/lifeos.html` in a browser (double-click works, it needs n
 - Important dates (label and name only) appear in the dashboard "At a glance" card; Feb 29 shows on Feb 28 in other years. Pipeline items and projects show linked people and their last contact; unlinking never deletes either side.
 - The weekly review gains a Social step (offers only); Goals gain people overdue and contacts per week. The AI and digest see counts only, with groups numbered by position.
 - Vault schema 9, migrated from schema 1 to 8 with no data loss: each distinct name in old contact entries becomes a person with those entries as the log; an entry that cannot map stays a visible entry. Contact entries added later (for example by CSV import) are offered for conversion, once. `node test/smoke-social.mjs` runs the flow. Audited: names, group names, labels, facts, channels and notes never leave the vault. See the v0.10.0 audit in docs/SECURITY.md.
+
+## v1.3.0: Safe to live in
+
+- Settings shows whether the browser keeps the storage, the last backup and sync dates, a reminder interval, "Verify a backup file" (read in memory, nothing written) and codes-only diagnostics ("Copy diagnostics" holds codes, version, schema and browser family). A banner offers Export backup after the interval; it never acts by itself. Vault schema 15.
+- `package.json` is the one version source; `.github/workflows/tag-release.yml` tags each release. See docs/CHANGELOG.md, docs/RUNBOOK.md and docs/FIRST-RUN.md. `node scripts/check-live.mjs` compares the live headers with `_headers` (token from the environment only).
+- `node test/smoke-safety.mjs` runs the flow; `node test/smokes.mjs` now stops any script after 420 s (`--timeout=SECONDS`).
+- Audited 18 Nov 2026: SEC-93 to SEC-97 fixed with regression tests (test/v130-audit.test.mjs), see docs/SECURITY.md "v1.3.0 audit". A downloaded Drive copy now keeps this device's backup dates and diagnostics; failed syncs, archive errors and refused CSV files leave a code; the tag workflow is pinned and tags only commits on main with their package.json version; the runbook's rollback steps match what the app allows.
 
 ## v1.2.0: Activity CSV import, vault archiving, spell check off
 

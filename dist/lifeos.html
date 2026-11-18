@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-oCW2aexqlyUPXDVm0ZJNcwHKs0tCQBEus1su508Khjw='; style-src 'sha256-YIVd2U/Wt31GIuspmN0QTKrn8eZcc45Z0u6vBGo3gnk='; connect-src https://api.anthropic.com https://www.googleapis.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-vJ7D/FW4pu7YA+AvxutuTnESP7Ky4iTDl+bFueLTgko='; style-src 'sha256-YIVd2U/Wt31GIuspmN0QTKrn8eZcc45Z0u6vBGo3gnk='; connect-src https://api.anthropic.com https://www.googleapis.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>LifeOS</title>
 <style>:root{color-scheme:light dark;--bg:#f4f5f7;--card:#fff;--fg:#14171c;--mut:#5b6573;--line:#dde1e7;--acc:#2255d4;--acc-fg:#fff;--ok:#1c7a46;--warn:#9a5b00;--bad:#b42318;--r:14px;--sh:0 1px 2px rgba(0,0,0,.06);--font:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
@@ -183,7 +183,10 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
 </head>
 <body>
 <div id="app"></div>
-<script>(function () {
+<script>globalThis.LifeOS = globalThis.LifeOS || {};
+globalThis.LifeOS.VERSION = "1.3.0";
+;
+(function () {
   'use strict';
   const L = (globalThis.LifeOS = globalThis.LifeOS || {});
   const C = globalThis.crypto || (typeof require === 'function' ? require('node:crypto').webcrypto : undefined);
@@ -253,16 +256,250 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     if (out.length > MAX_BACKUP) throw new Error('The backup would be larger than 64 MB, so no file was made. Your data on this device is unchanged. Delete old entries, study sessions, takeaways, activities, logged contacts, facts or long notes, then try again.');
     return out;
   }
-  async function importBackup(passphrase, text) {
+  // Decrypts a backup file and returns the raw plaintext object, unvalidated (importBackup validates it; verifying a file reads it only).
+  async function readBackupRaw(passphrase, text) {
     if (typeof text !== 'string' || text.length > MAX_BACKUP) throw new Error('Not a LifeOS backup');
     let env;
     try { env = JSON.parse(text); } catch (e) { throw new Error('Not a LifeOS backup'); }
     const { salt } = parseEnvelope(env);
     const key = await deriveKey(passphrase, salt);
-    return L.store.validateState(await decrypt(key, env));
+    return decrypt(key, env);
+  }
+  async function importBackup(passphrase, text) {
+    return L.store.validateState(await readBackupRaw(passphrase, text));
   }
 
-  L.vault = { MAX_BACKUP, newSalt, deriveKey, encrypt, decrypt, exportBackup, importBackup, checkPassphrase, makeEnvelope, parseEnvelope };
+  L.vault = { MAX_BACKUP, newSalt, deriveKey, encrypt, decrypt, exportBackup, importBackup, readBackupRaw, checkPassphrase, makeEnvelope, parseEnvelope };
+})();
+
+;
+(function () {
+  'use strict';
+  // v1.3.0 "Safe to live in": storage status, backup dates and reminders, backup verification, and local diagnostics.
+  // Everything stored lives in state.ops (inside the encrypted state). Diagnostics are fixed code constants only: no message text,
+  // no stack, no values, no ids, no names. Nothing here writes by itself except through the store's own commit.
+  const L = (globalThis.LifeOS = globalThis.LifeOS || {});
+  const RING = 200, SAVES_LIMIT = 200, MAX_N = 1e9;
+  const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+  const fail = (m) => { throw new Error('Invalid data: ' + m); };
+
+  // ---- fixed vocabulary ----
+  const AREAS = Object.freeze(['app', 'lock', 'dashboard', 'money', 'assets', 'work', 'health', 'goals', 'home', 'admin', 'learning', 'activities', 'social', 'wellbeing', 'business', 'review', 'memory', 'settings', 'private', 'archive', 'sync', 'backup', 'storage', 'csv', 'ai']);
+  const BASE_CODES = ['UNKNOWN_ERROR', 'RENDER_ERROR', 'DECRYPT_FAIL', 'PRIV_DECRYPT_FAIL', 'STORAGE_QUOTA', 'STORAGE_PERSIST_ERROR', 'STORAGE_ESTIMATE_ERROR', 'BACKUP_EXPORT_FAIL',
+    'SYNC_409', 'SYNC_RECONNECT', 'SYNC_CHANGED', 'SYNC_HTTP', 'SYNC_TOO_LARGE', 'SYNC_ROLLBACK', 'SYNC_TAMPER', 'SYNC_INVALID', 'SYNC_OLDER_FORMAT', 'SYNC_LOCAL_CHANGED', 'SYNC_FAIL',
+    'CSV_REJECT', 'AI_TIMEOUT', 'AI_NETWORK', 'AI_HTTP', 'AI_BAD_REPLY', 'AI_FAIL', 'ARCHIVE_FAIL'];
+  const CODES = Object.freeze(BASE_CODES.concat(AREAS.map((a) => 'UNCAUGHT_' + a.toUpperCase()), AREAS.map((a) => 'REJECTION_' + a.toUpperCase())));
+  const CODE_SET = new Set(CODES), AREA_SET = new Set(AREAS);
+  // Library errors carry a fixed `code`; only these exact keys map to a diagnostic code. Anything else maps to nothing.
+  const ERR_CODE = Object.freeze({
+    ROLLBACK: 'SYNC_ROLLBACK', TAMPER: 'SYNC_TAMPER', REMOTE_INVALID: 'SYNC_INVALID', REMOTE_CHANGED: 'SYNC_CHANGED', RECONNECT: 'SYNC_RECONNECT', HTTP: 'SYNC_HTTP',
+    TOO_LARGE: 'SYNC_TOO_LARGE', OLDER_FORMAT: 'SYNC_OLDER_FORMAT', LOCAL_CHANGED: 'SYNC_LOCAL_CHANGED', WRONG_PASSPHRASE: 'DECRYPT_FAIL',
+    AI_TIMEOUT: 'AI_TIMEOUT', AI_NETWORK: 'AI_NETWORK', AI_HTTP: 'AI_HTTP', AI_BAD_REPLY: 'AI_BAD_REPLY',
+    ARCHIVE: 'ARCHIVE_FAIL', CSV: 'CSV_REJECT' // SEC-95: archive and CSV failures carry these fixed keys
+  });
+  const PERSIST = Object.freeze(['unknown', 'granted', 'denied', 'unavailable', 'error']);
+
+  // ---- stored shape ----
+  const dateOk = (s) => { if (typeof s !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return false; const d = new Date(s + 'T00:00:00Z'); return !isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s; };
+  const atOk = (s) => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d{1,3})?Z$/.test(s);
+  const defaultOps = () => ({ lastBackupAt: '', backupRev: 0, lastSyncAt: '', safeRev: 0, snoozeUntil: '', persist: { result: 'unknown', at: '' }, diag: [] });
+  function intIn(v, lo, hi, what) { if (!Number.isInteger(v) || v < lo || v > hi) fail(what); return v; }
+  function optDate(v, what) { if (v === undefined || v === '') return ''; if (!dateOk(v)) fail(what); return v; }
+  function cleanDiag(list) {
+    if (list === undefined) return [];
+    if (!Array.isArray(list)) fail('diagnostics must be a list');
+    const out = [];
+    for (const d of list) {
+      if (!isObj(d) || !atOk(d.at) || typeof d.code !== 'string' || typeof d.area !== 'string') fail('diagnostic entry');
+      if (CODE_SET.has(d.code) && AREA_SET.has(d.area)) out.push({ at: d.at, code: d.code, area: d.area });
+    }
+    return out.slice(-RING);
+  }
+  function cleanOps(o, schema) {
+    if (schema < 15 || o === undefined || o === null) return defaultOps();
+    if (!isObj(o)) fail('ops');
+    const p = o.persist === undefined ? { result: 'unknown', at: '' } : o.persist;
+    if (!isObj(p) || !PERSIST.includes(p.result)) fail('persist result');
+    return {
+      lastBackupAt: optDate(o.lastBackupAt, 'lastBackupAt'),
+      backupRev: o.backupRev === undefined ? 0 : intIn(o.backupRev, 0, MAX_N, 'backupRev'),
+      lastSyncAt: optDate(o.lastSyncAt, 'lastSyncAt'),
+      safeRev: o.safeRev === undefined ? 0 : intIn(o.safeRev, 0, MAX_N, 'safeRev'),
+      snoozeUntil: optDate(o.snoozeUntil, 'snoozeUntil'),
+      persist: { result: p.result, at: optDate(p.at, 'persist date') },
+      diag: cleanDiag(o.diag)
+    };
+  }
+  function cleanSettings(s, schema) {
+    const out = { backupReminderDays: 7, syncReminder: false };
+    if (schema < 15) return out;
+    if (s && s.backupReminderDays !== undefined) out.backupReminderDays = intIn(s.backupReminderDays, 1, 60, 'backupReminderDays');
+    if (s && s.syncReminder !== undefined) { if (typeof s.syncReminder !== 'boolean') fail('syncReminder'); out.syncReminder = s.syncReminder; }
+    return out;
+  }
+
+  // ---- diagnostics ring ----
+  let pending = [], area = 'app', timer = null;
+  const nowAt = () => new Date().toISOString();
+  function entry(code, a) { return { at: nowAt(), code: CODE_SET.has(code) ? code : 'UNKNOWN_ERROR', area: AREA_SET.has(a) ? a : 'app' }; }
+  function setArea(a) { area = AREA_SET.has(a) ? a : 'app'; }
+  const getArea = () => area;
+  function push(ops, e) { ops.diag.push(e); while (ops.diag.length > RING) ops.diag.shift(); }
+  // Queue a code. It reaches the encrypted state on the next save (or the short write scheduled here); it is never written in the clear.
+  function record(code, a) {
+    pending.push(entry(code, a === undefined ? area : a));
+    while (pending.length > RING) pending.shift();
+    schedule();
+  }
+  function schedule() {
+    if (timer || !L.store || !L.store.isUnlocked() || typeof setTimeout !== 'function') return;
+    timer = setTimeout(() => {
+      timer = null;
+      if (!pending.length || !L.store.isUnlocked()) return;
+      L.store.commit(() => {}, { quiet: true }).catch(() => {}); // a failing write must not record again (no loop)
+    }, 1500);
+  }
+  // Called by the store inside a save: moves queued entries into state.ops.diag and returns them (so a failed save can requeue them).
+  function flush(state) {
+    if (!pending.length || !state || !isObj(state.ops) || !Array.isArray(state.ops.diag)) return [];
+    const taken = pending.splice(0);
+    for (const e of taken) push(state.ops, e);
+    return taken;
+  }
+  function requeue(taken) { pending = taken.concat(pending).slice(-RING); }
+  // Handled library errors: only an exact fixed `code` key or the two fixed passphrase messages map; message text is never kept.
+  function codeFor(e) {
+    try {
+      if (!e || (typeof e !== 'object' && typeof e !== 'function')) return null;
+      if (e.name === 'QuotaExceededError') return 'STORAGE_QUOTA';
+      const c = e.code;
+      if (typeof c === 'string' && Object.prototype.hasOwnProperty.call(ERR_CODE, c)) return ERR_CODE[c];
+      const m = e.message;
+      if (m === 'BAD_PASSPHRASE_OR_DATA') return 'DECRYPT_FAIL';
+      if (m === 'BAD_PRIVATE_PASSPHRASE') return 'PRIV_DECRYPT_FAIL';
+    } catch (x) { /* a hostile error object */ }
+    return null;
+  }
+  function recordError(e, a) { const c = codeFor(e); if (c) record(c, a); return c; }
+  // Uncaught errors and unhandled rejections: a code by area and kind, nothing read from the error at all.
+  function uncaught(kind, a) { const ar = AREA_SET.has(a) ? a : area; record((kind === 'rejection' ? 'REJECTION_' : 'UNCAUGHT_') + ar.toUpperCase(), ar); }
+  function install(win) {
+    if (!win || typeof win.addEventListener !== 'function') return;
+    win.addEventListener('error', () => uncaught('error'));
+    win.addEventListener('unhandledrejection', () => uncaught('rejection'));
+  }
+  function browserFamily(ua) {
+    const u = typeof ua === 'string' ? ua : '';
+    if (/\bEdg(e|A|iOS)?\//.test(u)) return 'Edge';
+    if (/\bFirefox\/|\bFxiOS\//.test(u)) return 'Firefox';
+    if (/(Chrome|Chromium|CriOS)\//.test(u)) return 'Chrome';
+    if (/\bSafari\//.test(u)) return 'Safari';
+    return 'Other';
+  }
+  // The copied text: codes (with area and date), app version, schema and browser family. Nothing read from entries or settings.
+  function format(state, info) {
+    const i = info || {};
+    const ring = (state && state.ops && Array.isArray(state.ops.diag) ? state.ops.diag : []).concat(pending).filter((d) => CODE_SET.has(d.code) && AREA_SET.has(d.area) && atOk(d.at));
+    const lines = ['LifeOS diagnostics', 'Version: ' + (/^\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(String(i.version)) ? String(i.version) : 'unknown'), 'Schema: ' + (Number.isInteger(state && state.schema) ? state.schema : 0), 'Browser: ' + browserFamily(i.userAgent), 'Codes: ' + ring.length];
+    for (const d of ring.slice(-RING)) lines.push(d.at.slice(0, 10) + ' ' + d.code + ' ' + d.area);
+    return lines.join('\n');
+  }
+  function clear(state) { pending = []; if (state && isObj(state.ops)) state.ops.diag = []; }
+  const _pending = () => pending.slice();
+  const _reset = () => { pending = []; area = 'app'; if (timer) { clearTimeout(timer); timer = null; } };
+
+  // ---- B1 persistent storage ----
+  // Returns 'granted', 'denied', 'unavailable' or 'error'. Never throws and never blocks when the API is missing or rejects.
+  async function requestPersist(storage) {
+    try {
+      if (!storage || typeof storage.persist !== 'function') return 'unavailable';
+      try { if (typeof storage.persisted === 'function' && (await storage.persisted()) === true) return 'granted'; } catch (e) { /* ask anyway */ }
+      return (await storage.persist()) === true ? 'granted' : 'denied';
+    } catch (e) { return 'error'; }
+  }
+  // Called after each unlock: asks until granted, and records the result (a write only when it changed).
+  async function persistOnUnlock(storage, today) {
+    const st = L.store.getState();
+    if (st.ops.persist.result === 'granted' && storage && typeof storage.persisted === 'function') {
+      try { if ((await storage.persisted()) === true) return 'granted'; } catch (e) { /* fall through and ask */ }
+    }
+    const r = await requestPersist(storage);
+    if (r === 'error') record('STORAGE_PERSIST_ERROR', 'storage');
+    if (L.store.isUnlocked() && L.store.getState().ops.persist.result !== r) {
+      await L.store.commit((x) => { x.ops.persist = { result: r, at: today }; }, { quiet: true }).catch(() => {});
+    }
+    return r;
+  }
+  // { usage, quota } in bytes, or null when the API is missing or rejects.
+  async function estimate(storage) {
+    try {
+      if (!storage || typeof storage.estimate !== 'function') return null;
+      const e = await storage.estimate();
+      if (!isObj(e) || typeof e.usage !== 'number') return null;
+      const usage = e.usage, quota = Number(e.quota);
+      if (!isFinite(usage) || usage < 0) return null;
+      return { usage, quota: isFinite(quota) && quota > 0 ? quota : null };
+    } catch (e) { record('STORAGE_ESTIMATE_ERROR', 'storage'); return null; }
+  }
+  function bytesText(n) {
+    if (!(n >= 0)) return 'unknown';
+    const u = ['bytes', 'KB', 'MB', 'GB', 'TB']; let i = 0, v = n;
+    while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; }
+    return (i === 0 ? String(Math.round(v)) : v.toFixed(v >= 100 ? 0 : 1)) + ' ' + u[i];
+  }
+  const storageText = (persisted) => (persisted === true ? 'Storage: kept by the browser' : 'Storage: may be cleared by the browser');
+
+  // ---- B2 backup dates and reminder ----
+  const dayNum = (iso) => { const p = iso.split('-').map(Number); return Date.UTC(p[0], p[1] - 1, p[2]) / 86400000; };
+  const addDays = (iso, n) => new Date((dayNum(iso) + n) * 86400000).toISOString().slice(0, 10);
+  const daysBetween = (a, b) => dayNum(b) - dayNum(a);
+  const lastSafe = (ops) => (ops.lastBackupAt > ops.lastSyncAt ? ops.lastBackupAt : ops.lastSyncAt);
+  // Saves since the last backup or sync are counted from the vault revision (every counted save raises it by one), so no counter is stored.
+  const savesSince = (state, rev) => Math.max(0, (Number.isInteger(rev) ? rev : 0) - state.ops.safeRev);
+  // { due, why, days, saves }: why is 'never', 'days' or 'saves'. Snoozed means not due until the snooze date.
+  function reminder(state, today, rev) {
+    const ops = state.ops, n = state.settings.backupReminderDays, last = lastSafe(ops), saves = savesSince(state, rev);
+    const days = last ? Math.max(0, dayNum(today) - dayNum(last)) : null;
+    let why = null;
+    if (saves > SAVES_LIMIT) why = 'saves';
+    else if (last ? days >= n : saves >= 1) why = last ? 'days' : 'never';
+    const snoozed = !!ops.snoozeUntil && today < ops.snoozeUntil;
+    return { due: !!why && !snoozed, why, days, saves, snoozed };
+  }
+  const snooze = (state, today) => { state.ops.snoozeUntil = addDays(today, 1); };
+  const revOf = (rev) => (Number.isInteger(rev) && rev >= 0 ? rev : 0);
+  function markBackup(state, today, rev) { Object.assign(state.ops, { lastBackupAt: today, backupRev: revOf(rev), safeRev: revOf(rev), snoozeUntil: '' }); }
+  function markSync(state, today, rev) { Object.assign(state.ops, { lastSyncAt: today, safeRev: revOf(rev), snoozeUntil: '' }); }
+  const COUNT_KEYS = [['entries', 'Entries'], ['accounts', 'Accounts'], ['recurring', 'Recurring items'], ['budgets', 'Budgets'], ['projects', 'Projects'], ['pipeline', 'Pipeline items'], ['goals', 'Goals'],
+    ['properties', 'Properties'], ['vehicles', 'Vehicles'], ['maintenance', 'Maintenance items'], ['renewals', 'Renewals'], ['documents', 'Documents'], ['taxItems', 'Tax items'],
+    ['learningItems', 'Learning items'], ['studySessions', 'Study sessions'], ['takeaways', 'Takeaways'], ['activities', 'Activities'], ['groups', 'Groups'], ['people', 'People'], ['contacts', 'Contacts'],
+    ['payees', 'Payees'], ['invoices', 'Invoices'], ['trips', 'Mileage trips'], ['taxPayments', 'Tax payments'], ['habits', 'Daily checks'], ['habitLog', 'Daily check log'], ['archives', 'Archived years']];
+  const n = (a) => (Array.isArray(a) ? a.length : 0);
+
+  // ---- verify a backup file: decrypt in memory, compare with the live vault, discard. Writes nothing anywhere. ----
+  // Returns { ok:true, schema, sourceSchema, rev, madeOn, priv, rows } or { ok:false, reason, message, schema? }.
+  async function verifyBackup(passphrase, text, live) {
+    const bad = (reason, message, extra) => Object.assign({ ok: false, reason, message }, extra || {});
+    if (typeof text !== 'string' || !text || text.length > L.vault.MAX_BACKUP) return bad('NOT_BACKUP', 'That is not a LifeOS backup file.');
+    let env;
+    try { env = JSON.parse(text); L.vault.parseEnvelope(env); } catch (e) { return bad('NOT_BACKUP', 'That is not a LifeOS backup file.'); }
+    if (typeof passphrase !== 'string' || !passphrase) return bad('NO_PASSPHRASE', 'Enter the backup passphrase.');
+    let raw;
+    try { raw = await L.vault.readBackupRaw(passphrase, text); }
+    catch (e) { return bad('BAD_PASSPHRASE_OR_DATA', 'That passphrase did not work, or the file was changed or damaged.'); }
+    const sch = isObj(raw) ? raw.schema : undefined, mine = live && Number.isInteger(live.schema) ? live.schema : L.store.SCHEMA;
+    if (Number.isInteger(sch) && sch > mine) return bad('NEWER_SCHEMA', 'This backup was made by a newer version of LifeOS (schema ' + sch + '). This version reads up to schema ' + mine + '. Nothing was read further.', { schema: sch });
+    let state;
+    try { state = L.store.validateState(raw); } catch (e) { return bad('INVALID', 'The file decrypted but its contents did not pass the checks, so it is not a usable backup.'); }
+    const rows = COUNT_KEYS.map(([k, label]) => ({ key: k, label, backup: n(state[k]), live: live ? n(live[k]) : null })).filter((r) => r.backup > 0 || r.live > 0);
+    const meta = isObj(raw) && isObj(raw._meta) ? raw._meta : null;
+    const rev = state.ops && state.ops.backupRev > 0 ? state.ops.backupRev : (meta && Number.isInteger(meta.rev) ? meta.rev : null);
+    const madeOn = state.ops && state.ops.lastBackupAt ? state.ops.lastBackupAt : null;
+    return { ok: true, schema: state.schema, sourceSchema: sch, rev, madeOn, priv: !!state.priv, livePriv: !!(live && live.priv), rows };
+  }
+
+  L.ops = { RING, SAVES_LIMIT, AREAS, CODES, PERSIST, defaultOps, cleanOps, cleanSettings, cleanDiag, setArea, getArea, record, recordError, codeFor, uncaught, install, flush, requeue, push, format, clear, browserFamily,
+    requestPersist, persistOnUnlock, estimate, bytesText, storageText, reminder, savesSince, snooze, markBackup, markSync, addDays, daysBetween, verifyBackup, COUNT_KEYS, _pending, _reset };
 })();
 
 ;
@@ -270,7 +507,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   'use strict';
   const L = (globalThis.LifeOS = globalThis.LifeOS || {});
   const KEY = 'envelope';
-  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 14, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
+  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 15, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
   const HABIT_CAP = 8, HABIT_LOG_CAP = 100000, KIND_CAP = 30;
   const RENEWAL_TOTAL_CAP = 2000;
   const ENTRY_CAP = 50000, INSIGHT_CAP = 5000, REVIEW_CAP = 1000, LESSON_CAP = 30, AUDIT_CAP = 200;
@@ -393,6 +630,8 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       business: schema >= 12 ? L.business.cleanSettings(s.business) : L.business.defaultSettings(false),
       // v1.2.0 part B: the vault size (MB) that makes the dashboard propose archiving.
       archiveSuggestMB: schema >= 14 && s.archiveSuggestMB !== undefined ? num(s.archiveSuggestMB, 20, 60, 'archiveSuggestMB', true) : 40,
+      // v1.3.0: backup reminder interval (days) and the optional sync reminder.
+      ...L.ops.cleanSettings(s, schema),
     };
   }
   // 6 decimals, like converted weights, so a unit switch round trip does not drift.
@@ -880,7 +1119,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   function validateStateRaw(o, opts) {
     if (!isObj(o)) fail('state must be an object');
     scan(o, 0, { n: 4e6 });
-    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, SCHEMA].includes(o.schema)) fail('unsupported schema');
+    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, SCHEMA].includes(o.schema)) fail('unsupported schema');
     if (!L.metrics) fail('metrics module missing');
     const settings = cleanSettings(o.settings, o.schema), entries = cleanEntries(o.entries);
     const out = { schema: SCHEMA, settings, entries };
@@ -985,6 +1224,8 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     // Schema 14 adds the archive index and the yearly summaries (numbers only). Older formats have neither.
     out.archives = o.schema >= 14 ? L.archive.cleanArchives(o.archives) : [];
     out.summaries = o.schema >= 14 ? L.archive.cleanSummaries(o.summaries, out.archives) : {};
+    // Schema 15 adds the device bookkeeping block: backup and sync dates, the save counter, the storage result and the codes-only diagnostics ring.
+    out.ops = L.ops.cleanOps(o.ops, o.schema);
     out.memory = cleanMemory(o.memory);
     out.audit = cleanAudit(o.audit);
     // Schema 10 adds the private vault: checked structurally only (types, base64, sizes, iteration count, mark names); the key is never needed.
@@ -1086,6 +1327,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
         layouts: { narrow: [], wide: [] },
         business: L.business.defaultSettings(true),
         archiveSuggestMB: 40,
+        backupReminderDays: 7, syncReminder: false,
       },
       entries: [],
       accounts: [], recurring: [], budgets: [], categories: defaultCategories(),
@@ -1095,7 +1337,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       activities: [], activityCategories: L.activities.DEFAULT_CATEGORIES.slice(),
       groups: [], people: [], contacts: [],
       payees: [], invoices: [], trips: [], taxPayments: [], taxYears: {}, homeOffice: {}, taxMap: [],
-      archives: [], summaries: {},
+      archives: [], summaries: {}, ops: L.ops.defaultOps(),
       cycle: null, kinds: L.metrics.DEFAULT_KINDS.slice(), habits: [], habitLog: [],
       memory: { insights: [], lessons: [], reviews: [] },
       audit: [],
@@ -1180,8 +1422,11 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       requireUnlocked();
       const st = state, k = key, sl = salt;
       const snapshot = JSON.parse(JSON.stringify(st));
+      let taken = [];
       try {
         await fn(st);
+        // v1.3.0: the queued diagnostic codes join the encrypted ring in the same write.
+        taken = L.ops.flush(st);
         const clean = validateState(st);
         const sealed = await seal(k, sl, clean, opts && opts.quiet ? meta.rev : meta.rev + 1);
         if (key !== k) throw new Error('LOCKED');
@@ -1191,6 +1436,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
         replaceContents(st, clean);
       } catch (e) {
         if (state === st) replaceContents(st, snapshot);
+        if (taken.length) L.ops.requeue(taken);
         throw e;
       }
     });
@@ -1215,6 +1461,14 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       dropPriv();
     });
   }
+  // v1.3.0: dates, counters, the storage result and diagnostics describe this device, so a restored or downloaded copy never replaces them;
+  // the reminder settings come from the copy only when it is new enough to carry them.
+  function keepLocalOps(target, local, srcSchema) {
+    if (local.ops) target.ops = JSON.parse(JSON.stringify(local.ops));
+    if (typeof srcSchema === 'number' && srcSchema < 15 && local.settings) {
+      target.settings.backupReminderDays = local.settings.backupReminderDays; target.settings.syncReminder = local.settings.syncReminder;
+    }
+  }
   function replaceState(next, opts) {
     return serial(async () => {
       requireUnlocked();
@@ -1232,6 +1486,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       // A restored backup never brings its own sync bookkeeping: an older remoteRev would weaken the rollback
       // check, and a different OAuth client ID would be swapped in without the user seeing it.
       clean.settings.sync = Object.assign({}, st.settings.sync);
+      keepLocalOps(clean, st, src);
       const sealed = await seal(key, salt, clean, meta.rev + 1);
       if (state !== st) throw new Error('LOCKED');
       await getAdapter().set(KEY, sealed.env);
@@ -1296,7 +1551,11 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       await getAdapter().set(KEY, env);
       if (state !== st) throw new Error('LOCKED');
       key = info.key; salt = info.salt; meta = Object.assign({}, info.meta);
-      replaceContents(st, info.state);
+      // SEC-94: like a restore, a downloaded copy never replaces this device's ops (diagnostics, storage result, dates, snooze).
+      // The sync bookkeeping write that follows every adopt seals this into the stored envelope.
+      const next = JSON.parse(JSON.stringify(info.state));
+      keepLocalOps(next, st, info.sourceSchema);
+      replaceContents(st, next);
     });
   }
   async function wipe() {
@@ -1306,7 +1565,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
 
   // Validation helpers shared with home.js and admin.js (same rules and messages as the rest of validateState).
   L.validate = { fail, isObj, str, num, date, oneOf, bool, arr, strip, ts, newId };
-  L.store = { _rawEnvelope: () => getAdapter().get(KEY), matchesMain, _setAdapter, exists, init, unlock, lock, isUnlocked, getState, commit, changePassphrase, replaceState, wipe, validateState, newId, defaultState, getMeta, saltId, exportEnvelope, inspectEnvelope, adoptEnvelope, dropsWork, droppedData, nameList, lossText, lossWhy, validateGoals: (list, privOk) => cleanGoals(list, privOk === true) };
+  L.store = { SCHEMA, _rawEnvelope: () => getAdapter().get(KEY), matchesMain, _setAdapter, exists, init, unlock, lock, isUnlocked, getState, commit, changePassphrase, replaceState, wipe, validateState, newId, defaultState, getMeta, saltId, exportEnvelope, inspectEnvelope, adoptEnvelope, dropsWork, droppedData, nameList, lossText, lossWhy, validateGoals: (list, privOk) => cleanGoals(list, privOk === true) };
 })();
 
 ;
@@ -2185,7 +2444,11 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   const MAX_BYTES = 5 * 1024 * 1024, MAX_ROWS = 20000, MAX_COLS = 100, MAX_CELL = 10000;
   const DANGER = /^[=+\-@\t\r\n]/;
 
+  // SEC-95: a refused file throws with the fixed code 'CSV', so diagnostics can record CSV_REJECT without keeping any text.
   function parse(text) {
+    try { return parseRaw(text); } catch (e) { if (e && typeof e === 'object') e.code = 'CSV'; throw e; }
+  }
+  function parseRaw(text) {
     if (typeof text !== 'string') throw new Error('CSV must be text');
     if (text.length > MAX_BYTES || (text.length * 3 > MAX_BYTES && new TextEncoder().encode(text).length > MAX_BYTES))
       throw new Error('CSV is larger than 5 MB');
@@ -7897,7 +8160,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     const tooBig = () => new Error('The AI provider reply was too large');
     const cl = res.headers && typeof res.headers.get === 'function' ? Number(res.headers.get('content-length')) : NaN;
     if (cl > MAX_BODY) { ctl.abort(); throw tooBig(); }
-    if (!res.body || typeof res.body.getReader !== 'function') throw new Error('The AI provider sent an unreadable reply');
+    if (!res.body || typeof res.body.getReader !== 'function') throw coded(new Error('The AI provider sent an unreadable reply'), 'AI_BAD_REPLY');
     const reader = res.body.getReader();
     const chunks = [];
     let total = 0;
@@ -7923,6 +8186,8 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     return new TextDecoder().decode(buf);
   }
 
+  // v1.3.0: a fixed code on each failure, so diagnostics can name it without keeping any text.
+  const coded = (e, code) => { e.code = code; return e; };
   async function complete(provider, prompt, fetchImpl) {
     // The private vault is always closed before any AI call.
     if (L.priv) L.priv.close('system');
@@ -7949,10 +8214,10 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       res = await doFetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: ctl.signal, credentials: 'omit', redirect: 'error', referrerPolicy: 'no-referrer' });
     } catch (e) {
       clearTimeout(timer);
-      throw new Error(e && e.name === 'AbortError' ? 'The AI request timed out' : 'Could not reach the AI provider');
+      throw coded(new Error(e && e.name === 'AbortError' ? 'The AI request timed out' : 'Could not reach the AI provider'), e && e.name === 'AbortError' ? 'AI_TIMEOUT' : 'AI_NETWORK');
     }
     try {
-      if (!res || !res.ok) throw new Error('The AI provider returned an error' + (res && res.status ? ' (HTTP ' + res.status + ')' : ''));
+      if (!res || !res.ok) throw coded(new Error('The AI provider returned an error' + (res && res.status ? ' (HTTP ' + res.status + ')' : '')), 'AI_HTTP');
       let j;
       const raw = await readCapped(res, ctl);
       try { j = JSON.parse(raw); } catch (e) { throw new Error('The AI provider sent an unreadable reply'); }
@@ -7963,7 +8228,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
         const c = j && j.choices && j.choices[0] && j.choices[0].message;
         text = c && c.content;
       }
-      if (typeof text !== 'string' || !text || text.length > MAX_OUT) throw new Error('The AI provider sent an unexpected reply');
+      if (typeof text !== 'string' || !text || text.length > MAX_OUT) throw coded(new Error('The AI provider sent an unexpected reply'), 'AI_BAD_REPLY');
       return text;
     } finally { clearTimeout(timer); }
   }
@@ -8215,7 +8480,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   // Fingerprint of the content that counts as "changed": everything except the audit log and sync bookkeeping.
   async function fingerprint(state) {
     const s = JSON.parse(JSON.stringify(state));
-    delete s.audit;
+    delete s.audit; delete s.ops;
     if (s.settings) delete s.settings.sync;
     const d = await L._webcrypto.subtle.digest('SHA-256', new TextEncoder().encode(stable(s)));
     return Array.from(new Uint8Array(d), (x) => x.toString(16).padStart(2, '0')).join('');
@@ -8241,6 +8506,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     const S = L.store;
     await S.commit((x) => {
       x.settings.sync = { clientId, remoteRev, fp, fileId, keySalt };
+      if (L.ops && x.ops) L.ops.markSync(x, L.metrics.todayISO(), L.store.getMeta().rev);
       if (!Array.isArray(x.audit)) x.audit = [];
       x.audit.push({ ts: new Date().toISOString(), action });
       while (x.audit.length > 200) x.audit.shift();
@@ -8278,7 +8544,10 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     const keyDiffers = !info.sameKey, remoteChanged = rr > sy.remoteRev;
     const localKeyChanged = keyDiffers && (!remoteChanged || (!!sy.keySalt && sy.keySalt !== S.saltId()));
     const localChanged = fp !== base || localKeyChanged;
-    if (!remoteChanged && !localChanged) return Object.assign({ kind: 'in-sync', rev: rr }, copies);
+    if (!remoteChanged && !localChanged) {
+      await S.commit((x) => { if (L.ops && x.ops) L.ops.markSync(x, L.metrics.todayISO(), S.getMeta().rev); }, { quiet: true });
+      return Object.assign({ kind: 'in-sync', rev: rr }, copies);
+    }
     if (!remoteChanged) {
       const ex = await exportSnap(Math.max(rr, sy.remoteRev) + 1);
       const id = await upload(file, JSON.stringify(ex.env), dl.etag);
@@ -9122,7 +9391,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     root.setAttribute('aria-busy', 'true');
     return Promise.resolve().then(fn).then(function () {
       if (okMsg) setNotice('ok', okMsg);
-    }, function (e) { setNotice('err', friendly(e)); }).then(function () {
+    }, function (e) { try { L.ops.recordError(e); } catch (x) { /* diagnostics never block */ } setNotice('err', friendly(e)); }).then(function () {
       busy = false;
       root.classList.remove('busy');
       root.removeAttribute('aria-busy');
@@ -9189,6 +9458,13 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     return h('span', { class: cls || 'lockmark', role: 'img', 'aria-label': label, title: label },
       h('svg', { class: 'lockico', viewBox: '0 0 12 14', 'aria-hidden': 'true', focusable: 'false' }, h('rect', { x: '1', y: '6', width: '10', height: '7', rx: '1.5' }), h('path', { d: 'M3 6V4a3 3 0 0 1 6 0v2' })));
   }
+  // v1.3.0: the area a diagnostic code is filed under (a fixed list; never a name or a value).
+  function areaOf() {
+    if (!L.store.isUnlocked() || view.name === 'lock') return 'lock';
+    if (view.name === 'domain') return L.ops.AREAS.indexOf(view.domain) >= 0 ? view.domain : 'app';
+    var a = { dashboard: 'dashboard', review: 'review', memory: 'memory', settings: 'settings', private: 'private', archive: 'archive', business: 'business', print: 'business' }[view.name];
+    return a || 'app';
+  }
   function go(name, extra) {
     if (name !== 'archive' && L.archive) L.archive.closeArchive();
     view = Object.assign({ name: name }, extra || {});
@@ -9213,7 +9489,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       if (o.adds) markAddIntent();
       Promise.resolve().then(function () { return o.onYes(); }).then(function (keep) {
         if (keep !== false) closeDialog();
-      }, function (e) { err.textContent = friendly(e); });
+      }, function (e) { try { L.ops.recordError(e); } catch (x) { /* diagnostics never block */ } err.textContent = friendly(e); });
     }, o.danger ? 'bad' : 'pri');
     var box = h('div', { class: 'dialog' + (o.adds ? ' adds' : ''), role: 'dialog', 'aria-modal': 'true', 'aria-label': o.title },
       h('h2', { text: o.title }), o.body || null, err,
@@ -9262,11 +9538,13 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     if (L.sync) L.sync.disconnect();
     // Record the lock in the audit log, but never let a slow or stuck write delay the lock itself.
     var p = L.store.isUnlocked() ? Promise.race([commit(null, 'lock').catch(function () {}), new Promise(function (r) { setTimeout(r, 1000); })]) : Promise.resolve();
-    locking = p.then(function () {
+    // v1.3.0 B22: with "Remind me to sync" on, a one-line notice on the lock screen when this device has changes Drive does not have. Never a sync.
+    var remind = unsynced().catch(function () { return false; });
+    locking = Promise.all([p, remind]).then(function (r) {
       L.store.lock();
       privNew = false; goalMemo = new Map();
       closeDialog();
-      csvPending = null; ledger = null; actImp = null; actImpDone = null; dashEdit = false; ai = null; notice = null; lastActive = 0;
+      csvPending = null; ledger = null; actImp = null; actImpDone = null; dashEdit = false; ai = null; notice = r[1] ? { kind: 'ok', text: SYNC_NOTE } : null; lastActive = 0;
       view = { name: 'lock' };
       render();
     }).then(function () { locking = null; }, function () { locking = null; });
@@ -9275,7 +9553,21 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   ['pointerdown', 'keydown', 'touchstart', 'scroll'].forEach(function (ev) {
     window.addEventListener(ev, resetIdle, { capture: true, passive: true });
   });
-  document.addEventListener('visibilitychange', function () { if (!document.hidden) checkIdle(); });
+  var SYNC_NOTE = 'This device has changes that are not synced to Drive.';
+  // True only when the owner turned on "Remind me to sync", Drive sync is set up, and this device differs from the last synced copy.
+  function unsynced() {
+    try {
+      if (!L.store.isUnlocked() || !L.sync) return Promise.resolve(false);
+      var m = mainState(), sy = m.settings.sync || {};
+      if (!m.settings.syncReminder || !sy.clientId) return Promise.resolve(false);
+      return L.sync.fingerprint(m).then(function (fp) { return fp !== sy.fp; });
+    } catch (e) { return Promise.resolve(false); }
+  }
+  document.addEventListener('visibilitychange', function () {
+    if (!document.hidden) { checkIdle(); return; }
+    unsynced().then(function (u) { if (u && L.store.isUnlocked()) setNotice('ok', SYNC_NOTE); }, function () {});
+  });
+  L.ops.install(window);
   window.addEventListener('focus', checkIdle);
   window.addEventListener('pageshow', checkIdle);
   setInterval(checkIdle, 10000);
@@ -9284,6 +9576,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
   function render() {
     var root = document.getElementById('app');
     clearTimeout(privTimer);
+    L.ops.setArea(areaOf());
     root.replaceChildren();
     noticeEl = h('div', { class: 'notice' + (notice ? ' ' + notice.kind : ''), role: 'status', 'aria-live': 'polite', text: notice ? notice.text : '' });
     if (!L.store.isUnlocked() || view.name === 'lock') { root.appendChild(lockScreen()); return; }
@@ -9299,7 +9592,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
         : view.name === 'business' ? businessScreen(s)
         : view.name === 'print' ? printScreen(s)
         : dashScreen(s);
-    } catch (e) { body = h('p', { text: friendly(e) }); }
+    } catch (e) { L.ops.record('RENDER_ERROR'); body = h('p', { text: friendly(e) }); }
     var cur = view.name === 'domain' ? (view.domain === 'money' || view.domain === 'assets' || view.domain === 'work' || view.domain === 'health' ? view.domain : 'dashboard') : view.name;
     var nav = h('nav', { class: 'nav', 'aria-label': 'Main' }, [['dashboard', 'Home'], ['money', 'Money'], ['assets', 'Assets'], ['work', 'Work'], ['health', 'Health'], ['business', 'Business'], ['review', 'Review'], ['memory', 'Memory'], ['settings', 'Settings']].map(function (n) {
       return h('button', { type: 'button', text: n[1], 'aria-current': n[0] === cur ? 'page' : null, onclick: function () { if (n[0] === 'money' || n[0] === 'assets' || n[0] === 'work' || n[0] === 'health') go('domain', { domain: n[0] }); else go(n[0]); } });
@@ -9309,7 +9602,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
         h('span', { class: 'row' }, btn(L.priv.isOpen() ? 'Private (open)' : 'Private', function () { go('private'); }, 'sm', { id: 'nav-private', 'aria-current': view.name === 'private' ? 'page' : null }),
           btn('Lock', function () { lockNow(); }, 'sm lockbtn'))),
       nav,
-      h('main', { class: 'main' }, noticeEl, privBar(), screenMark(), body)));
+      h('main', { class: 'main' }, noticeEl, view.name === 'print' ? null : backupBanner(), privBar(), screenMark(), body)));
     markAddForms();
     decorateRows();
   }
@@ -9380,6 +9673,138 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     view = { name: 'dashboard' };
     render();
     if (L.syncUI) L.syncUI.afterUnlock(syncCtx());
+    // v1.3.0 B1: ask the browser to keep this storage (until granted); the result is recorded. Never blocks and never throws.
+    try { L.ops.persistOnUnlock(navigator.storage, today()).catch(function () {}); } catch (e) { /* the API may be missing */ }
+  }
+  // ---------- backup safety, storage and diagnostics (v1.3.0) ----------
+  function daysAgoText(iso) {
+    if (!iso) return 'none yet';
+    var n = L.ops.daysBetween(iso, today());
+    return iso + (n <= 0 ? ' (today)' : n === 1 ? ' (1 day ago)' : ' (' + n + ' days ago)');
+  }
+  // One tap from the banner opens this dialog (the backup passphrase is typed each time); nothing is exported until the owner confirms.
+  function runExport(p1, p2) {
+    checkPass(p1);
+    if (p1 !== p2) throw new Error('The backup passphrases do not match.');
+    var copy = JSON.parse(JSON.stringify(mainState()));
+    L.ops.markBackup(copy, today(), L.store.getMeta().rev);
+    return L.vault.exportBackup(p1, copy).then(function (text) {
+      download('lifeos-backup-' + today() + '.json', text, 'application/json');
+      return L.store.commit(function (x) { L.ops.markBackup(x, today(), L.store.getMeta().rev); addAudit(x, 'export'); });
+    }, function (e) { L.ops.record('BACKUP_EXPORT_FAIL', 'backup'); throw e; });
+  }
+  function exportDialog() {
+    var a = passOnly('rem-pass', 'new-password'), b = passOnly('rem-pass2', 'new-password');
+    openDialog({
+      title: 'Export an encrypted backup', yes: 'Export backup',
+      body: [field('Backup passphrase (12 characters or more)', a), field('Confirm backup passphrase', b), passNote()],
+      onYes: function () { return runExport(a.value, b.value).then(function () { a.value = ''; b.value = ''; setNotice('ok', 'Backup downloaded.'); render(); }); }
+    });
+  }
+  // Never automatic: the banner only offers. Hidden for a day after "Snooze one day".
+  function backupBanner() {
+    var m, r;
+    try { m = mainState(); r = L.ops.reminder(m, today(), L.store.getMeta().rev); } catch (e) { return null; }
+    if (!r.due) return null;
+    var why = r.why === 'never' ? 'This vault has changes and no backup or sync yet.' : r.why === 'saves' ? 'There have been more than ' + L.ops.SAVES_LIMIT + ' saves since the last backup or sync.' : 'The last backup or sync was ' + r.days + (r.days === 1 ? ' day' : ' days') + ' ago.';
+    return h('div', { class: 'warn', id: 'backup-banner', role: 'status' }, h('span', { text: why + ' ' }),
+      btn('Export backup', exportDialog, 'sm', { id: 'banner-export' }), ' ',
+      btn('Snooze one day', function () { act(function () { return L.store.commit(function (x) { L.ops.snooze(x, today()); }, { quiet: true }).then(function () { render(); }); }); }, 'sm', { id: 'banner-snooze' }));
+  }
+  function fillStorage(statusEl, helpEl, estEl) {
+    var stg = null, rec = 'unknown';
+    try { stg = navigator.storage || null; rec = mainState().ops.persist.result; } catch (e) { /* locked or missing */ }
+    Promise.resolve().then(function () { return stg && typeof stg.persisted === 'function' ? stg.persisted() : null; }).catch(function () { return null; }).then(function (p) {
+      var kept = p === true || (p === null && rec === 'granted');
+      statusEl.textContent = L.ops.storageText(kept);
+      if (helpEl) helpEl.textContent = kept ? '' : 'Browsers can clear storage like this when space runs low. To lower the risk: bookmark this page, install it if your browser offers that, and export a backup.' + (stg && typeof stg.persist === 'function' ? '' : ' This browser does not offer a way to ask for kept storage.');
+    });
+    if (estEl) L.ops.estimate(stg).then(function (e) {
+      estEl.textContent = e ? 'Used on this device: ' + L.ops.bytesText(e.usage) + (e.quota ? ' of about ' + L.ops.bytesText(e.quota) : '') + '.' : 'Storage use is not available in this browser.';
+    });
+  }
+  function safetyCard(s) {
+    var o = s.ops, est = h('p', { class: 'small mut', id: 'safety-estimate', text: '' }), stat = h('p', { class: 'small', id: 'safety-storage', text: 'Storage: checking' });
+    fillStorage(stat, null, est);
+    return h('div', { class: 'card', id: 'safety-card' }, h('h2', { text: 'Backup and storage' }),
+      h('p', { class: 'small', id: 'safety-backup', text: 'Last backup: ' + daysAgoText(o.lastBackupAt) }),
+      h('p', { class: 'small', id: 'safety-sync', text: 'Last sync: ' + daysAgoText(o.lastSyncAt) }),
+      stat, est, btn('Open backup and storage', function () { go('settings'); }, 'sm', { id: 'safety-open' }));
+  }
+  function verifyResult(box, r) {
+    box.replaceChildren();
+    if (!r.ok) { box.appendChild(h('p', { class: 'warn small', id: 'verify-fail', text: r.message })); return; }
+    var cur = mainState();
+    var rows = r.rows.map(function (x) { return h('li', { class: 'small', text: x.label + ': ' + x.backup + ' in the file, ' + x.live + ' in this vault' + (x.backup === x.live ? ' (same)' : ' (differs)') }); });
+    box.appendChild(h('div', { id: 'verify-ok' },
+      h('p', { class: 'ok small', text: 'This backup decrypted and passed every check. It was read in memory only. Nothing was written.' }),
+      h('ul', { class: 'small' },
+        h('li', { id: 'verify-schema', text: 'Schema: ' + r.schema + (r.sourceSchema !== r.schema ? ' (file written as schema ' + r.sourceSchema + ')' : '') + '. This version uses schema ' + cur.schema + '.' }),
+        h('li', { id: 'verify-rev', text: 'Revision: ' + (r.rev !== null ? r.rev : 'not recorded in this file') + '. This vault is at revision ' + L.store.getMeta().rev + '.' }),
+        h('li', { id: 'verify-date', text: 'Made on: ' + (r.madeOn || 'not recorded in this file') }),
+        h('li', { id: 'verify-priv', text: 'Private vault in the file: ' + (r.priv ? 'yes' : 'no') + '. In this vault now: ' + (r.livePriv ? 'yes' : 'no') + '.' })),
+      h('p', { class: 'small', text: 'Counts in the file against this vault' }),
+      rows.length ? h('ul', { id: 'verify-rows' }, rows) : h('p', { class: 'mut small', text: 'Both are empty.' })));
+  }
+  function safetySettings(s) {
+    var set = s.settings, o = s.ops;
+    var stat = h('p', { id: 'storage-status', role: 'status', text: 'Storage: checking' }), help = h('p', { class: 'small mut', id: 'storage-help', text: '' }), est = h('p', { class: 'small', id: 'storage-estimate', text: '' });
+    fillStorage(stat, help, est);
+    var days = h('input', { type: 'number', id: 'rem-days', min: '1', max: '60', step: '1', value: set.backupReminderDays });
+    var syncTick = h('input', { type: 'checkbox', id: 'rem-sync', checked: set.syncReminder });
+    var vf = h('input', { type: 'file', id: 'vf-file', accept: '.json,application/json' }), vp = passOnly('vf-pass', 'off'), vout = h('div', { id: 'verify-out', role: 'status' });
+    var dtext = h('p', { class: 'small mut', id: 'diag-count', text: '' });
+    var paintDiag = function () { var n = (mainState().ops.diag || []).length + L.ops._pending().length; dtext.textContent = n + (n === 1 ? ' code' : ' codes') + ' recorded on this device. Codes only: no text, values, ids or names.'; };
+    paintDiag();
+    var dbox = h('div', { id: 'diag-fallback' });
+    return h('div', { class: 'card', id: 'safety-settings' }, h('h2', { text: 'Storage and backup safety' }),
+      stat, help, est,
+      h('p', { class: 'small', id: 'set-lastbackup', text: 'Last backup: ' + daysAgoText(o.lastBackupAt) + (o.lastBackupAt && o.backupRev ? ', revision ' + o.backupRev : '') }),
+      h('p', { class: 'small', id: 'set-lastsync', text: 'Last sync: ' + daysAgoText(o.lastSyncAt) }),
+      h('form', {
+        onsubmit: function (e) {
+          e.preventDefault();
+          act(function () {
+            var n = Number(days.value), on = !!syncTick.checked;
+            if (!Number.isInteger(n) || n < 1 || n > 60) throw new Error('Enter a whole number of days from 1 to 60.');
+            return L.store.commit(function (x) { x.settings.backupReminderDays = n; x.settings.syncReminder = on; addAudit(x, 'reminder settings'); }).then(function () { setNotice('ok', 'Reminder settings saved.'); render(); });
+          });
+        }
+      }, field('Remind me to back up after this many days (1 to 60)', days),
+        h('label', { class: 'row small' }, syncTick, h('span', { text: 'Remind me to sync when I lock or leave the tab with changes not on Drive' })),
+        h('button', { type: 'submit', class: 'btn', id: 'rem-save', text: 'Save reminder settings' })),
+      h('hr'),
+      h('form', {
+        onsubmit: function (e) {
+          e.preventDefault();
+          var f = vf.files && vf.files[0];
+          if (!f) { setNotice('err', 'Choose a backup file first.'); return; }
+          if (!vp.value) { setNotice('err', 'Enter the backup passphrase.'); return; }
+          var pv = vp.value; vp.value = ''; // never left in the field, whether it works or not
+          act(function () {
+            return readFile(f, L.vault.MAX_BACKUP).then(function (text) { return L.ops.verifyBackup(pv, text, mainState()); }).then(function (r) {
+              if (!L.store.isUnlocked()) return;
+              verifyResult(vout, r);
+              if (r.ok) setNotice('ok', 'Backup file verified. Nothing was written.'); else setNotice('err', r.message);
+            });
+          });
+        }
+      }, field('Verify a backup file (checked in memory, nothing is written)', vf), field('Backup passphrase', vp),
+        h('button', { type: 'submit', class: 'btn', id: 'verify-btn', text: 'Verify backup file' }), vout),
+      h('hr'),
+      h('h3', { text: 'Diagnostics' }), dtext,
+      h('div', { class: 'row' },
+        btn('Copy diagnostics', function () {
+          var text = L.ops.format(mainState(), { version: L.VERSION, userAgent: navigator.userAgent });
+          var p = navigator.clipboard && navigator.clipboard.writeText ? navigator.clipboard.writeText(text) : Promise.reject(new Error('no clipboard'));
+          p.then(function () { setNotice('ok', 'Diagnostics copied. They hold codes, the version, the schema and the browser family only.'); }, function () {
+            dbox.replaceChildren(h('textarea', { id: 'diag-text', readOnly: true, rows: '8', 'aria-label': 'Diagnostics text', value: text }));
+            var ta = dbox.firstChild; ta.focus(); ta.select();
+            setNotice('err', 'The browser blocked copying. Select the text below and copy it.');
+          });
+        }, '', { id: 'diag-copy' }),
+        btn('Clear diagnostics', function () { act(function () { return L.store.commit(function (x) { L.ops.clear(x); addAudit(x, 'diagnostics cleared'); }).then(function () { dbox.replaceChildren(); paintDiag(); setNotice('ok', 'Diagnostics cleared.'); }); }); }, '', { id: 'diag-clear' })),
+        dbox);
   }
 
   // ---------- dashboard ----------
@@ -9439,6 +9864,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     });
     return h('div', null, h('div', { class: 'row sp' }, h('h1', { text: 'Dashboard' }), h('div', { class: 'row' }, btn('Log study', function () { studyDialog(''); }, 'qa-btn', { id: 'quick-study' }), btn('Add activity', function () { go('domain', { domain: 'activities', open: 'act-add' }); }, 'qa-btn', { id: 'quick-activity' }), btn('Quick add', quickAdd, 'pri qa-btn', { id: 'quick-add' }), btn(dashEdit ? 'Done' : 'Customize', function () { dashEdit = !dashEdit; render(); }, 'qa-btn', { id: 'dash-customize' }))),
       L.archiveUI ? L.archiveUI.proposal(archCtx()) : null,
+      safetyCard(mainState()),
       due ? h('div', { class: 'warn' }, due + (due === 1 ? ' recurring item is' : ' recurring items are') + ' due. ', btn('Review', function () { go('domain', { domain: 'money' }); }, 'sm', { id: 'due-review' })) : null,
       dashEdit ? h('div', { class: 'card', id: 'dash-edit' }, h('p', { class: 'small', id: 'dash-edit-note', text: 'Editing the layout for ' + (w === 'narrow' ? 'narrow screens (under 720 px wide)' : 'wide screens (720 px and over)') + '. Drag a module or use Move up and Move down. Hidden modules are dimmed.' }),
         btn('Reset to default', function () { act(function () { return commit(function (x) { L.layout.reset(x.settings, w); }).then(function () { setNotice('ok', 'Layout reset.'); render(); }); }); }, 'sm', { id: 'dash-reset' })) : null,
@@ -12626,6 +13052,9 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
     }, h('h2', { text: 'Change passphrase' }), field('Current passphrase', o), field('New passphrase (12 characters or more)', n1), field('Confirm new passphrase', n2), passNote(),
       h('button', { type: 'submit', class: 'btn', text: 'Change passphrase' })));
 
+    // storage, reminders, verify and diagnostics (v1.3.0)
+    out.push(safetySettings(mainState()));
+
     // backup
     var bp = passOnly('bk-pass', 'new-password'), bp2 = passOnly('bk-pass2', 'new-password');
     var bf = h('input', { type: 'file', id: 'bk-file', accept: '.json,application/json' });
@@ -12635,12 +13064,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
         onsubmit: function (e) {
           e.preventDefault();
           act(function () {
-            checkPass(bp.value);
-            if (bp.value !== bp2.value) throw new Error('The backup passphrases do not match.');
-            return L.vault.exportBackup(bp.value, mainState()).then(function (text) {
-              download('lifeos-backup-' + today() + '.json', text, 'application/json');
-              return commit(null, 'export');
-            }).then(function () { setNotice('ok', 'Backup downloaded.'); });
+            return Promise.resolve().then(function () { return runExport(bp.value, bp2.value); }).then(function () { setNotice('ok', 'Backup downloaded.'); });
           }).then(function () { bp.value = ''; bp2.value = ''; });
         }
       }, field('Backup passphrase (12 characters or more)', bp), field('Confirm backup passphrase', bp2), passNote(),
@@ -12694,7 +13118,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       }, field('Restore from a backup file (64 MB max)', bf), field('Backup passphrase', ip),
         h('button', { type: 'submit', class: 'btn', text: 'Import backup' }))));
 
-    out.push(h('p', { class: 'mut small', id: 'app-version', text: 'LifeOS v1.2.0' }));
+    out.push(h('p', { class: 'mut small', id: 'app-version', text: 'LifeOS v' + L.VERSION }));
 
     if (L.syncUI) out.push(L.syncUI.section(syncCtx()));
     if (L.archiveUI) out.push(L.archiveUI.section(archCtx()));
@@ -13508,8 +13932,11 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
       if (r.copies > 1) say(status.textContent + ' Google Drive holds ' + r.copies + ' LifeOS copies. This device uses the one it synced with last.');
       paint();
     }
+    // SEC-95: a failed sync leaves a fixed code in diagnostics (only a known code key maps; never the message).
+    function diag(e) { try { if (L.ops && !L.ops.recordError(e, 'sync')) L.ops.record('SYNC_FAIL', 'sync'); } catch (x) { /* diagnostics never block */ } }
     function fail(e) {
       if (e && e.code === 'NEED_PASSPHRASE') { askPass(); return; }
+      diag(e);
       say(e && e.message ? String(e.message).slice(0, 300) : 'Sync failed.');
       paint();
     }
@@ -13550,7 +13977,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
         finish(r);
         return false;
       }, function (e) {
-        if (e && e.code === 'WRONG_PASSPHRASE') say(e.message + ' Check the passphrase and try again.'); else fail(e);
+        if (e && e.code === 'WRONG_PASSPHRASE') { diag(e); say(e.message + ' Check the passphrase and try again.'); } else fail(e);
         paint();
         if (e && e.code === 'WRONG_PASSPHRASE') throw e;
       });

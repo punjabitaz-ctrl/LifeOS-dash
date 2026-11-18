@@ -128,14 +128,14 @@ try {
   await step('backup-export', async () => {
     await page.click('.nav button:has-text("Settings")');
     await layout('settings');
-    if (!/v1\.2\.0/.test(await page.textContent('#app-version'))) throw new Error('version missing');
+    if (!/v1\.3\.0/.test(await page.textContent('#app-version'))) throw new Error('version missing');
     await page.selectOption('#p-kind', 'local');
     await page.fill('#p-base', 'http://localhost:11434/v1');
     if (!/sent to: http:\/\/localhost:11434\/v1\/chat\/completions/.test(await page.textContent('#p-url'))) throw new Error('url preview wrong');
     await page.fill('#p-base', 'http://localhost/evil');
     if (!/not allowed/.test(await page.textContent('#p-url'))) throw new Error('bad url not flagged');
     await page.fill('#bk-pass', 'backup passphrase 123'); await page.fill('#bk-pass2', 'backup passphrase 123');
-    const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.click('button:has-text("Export backup")')]);
+    const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.click('form:has(#bk-pass) button[type=submit]')]);
     backupPath = await dl.path();
     const env = JSON.parse(readFileSync(backupPath, 'utf8'));
     if (env.v !== 1 || env.kdf.iter !== 600000 || !env.ct || JSON.stringify(env).includes('Groceries')) throw new Error('backup is not an encrypted envelope');

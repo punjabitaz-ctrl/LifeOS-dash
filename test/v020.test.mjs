@@ -42,6 +42,7 @@ function fixture() {
   writeFileSync(join(root, 'src/ui/shell.html'), '<html><head><meta content="__CSP__"><style>/*__CSS__*/</style></head><body><script>/*__JS__*/</script></body></html>');
   writeFileSync(join(root, 'src/ui/styles.css'), 'a{}/* </style><b> </STYLE */');
   writeFileSync(join(root, 'src/ui/app.js'), 'var a="<!-- x <script>y <SCRIPT> </script>";');
+  writeFileSync(join(root, 'package.json'), '{"name":"fixture","version":"9.8.7"}');
   return root;
 }
 test('SEC-10 build neutralises <!--, <script and </style', () => {

@@ -638,3 +638,44 @@ Google Drive for real (all Drive calls are mocked), a physical phone, saving an 
 
 ### Final results
 See "Final results (v1.2.0)" below.
+
+## v1.3.0 audit
+Independent audit of the uncommitted v1.3.0 "Safe to live in" delta (SPEC.md "v1.3.0 addendum"; docs/review/product-ops.md B1, B2, B3, B6, B7, B22), 18 Nov 2026. The auditor did not write the code.
+
+### Method
+Read the addendum, src/core/ops.js, the store, vault, sync, ai and UI changes, scripts/check-live.mjs, the tag workflow, the new docs and the changed tests, then proved each finding with a failing test before fixing it. Fixes were checked by reverting each one and watching its test fail. Spot checks without a finding were kept as regression tests or smoke steps where cheap.
+
+### Findings
+| ID | Severity | Where | Finding | Fix and test |
+|---|---|---|---|---|
+| SEC-93 | Medium (docs) | docs/RUNBOOK.md, docs/FIRST-RUN.md | Recovery and rollback steps sent the owner to "create a throwaway vault on the lock screen", which the lock screen does not offer while a vault exists (it has no wipe or import either). The schema rule did not say that an older app shows "Invalid data: unsupported schema", cannot open or wipe a newer vault, and refuses a backup made on the newer version, so a cross-schema rollback needs a backup made on the older version and cleared site data. The FIRST-RUN restore drill on the second device would have replaced that device's vault. The runbook also asserted a dashboard menu path and that a tag exists "in the local clone only", neither of which the repo shows. | Rewritten to match the code: the real refusal text, a separate browser profile for throwaway vaults and drills, the backup and site-data steps for a cross-schema rollback, no menu path or tag claim. Test SEC-93 (v130-audit). |
+| SEC-94 | Low | `store.adoptEnvelope` | A downloaded Drive copy replaced this device's ops (diagnostics ring, storage result, backup date, snooze), contrary to the stated rule that restored or downloaded copies never replace them (restore already kept them). An older-format copy also reset the reminder settings to their defaults. | Adopt applies the same `keepLocalOps` as restore; the sync bookkeeping write that follows seals it. Test SEC-94. |
+| SEC-95 | Low | sync-ui, archive, CSV, dialogs | Handled failures outside `act()` never reached diagnostics: a failed sync, an archive error or a refused CSV left no code, so SYNC_*, ARCHIVE_FAIL and CSV_REJECT existed but could not be recorded. | The sync panel records a known code or SYNC_FAIL; dialog errors go through `recordError`; CSV refusals carry the fixed key `CSV` and archive errors map their fixed key `ARCHIVE`. Only fixed keys map, never text. Test SEC-95. |
+| SEC-96 | Low | .github/workflows/tag-release.yml | `actions/checkout@v4` was not pinned to a commit hash. A manual run tagged any commit with any well-formed version box, including a commit off main or a future version, which would then block the real tag forever (the push run never moves a tag). | Checkout pinned to a full hash (v4.4.0); a manual run tags only commits on main and only when the box equals package.json on that commit; unset inputs are handled. Test SEC-96 runs the workflow script against a local origin: tags from package.json, never moves a tag, refuses a mismatch, an injection attempt, a commit off main and short or hostile hashes. |
+| SEC-97 | Low (tests) | test/v130.test.mjs | Two assertions could never fail (`... \|\| true` on the workflow token check; `... \|\| /process\.env,/` on the check-live file-write check). | Both made real: no explicit token in the workflow; no file write or console use in check-live, the environment read in one place, output through stdout only. |
+
+Counts: 5 findings, all fixed with regression tests (Medium 1, Low 4). No Critical or High.
+
+### Verified as specified (no finding)
+- Diagnostics: entries are `{at, code, area}` with code and area from fixed lists; unknown values become UNKNOWN_ERROR and app; uncaught errors and unhandled rejections read nothing from the event; handled errors map only by an own fixed code key, a quota error name or the two fixed passphrase messages; the ring and queue cap at 200; the ring lives in the encrypted state (no code name in the stored envelope). Copied lines are the date, code and area only; area is a fixed constant. The day-level date shows on which days errors happened, which the owner sees before pasting; not worth removing. The leak smoke runs after the CSV, backup, sync and AI marker steps and checks the ring, the Settings screen and the copied text.
+- Verify a backup: decrypts in memory, writes nothing (storage bytes, revision, state and diagnostics queue unchanged), refuses a wrong passphrase, tampered ciphertext, IV or salt, truncated, oversize and non-backup files and a newer schema without reading further, and returns counts only; the passphrase field is cleared before the work starts.
+- Reminder: more than 200 saves or the chosen days (1 to 60, default 7) since the later of backup and sync; snooze one day; never automatic. lastBackupAt, lastSyncAt and snoozeUntil are validated YYYY-MM-DD dates inside the encrypted state.
+- Persistent storage: missing, rejecting or throwing APIs never block or throw; the status says "may be cleared" and the result is recorded inside the vault only (new smoke step in smoke-safety, both modes; nothing in localStorage or sessionStorage).
+- check-live.mjs: the token is read from the two environment variables only, sent only in the two Access headers to the one https origin given (redirects not followed, credentials in the URL refused), redacted from every printed line, never written to disk; a mismatch or a non-200 answer exits 1. No token or token-like string is in the repo.
+- Version: a test fails when any shipped file carries another version (checked by mutation).
+- The smoke-command change only drops a wait for a selector that never matched; the remaining wait is the one the fallback already used, so the proof is unchanged (17 s now). The per-script limit fails a hung script with TIMEOUT.
+- The backup card is a fixed card outside the layout modules; layout ids stay whitelisted (unknown ids dropped); the banner shows on every screen but print (test in v130-audit).
+- Schema 15: migrations from 1 to 14 in the existing suites, older apps refuse 15, every new field validated, new fields built by `h()` (spell check, auto-correct and auto-capitalize off; autocomplete off unless a passphrase field sets it), no new DOM sink, CSP unchanged apart from the script hash, no advice wording and no em dashes in the new docs and UI copy.
+- SEC-01 to SEC-92 and the CR, PV and UI series: every earlier regression test and smoke still passes.
+
+### Residual risks
+- Diagnostic areas include `private` and `wellbeing`, so copied diagnostics can show that the private vault or the Wellbeing screen was in use on a given day.
+- Storage estimate failures are recorded on each render of the dashboard and Settings in browsers where the API rejects; the ring cap bounds it.
+- The reminder counts from the vault revision, so the write that records an exported backup itself counts as one save.
+- check-live redacts the token only where it appears verbatim in a printed line.
+
+### Not tested
+A real GitHub Actions run of the tag workflow (the script was run locally against a local origin), a real live header check against Cloudflare Access, real phone storage (persist and estimate on a phone), Google Drive for real, and Safari or Firefox.
+
+### Final results (v1.3.0)
+`node build.mjs` ok. `node --test test/`: 679 tests, 679 pass, in UTC, America/New_York and Pacific/Auckland. `node test/smokes.mjs` twice: all 20 scripts passed both times.

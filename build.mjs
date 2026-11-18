@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const CORE = ['vault', 'store', 'priv', 'wellbeing', 'csv', 'metrics', 'home', 'admin', 'learning', 'activities', 'social', 'revenue', 'tax', 'business', 'layout', 'goals', 'memory', 'ai'].map((n) => `src/core/${n}.js`);
+const CORE = ['vault', 'ops', 'store', 'priv', 'wellbeing', 'csv', 'metrics', 'home', 'admin', 'learning', 'activities', 'social', 'revenue', 'tax', 'business', 'layout', 'goals', 'memory', 'ai'].map((n) => `src/core/${n}.js`);
 
 function read(root, rel) {
   try { return readFileSync(join(root, rel), 'utf8'); }
@@ -15,6 +15,30 @@ function inline(html, tag, placeholder, text) {
   if (!found || found.length !== 1) throw new Error(`Build failed: shell.html must contain exactly one <${tag}>${placeholder}</${tag}>`);
   return html.replace(re, () => `<${tag}>${text}</${tag}>`);
 }
+// B6: package.json is the one version source. It is injected into the app as LifeOS.VERSION and into README.md; HANDOFF.md is checked.
+export function versionOf(root = dirname(fileURLToPath(import.meta.url))) {
+  let v;
+  try { v = JSON.parse(read(root, 'package.json')).version; } catch (e) { throw new Error('Build failed: package.json is not readable JSON'); }
+  if (typeof v !== 'string' || !/^\d+\.\d+\.\d+$/.test(v)) throw new Error('Build failed: package.json needs a version like 1.2.3');
+  return v;
+}
+const VERSION_MARK = /(<!--version-->)[^<]*(<!--\/version-->)/;
+export function syncDocs(root = dirname(fileURLToPath(import.meta.url))) {
+  const v = versionOf(root), problems = [];
+  const rp = join(root, 'README.md');
+  if (existsSync(rp)) {
+    const t = readFileSync(rp, 'utf8');
+    if (!VERSION_MARK.test(t)) problems.push('README.md has no <!--version--> marker');
+    else { const n = t.replace(VERSION_MARK, (m, a, b) => a + v + b); if (n !== t) writeFileSync(rp, n); }
+  }
+  const hp = join(root, 'docs/HANDOFF.md');
+  if (existsSync(hp)) {
+    const m = VERSION_MARK.exec(readFileSync(hp, 'utf8'));
+    if (!m) problems.push('docs/HANDOFF.md has no <!--version--> marker in its header');
+    else if (m[0].replace(/<[^>]*>/g, '') !== v) problems.push('docs/HANDOFF.md header says ' + m[0].replace(/<[^>]*>/g, '') + ' but package.json says ' + v);
+  }
+  return problems;
+}
 const sha = (s) => 'sha256-' + createHash('sha256').update(s, 'utf8').digest('base64');
 
 function assemble(root) {
@@ -22,7 +46,8 @@ function assemble(root) {
   let css = read(root, 'src/ui/styles.css');
   const optional = (f) => (existsSync(join(root, f)) ? [f] : []);
   const files = [...CORE, ...optional('src/core/sync.js'), ...optional('src/core/archive.js'), 'src/ui/app.js', ...optional('src/ui/sync-ui.js'), ...optional('src/ui/archive-ui.js')];
-  const js = files.map((f) => read(root, f)).join('\n;\n').replace(/<\/script/gi, (m) => '<\\' + m.slice(1)).replace(/<!--/g, '<\\!--').replace(/<script/gi, (m) => '<\\' + m.slice(1));
+  const head = `globalThis.LifeOS = globalThis.LifeOS || {};\nglobalThis.LifeOS.VERSION = ${JSON.stringify(versionOf(root))};`;
+  const js = [head].concat(files.map((f) => read(root, f))).join('\n;\n').replace(/<\/script/gi, (m) => '<\\' + m.slice(1)).replace(/<!--/g, '<\\!--').replace(/<script/gi, (m) => '<\\' + m.slice(1));
   // Neutralise </style in CSS: in a CSS escape, \3c is '<', so the text stays inert but the HTML parser never sees the tag.
   css = css.replace(/<\/style/gi, (m) => '\\3c ' + m.slice(1));
   if (!html.includes('__CSP__')) throw new Error('Build failed: shell.html is missing the __CSP__ placeholder');
@@ -62,6 +87,8 @@ export function buildAll(root = dirname(fileURLToPath(import.meta.url))) {
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   try {
     const root = dirname(fileURLToPath(import.meta.url));
+    const problems = syncDocs(root);
+    if (problems.length) throw new Error('Build failed: ' + problems.join('; '));
     const all = buildAll(root), out = all.html;
     mkdirSync(join(root, 'dist'), { recursive: true });
     writeFileSync(join(root, 'dist/lifeos.html'), out);

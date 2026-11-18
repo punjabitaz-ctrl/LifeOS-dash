@@ -14,6 +14,7 @@ function fixture(over = {}) {
   writeFileSync(join(root, 'src/ui/shell.html'), over.shell ?? shell);
   if (!over.noCss) writeFileSync(join(root, 'src/ui/styles.css'), 'body{color:red}');
   writeFileSync(join(root, 'src/ui/app.js'), 'var x="</script><b>$&";');
+  writeFileSync(join(root, 'package.json'), '{"name":"fixture","version":"9.8.7"}');
   return root;
 }
 const h = (s) => 'sha256-' + createHash('sha256').update(s).digest('base64');
