@@ -3,6 +3,7 @@
 // numbers; a re-import adds nothing; lock, reload, unlock and everything persists. Fails on console errors, CSP violations and horizontal scroll.
 // Run `node build.mjs` first. Needs Playwright (`npm i --no-save playwright`) and Chrome at /usr/bin/google-chrome.
 import path from 'node:path';
+import { navTo } from './_nav.mjs';
 import os from 'node:os';
 import { mkdtempSync, writeFileSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -52,7 +53,7 @@ async function run(label, viewport) {
   page.on('console', (m) => { if (m.type() === 'error' || /content security policy|refused to/i.test(m.text())) problems.push(label + ' console: ' + m.text()); });
   page.on('pageerror', (e) => problems.push(label + ' pageerror: ' + e.message));
   async function step(name, fn) { try { await fn(); } catch (e) { problems.push(label + ' ' + name + ': ' + String(e.message).split('\n').slice(0, 3).join(' | ')); throw e; } }
-  const nav = (name) => page.click('.nav button:has-text("' + name + '")');
+  const nav = (name) => navTo(page, name);
   const text = (sel) => page.textContent(sel).then((t) => t.trim());
   const poll = async (get, good, what) => {
     let got;
@@ -101,7 +102,7 @@ async function run(label, viewport) {
       await page.click('button:has-text("Create vault")'); await page.waitForSelector('.tile', T);
       await openAct();
       await page.waitForSelector('#actimp-card', T); await page.waitForSelector('#exp-activities', T);
-      if (!/LifeOS v1\.3\.0/.test(await (async () => { await nav('Settings'); await page.waitForSelector('#app-version', T); return text('#app-version'); })())) throw new Error('version');
+      if (!/LifeOS v1\.4\.0/.test(await (async () => { await nav('Settings'); await page.waitForSelector('#app-version', T); return text('#app-version'); })())) throw new Error('version');
       await openAct();
     });
     await step('map the file, pick DD/MM, preview: 5 to add, 2 rejected with reasons, an unknown category offered, the offer counted', async () => {

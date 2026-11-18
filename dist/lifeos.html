@@ -2,8 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-vJ7D/FW4pu7YA+AvxutuTnESP7Ky4iTDl+bFueLTgko='; style-src 'sha256-YIVd2U/Wt31GIuspmN0QTKrn8eZcc45Z0u6vBGo3gnk='; connect-src https://api.anthropic.com https://www.googleapis.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-sWJSHf4i6gOZ7oQf9jmh47Hi3ZyM0FFGCwVY9vipWHU='; style-src 'sha256-JTjZ3WCLG1KxpohmQAcZ4Fx+ucH4AmAWS1xO2eiHsY4='; connect-src https://api.anthropic.com https://www.googleapis.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'; manifest-src 'self'; worker-src 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#2255d4">
+<meta name="lifeos-shell" content="1.4.0">
+<link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAA9zQYyAAAAEnRFWHRsaWZlb3Mtc2hlbGwAMS40LjC8iPQqAAADOklEQVR42u3dvU0DMRiA4czCGowRsQNFNkhLnQ0omAGxAiUVTZoUKaBJQ0FDc+hDuigCKfzkfPg+P5ZeiQqF4+FkfLEzO7t47KQszVwEAS0BLQEtAS2gJaAloCWgJaAFtAS0BLQEtAS0gJaAloCWgJaAFtAS0BLQEtAS0AJaAloCWgJaAlpAS0BLQEtAS0ALaAloCWgJaAHtQghoCWgJ6NNbrLbd3f1L97R7604d8X2ubp6788s1QECPXwAsMeKPY77cQAT09DEfonanBnqU4u45xri+3YEEdPkC2lgDJKAnP90AGmigBTTQAhpooIGuH3QsEfYPiR7Wr18e+MQ/wq2vjQM9AdAB+TerNrE+Hk8zgQa6OtAB04MfoFOAHupniGkK0ED/K+ihX38rqIGuEPQp04xjo4XpB9CVgQ50pUasjAAN9KigPy/HDT2yL+sBXRHoknfnVu7SQFcEutTcuaW5NNAVgR7rNWde8QC6ItBjjbg2QAMNNNBAAw000EADDbSNvUBb5QAaaOvQQAPtSSHQbb6Xo/R5It7LAXSad9tlXt0AuuL3Q8c/bUOPVrZjAd3IjpVWdoMDXfGewiHm03FntqcQ6CpA99OPvx7UHisadn0DXRXow7v1T2EH5FYPnAF6IqAP79iBO36+/mM2+q/jwYyTk4CeFGgBDTTQQAMNNNACGmgBDbSABhpooIEGGmgBDbSABlpAAw000EADDbSABlpAAy2ggQYaaKCBBlpAAy2ggRbQQAMNNNBAAy2ggRbQQAMNNNBAAw000EALaKAFNNBAA518xEHocYY00ECnGpk/EQtoqIEGOseIj7YAGuhUc2qggU41gAYaaKCBBhpooIEGGmiggQYaaKCBBhpooIEGGmiggQYaaKCBBhpooIEGGmiggQbaABpooIEGGmigixbbi4zjw46VCTVfboj9ZmQ80iAtaNOO4yN2fTvGAOo0mJ3LMeEWq+0H7PhFtjziGjg5SQJaAloCWgJaQEtAS0BLQEtAC2gJaAloCWgB7SIIaAloCWgJaAEtAS0BLQEtAS2gJaAloCWgJaAFtAS0BLQEtAS0gJaAloCWgJaAFtAS0BLQEtDSvncTEEXALVKZAwAAAABJRU5ErkJggg==">
 <title>LifeOS</title>
 <style>:root{color-scheme:light dark;--bg:#f4f5f7;--card:#fff;--fg:#14171c;--mut:#5b6573;--line:#dde1e7;--acc:#2255d4;--acc-fg:#fff;--ok:#1c7a46;--warn:#9a5b00;--bad:#b42318;--r:14px;--sh:0 1px 2px rgba(0,0,0,.06);--font:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
 @media (prefers-color-scheme:dark){:root{--bg:#0f1216;--card:#181c22;--fg:#e8ebf0;--mut:#9aa4b2;--line:#2a313a;--acc:#6b93ff;--acc-fg:#0b1020;--ok:#4ac283;--warn:#e2a03f;--bad:#f2766b;--sh:none}}
@@ -75,7 +78,7 @@ th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);font-s
 input[type=checkbox]{width:auto;min-height:0;flex:none}
 :root{--k0:#2255d4;--k1:#1c7a46;--k2:#9a5b00;--k3:#7a3fb8;--k4:#0e7c86;--k5:#b42318;--k6:#5b6573;--k7:#c2410c;--k8:#4d7c0f}
 @media (prefers-color-scheme:dark){:root{--k0:#6b93ff;--k1:#4ac283;--k2:#e2a03f;--k3:#b794f4;--k4:#4fd1c5;--k5:#f2766b;--k6:#9aa4b2;--k7:#fb923c;--k8:#a3e635}}
-.nav button{font-size:.82rem;padding:12px 2px}
+.nav button{font-size:.9rem;padding:12px 2px;min-height:56px}
 @media (min-width:820px){.nav button{font-size:1rem}}
 .dialog{max-height:calc(100vh - 32px);overflow:auto}
 .stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:0 0 12px}
@@ -130,14 +133,13 @@ h1{margin-right:auto}
 .pitem select{width:auto;min-height:36px;padding:4px 8px}
 .pitem .row{margin-top:6px}
 .nav button{overflow:hidden;text-overflow:ellipsis;min-width:0}
-@media (max-width:520px){.nav button{font-size:.74rem}}
 .ln-raw{fill:none;stroke:var(--mut);stroke-width:1;stroke-linejoin:round}
 .ln-avg{fill:none;stroke:var(--acc);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round}
 .ln-target{stroke:var(--ok);stroke-width:1.2;stroke-dasharray:4 3}
 .dot-raw{fill:var(--mut)}
 .sub{border-top:1px solid var(--line);margin-top:10px;padding-top:6px}
 h3{font-size:.95rem;margin:.6rem 0 .4rem}
-@media (max-width:520px){.nav button{flex:1 1 auto;font-size:.7rem;padding:12px 1px}}
+@media (max-width:520px){.nav button{flex:1 1 auto;padding:12px 1px}}
 .goal{border:1px solid var(--line);border-radius:10px;padding:10px;margin:0 0 8px;min-width:0;overflow-wrap:anywhere}
 .gkids{margin-left:6px;padding-left:6px;border-left:2px solid var(--line)}
 .goal select{width:auto;max-width:100%;min-height:36px;padding:4px 8px}
@@ -179,12 +181,39 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
 #pf-form .field,#bs-form .field,#tr-form .field,#ho-form .field{max-width:420px}
 #inv-detail .item,#bz-entries .item{flex-wrap:wrap}
 @media print{.top,.nav,.noprint,.notice,.privbar{display:none!important}body{background:#fff}.printview{padding:0}}
+
+/* v1.4.0 phone first */
+.nav{padding-bottom:env(safe-area-inset-bottom)}
+@media (min-width:820px){.nav{padding-bottom:0}}
+.nav.bar button{min-width:44px;min-height:56px}
+.nav.bar button[aria-current=page]{box-shadow:inset 0 3px 0 var(--acc)}
+.main{padding-bottom:calc(88px + env(safe-area-inset-bottom))}
+@media (min-width:820px){.main{padding-bottom:32px}}
+@media (min-width:820px){.nav.bar{display:none}}
+.sheetov{align-items:flex-end}
+@media (min-width:820px){.sheetov{align-items:center}}
+.sheetlist{list-style:none;margin:0 0 12px;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.sheetlist li{margin:0}
+.sheetbtn{width:100%;min-height:48px;text-align:left}
+.sheetbtn[aria-current=page]{border-color:var(--acc);font-weight:700;box-shadow:inset 3px 0 0 var(--acc)}
+.dialog.sheet{max-width:520px}
+.tile.tile-empty,.rtile.tile-empty{min-height:0;flex-direction:row;justify-content:space-between;align-items:center;gap:8px;padding:10px 14px}
+.tile-empty .tile-title{text-transform:none;letter-spacing:0;font-size:.95rem;color:var(--fg)}
+.tile-empty .tile-value{font-size:1rem;margin:0}
+.tile-empty .tile-sub,.tile-empty .spark{display:none}
+.card.tile-empty{padding:10px 14px}
+.card.tile-empty>:not(h2){display:none}
+.card.tile-empty h2{margin:0;font-size:.95rem}
+@media (max-width:819px){.btn.sm{min-height:44px}}
+.lockpaths .row{gap:8px}
+.setuplist{list-style:none;margin:0 0 10px;padding:0}
+.setupitem{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid var(--line)}
 </style>
 </head>
 <body>
 <div id="app"></div>
 <script>globalThis.LifeOS = globalThis.LifeOS || {};
-globalThis.LifeOS.VERSION = "1.3.0";
+globalThis.LifeOS.VERSION = "1.4.0";
 ;
 (function () {
   'use strict';
@@ -505,9 +534,119 @@ globalThis.LifeOS.VERSION = "1.3.0";
 ;
 (function () {
   'use strict';
+  // v1.4.0 B5: in-app history. An entry holds one string: a view name ('v:money') or the marker 'dialog' or 'lock'. Never data, ids or names.
+  // The browser's back button then moves between views, closes the open dialog, and never reaches a view while the app is locked.
+  const L = (globalThis.LifeOS = globalThis.LifeOS || {});
+  const DOMAINS = ['money', 'assets', 'work', 'health', 'goals', 'home', 'admin', 'learning', 'activities', 'social', 'wellbeing'];
+  const NAMES = ['dashboard', 'review', 'memory', 'settings', 'private', 'archive', 'business'];
+  // The phone bottom bar, and every other area (the More sheet). Each entry is { key, label }; a key is a view key.
+  const BAR = Object.freeze([['dashboard', 'Home'], ['v:money', 'Money'], ['v:work', 'Work'], ['v:health', 'Health']].map(([key, label]) => Object.freeze({ key: key === 'dashboard' ? 'dashboard' : key, label })));
+  const MORE = Object.freeze([['v:assets', 'Assets'], ['v:command', 'Command center'], ['business', 'Business'], ['v:goals', 'Goals'], ['v:home', 'Home and property'], ['v:admin', 'Admin'],
+    ['v:learning', 'Learning'], ['v:activities', 'Activities'], ['v:social', 'Social'], ['private', 'Private vault'], ['v:wellbeing', 'Wellbeing'], ['review', 'Review'], ['memory', 'Memory'], ['settings', 'Settings']]
+    .map(([key, label]) => Object.freeze({ key, label })));
+  const KEYS = new Set(['dashboard', 'v:command'].concat(NAMES, DOMAINS.map((d) => 'v:' + d)));
+  // A view object ({ name, domain, revenue }) to its key, and back. Anything unknown maps to the dashboard.
+  function keyOf(view) {
+    if (!view || typeof view !== 'object') return 'dashboard';
+    if (view.name === 'domain') return view.domain === 'work' && view.revenue ? 'v:command' : (DOMAINS.includes(view.domain) ? 'v:' + view.domain : 'dashboard');
+    if (view.name === 'print') return 'business';
+    return NAMES.includes(view.name) ? view.name : 'dashboard';
+  }
+  function viewOf(key) {
+    if (key === 'v:command') return { name: 'domain', domain: 'work', revenue: true };
+    if (typeof key === 'string' && key.startsWith('v:') && DOMAINS.includes(key.slice(2))) return { name: 'domain', domain: key.slice(2) };
+    return NAMES.includes(key) ? { name: key } : { name: 'dashboard' };
+  }
+  const entryOk = (x) => x === 'lock' || x === 'dialog' || KEYS.has(x);
+  const all = () => BAR.concat(MORE).map((x) => x.key);
+
+  // env: { history, getView(), setView(view), isUnlocked(), dialogOpen(), closeDialog(), onShow() }. Nothing here reads or stores user data.
+  function create(env) {
+    const hist = env.history;
+    let depth = 0, dlgEntry = false, ignore = 0;
+    const top = () => hist.state;
+    function base(key) { try { hist.replaceState(key, ''); } catch (e) { /* history may be unavailable */ } depth = 0; dlgEntry = false; }
+    function start() { base(keyOf(env.getView())); }            // after unlock: the current entry becomes the dashboard base
+    function reset() { base('lock'); }                          // at load: whatever an earlier session left, this entry is the lock screen
+    function push(view) {
+      const k = keyOf(view);
+      // A view change made from inside a dialog (the More sheet, an action that moves on) takes over the dialog's entry.
+      if (top() === 'dialog') { dlgEntry = false; try { hist.replaceState(k, ''); } catch (e) { /* ignore */ } return; }
+      dlgEntry = false;
+      if (top() === k) return;
+      try { hist.pushState(k, ''); depth++; } catch (e) { /* ignore */ }
+    }
+    function dialogOpened() {
+      if (dlgEntry && top() === 'dialog') return;
+      try { hist.pushState('dialog', ''); depth++; dlgEntry = true; } catch (e) { /* ignore */ }
+    }
+    // A dialog closed by the app (Cancel, OK, a view change): remove its entry unless another dialog opens straight away.
+    function dialogClosed(defer) {
+      (defer || ((f) => setTimeout(f, 0)))(() => {
+        if (env.dialogOpen() || !dlgEntry || top() !== 'dialog') return;
+        dlgEntry = false; depth = Math.max(0, depth - 1); ignore++;
+        try { hist.back(); } catch (e) { ignore = Math.max(0, ignore - 1); }
+      });
+    }
+    // Locking: the app goes back to its first entry and marks it as the lock screen. Entries ahead of it hold only names and are ignored while locked.
+    function lock() {
+      const n = depth;
+      depth = 0; dlgEntry = false;
+      if (n > 0) { ignore++; try { hist.go(-n); } catch (e) { ignore = Math.max(0, ignore - 1); } }
+      try { hist.replaceState('lock', ''); } catch (e) { /* ignore */ }
+    }
+    function onPop(state) {
+      if (ignore > 0) { ignore--; if (!env.isUnlocked()) { try { hist.replaceState('lock', ''); } catch (e) { /* ignore */ } } return 'ignored'; }
+      if (!env.isUnlocked()) { try { hist.replaceState('lock', ''); } catch (e) { /* ignore */ } return 'locked'; }
+      if (state === 'dialog') {
+        // back onto a dialog entry: a dialog that is open belongs to this entry; none open means a stale entry, so keep going back.
+        if (env.dialogOpen()) return 'kept';
+        dlgEntry = false; depth = Math.max(0, depth - 1); try { hist.back(); } catch (e) { /* ignore */ }
+        return 'skipped';
+      }
+      if (env.dialogOpen()) { dlgEntry = false; depth = Math.max(0, depth - 1); env.closeDialog(true); return 'dialog-closed'; }
+      depth = Math.max(0, depth - 1);
+      if (!entryOk(state) || state === 'lock') return 'unknown';
+      env.setView(viewOf(state));
+      return 'view';
+    }
+    return { start, reset, push, dialogOpened, dialogClosed, lock, onPop, _depth: () => depth };
+  }
+  L.nav = { DOMAINS, BAR, MORE, KEYS, keyOf, viewOf, entryOk, all, create };
+})();
+
+;
+(function () {
+  'use strict';
+  // v1.4.0 B9: the setup checklist. Every item is worked out from the vault's real state; nothing ticks from a tap alone.
+  const L = (globalThis.LifeOS = globalThis.LifeOS || {});
+  const DEFAULT_TARGETS = Object.freeze({ workoutsPerWeek: 4, contactDays: 30, savingsRate: 0.2 });
+  const n = (a) => (Array.isArray(a) ? a.length : 0);
+  // `where` is a navigation key (see nav.js); the checklist only links to the screen where the item gets done.
+  function items(s, year) {
+    const set = (s && s.settings) || {}, tg = set.targets || {}, ops = (s && s.ops) || {};
+    const targetsDone = !!(set.setup && set.setup.targetsSaved) || (typeof set.currency === 'string' && set.currency !== 'USD') ||
+      tg.workoutsPerWeek !== DEFAULT_TARGETS.workoutsPerWeek || tg.contactDays !== DEFAULT_TARGETS.contactDays || tg.savingsRate !== DEFAULT_TARGETS.savingsRate;
+    return [
+      { id: 'targets', label: 'Set your currency and targets', done: targetsDone, where: 'settings' },
+      { id: 'accounts', label: 'Add your accounts', done: n(s && s.accounts) > 0, where: 'v:assets' },
+      { id: 'lines', label: 'Add your lines of work', done: n(s && s.projects) > 0, where: 'v:work' },
+      { id: 'tax', label: 'Set the ' + (year || new Date().getFullYear()) + ' tax profile', done: !!(s && s.taxYears && typeof s.taxYears === 'object' && Object.keys(s.taxYears).length > 0), where: 'business' },
+      { id: 'backup', label: 'Connect Drive or export a first backup', done: !!(ops.lastBackupAt || ops.lastSyncAt), where: 'settings' },
+      { id: 'storage', label: 'Confirm storage is kept by the browser', done: !!(ops.persist && ops.persist.result === 'granted'), where: 'settings' }
+    ];
+  }
+  const shown = (s) => !!(s && s.settings && s.settings.setup && s.settings.setup.dismissed === false);
+  const allDone = (s, year) => items(s, year).every((x) => x.done);
+  L.setup = { DEFAULT_TARGETS, items, shown, allDone };
+})();
+
+;
+(function () {
+  'use strict';
   const L = (globalThis.LifeOS = globalThis.LifeOS || {});
   const KEY = 'envelope';
-  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 15, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
+  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 16, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
   const HABIT_CAP = 8, HABIT_LOG_CAP = 100000, KIND_CAP = 30;
   const RENEWAL_TOTAL_CAP = 2000;
   const ENTRY_CAP = 50000, INSIGHT_CAP = 5000, REVIEW_CAP = 1000, LESSON_CAP = 30, AUDIT_CAP = 200;
@@ -632,7 +771,14 @@ globalThis.LifeOS.VERSION = "1.3.0";
       archiveSuggestMB: schema >= 14 && s.archiveSuggestMB !== undefined ? num(s.archiveSuggestMB, 20, 60, 'archiveSuggestMB', true) : 40,
       // v1.3.0: backup reminder interval (days) and the optional sync reminder.
       ...L.ops.cleanSettings(s, schema),
+      // v1.4.0: the setup checklist. A vault from before schema 16 counts as set up (no checklist); a new vault starts with it shown.
+      setup: cleanSetup(s.setup, schema),
     };
+  }
+  function cleanSetup(x, schema) {
+    if (schema < 16 || x === undefined || x === null) return { dismissed: schema < 16, targetsSaved: false };
+    if (!isObj(x) || typeof x.dismissed !== 'boolean' || typeof x.targetsSaved !== 'boolean') fail('setup');
+    return { dismissed: x.dismissed, targetsSaved: x.targetsSaved };
   }
   // 6 decimals, like converted weights, so a unit switch round trip does not drift.
   const r6 = (x) => Math.round(x * 1e6) / 1e6;
@@ -1119,7 +1265,7 @@ globalThis.LifeOS.VERSION = "1.3.0";
   function validateStateRaw(o, opts) {
     if (!isObj(o)) fail('state must be an object');
     scan(o, 0, { n: 4e6 });
-    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, SCHEMA].includes(o.schema)) fail('unsupported schema');
+    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, SCHEMA].includes(o.schema)) fail('unsupported schema');
     if (!L.metrics) fail('metrics module missing');
     const settings = cleanSettings(o.settings, o.schema), entries = cleanEntries(o.entries);
     const out = { schema: SCHEMA, settings, entries };
@@ -1328,6 +1474,7 @@ globalThis.LifeOS.VERSION = "1.3.0";
         business: L.business.defaultSettings(true),
         archiveSuggestMB: 40,
         backupReminderDays: 7, syncReminder: false,
+        setup: { dismissed: false, targetsSaved: false },
       },
       entries: [],
       accounts: [], recurring: [], budgets: [], categories: defaultCategories(),
@@ -1558,6 +1705,60 @@ globalThis.LifeOS.VERSION = "1.3.0";
       replaceContents(st, next);
     });
   }
+
+  // ---- v1.4.0: first-run paths on the lock screen (no vault exists yet) ----
+  // Both build the whole vault in memory, check it exactly as a backup restore (validateState) or a Drive download (revision check and
+  // validateState, as inspectEnvelope) does, and only then make one write. Any failure before that write leaves nothing stored.
+  async function startFrom(passphrase, clean, rev, deviceFrom) {
+    const a = getAdapter();
+    const sl = V().newSalt();
+    const k = await V().deriveKey(passphrase, sl);
+    const sealed = await seal(k, sl, clean, rev);
+    if (await a.get(KEY)) throw new Error('VAULT_EXISTS');
+    await a.set(KEY, sealed.env);
+    key = k; salt = sl; state = clean; meta = sealed.m;
+    return clean;
+  }
+  // Restore a verified backup (the state importBackup returned) as this device's new vault under `passphrase`.
+  function createFromBackup(passphrase, backupState) {
+    return serial(async () => {
+      if (state || key) throw new Error('VAULT_EXISTS');
+      V().checkPassphrase(passphrase);
+      const clean = validateState(backupState);
+      const src = backupState && typeof backupState.sourceSchema === 'number' ? backupState.sourceSchema : clean.sourceSchema;
+      if (typeof src !== 'number') throw new Error('Invalid data: unknown format');
+      if (clean.priv && L.priv && (await L.priv.matches(clean.priv, passphrase))) throw new Error('The vault passphrase must be different from the private vault passphrase. Use a backup whose passphrase differs.');
+      // Like a restore: the backup brings no sync bookkeeping, no device dates and no diagnostics of its own.
+      const fresh = defaultState();
+      clean.settings.sync = fresh.settings.sync;
+      clean.ops = fresh.ops;
+      if (src < 15) { clean.settings.backupReminderDays = fresh.settings.backupReminderDays; clean.settings.syncReminder = fresh.settings.syncReminder; }
+      return startFrom(passphrase, validateState(clean), 0);
+    });
+  }
+  // Use a Drive copy (an envelope) as this device's new vault under the same passphrase. Same checks as sync.inspect and adoptEnvelope.
+  function installEnvelope(env, passphrase) {
+    return serial(async () => {
+      if (state || key) throw new Error('VAULT_EXISTS');
+      if (typeof passphrase !== 'string' || !passphrase) { const e = new Error('Enter the passphrase of the Drive copy.'); e.code = 'NEED_PASSPHRASE'; throw e; }
+      const { salt: sl } = V().parseEnvelope(env);
+      const k = await V().deriveKey(passphrase, sl);
+      let raw;
+      try { raw = await V().decrypt(k, env); }
+      catch (e) { const x = new Error('The Drive copy uses a different passphrase.'); x.code = 'WRONG_PASSPHRASE'; throw x; }
+      const m = readMeta(env, raw), st = validateState(raw), a = getAdapter();
+      if (await a.get(KEY)) throw new Error('VAULT_EXISTS');
+      // Persist only the known envelope fields, never whatever else the remote JSON carried.
+      const out = { v: env.v, kdf: { name: env.kdf.name, hash: env.kdf.hash, iter: env.kdf.iter, salt: env.kdf.salt }, iv: env.iv, ct: env.ct };
+      if (env.rev !== undefined) Object.assign(out, { rev: env.rev, updatedAt: env.updatedAt, deviceId: env.deviceId });
+      await a.set(KEY, out);
+      key = k; salt = sl; meta = Object.assign({}, m); deviceId = m.deviceId || deviceId;
+      const fresh = defaultState();
+      st.ops = fresh.ops; // the device's own dates and diagnostics start empty, as after a restore
+      state = st;
+      return { meta: Object.assign({}, m), state: st, sourceSchema: raw && raw.schema, salt: sl };
+    });
+  }
   async function wipe() {
     await serial(async () => { await getAdapter().del(KEY); });
     lock();
@@ -1565,7 +1766,7 @@ globalThis.LifeOS.VERSION = "1.3.0";
 
   // Validation helpers shared with home.js and admin.js (same rules and messages as the rest of validateState).
   L.validate = { fail, isObj, str, num, date, oneOf, bool, arr, strip, ts, newId };
-  L.store = { SCHEMA, _rawEnvelope: () => getAdapter().get(KEY), matchesMain, _setAdapter, exists, init, unlock, lock, isUnlocked, getState, commit, changePassphrase, replaceState, wipe, validateState, newId, defaultState, getMeta, saltId, exportEnvelope, inspectEnvelope, adoptEnvelope, dropsWork, droppedData, nameList, lossText, lossWhy, validateGoals: (list, privOk) => cleanGoals(list, privOk === true) };
+  L.store = { SCHEMA, _rawEnvelope: () => getAdapter().get(KEY), matchesMain, _setAdapter, exists, init, unlock, lock, isUnlocked, getState, commit, changePassphrase, replaceState, wipe, validateState, newId, defaultState, getMeta, saltId, exportEnvelope, inspectEnvelope, adoptEnvelope, createFromBackup, installEnvelope, dropsWork, droppedData, nameList, lossText, lossWhy, validateGoals: (list, privOk) => cleanGoals(list, privOk === true) };
 })();
 
 ;
@@ -7450,9 +7651,36 @@ globalThis.LifeOS.VERSION = "1.3.0";
     return list;
   }
   const which = (width) => (Number(width) < NARROW_MAX ? 'narrow' : 'wide');
-  function get(settings, w) {
+  // v1.4.0 B10: on a narrow screen the business and tax modules start hidden and appear once a tax profile exists. This applies only
+  // while no layout has been saved for that width: a saved layout always wins. ctx = { state } switches the defaults on.
+  const BUSINESS = Object.freeze(['tax-setaside', 'tax-next', 'inv-open', 'budget-pinned', 'payees-near']);
+  const hasTaxProfile = (state) => !!state && isObj(state.taxYears) && Object.keys(state.taxYears).length > 0;
+  function get(settings, w, ctx) {
     const ls = settings && settings.layouts;
-    return resolve(ls && Array.isArray(ls[w === 'narrow' ? 'narrow' : 'wide']) ? ls[w === 'narrow' ? 'narrow' : 'wide'] : []);
+    const saved = ls && Array.isArray(ls[w === 'narrow' ? 'narrow' : 'wide']) ? ls[w === 'narrow' ? 'narrow' : 'wide'] : [];
+    const list = resolve(saved);
+    if (ctx && w === 'narrow' && saved.length === 0 && !hasTaxProfile(ctx.state)) return list.map((x) => (BUSINESS.includes(x.id) ? Object.assign({}, x, { hidden: true }) : x));
+    return list;
+  }
+  // v1.4.0 B10: true when a module has nothing to show yet, so a narrow screen can draw it as one line.
+  const has = (a) => Array.isArray(a) && a.length > 0;
+  const entriesOf = (s, d) => (Array.isArray(s.entries) ? s.entries : []).some((e) => e && e.domain === d);
+  function isEmpty(s, id) {
+    if (!isObj(s)) return false;
+    switch (id) {
+      case 'tile-money': return !entriesOf(s, 'money') && !has(s.recurring) && !has(s.budgets);
+      case 'tile-assets': return !entriesOf(s, 'assets') && !has(s.accounts);
+      case 'tile-work': return !entriesOf(s, 'work') && !has(s.projects) && !has(s.pipeline);
+      case 'tile-health': return !entriesOf(s, 'health') && !has(s.habits) && !s.cycle && !has(s.activities);
+      case 'tile-activities': return !entriesOf(s, 'activities') && !has(s.activities);
+      case 'tile-social': return !entriesOf(s, 'social') && !has(s.people) && !has(s.contacts) && !has(s.groups);
+      case 'tile-learning': return !entriesOf(s, 'learning') && !has(s.learningItems) && !has(s.studySessions);
+      case 'tile-home': return !entriesOf(s, 'home') && !has(s.properties) && !has(s.vehicles) && !has(s.maintenance);
+      case 'tile-admin': return !has(s.renewals) && !has(s.documents) && !has(s.taxItems);
+      case 'tile-goals': return !entriesOf(s, 'goals') && !has(s.goals);
+      case 'rev-month': case 'rev-net-line': case 'rev-expected': return !entriesOf(s, 'money');
+      default: return false;
+    }
   }
   // Mutator for the settings object inside a commit: stores the full list for one viewport class and touches nothing else.
   function set(settings, w, list) {
@@ -7483,7 +7711,7 @@ globalThis.LifeOS.VERSION = "1.3.0";
     return list.map((x) => Object.assign({}, x, x.id === id ? { size } : {}));
   }
 
-  L.layout = { MODULES, SIZES, NARROW_MAX, LIST_CAP, clean, cleanLayouts, defaultList, resolve, which, get, set, reset, move, moveTo, setHidden, setSize, label: (id) => (BY_ID.has(id) ? BY_ID.get(id).label : '') };
+  L.layout = { BUSINESS, hasTaxProfile, isEmpty, MODULES, SIZES, NARROW_MAX, LIST_CAP, clean, cleanLayouts, defaultList, resolve, which, get, set, reset, move, moveTo, setHidden, setSize, label: (id) => (BY_ID.has(id) ? BY_ID.get(id).label : '') };
 })();
 
 ;
@@ -8245,7 +8473,7 @@ globalThis.LifeOS.VERSION = "1.3.0";
   const API = 'https://www.googleapis.com';
   const FILE_NAME = 'lifeos-vault.json';
   const MAX_REMOTE = 64 * 1024 * 1024, TIMEOUT_MS = 30000;
-  const NONCE_KEY = 'lifeos.oauth.state';
+  const NONCE_KEY = 'lifeos.oauth.state', CID_KEY = 'lifeos.oauth.client';
   const ID_RE = /^[A-Za-z0-9_-]{5,200}$/;
   let token = null, tokenExp = 0, fetchImpl = null, returned = null;
 
@@ -8294,8 +8522,14 @@ globalThis.LifeOS.VERSION = "1.3.0";
   function begin(clientId, env) {
     if (!isAvailable(env.loc)) throw err('NOT_HTTPS', 'Google Drive sync needs this page to be served over https.');
     const nonce = newNonce();
+    const url = buildAuthUrl(clientId, env.loc.origin + env.loc.pathname, nonce);
     env.storage.setItem(NONCE_KEY, nonce);
-    return buildAuthUrl(clientId, env.loc.origin + env.loc.pathname, nonce);
+    // v1.4.0: on the lock screen there is no vault to hold the client ID across the redirect; the tab's session storage carries it (never the token).
+    if (env.keepClientId === true) env.storage.setItem(CID_KEY, validateClientId(clientId));
+    return url;
+  }
+  function takeClientId(storage) {
+    try { const v = storage.getItem(CID_KEY); storage.removeItem(CID_KEY); return typeof v === 'string' && /^[A-Za-z0-9._-]{1,150}\.apps\.googleusercontent\.com$/.test(v) ? v : ''; } catch (e) { return ''; }
   }
   // Returns null when the fragment is not an OAuth response. Throws a coded error when it is one but cannot be trusted.
   function parseFragment(hash, expectedNonce) {
@@ -8481,7 +8715,7 @@ globalThis.LifeOS.VERSION = "1.3.0";
   async function fingerprint(state) {
     const s = JSON.parse(JSON.stringify(state));
     delete s.audit; delete s.ops;
-    if (s.settings) delete s.settings.sync;
+    if (s.settings) { delete s.settings.sync; delete s.settings.setup; }
     const d = await L._webcrypto.subtle.digest('SHA-256', new TextEncoder().encode(stable(s)));
     return Array.from(new Uint8Array(d), (x) => x.toString(16).padStart(2, '0')).join('');
   }
@@ -8600,7 +8834,35 @@ globalThis.LifeOS.VERSION = "1.3.0";
     return { kind: 'uploaded', rev: ex.env.rev };
   }
 
+  // ---- v1.4.0: use the Drive copy as the first vault on a new device (lock screen, no vault yet) ----
+  // fetchCopy lists and downloads with the same caps and checks as a sync download. installCopy opens it with the passphrase through
+  // store.installEnvelope (the same revision check and validation as sync.inspect), then records the sync bookkeeping.
+  async function fetchCopy() {
+    const file = await findFile();
+    if (!file) throw err('NOT_FOUND', 'No LifeOS copy was found in this Google Drive.');
+    const dl = await download(file);
+    let env;
+    try { env = JSON.parse(dl.text); L.vault.parseEnvelope(env); } catch (e) { throw err('REMOTE_INVALID', 'The Drive file is not a valid LifeOS vault.'); }
+    return hide({ copies: file.copies }, { file, env });
+  }
+  async function installCopy(copy, passphrase, clientId) {
+    const ctx = copy && copy._ctx;
+    if (!ctx) throw err('BAD_DECISION', 'Nothing to install.');
+    let info;
+    try { info = await L.store.installEnvelope(ctx.env, passphrase); }
+    catch (e) {
+      if (e && (e.code === 'NEED_PASSPHRASE' || e.code === 'WRONG_PASSPHRASE')) throw e;
+      if (e && e.message === 'VAULT_EXISTS') throw err('VAULT_EXISTS', 'This device already has a vault. Nothing was replaced.');
+      if (String((e && e.message) || '').indexOf('Vault revision check') === 0) throw err('TAMPER', 'The Drive copy failed its revision check (the outer and inner revision numbers disagree). It was rejected.');
+      throw err('REMOTE_INVALID', 'The Drive file is not a valid LifeOS vault.');
+    }
+    const id = typeof clientId === 'string' && clientId ? validateClientId(clientId) : '';
+    if (id) await bookkeeping(id, info.meta.rev, ctx.file.id, 'sync: downloaded from Drive', await fingerprint(info.state), b64(info.salt));
+    return { kind: 'downloaded', rev: info.meta.rev };
+  }
+
   L.sync = {
+    fetchCopy, installCopy, takeClientId,
     SCOPE, FILE_NAME, MAX_REMOTE, isAvailable, validateClientId, buildAuthUrl, begin, parseFragment, consumeReturn, takeReturn,
     isConnected, expiresAt, disconnect, run, apply, fingerprint, putNamed, getNamed, _setFetch, _setToken,
   };
@@ -9374,6 +9636,17 @@ globalThis.LifeOS.VERSION = "1.3.0";
   var ai = null;
   var dlgEl = null, dlgReturn = null;
   var idleTimer = null, lastActive = 0, locking = null;
+  var pwaApply = null, narrowMQ = null;
+  // v1.4.0 B5: in-app history (view names only). See src/core/nav.js.
+  var hist = L.nav.create({
+    history: window.history,
+    getView: function () { return view; },
+    setView: function (v) { show(v.name, Object.assign({}, v, { name: undefined })); },
+    isUnlocked: function () { return L.store.isUnlocked(); },
+    dialogOpen: function () { return !!dlgEl; },
+    closeDialog: function (fromPop) { closeDialog(fromPop); }
+  });
+  window.addEventListener('popstate', function (e) { hist.onPop(e.state); });
 
   function setNotice(kind, text) {
     notice = text ? { kind: kind, text: text } : null;
@@ -9465,36 +9738,45 @@ globalThis.LifeOS.VERSION = "1.3.0";
     var a = { dashboard: 'dashboard', review: 'review', memory: 'memory', settings: 'settings', private: 'private', archive: 'archive', business: 'business', print: 'business' }[view.name];
     return a || 'app';
   }
-  function go(name, extra) {
+  function show(name, extra) {
     if (name !== 'archive' && L.archive) L.archive.closeArchive();
-    view = Object.assign({ name: name }, extra || {});
+    var e2 = Object.assign({}, extra || {}); delete e2.name;
+    Object.keys(e2).forEach(function (k) { if (e2[k] === undefined) delete e2[k]; });
+    view = Object.assign({ name: name }, e2);
     notice = null; csvPending = null; ai = null; ledger = null; actImp = null;
     render();
     window.scrollTo(0, 0);
     var t = document.querySelector('h1');
     if (t) { t.setAttribute('tabindex', '-1'); t.focus(); }
   }
+  function go(name, extra) {
+    show(name, extra);
+    if (L.store.isUnlocked()) hist.push(view);
+  }
+  function goKey(key) { var v = L.nav.viewOf(key); go(v.name, v); }
 
   // ---------- dialog ----------
-  function closeDialog() {
+  function closeDialog(fromPop) {
+    var was = !!dlgEl;
     if (dlgEl) { dlgEl.remove(); dlgEl = null; }
     if (dlgReturn && dlgReturn.isConnected) dlgReturn.focus();
     dlgReturn = null;
+    if (was && fromPop !== true) hist.dialogClosed();
   }
   function openDialog(o) {
     closeDialog();
     dlgReturn = document.activeElement;
     var err = h('p', { class: 'small', role: 'status', text: '' });
-    var yes = btn(o.yes || 'OK', function () {
+    var yes = o.sheet ? null : btn(o.yes || 'OK', function () {
       if (o.adds) markAddIntent();
       Promise.resolve().then(function () { return o.onYes(); }).then(function (keep) {
         if (keep !== false) closeDialog();
       }, function (e) { try { L.ops.recordError(e); } catch (x) { /* diagnostics never block */ } err.textContent = friendly(e); });
     }, o.danger ? 'bad' : 'pri');
-    var box = h('div', { class: 'dialog' + (o.adds ? ' adds' : ''), role: 'dialog', 'aria-modal': 'true', 'aria-label': o.title },
-      h('h2', { text: o.title }), o.body || null, err,
-      h('div', { class: 'row' }, yes, btn('Cancel', closeDialog)));
-    dlgEl = h('div', { class: 'overlay' }, box);
+    var box = h('div', { class: 'dialog' + (o.adds ? ' adds' : '') + (o.sheet ? ' sheet' : ''), role: 'dialog', 'aria-modal': 'true', 'aria-label': o.title },
+      h('h2', { text: o.title }), o.body || null, o.sheet ? null : err,
+      h('div', { class: 'row' }, yes, btn(o.sheet ? 'Close' : 'Cancel', function () { closeDialog(); })));
+    dlgEl = h('div', { class: 'overlay' + (o.sheet ? ' sheetov' : '') }, box);
     dlgEl.addEventListener('keydown', function (e) {
       if (e.key === 'Escape') { closeDialog(); return; }
       if (e.key === 'Tab') {
@@ -9506,9 +9788,10 @@ globalThis.LifeOS.VERSION = "1.3.0";
       }
     });
     document.body.appendChild(dlgEl);
+    hist.dialogOpened();
     markAddForms();
     var inp = box.querySelector('input,textarea');
-    (inp || yes).focus();
+    (inp || yes || box.querySelector('button')).focus();
   }
 
   // ---------- auto-lock ----------
@@ -9546,6 +9829,7 @@ globalThis.LifeOS.VERSION = "1.3.0";
       closeDialog();
       csvPending = null; ledger = null; actImp = null; actImpDone = null; dashEdit = false; ai = null; notice = r[1] ? { kind: 'ok', text: SYNC_NOTE } : null; lastActive = 0;
       view = { name: 'lock' };
+      hist.lock();
       render();
     }).then(function () { locking = null; }, function () { locking = null; });
     return locking;
@@ -9569,7 +9853,8 @@ globalThis.LifeOS.VERSION = "1.3.0";
   });
   L.ops.install(window);
   window.addEventListener('focus', checkIdle);
-  window.addEventListener('pageshow', checkIdle);
+  // A page restored from the browser's back-forward cache comes back as it was; if the vault is open, lock it.
+  window.addEventListener('pageshow', function (e) { if (e && e.persisted && L.store.isUnlocked()) lockNow(); else checkIdle(); });
   setInterval(checkIdle, 10000);
 
   // ---------- chrome ----------
@@ -9593,18 +9878,63 @@ globalThis.LifeOS.VERSION = "1.3.0";
         : view.name === 'print' ? printScreen(s)
         : dashScreen(s);
     } catch (e) { L.ops.record('RENDER_ERROR'); body = h('p', { text: friendly(e) }); }
-    var cur = view.name === 'domain' ? (view.domain === 'money' || view.domain === 'assets' || view.domain === 'work' || view.domain === 'health' ? view.domain : 'dashboard') : view.name;
-    var nav = h('nav', { class: 'nav', 'aria-label': 'Main' }, [['dashboard', 'Home'], ['money', 'Money'], ['assets', 'Assets'], ['work', 'Work'], ['health', 'Health'], ['business', 'Business'], ['review', 'Review'], ['memory', 'Memory'], ['settings', 'Settings']].map(function (n) {
-      return h('button', { type: 'button', text: n[1], 'aria-current': n[0] === cur ? 'page' : null, onclick: function () { if (n[0] === 'money' || n[0] === 'assets' || n[0] === 'work' || n[0] === 'health') go('domain', { domain: n[0] }); else go(n[0]); } });
-    }));
+    var nav = mainNav();
     root.appendChild(h('div', { class: 'app' },
       h('header', { class: 'top' }, h('span', { class: 'brand', text: 'LifeOS' }),
         h('span', { class: 'row' }, btn(L.priv.isOpen() ? 'Private (open)' : 'Private', function () { go('private'); }, 'sm', { id: 'nav-private', 'aria-current': view.name === 'private' ? 'page' : null }),
           btn('Lock', function () { lockNow(); }, 'sm lockbtn'))),
       nav,
-      h('main', { class: 'main' }, noticeEl, view.name === 'print' ? null : backupBanner(), privBar(), screenMark(), body)));
+      h('main', { class: 'main' }, noticeEl, updateBanner(), view.name === 'print' ? null : backupBanner(), privBar(), screenMark(), body)));
     markAddForms();
     decorateRows();
+  }
+
+
+  // ---------- navigation (v1.4.0 B5) ----------
+  function isNarrow() { try { return !!(narrowMQ ? narrowMQ.matches : window.innerWidth < 820); } catch (e) { return window.innerWidth < 820; } }
+  // Under 820 px: the bottom bar (Home, Money, Work, Health, More). Wider: the full bar of earlier versions.
+  function mainNav() {
+    var key = L.nav.keyOf(view);
+    if (isNarrow()) {
+      var inBar = L.nav.BAR.some(function (x) { return x.key === key; });
+      var btns = L.nav.BAR.map(function (n) {
+        return h('button', { type: 'button', class: 'navbtn', text: n.label, 'data-key': n.key, 'aria-current': n.key === key ? 'page' : null, onclick: function () { goKey(n.key); } });
+      });
+      btns.push(h('button', { type: 'button', class: 'navbtn', id: 'nav-more', text: 'More', 'aria-haspopup': 'dialog', 'aria-current': inBar ? null : 'page', onclick: moreSheet }));
+      return h('nav', { class: 'nav bar', 'aria-label': 'Main' }, btns);
+    }
+    var cur = view.name === 'domain' ? (view.domain === 'money' || view.domain === 'assets' || view.domain === 'work' || view.domain === 'health' ? view.domain : 'dashboard') : view.name;
+    return h('nav', { class: 'nav', 'aria-label': 'Main' }, [['dashboard', 'Home'], ['money', 'Money'], ['assets', 'Assets'], ['work', 'Work'], ['health', 'Health'], ['business', 'Business'], ['review', 'Review'], ['memory', 'Memory'], ['settings', 'Settings']].map(function (n) {
+      return h('button', { type: 'button', text: n[1], 'aria-current': n[0] === cur ? 'page' : null, onclick: function () { if (n[0] === 'money' || n[0] === 'assets' || n[0] === 'work' || n[0] === 'health') go('domain', { domain: n[0] }); else go(n[0]); } });
+    }));
+  }
+  function moreSheet() {
+    var key = L.nav.keyOf(view);
+    openDialog({
+      title: 'More', sheet: true,
+      body: h('ul', { class: 'sheetlist', id: 'more-list' }, L.nav.MORE.map(function (n) {
+        return h('li', null, h('button', { type: 'button', class: 'btn sheetbtn', text: n.label, 'data-key': n.key, 'aria-current': n.key === key ? 'page' : null, onclick: function () { closeDialog(); goKey(n.key); } }));
+      }))
+    });
+  }
+  // A newer version waits for this tap. Reloading locks the app, so while unlocked it asks first.
+  function updateBanner() {
+    if (!pwaApply) return null;
+    return h('div', { class: 'warn', id: 'update-banner', role: 'status' }, h('span', { text: 'New version ready. ' }),
+      btn('Reload', function () {
+        if (!L.store.isUnlocked()) { pwaApply(); return; }
+        openDialog({ title: 'Reload for the new version?', yes: 'Reload', body: [h('p', { class: 'mut', text: 'Reloading locks LifeOS. Anything you are typing and have not saved is lost.' })], onYes: function () { closeDialog(); /* the dialog's history entry is removed first; a history change would cancel the reload */ setTimeout(function () { pwaApply(); }, 250); return false; } });
+      }, 'sm', { id: 'update-reload' }));
+  }
+
+  // SEC-99: a waiting version adds its banner in place. Redrawing the screen would drop anything typed and not yet saved (a passphrase on
+  // the lock screen, an open form). Without a screen yet, the next render shows it.
+  function showUpdate() {
+    if (document.getElementById('update-banner')) return;
+    var host = document.querySelector('main.main') || document.querySelector('.lockwrap'), b = host ? updateBanner() : null;
+    if (!b) return;
+    var h1 = host.classList.contains('lockwrap') ? host.querySelector('h1') : null;
+    host.insertBefore(b, h1 ? h1.nextSibling : host.firstChild);
   }
 
   // The strip shown while the private vault is open, and the marker line shown while it is closed and something is hidden.
@@ -9633,11 +9963,26 @@ globalThis.LifeOS.VERSION = "1.3.0";
   });
 
   // ---------- lock screen ----------
+  // v1.4.0 B9: with no vault on this device the lock screen offers three ways in: create, restore from a backup file, use the Drive copy.
+  var lockPath = 'create', restorePick = null, driveCopy = null, driveCid = '';
   function lockScreen() {
     var create = !vaultExists;
+    if (!create) lockPath = 'create';
+    var inner;
+    if (create && lockPath === 'restore') inner = restorePath();
+    else if (create && lockPath === 'drive') inner = drivePath();
+    else inner = unlockForm(create);
+    var intro = h('p', { class: 'mut', text: create ? (lockPath === 'create' ? 'Your private life dashboard. Everything stays on this device, encrypted.' : 'Bring an existing vault to this device.') : 'Unlock your vault.' });
+    var paths = create && lockPath === 'create' ? h('div', { class: 'card lockpaths', id: 'lock-paths' }, h('h2', { text: 'Already have a vault?' }),
+      h('div', { class: 'row' },
+        btn('Restore from a backup file', function () { lockPath = 'restore'; restorePick = null; notice = null; render(); }, '', { id: 'path-restore' }),
+        btn('Use my Google Drive copy', function () { lockPath = 'drive'; notice = null; render(); }, '', { id: 'path-drive' }))) : null;
+    return h('div', { class: 'lockwrap' }, h('h1', { text: 'LifeOS' }), intro, noticeEl, updateBanner(), inner, paths);
+  }
+  function unlockForm(create) {
     var p1 = h('input', { type: 'password', id: 'pass', autocomplete: create ? 'new-password' : 'current-password', required: true, minlength: create ? '12' : null });
     var p2 = create ? h('input', { type: 'password', id: 'pass2', autocomplete: 'new-password', required: true, minlength: '12' }) : null;
-    var form = h('form', {
+    return h('form', {
       onsubmit: function (e) {
         e.preventDefault();
         act(function () {
@@ -9656,10 +10001,93 @@ globalThis.LifeOS.VERSION = "1.3.0";
       p2 ? field('Confirm passphrase', p2) : null,
       create ? passNote() : null,
       h('button', { type: 'submit', class: 'btn pri', text: create ? 'Create vault' : 'Unlock' }));
-    return h('div', { class: 'lockwrap' },
-      h('h1', { text: 'LifeOS' }),
-      h('p', { class: 'mut', text: create ? 'Your private life dashboard. Everything stays on this device, encrypted.' : 'Unlock your vault.' }),
-      noticeEl, form);
+  }
+  function backLink() { return btn('Back', function () { lockPath = 'create'; restorePick = null; driveCopy = null; notice = null; render(); }, '', { id: 'path-back' }); }
+  // After a vault is made from a backup or a Drive copy: record it, then open it like any unlock. A failed audit write never undoes the vault.
+  function enterNew(action) {
+    vaultExists = true; lockPath = 'create'; restorePick = null; driveCopy = null; driveCid = '';
+    return commit(null, action).catch(function () {}).then(afterUnlock);
+  }
+  function restorePath() {
+    var file = h('input', { type: 'file', id: 'rs-file', accept: '.json,application/json' }), pass = passOnly('rs-pass', 'off'), out = h('div', { id: 'rs-out', role: 'status' });
+    function showPreview(r, text, pv) {
+      var rows = r.rows.map(function (x) { return h('li', { text: x.label + ': ' + x.backup }); });
+      out.replaceChildren(h('div', { id: 'rs-ok' },
+        h('p', { class: 'small', text: 'This file passed the same checks as a restore inside the app. Nothing is saved until you confirm.' }),
+        h('ul', { class: 'small' },
+          h('li', { id: 'rs-schema', text: 'Schema: ' + r.schema + (r.sourceSchema !== r.schema ? ' (file written as schema ' + r.sourceSchema + ')' : '') }),
+          h('li', { id: 'rs-date', text: 'Made on: ' + (r.madeOn || 'not recorded in this file') }),
+          h('li', { id: 'rs-priv', text: 'Private vault in the file: ' + (r.priv ? 'yes' : 'no') })),
+        rows.length ? h('ul', { id: 'rs-rows', class: 'small' }, rows) : h('p', { class: 'mut small', text: 'The file holds no records.' }),
+        h('p', { class: 'mut small', text: 'The backup passphrase becomes this device\'s vault passphrase. You can change it later in Settings.' }),
+        h('div', { class: 'row' }, btn('Use this backup as my vault', function () {
+          act(function () {
+            return L.vault.importBackup(pv, text).then(function (state) { return L.store.createFromBackup(pv, state); }).then(function () { return enterNew('restore from backup'); });
+          }).then(function () { restorePick = null; });
+        }, 'pri', { id: 'rs-use' }), btn('Cancel', function () { restorePick = null; out.replaceChildren(); }, '', { id: 'rs-cancel' }))));
+      setNotice('ok', 'Backup file verified.');
+    }
+    return h('div', { class: 'card', id: 'restore-card' }, h('h2', { text: 'Restore from a backup file' }),
+      h('form', {
+        onsubmit: function (e) {
+          e.preventDefault();
+          var f = file.files && file.files[0];
+          if (!f) { setNotice('err', 'Choose a backup file first.'); return; }
+          if (!pass.value) { setNotice('err', 'Enter the backup passphrase.'); return; }
+          var pv = pass.value; pass.value = '';
+          act(function () {
+            return readFile(f, L.vault.MAX_BACKUP).then(function (text) {
+              return L.ops.verifyBackup(pv, text, { schema: L.store.SCHEMA }).then(function (r) {
+                out.replaceChildren();
+                if (!r.ok) { setNotice('err', r.message); return; }
+                showPreview(r, text, pv);
+              });
+            });
+          });
+        }
+      }, field('Backup file (64 MB max)', file), field('Backup passphrase', pass),
+        h('button', { type: 'submit', class: 'btn pri', id: 'rs-check', text: 'Check backup file' })),
+      out, h('div', { class: 'row' }, backLink()));
+  }
+  function drivePath() {
+    var card = h('div', { class: 'card', id: 'drive-card' }, h('h2', { text: 'Use my Google Drive copy' }));
+    if (!L.sync || !L.sync.isAvailable(window.location)) {
+      card.appendChild(h('p', { class: 'mut', id: 'drive-na', text: 'Google Drive is only offered when this page is served over https.' }));
+      card.appendChild(h('div', { class: 'row' }, backLink()));
+      return card;
+    }
+    if (!driveCid) driveCid = L.sync.takeClientId(window.sessionStorage);
+    if (!L.sync.isConnected()) {
+      var cid = h('input', { type: 'text', id: 'dv-cid', maxlength: '200', placeholder: 'xxxx.apps.googleusercontent.com', value: driveCid });
+      card.appendChild(h('form', {
+        onsubmit: function (e) {
+          e.preventDefault();
+          try { window.location.assign(L.sync.begin(cid.value, { loc: window.location, storage: window.sessionStorage, keepClientId: true })); }
+          catch (x) { setNotice('err', x.message); }
+        }
+      }, h('p', { class: 'mut small', text: 'Sign in to Google, download the encrypted copy, then unlock it with the passphrase it was made with. See docs/SYNC-SETUP.md for the client ID.' }),
+        field('Google OAuth client ID', cid), h('button', { type: 'submit', class: 'btn pri', id: 'dv-connect', text: 'Connect Google Drive' })));
+    } else if (!driveCopy) {
+      card.appendChild(h('p', { class: 'small', text: 'Connected to Google.' }));
+      card.appendChild(btn('Download my Drive copy', function () {
+        act(function () { return L.sync.fetchCopy().then(function (c) { driveCopy = c; render(); }); });
+      }, 'pri', { id: 'dv-fetch' }));
+    } else {
+      var pass = passOnly('dv-pass', 'off');
+      card.appendChild(h('form', {
+        onsubmit: function (e) {
+          e.preventDefault();
+          var pv = pass.value; pass.value = '';
+          if (!pv) { setNotice('err', 'Enter the passphrase of the Drive copy.'); return; }
+          act(function () {
+            return L.sync.installCopy(driveCopy, pv, driveCid).then(function () { return enterNew('restore from Drive'); });
+          });
+        }
+      }, h('p', { class: 'small', id: 'dv-found', text: 'Found your encrypted copy on Drive.' + (driveCopy.copies > 1 ? ' Drive holds ' + driveCopy.copies + ' LifeOS copies; the newest is used.' : '') }),
+        field('Passphrase of the Drive copy', pass), h('button', { type: 'submit', class: 'btn pri', id: 'dv-use', text: 'Open this copy' })));
+    }
+    card.appendChild(h('div', { class: 'row' }, backLink()));
+    return card;
   }
   function archCtx() {
     return { h: h, field: field, btn: btn, openDialog: openDialog, commit: commit, download: download, setNotice: setNotice, render: render, go: go, readFile: readFile, today: today, friendly: friendly };
@@ -9671,6 +10099,7 @@ globalThis.LifeOS.VERSION = "1.3.0";
     notice = null; csvPending = null; ai = null;
     resetIdle(true);
     view = { name: 'dashboard' };
+    hist.start();
     render();
     if (L.syncUI) L.syncUI.afterUnlock(syncCtx());
     // v1.3.0 B1: ask the browser to keep this storage (until granted); the result is recorded. Never blocks and never throws.
@@ -9853,22 +10282,45 @@ globalThis.LifeOS.VERSION = "1.3.0";
     built['rev-expected'] = revExpectedTile(s, t);
     built['tax-setaside'] = taxSetAsideMod(s); built['tax-next'] = taxNextMod(s); built['inv-open'] = invOpenMod(s); built['budget-pinned'] = budgetPinnedMod(s); built['payees-near'] = payeesNearMod(s);
     var due = L.metrics.dueRecurring(s, t).length;
-    var w = L.layout.which(window.innerWidth), list = L.layout.get(s.settings, w);
+    var w = L.layout.which(window.innerWidth), list = L.layout.get(s.settings, w, { state: mainState() });
     var mods = [];
     list.forEach(function (m, i) {
       var el = built[m.id];
+      // v1.4.0 B10: on a narrow screen a module with nothing to show is one line (never while editing the layout).
+      if (el && w === 'narrow' && !dashEdit && L.layout.isEmpty(s, m.id)) el = emptyLine(m, el);
       if (!dashEdit && (m.hidden || !el)) return;
       mods.push(h('div', { class: 'mod ' + m.size + (m.hidden ? ' modhidden' : ''), 'data-mod': m.id, 'data-size': m.size, 'data-hidden': m.hidden ? 'true' : 'false' },
         dashEdit ? modBar(list, m, i, w) : null,
         h('div', { class: 'modbody', inert: dashEdit ? true : null }, el || h('p', { class: 'mut small', text: L.layout.label(m.id) + ' has nothing to show right now.' }))));
     });
     return h('div', null, h('div', { class: 'row sp' }, h('h1', { text: 'Dashboard' }), h('div', { class: 'row' }, btn('Log study', function () { studyDialog(''); }, 'qa-btn', { id: 'quick-study' }), btn('Add activity', function () { go('domain', { domain: 'activities', open: 'act-add' }); }, 'qa-btn', { id: 'quick-activity' }), btn('Quick add', quickAdd, 'pri qa-btn', { id: 'quick-add' }), btn(dashEdit ? 'Done' : 'Customize', function () { dashEdit = !dashEdit; render(); }, 'qa-btn', { id: 'dash-customize' }))),
+      setupCard(mainState()),
       L.archiveUI ? L.archiveUI.proposal(archCtx()) : null,
       safetyCard(mainState()),
       due ? h('div', { class: 'warn' }, due + (due === 1 ? ' recurring item is' : ' recurring items are') + ' due. ', btn('Review', function () { go('domain', { domain: 'money' }); }, 'sm', { id: 'due-review' })) : null,
       dashEdit ? h('div', { class: 'card', id: 'dash-edit' }, h('p', { class: 'small', id: 'dash-edit-note', text: 'Editing the layout for ' + (w === 'narrow' ? 'narrow screens (under 720 px wide)' : 'wide screens (720 px and over)') + '. Drag a module or use Move up and Move down. Hidden modules are dimmed.' }),
         btn('Reset to default', function () { act(function () { return commit(function (x) { L.layout.reset(x.settings, w); }).then(function () { setNotice('ok', 'Layout reset.'); render(); }); }); }, 'sm', { id: 'dash-reset' })) : null,
       h('div', { class: 'grid modgrid' + (dashEdit ? ' editing' : ''), id: 'dash-grid', 'data-layout': w }, mods));
+  }
+
+  // A module with no data, drawn as one line that opens the same place the full module does.
+  // The module itself, drawn on one line (CSS hides its chart and detail lines), so it keeps its text, its ids and its tap target.
+  function emptyLine(m, el) {
+    el.classList.add('tile-empty');
+    return el;
+  }
+  // v1.4.0 B9: the setup checklist of a new vault. Items tick from the vault's state; Dismiss hides it for good.
+  function setupCard(s) {
+    if (!L.setup.shown(s)) return null;
+    var its = L.setup.items(s, Number(today().slice(0, 4))), done = its.filter(function (x) { return x.done; }).length;
+    return h('div', { class: 'card', id: 'setup-card' }, h('h2', { text: 'Setup checklist' }),
+      h('p', { class: 'mut small', id: 'setup-count', text: done + ' of ' + its.length + ' done' }),
+      h('ul', { class: 'setuplist' }, its.map(function (x) {
+        return h('li', { class: 'setupitem', 'data-item': x.id, 'data-done': x.done ? 'true' : 'false' },
+          h('span', { class: 'chip' + (x.done ? ' ok' : ''), text: x.done ? 'Done' : 'To do' }), h('span', { text: ' ' + x.label + ' ' }),
+          x.done ? null : btn('Open', function () { goKey(x.where); }, 'sm', { 'aria-label': 'Open: ' + x.label }));
+      })),
+      btn('Dismiss checklist', function () { act(function () { return commit(function (x) { x.settings.setup.dismissed = true; }, 'setup dismissed').then(function () { render(); }); }); }, 'sm', { id: 'setup-dismiss' }));
   }
 
   // ---------- customizable home (v0.12.0) ----------
@@ -13031,7 +13483,7 @@ globalThis.LifeOS.VERSION = "1.3.0";
           if (!(r >= 0 && r <= 100)) throw new Error('Savings rate must be 0 to 100.');
           if (!/^[A-Z]{3}$/.test(cu)) throw new Error('Currency must be a three letter code.');
           var m = Number(al.value);
-          return commit(function (x) { x.settings.targets = { workoutsPerWeek: w, contactDays: c, savingsRate: r / 100 }; x.settings.currency = cu; x.settings.autoLockMin = m; L.learning.setWeeklyTarget(x, study.value); }).then(function () { resetIdle(true); setNotice('ok', 'Settings saved.'); });
+          return commit(function (x) { x.settings.targets = { workoutsPerWeek: w, contactDays: c, savingsRate: r / 100 }; x.settings.currency = cu; x.settings.setup.targetsSaved = true; x.settings.autoLockMin = m; L.learning.setWeeklyTarget(x, study.value); }).then(function () { resetIdle(true); setNotice('ok', 'Settings saved.'); });
         });
       }
     }, h('h2', { text: 'Targets and preferences' }), field('Workouts per week', wpw), field('Days between contacts', cd), field('Savings rate target (%)', sr), field('Study minutes per week (0 for none)', study), field('Currency code', cur), field('Auto-lock after idle', al),
@@ -13138,7 +13590,7 @@ globalThis.LifeOS.VERSION = "1.3.0";
               return commit(null, 'wipe').catch(function () {}).then(function () { return L.store.wipe(); }).then(function () {
                 try { L.store.lock(); } catch (e) { /* already locked */ }
                 clearTimeout(idleTimer); idleTimer = null;
-                vaultExists = false; view = { name: 'lock' }; notice = { kind: 'ok', text: 'All data wiped.' };
+                vaultExists = false; view = { name: 'lock' }; notice = { kind: 'ok', text: 'All data wiped.' }; hist.lock();
                 setTimeout(render, 0);
               });
             }
@@ -13884,7 +14336,22 @@ globalThis.LifeOS.VERSION = "1.3.0";
     var p = Promise.resolve();
     if (!globalThis.crypto || !globalThis.crypto.subtle) notice = { kind: 'err', text: 'This browser does not support the required encryption features.' };
     else p = L.store.exists().then(function (x) { vaultExists = !!x; }, function () { notice = { kind: 'err', text: 'Storage is unavailable in this browser.' }; });
-    p.then(function () { view = { name: 'lock' }; render(); });
+    p.then(function () {
+      view = { name: 'lock' }; hist.reset();
+      // Back from Google sign-in on a device with no vault: open the Drive path (the token is already in memory).
+      if (!vaultExists && L.sync && L.sync.isConnected()) lockPath = 'drive';
+      var ret = !vaultExists && L.sync ? L.sync.takeReturn() : null;
+      if (ret && ret.error) { notice = { kind: 'err', text: ret.error }; if (!vaultExists) lockPath = 'drive'; }
+      render();
+      // v1.4.0 B8: https only; a new version shows a prompt and never reloads by itself.
+      if (L.pwa) L.pwa.register({ loc: window.location, navigator: navigator, document: document, onUpdate: function (apply) { pwaApply = apply; showUpdate(); } });
+    });
+    // The bottom bar and the full desktop bar differ; redraw when the window crosses the breakpoint.
+    try {
+      narrowMQ = window.matchMedia('(max-width: 819px)');
+      var onMQ = function () { if (!locking && !dlgEl) render(); };
+      if (narrowMQ.addEventListener) narrowMQ.addEventListener('change', onMQ); else if (narrowMQ.addListener) narrowMQ.addListener(onMQ);
+    } catch (e) { narrowMQ = null; }
   }
   boot();
 })();
@@ -14035,6 +14502,47 @@ globalThis.LifeOS.VERSION = "1.3.0";
   }
 
   L.syncUI = { section: section, afterUnlock: afterUnlock };
+})();
+
+;
+(function () {
+  'use strict';
+  // v1.4.0 B8: install as an app and keep the shell for offline use. Registers the service worker only on https origins; the file:// copy
+  // and plain http never register one. A new version waits for the owner's tap: nothing here reloads the page by itself.
+  var L = globalThis.LifeOS;
+  function eligible(loc, nav) { return !!(loc && loc.protocol === 'https:' && nav && nav.serviceWorker && typeof nav.serviceWorker.register === 'function'); }
+  // SEC-98: the browser fetches a manifest without cookies unless crossorigin="use-credentials", even from the same origin; behind the
+  // Cloudflare Access sign-in that request would be sent to the sign-in page. (The iPhone home-screen icon is a data: link in the page.)
+  function addLinks(doc) {
+    [['manifest', 'manifest.webmanifest', 'use-credentials']].forEach(function (x) {
+      if (doc.querySelector('link[rel="' + x[0] + '"]')) return;
+      var l = doc.createElement('link'); l.setAttribute('rel', x[0]); l.setAttribute('href', x[1]);
+      if (x[2]) l.setAttribute('crossorigin', x[2]);
+      doc.head.appendChild(l);
+    });
+  }
+  // env: { loc, navigator, document, onUpdate(apply) }. onUpdate runs when a newer version is installed and waiting; apply() asks it to
+  // take over and reloads the page once it has. Resolves { registered:boolean }.
+  function register(env) {
+    var nav = env.navigator;
+    if (!eligible(env.loc, nav)) return Promise.resolve({ registered: false });
+    var asked = false;
+    try { addLinks(env.document); } catch (e) { /* the manifest link is optional */ }
+    nav.serviceWorker.addEventListener('controllerchange', function () { if (asked) env.loc.reload(); });
+    return nav.serviceWorker.register('sw.js', { scope: './', updateViaCache: 'none' }).then(function (reg) {
+      function ready() {
+        env.onUpdate(function () {
+          asked = true;
+          if (reg.waiting) reg.waiting.postMessage({ type: 'SKIP_WAITING' }); else env.loc.reload();
+        });
+      }
+      function watch(w) { if (!w) return; w.addEventListener('statechange', function () { if (w.state === 'installed' && nav.serviceWorker.controller) ready(); }); }
+      if (reg.waiting && nav.serviceWorker.controller) ready();
+      reg.addEventListener('updatefound', function () { watch(reg.installing); });
+      return { registered: true, reg: reg };
+    }, function () { return { registered: false }; });
+  }
+  L.pwa = { eligible: eligible, register: register, addLinks: addLinks };
 })();
 
 ;

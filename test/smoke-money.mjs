@@ -1,14 +1,15 @@
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { navTo } from './_nav.mjs';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const file = path.resolve(here, '..', 'dist', 'lifeos.html');
 let pw;
 try { pw = await import('playwright'); } catch { console.log('SKIPPED: playwright not available (npm i --no-save playwright)'); process.exit(0); }
 let browser;
 for (const o of [{}, { channel: 'chrome' }, { executablePath: '/usr/bin/google-chrome' }]) {
-  try { browser = await pw.chromium.launch(o); break; } catch { /* try next */ }
+  try { browser = await pw[process.env.LIFEOS_SMOKE_BROWSER || 'chromium'].launch(o); break; } catch { /* try next */ }
 }
-if (!browser) { console.log('SKIPPED: chromium unavailable'); process.exit(0); }
+if (!browser) { console.log('SKIPPED: ' + (process.env.LIFEOS_SMOKE_BROWSER || 'chromium') + ' unavailable (not installed); this is not a pass'); process.exit(0); }
 
 const PASS = 'correct horse battery staple';
 const usd = (c) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(c / 100);
@@ -33,7 +34,7 @@ async function run(label, viewport) {
   };
   const text = (sel) => page.textContent(sel).then((t) => t.trim());
   const expectText = async (sel, want) => { const got = await text(sel); if (got !== want) throw new Error(sel + ' is ' + JSON.stringify(got) + ', expected ' + JSON.stringify(want)); };
-  const nav = (name) => page.click('.nav button:has-text("' + name + '")');
+  const nav = (name) => navTo(page, name);
   const quick = async (type, amount, cat, note) => {
     await page.click('#quick-add');
     await page.waitForSelector('.dialog #qa-amount');

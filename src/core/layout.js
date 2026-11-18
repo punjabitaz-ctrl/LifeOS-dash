@@ -59,9 +59,36 @@
     return list;
   }
   const which = (width) => (Number(width) < NARROW_MAX ? 'narrow' : 'wide');
-  function get(settings, w) {
+  // v1.4.0 B10: on a narrow screen the business and tax modules start hidden and appear once a tax profile exists. This applies only
+  // while no layout has been saved for that width: a saved layout always wins. ctx = { state } switches the defaults on.
+  const BUSINESS = Object.freeze(['tax-setaside', 'tax-next', 'inv-open', 'budget-pinned', 'payees-near']);
+  const hasTaxProfile = (state) => !!state && isObj(state.taxYears) && Object.keys(state.taxYears).length > 0;
+  function get(settings, w, ctx) {
     const ls = settings && settings.layouts;
-    return resolve(ls && Array.isArray(ls[w === 'narrow' ? 'narrow' : 'wide']) ? ls[w === 'narrow' ? 'narrow' : 'wide'] : []);
+    const saved = ls && Array.isArray(ls[w === 'narrow' ? 'narrow' : 'wide']) ? ls[w === 'narrow' ? 'narrow' : 'wide'] : [];
+    const list = resolve(saved);
+    if (ctx && w === 'narrow' && saved.length === 0 && !hasTaxProfile(ctx.state)) return list.map((x) => (BUSINESS.includes(x.id) ? Object.assign({}, x, { hidden: true }) : x));
+    return list;
+  }
+  // v1.4.0 B10: true when a module has nothing to show yet, so a narrow screen can draw it as one line.
+  const has = (a) => Array.isArray(a) && a.length > 0;
+  const entriesOf = (s, d) => (Array.isArray(s.entries) ? s.entries : []).some((e) => e && e.domain === d);
+  function isEmpty(s, id) {
+    if (!isObj(s)) return false;
+    switch (id) {
+      case 'tile-money': return !entriesOf(s, 'money') && !has(s.recurring) && !has(s.budgets);
+      case 'tile-assets': return !entriesOf(s, 'assets') && !has(s.accounts);
+      case 'tile-work': return !entriesOf(s, 'work') && !has(s.projects) && !has(s.pipeline);
+      case 'tile-health': return !entriesOf(s, 'health') && !has(s.habits) && !s.cycle && !has(s.activities);
+      case 'tile-activities': return !entriesOf(s, 'activities') && !has(s.activities);
+      case 'tile-social': return !entriesOf(s, 'social') && !has(s.people) && !has(s.contacts) && !has(s.groups);
+      case 'tile-learning': return !entriesOf(s, 'learning') && !has(s.learningItems) && !has(s.studySessions);
+      case 'tile-home': return !entriesOf(s, 'home') && !has(s.properties) && !has(s.vehicles) && !has(s.maintenance);
+      case 'tile-admin': return !has(s.renewals) && !has(s.documents) && !has(s.taxItems);
+      case 'tile-goals': return !entriesOf(s, 'goals') && !has(s.goals);
+      case 'rev-month': case 'rev-net-line': case 'rev-expected': return !entriesOf(s, 'money');
+      default: return false;
+    }
   }
   // Mutator for the settings object inside a commit: stores the full list for one viewport class and touches nothing else.
   function set(settings, w, list) {
@@ -92,5 +119,5 @@
     return list.map((x) => Object.assign({}, x, x.id === id ? { size } : {}));
   }
 
-  L.layout = { MODULES, SIZES, NARROW_MAX, LIST_CAP, clean, cleanLayouts, defaultList, resolve, which, get, set, reset, move, moveTo, setHidden, setSize, label: (id) => (BY_ID.has(id) ? BY_ID.get(id).label : '') };
+  L.layout = { BUSINESS, hasTaxProfile, isEmpty, MODULES, SIZES, NARROW_MAX, LIST_CAP, clean, cleanLayouts, defaultList, resolve, which, get, set, reset, move, moveTo, setHidden, setSize, label: (id) => (BY_ID.has(id) ? BY_ID.get(id).label : '') };
 })();

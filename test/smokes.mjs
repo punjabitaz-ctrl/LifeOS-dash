@@ -15,16 +15,20 @@ if (!dirArg) { const b = spawnSync(process.execPath, ['build.mjs'], { cwd: root,
 const scripts = readdirSync(dir).filter((f) => /^smoke.*\.mjs$/.test(f) && f !== 'smokes.mjs').sort().concat(dirArg ? [] : ['review-ui.mjs']);
 const arg = (n, env, d) => { const a = process.argv.find((x) => x.startsWith('--' + n + '=')); const v = Number(a ? a.split('=')[1] : process.env[env]); return Number.isFinite(v) && v > 0 ? v : d; };
 const LIMIT_S = arg('timeout', 'LIFEOS_SMOKE_TIMEOUT_S', 420), SLOW_S = arg('slow', 'LIFEOS_SMOKE_SLOW_S', 90);
-const failed = [], slow = [];
+const failed = [], slow = [], skipped = [];
 for (const f of scripts) {
   const t0 = Date.now();
   const r = spawnSync(process.execPath, [path.join(dir, f)], { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024, timeout: LIMIT_S * 1000, killSignal: 'SIGKILL' });
   const secs = Math.round((Date.now() - t0) / 1000), timedOut = !!(r.error && r.error.code === 'ETIMEDOUT');
   if (secs >= SLOW_S) slow.push(f + ' (' + secs + ' s)');
   const last = ((r.stdout || '') + (r.stderr || '')).trim().split('\n').slice(-1)[0] || '';
-  console.log((r.status === 0 ? 'ok   ' : 'FAIL ') + f + ' (' + secs + ' s) ' + (timedOut ? 'TIMEOUT after ' + LIMIT_S + ' s' : last.slice(0, 160)));
+  // v1.4.0 audit: a script that could not run (no Playwright, browser not installed) exits 0 with a SKIPPED line; it is listed, never counted as passed.
+  const skip = r.status === 0 && /^SKIPPED\b/.test(last);
+  if (skip) skipped.push(f);
+  console.log((skip ? 'SKIP ' : r.status === 0 ? 'ok   ' : 'FAIL ') + f + ' (' + secs + ' s) ' + (timedOut ? 'TIMEOUT after ' + LIMIT_S + ' s' : last.slice(0, 160)));
   if (r.status !== 0) { failed.push(f); console.log(((r.stdout || '') + (r.stderr || '')).trim().split('\n').slice(-15).join('\n')); }
 }
 if (slow.length) console.log('SLOW (over ' + SLOW_S + ' s): ' + slow.join(', '));
-console.log(failed.length ? 'SMOKES: ' + failed.length + ' of ' + scripts.length + ' failed: ' + failed.join(', ') : 'SMOKES: all ' + scripts.length + ' passed');
+if (skipped.length) console.log('SKIPPED, NOT PASSED: ' + skipped.join(', '));
+console.log(failed.length ? 'SMOKES: ' + failed.length + ' of ' + scripts.length + ' failed: ' + failed.join(', ') : skipped.length ? 'SMOKES: ' + (scripts.length - skipped.length) + ' of ' + scripts.length + ' passed, ' + skipped.length + ' skipped' : 'SMOKES: all ' + scripts.length + ' passed');
 process.exit(failed.length ? 1 : 0);

@@ -3,6 +3,7 @@
 // optional sync notice on lock, lock and unlock. Fails on console errors, CSP violations and horizontal scroll. Run `node build.mjs` first.
 // Needs Playwright (`npm i --no-save playwright`) and Chrome at /usr/bin/google-chrome.
 import path from 'node:path';
+import { navTo } from './_nav.mjs';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -11,9 +12,9 @@ let pw;
 try { pw = await import('playwright'); } catch { console.log('SKIPPED: playwright not available (npm i --no-save playwright)'); process.exit(0); }
 let browser;
 for (const o of [{ executablePath: '/usr/bin/google-chrome' }, { channel: 'chrome' }, {}]) {
-  try { browser = await pw.chromium.launch(o); break; } catch { /* try next */ }
+  try { browser = await pw[process.env.LIFEOS_SMOKE_BROWSER || 'chromium'].launch(o); break; } catch { /* try next */ }
 }
-if (!browser) { console.log('SKIPPED: chromium unavailable'); process.exit(0); }
+if (!browser) { console.log('SKIPPED: ' + (process.env.LIFEOS_SMOKE_BROWSER || 'chromium') + ' unavailable (not installed); this is not a pass'); process.exit(0); }
 
 const PASS = 'correct horse battery staple', BACKUP = 'a backup passphrase 4242';
 const MARK = 'SAFETYMARK-q7x3';
@@ -31,7 +32,7 @@ async function run(label, viewport) {
   page.on('request', (r) => { if (!r.url().startsWith('file:') && !r.url().startsWith('data:')) requests.push(r.url()); });
   await page.addInitScript(() => { try { const w = navigator.clipboard.writeText.bind(navigator.clipboard); navigator.clipboard.writeText = (t) => { window.__copied = String(t); return w(t).catch(() => {}); }; } catch (e) { /* no clipboard */ } });
   async function step(name, fn) { if (process.env.SMOKE_VERBOSE) console.log(label, 'step:', name); try { await fn(); } catch (e) { problems.push(label + ' ' + name + ': ' + String(e.message).split('\n').slice(0, 3).join(' | ')); throw e; } }
-  const nav = (name) => page.click('.nav button:has-text("' + name + '")');
+  const nav = (name) => navTo(page, name);
   const text = (sel) => page.textContent(sel).then((t) => t.trim());
   const noHScroll = async (where) => {
     const r = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: window.innerWidth }));
@@ -103,7 +104,7 @@ async function run(label, viewport) {
       await page.setInputFiles('#vf-file', backupPath); await page.fill('#vf-pass', BACKUP); await page.click('#verify-btn');
       await page.waitForSelector('#verify-ok', T);
       const t = await text('#verify-out');
-      if (!/Nothing was written/.test(t) || !/Schema: 15/.test(t) || !/Made on: 2026-11-18/.test(t) || !/Revision: \d+\./.test(t) || !/Private vault in the file: no/.test(t)) throw new Error('verify result: ' + t.slice(0, 300));
+      if (!/Nothing was written/.test(t) || !/Schema: 16/.test(t) || !/Made on: 2026-11-18/.test(t) || !/Revision: \d+\./.test(t) || !/Private vault in the file: no/.test(t)) throw new Error('verify result: ' + t.slice(0, 300));
       if (!/Entries: 1 in the file, 1 in this vault \(same\)/.test(t)) throw new Error('counts: ' + t.slice(0, 400));
       if ((await text('#verify-out')).includes(MARK)) throw new Error('verify output shows record text');
       if (await page.inputValue('#vf-pass') !== '') throw new Error('passphrase left in the field');
@@ -117,15 +118,15 @@ async function run(label, viewport) {
       await page.setInputFiles('#vf-file', { name: 'lifeos-backup-tampered.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(env)) });
       await page.fill('#vf-pass', BACKUP); await page.click('#verify-btn');
       await page.waitForFunction(() => /changed or damaged/.test((document.querySelector('#verify-fail') || {}).textContent || ''), null, T);
-      // a file from a newer schema: re-seal this backup's plaintext with schema 16 in the page, then verify it
+      // a file from a newer schema: re-seal this backup's plaintext with schema 17 in the page, then verify it
       const newer = await page.evaluate(async (pass) => {
         const L = globalThis.LifeOS, st = JSON.parse(JSON.stringify(L.store.getState()));
-        st.schema = 16; const salt = L.vault.newSalt(), key = await L.vault.deriveKey(pass, salt);
+        st.schema = 17; const salt = L.vault.newSalt(), key = await L.vault.deriveKey(pass, salt);
         return JSON.stringify(await L.vault.makeEnvelope(key, salt, st));
       }, BACKUP);
       await page.setInputFiles('#vf-file', { name: 'lifeos-backup-newer.json', mimeType: 'application/json', buffer: Buffer.from(newer) });
       await page.fill('#vf-pass', BACKUP); await page.click('#verify-btn');
-      await page.waitForFunction(() => /newer version of LifeOS \(schema 16\)/.test((document.querySelector('#verify-fail') || {}).textContent || ''), null, T);
+      await page.waitForFunction(() => /newer version of LifeOS \(schema 17\)/.test((document.querySelector('#verify-fail') || {}).textContent || ''), null, T);
       if ((await envelope()) !== before) throw new Error('verify wrote to storage');
       if ((await page.evaluate(() => globalThis.LifeOS.store.getMeta().rev)) !== rev0) throw new Error('verify changed the revision');
       if (downloads !== 1) throw new Error('verify downloaded something');
@@ -163,7 +164,7 @@ async function run(label, viewport) {
       await page.click('#diag-copy'); await page.waitForSelector('.notice.ok:has-text("Diagnostics copied")', T);
       const copied = await page.evaluate(async () => { try { return await navigator.clipboard.readText(); } catch (e) { return window.__copied || ''; } });
       const lines = copied.split('\n');
-      if (lines[0] !== 'LifeOS diagnostics' || !/^Version: 1\.3\.0$/.test(lines[1]) || lines[2] !== 'Schema: 15' || lines[3] !== 'Browser: Chrome' || !/^Codes: \d+$/.test(lines[4])) throw new Error('header: ' + lines.slice(0, 5).join(' / '));
+      if (lines[0] !== 'LifeOS diagnostics' || !/^Version: 1\.4\.0$/.test(lines[1]) || lines[2] !== 'Schema: 16' || lines[3] !== 'Browser: Chrome' || !/^Codes: \d+$/.test(lines[4])) throw new Error('header: ' + lines.slice(0, 5).join(' / '));
       if (!lines.slice(5).some((l) => /UNCAUGHT_MONEY money$/.test(l)) || !lines.slice(5).some((l) => /REJECTION_MONEY money$/.test(l)) || !lines.slice(5).some((l) => /SYNC_409 sync$/.test(l))) throw new Error('codes missing: ' + copied);
       if (lines.slice(5).some((l) => !/^\d{4}-\d{2}-\d{2} [A-Z0-9_]+ [a-z]+$/.test(l))) throw new Error('a line is not a code line: ' + copied);
       if (copied.includes(MARK) || /lunch|account|LLC|Mozilla|HeadlessChrome|file:|\d+\.\d+\.\d+\.\d+/.test(copied)) throw new Error('data in the copied text: ' + copied);
@@ -220,7 +221,7 @@ async function storageApis(mode) {
     await page.waitForSelector('#safety-card', T);
     await page.waitForFunction(() => !/checking/.test(document.querySelector('#safety-storage').textContent), null, T);
     if ((await page.textContent('#safety-storage')).trim() !== 'Storage: may be cleared by the browser') throw new Error('dashboard storage line');
-    await page.click('.nav button:has-text("Settings")'); await page.waitForSelector('#storage-status', T);
+    await navTo(page, 'Settings'); await page.waitForSelector('#storage-status', T);
     await page.waitForFunction(() => !/checking/.test(document.querySelector('#storage-status').textContent) && document.querySelector('#storage-estimate').textContent.length > 0, null, T);
     if ((await page.textContent('#storage-status')).trim() !== 'Storage: may be cleared by the browser') throw new Error('settings status');
     if (!/not available/.test(await page.textContent('#storage-estimate'))) throw new Error('estimate line');

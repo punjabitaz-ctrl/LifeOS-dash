@@ -94,7 +94,7 @@ describe('migration, backups and downgrade guards', () => {
     const src = full();
     for (let n = 1; n <= 11; n++) {
       const old = asSchema(n, src), oldText = text(old), got = S.validateState(clone(old));
-      assert.equal(got.schema, 15); assert.equal(got.sourceSchema, n);
+      assert.equal(got.schema, 16); assert.equal(got.sourceSchema, n);
       const gotText = text(got);
       for (const m of new Set(oldText.match(/LEAK mark \d+/g) || [])) assert.ok(gotText.includes(m), 'schema ' + n + ' lost ' + m);
       for (const k of ['payees', 'invoices', 'trips', 'taxPayments']) assert.deepEqual(got[k], [], k);
@@ -108,19 +108,19 @@ describe('migration, backups and downgrade guards', () => {
     const eleven = asSchema(11, full());
     const salt = V.newSalt(), key = await ORIG('backup passphrase 1', salt);
     const imp = await V.importBackup('backup passphrase 1', JSON.stringify(await V.makeEnvelope(key, salt, eleven)));
-    assert.equal(imp.schema, 15); assert.equal(imp.sourceSchema, 11);
+    assert.equal(imp.schema, 16); assert.equal(imp.sourceSchema, 11);
     await vault(null);
     assert.deepEqual(S.droppedData(S.getState(), imp), []);
     await S.replaceState(imp);
-    assert.equal(S.getState().schema, 15);
+    assert.equal(S.getState().schema, 16);
     const ad = memAdapter(); S._setAdapter(ad); S.lock(); await S.init(PASS);
     const env = await S.exportEnvelope(); const salt2 = V.parseEnvelope(env).salt, key2 = await fastDerive(PASS, salt2);
     await ad.set('envelope', await V.makeEnvelope(key2, salt2, eleven));
     S.lock();
     const st = await S.unlock(PASS);
-    assert.equal(st.schema, 15); assert.equal(st.settings.business.scopeConfirmed, false);
+    assert.equal(st.schema, 16); assert.equal(st.settings.business.scopeConfirmed, false);
     await S.commit(() => {});
-    assert.equal((await V.decrypt(key2, await ad.get('envelope'))).schema, 15);
+    assert.equal((await V.decrypt(key2, await ad.get('envelope'))).schema, 16);
   });
   test('downgrade guards: an older copy cannot silently strip invoices, trips, payees, tax payments, tax years, home office, the tax map, budgets or scopes', async () => {
     const cur = build((s) => {
@@ -149,7 +149,7 @@ describe('migration, backups and downgrade guards', () => {
     assert.equal(S.getState().invoices.length, 1);
     await S.replaceState(old(cur), { allowWorkLoss: true });
     assert.deepEqual(S.getState().invoices, []);
-    assert.throws(() => S.validateState(Object.assign(S.defaultState(), { schema: 16 })), /schema/);
+    assert.throws(() => S.validateState(Object.assign(S.defaultState(), { schema: 17 })), /schema/);
   });
 });
 

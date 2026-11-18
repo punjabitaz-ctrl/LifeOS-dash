@@ -4,6 +4,7 @@
 // records in and out from their edit dialogs, checks the "New items are private" toggle, locks and unlocks the app, reloads and checks
 // persistence. Run `node build.mjs` first. Needs Playwright and Chrome at /usr/bin/google-chrome.
 import path from 'node:path';
+import { navTo } from './_nav.mjs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const file = path.resolve(here, '..', 'dist', 'lifeos.html');
@@ -43,7 +44,7 @@ async function run(label, viewport) {
   page.on('pageerror', (e) => problems.push(label + ' pageerror: ' + e.message));
   page.on('request', (r) => { if (!r.url().startsWith('file:') && !r.url().startsWith('data:')) requests.push(r.url()); });
   async function step(name, fn) { try { await fn(); } catch (e) { problems.push(label + ' ' + name + ': ' + String(e.message).split('\n').slice(0, 3).join(' | ')); throw e; } }
-  const nav = (name) => page.click('.nav button:has-text("' + name + '")');
+  const nav = (name) => navTo(page, name);
   const text = (sel) => page.textContent(sel).then((t) => t.trim());
   const poll = async (get, good, what, tries = 80) => {
     let got;

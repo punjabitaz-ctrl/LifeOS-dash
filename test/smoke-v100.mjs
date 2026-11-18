@@ -4,6 +4,7 @@
 // ledger card refuses while private entries or lines are hidden; UI-6 a wrong current passphrase in "Change private passphrase" is
 // delayed like the open form; UI-10 Customize makes module bodies inert and the Drag handle is pointer only. Run `node build.mjs` first.
 import path from 'node:path';
+import { navTo } from './_nav.mjs';
 import http from 'node:http';
 import { readFileSync, rmSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -32,7 +33,7 @@ const page = await ctx.newPage();
 page.on('console', (m) => { if (m.type() === 'error' || /content security policy|refused to/i.test(m.text())) problems.push('console: ' + m.text()); });
 page.on('pageerror', (e) => problems.push('pageerror: ' + e.message));
 async function step(name, fn) { if (process.env.SMOKE_VERBOSE) console.log('step', name); try { await fn(); } catch (e) { problems.push(name + ': ' + String(e.message).split('\n').slice(0, 6).join(' | ')); } }
-const nav = (n) => page.click('.nav button:has-text("' + n + '")');
+const nav = (n) => navTo(page, n);
 // Every input, textarea and form must carry autocomplete off; the main passphrase fields may name a password purpose instead.
 const auditAutocomplete = (where) => page.evaluate((w) => {
   const bad = [];

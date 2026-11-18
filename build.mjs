@@ -1,9 +1,10 @@
 import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join, dirname } from 'node:path';
+import { ICONS, drawIcon, manifestFor, appleIconDataUrl } from './src/icons.mjs';
 import { fileURLToPath } from 'node:url';
 
-const CORE = ['vault', 'ops', 'store', 'priv', 'wellbeing', 'csv', 'metrics', 'home', 'admin', 'learning', 'activities', 'social', 'revenue', 'tax', 'business', 'layout', 'goals', 'memory', 'ai'].map((n) => `src/core/${n}.js`);
+const CORE = ['vault', 'ops', 'nav', 'setup', 'store', 'priv', 'wellbeing', 'csv', 'metrics', 'home', 'admin', 'learning', 'activities', 'social', 'revenue', 'tax', 'business', 'layout', 'goals', 'memory', 'ai'].map((n) => `src/core/${n}.js`);
 
 function read(root, rel) {
   try { return readFileSync(join(root, rel), 'utf8'); }
@@ -45,14 +46,14 @@ function assemble(root) {
   let html = read(root, 'src/ui/shell.html');
   let css = read(root, 'src/ui/styles.css');
   const optional = (f) => (existsSync(join(root, f)) ? [f] : []);
-  const files = [...CORE, ...optional('src/core/sync.js'), ...optional('src/core/archive.js'), 'src/ui/app.js', ...optional('src/ui/sync-ui.js'), ...optional('src/ui/archive-ui.js')];
+  const files = [...CORE, ...optional('src/core/sync.js'), ...optional('src/core/archive.js'), 'src/ui/app.js', ...optional('src/ui/sync-ui.js'), ...optional('src/ui/pwa.js'), ...optional('src/ui/archive-ui.js')];
   const head = `globalThis.LifeOS = globalThis.LifeOS || {};\nglobalThis.LifeOS.VERSION = ${JSON.stringify(versionOf(root))};`;
   const js = [head].concat(files.map((f) => read(root, f))).join('\n;\n').replace(/<\/script/gi, (m) => '<\\' + m.slice(1)).replace(/<!--/g, '<\\!--').replace(/<script/gi, (m) => '<\\' + m.slice(1));
   // Neutralise </style in CSS: in a CSS escape, \3c is '<', so the text stays inert but the HTML parser never sees the tag.
   css = css.replace(/<\/style/gi, (m) => '\\3c ' + m.slice(1));
   if (!html.includes('__CSP__')) throw new Error('Build failed: shell.html is missing the __CSP__ placeholder');
-  const csp = `default-src 'none'; script-src '${sha(js)}'; style-src '${sha(css)}'; connect-src https://api.anthropic.com https://www.googleapis.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'`;
-  html = html.split('__CSP__').join(csp);
+  const csp = `default-src 'none'; script-src '${sha(js)}'; style-src '${sha(css)}'; connect-src https://api.anthropic.com https://www.googleapis.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'; manifest-src 'self'; worker-src 'self'`;
+  html = html.split('__CSP__').join(csp).split('__VERSION__').join(versionOf(root)).split('__APPLE_ICON__').join(appleIconDataUrl(versionOf(root)));
   html = inline(html, 'style', '/*__CSS__*/', css);
   html = inline(html, 'script', '/*__JS__*/', js);
   return { html, csp };
@@ -60,6 +61,8 @@ function assemble(root) {
 
 export function build(root = dirname(fileURLToPath(import.meta.url))) { return assemble(root).html; }
 
+export const SW_CSP = "default-src 'none'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'";
+export const PAGE_PATH = 'lifeos';
 // Cloudflare Pages `_headers`: same CSP as the meta tag, plus what a meta tag cannot carry (frame-ancestors, HSTS, ...).
 export function headersFor(csp) {
   return [
@@ -76,12 +79,25 @@ export function headersFor(csp) {
     '',
     '/*.html',
     '  Cache-Control: no-cache',
+    '',
+    // v1.4.0: the service worker script runs under its own policy (it must fetch the shell from its own origin; the page policy would block that).
+    '/dist/sw.js',
+    '  ! Content-Security-Policy',
+    `  Content-Security-Policy: ${SW_CSP}`,
+    '  Cache-Control: no-cache',
+    '  Content-Type: text/javascript; charset=utf-8',
     ''
   ].join('\n');
 }
+// v1.4.0 B8: the service worker (one file), the manifest and the icons, all stamped with the one version.
+export function swFor(root = dirname(fileURLToPath(import.meta.url))) {
+  const files = [{ path: 'manifest.webmanifest', kind: 'manifest' }].concat(ICONS.map((i) => ({ path: i.path, kind: 'icon' })));
+  return read(root, 'src/sw.js').split('__VERSION__').join(versionOf(root)).split('__PAGE__').join(PAGE_PATH).split('__FILES__').join(JSON.stringify(files));
+}
 export function buildAll(root = dirname(fileURLToPath(import.meta.url))) {
   const { html, csp } = assemble(root);
-  return { html, headers: headersFor(csp), csp };
+  const v = versionOf(root);
+  return { html, headers: headersFor(csp), csp, sw: swFor(root), manifest: JSON.stringify(manifestFor(v), null, 2) + '\n', icons: ICONS.map((i) => ({ path: i.path, data: drawIcon(i.size, i.maskable, v) })) };
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
@@ -94,6 +110,10 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     writeFileSync(join(root, 'dist/lifeos.html'), out);
     writeFileSync(join(root, '_headers'), all.headers);
     writeFileSync(join(root, 'dist/_headers'), all.headers);
+    writeFileSync(join(root, 'dist/sw.js'), all.sw);
+    writeFileSync(join(root, 'dist/manifest.webmanifest'), all.manifest);
+    mkdirSync(join(root, 'dist/icons'), { recursive: true });
+    for (const i of all.icons) writeFileSync(join(root, 'dist', i.path), i.data);
     process.stdout.write(`Built dist/lifeos.html (${out.length} bytes)\n`);
   } catch (e) { process.stderr.write(e.message + '\n'); process.exit(1); }
 }

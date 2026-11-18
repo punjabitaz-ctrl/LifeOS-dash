@@ -1,5 +1,5 @@
 /*
-  Content-Security-Policy: default-src 'none'; script-src 'sha256-vJ7D/FW4pu7YA+AvxutuTnESP7Ky4iTDl+bFueLTgko='; style-src 'sha256-YIVd2U/Wt31GIuspmN0QTKrn8eZcc45Z0u6vBGo3gnk='; connect-src https://api.anthropic.com https://www.googleapis.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'none'; script-src 'sha256-sWJSHf4i6gOZ7oQf9jmh47Hi3ZyM0FFGCwVY9vipWHU='; style-src 'sha256-JTjZ3WCLG1KxpohmQAcZ4Fx+ucH4AmAWS1xO2eiHsY4='; connect-src https://api.anthropic.com https://www.googleapis.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'; manifest-src 'self'; worker-src 'self'; frame-ancestors 'none'
   Strict-Transport-Security: max-age=63072000
   X-Content-Type-Options: nosniff
   Referrer-Policy: no-referrer
@@ -11,3 +11,9 @@
 
 /*.html
   Cache-Control: no-cache
+
+/dist/sw.js
+  ! Content-Security-Policy
+  Content-Security-Policy: default-src 'none'; connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'
+  Cache-Control: no-cache
+  Content-Type: text/javascript; charset=utf-8

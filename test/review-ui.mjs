@@ -7,6 +7,7 @@
 //  P4 390 px horizontal overflow on the new v0.12.0 screens (dashboard edit mode, Work, Revenue, Home, Admin).
 //  P5 (UI-5) "New items are private" silently applies to one-tap writes that show no privacy note.
 import path from 'node:path';
+import { navTo } from './_nav.mjs';
 import http from 'node:http';
 import { readFileSync, rmSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -43,7 +44,7 @@ async function p1() {
     await page.fill('#f-title', 'AFSECRET title'); await page.fill('#f-value', '5');
     await page.click('button:has-text("Add entry")');
     await page.waitForSelector('.entry:has-text("AFSECRET")');
-    await page.click('.nav button:has-text("Review")');
+    await navTo(page, 'Review');
     for (const i of [1, 2, 3]) await page.fill('#prio' + i, 'AFPRIO' + i);
     await page.click('#finish-review');
     await page.waitForSelector('.tile');
@@ -92,10 +93,10 @@ async function p234(browser, label, viewport) {
   await page.goto(pathToFileURL(file).href);
   await create(page);
   await page.evaluate(SEED);
-  await page.click('.nav button:has-text("Work")'); // re-render with the seed
+  await navTo(page, 'Work'); // re-render with the seed
   const found = new Set();
   const scan = async (where) => { for (const u of await unlabeled(page)) found.add(where + ': ' + u); if (viewport) await overflow(page, where); };
-  await page.click('.nav button:has-text("Home")');
+  await navTo(page, 'Home');
   await page.click('#dash-customize');
   await page.waitForSelector('#dash-edit');
   await scan('dashboard (Customize)');
@@ -106,17 +107,17 @@ async function p234(browser, label, viewport) {
   const focused = await page.evaluate(() => { const a = document.activeElement; return a ? a.tagName + '.' + a.className + ' ' + (a.textContent || '') : 'none'; });
   if (!/^SELECT/.test(focused)) note(label + ' UI-3 focus after size change is on ' + focused.trim() + ', not the size select');
   await page.click('#dash-customize');
-  await page.click('.nav button:has-text("Work")');
+  await navTo(page, 'Work');
   await page.waitForSelector('#pipeline');
   await scan('Work');
   await page.click('#open-revenue');
   await page.waitForSelector('#rev-lines');
   await scan('Revenue');
-  await page.click('.nav button:has-text("Home")');
+  await navTo(page, 'Home');
   await page.click('.tile[data-domain="home"]');
   await page.waitForSelector('#hm-bills');
   await scan('Home');
-  await page.click('.nav button:has-text("Home")');
+  await navTo(page, 'Home');
   await page.click('.tile[data-domain="admin"]');
   await page.click('#ad-tax summary').catch(() => {});
   await scan('Admin');
@@ -137,7 +138,7 @@ async function p5(browser) {
   await page.click('#priv-setup-btn');
   await page.waitForSelector('#priv-bar', { timeout: 30000 });
   await page.check('#priv-new');
-  await page.click('.nav button:has-text("Health")');
+  await navTo(page, 'Health');
   const chip = page.locator('#hl-habits button[data-habit="Stretch"]');
   const noteOnChip = await page.locator('#hl-habits .privnew-note, #hl-cycle + .privnew-note').count();
   await chip.click();

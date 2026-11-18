@@ -24,7 +24,8 @@ test('SEC-93: the runbook quotes the real refusal message and never sends the ow
   assert.ok(r.includes('"Invalid data: unsupported schema"'));
   // the lock screen offers no wipe, import or second vault while one exists, so recovery and drills use a separate browser profile
   const lock = app.slice(app.indexOf('  function lockScreen() {'), app.indexOf('  function archCtx() {'));
-  assert.ok(lock.length > 500 && !/wipe|importBackup|Import backup/i.test(lock) && /var create = !vaultExists;/.test(lock));
+  // v1.4.0: restore and Drive paths exist on the lock screen, but only while this device has no vault (never beside an existing one)
+  assert.ok(lock.length > 500 && !/wipe/i.test(lock) && /var create = !vaultExists;/.test(lock) && /if \(!create\) lockPath = 'create';/.test(lock) && /create && lockPath === 'restore'/.test(lock) && /create && lockPath === 'drive'/.test(lock));
   assert.ok(!/on the lock screen create a throwaway vault/i.test(r));
   assert.match(r, /separate browser profile or another browser/); assert.match(f, /throwaway vault in a separate browser profile/);
   // rollback across a schema: a backup made on the older version is required, a newer one is refused, site data must be cleared first

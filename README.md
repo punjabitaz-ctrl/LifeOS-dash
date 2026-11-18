@@ -1,6 +1,6 @@
 # LifeOS
 
-Version <!--version-->1.3.0<!--/version--> (set by package.json; `node build.mjs` writes it here).
+Version <!--version-->1.4.0<!--/version--> (set by package.json; `node build.mjs` writes it here).
 
 LifeOS (Living Independent and Free Everyday Operating System) is a single-file, offline, local-first life dashboard. It tracks eleven areas (money, assets, work, health and more) plus business records and tax estimates, keeps a private vault with its own passphrase (Wellbeing lives there), builds weekly reviews, and keeps a memory of insights you approve. Vanilla JS, no dependencies.
 
@@ -72,6 +72,18 @@ Build, then open `dist/lifeos.html` in a browser (double-click works, it needs n
 - Important dates (label and name only) appear in the dashboard "At a glance" card; Feb 29 shows on Feb 28 in other years. Pipeline items and projects show linked people and their last contact; unlinking never deletes either side.
 - The weekly review gains a Social step (offers only); Goals gain people overdue and contacts per week. The AI and digest see counts only, with groups numbered by position.
 - Vault schema 9, migrated from schema 1 to 8 with no data loss: each distinct name in old contact entries becomes a person with those entries as the log; an entry that cannot map stays a visible entry. Contact entries added later (for example by CSV import) are offered for conversion, once. `node test/smoke-social.mjs` runs the flow. Audited: names, group names, labels, facts, channels and notes never leave the vault. See the v0.10.0 audit in docs/SECURITY.md.
+
+## v1.4.0: Phone first
+
+- Under 820 px a bottom bar (Home, Money, Work, Health, More); More lists every other area, so each area is two taps away. Back moves between views and closes dialogs; history entries hold only a view name; locking clears them and a reload returns to the lock screen.
+- A device with no vault offers three paths on the lock screen: create a vault, restore from a backup file, or use the Google Drive copy. A new vault shows a setup checklist that ticks itself from the vault's real state. Vault schema 16.
+- Install the hosted copy as an app (https only; the file copy works as before):
+  - iPhone: open the live address in Safari, tap Share, then Add to Home Screen.
+  - Android: open the live address in Chrome, open the menu, then Install app (or Add to Home screen).
+  - Sign in to Cloudflare Access first; the manifest is fetched with that sign-in. Neither install has been tried on a real phone yet.
+  - Updates: a "New version ready" notice with a Reload button appears after a deploy. Reloading locks LifeOS, so it asks first while unlocked; nothing reloads by itself. The service worker keeps only the page, the manifest and the icons; your data never goes in its cache. Details in docs/RUNBOOK.md.
+- `node test/smoke-phone.mjs` runs the phone flow, the service worker over a local https server and the accessibility checks. `LIFEOS_SMOKE_BROWSER=webkit` or `firefox` runs the core smokes in those browsers; if the browser is not installed the script prints SKIPPED and the runner lists it as skipped, never as passed.
+- Audited 18 Nov 2026: SEC-98 to SEC-101 fixed with regression tests (test/v140-audit.test.mjs), see docs/SECURITY.md "v1.4.0 audit".
 
 ## v1.3.0: Safe to live in
 

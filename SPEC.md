@@ -439,3 +439,30 @@ Source: docs/review/product-ops.md items B1, B2, B6, B7, B22, with support for t
 ### B3 support: first real run and live header check
 - scripts/check-live.mjs: fetches the live URL with a Cloudflare Access service token read from the environment variables CF_ACCESS_CLIENT_ID and CF_ACCESS_CLIENT_SECRET (never stored in the repo, never logged), and compares the response headers with `_headers` and the built CSP. Prints pass or each mismatch. The owner runs it; tests cover it with a mocked fetch.
 - docs/FIRST-RUN.md: a checklist for the owner's first real run on phone and PC (persist check, backup and verify on a second device, one Drive sync each way, one real AI call in manual and API modes, the header check), with a place to note results.
+
+## v1.4.0 addendum: Phone first (owner decisions, 18 Nov 2026)
+Source: docs/review/product-ops.md items B5, B8, B9, B10, B19, B20. Schema change only if a new stored field needs it, with tested migrations and downgrade guards.
+
+### B5 Phone navigation
+- Bottom bar on narrow screens (under 820 px): Home (dashboard), Money, Work, Health, More. Labels at least 14 px, touch targets at least 44 by 44 px, the current area marked for sight and for screen readers (aria-current).
+- More opens a sheet listing every other area (Assets, Command center, Business, Goals, Home and property, Admin, Learning, Activities, Social, Private vault, Wellbeing, Review, Settings), each one tap. Every area is reachable in two taps from anywhere.
+- History: each view change pushes a history entry holding only the view name (never data, ids or names); the back button moves within the app; dialogs close on back. Back from the dashboard behaves as the browser normally does. Locking clears the in-app history so back cannot reveal a view after lock. Nothing in the URL beyond a view name; a reload always returns to the lock screen.
+
+### B8 Install the hosted copy as an app
+- Add a web app manifest (name LifeOS, short name LifeOS, start_url and scope under the live path, display standalone, theme and background colours from the app, PNG icons at 192 and 512 px and a maskable icon, generated in the repo, no external assets).
+- Add a service worker (one separate file, built by build.mjs) that caches only the app shell (the built HTML, the manifest and the icons) for offline use. It never caches or intercepts requests to the AI provider, Google, or anything off-origin; it never caches a non-200 response, a redirect, or any response that is not the app shell (so a Cloudflare Access sign-in page can never be cached as the app). Strategy: network first for the shell with the cache as the offline fallback; a new shell version shows a "New version ready, reload" prompt (never an automatic reload while unlocked).
+- Registration only on https origins; the file:// copy keeps working without it. CSP and `_headers` add exactly `manifest-src 'self'` and `worker-src 'self'`; the service worker file gets its own strict headers. User data stays only in the encrypted IndexedDB vault, never in the service worker cache.
+- docs/RUNBOOK.md and the knowledge guide gain install steps for iPhone (Safari, Share, Add to Home Screen) and Android (Chrome, Install app), and how updates arrive.
+
+### B9 First-run setup and second device
+- Lock screen offers three paths: Create a new vault; Restore from a backup file (pick file, passphrase, verify counts, then become the live vault); Use my Google Drive copy (connect, download, unlock with the same passphrase). No throwaway vault is ever needed.
+- After a new vault is created, a dismissible Setup checklist on the dashboard: set currency and targets, add accounts, add lines of work, set the 2026 tax profile, connect Drive or export a first backup, confirm storage is kept. Items tick themselves from real state, never from a tap alone.
+
+### B10 Dashboard defaults
+- On narrow screens, modules with no data collapse to a one-line empty state; business and tax modules stay hidden until a tax profile exists, then appear (the user can still hide them). The user's saved layout always wins over defaults.
+
+### B19 Accessibility
+- Every interactive element has an accessible name; touch targets at least 44 px; visible focus; dialogs trap focus and return it; every chart has a text alternative (summary of its values); colour is never the only signal; contrast meets WCAG AA in light and dark. An automated check in a smoke (axe-like rules implemented in the test, no new dependency) fails on missing names, missing labels and targets under 44 px in the bottom bar and More sheet.
+
+### B20 Browser coverage
+- Run the core smokes (smoke, smoke-money, smoke-priv, smoke-leaks, smoke-safety and the new phone smoke) on Playwright WebKit and Firefox as well as Chrome. If those browsers cannot be installed in the build environment, say so plainly, keep the scripts ready, and note it in HANDOFF; never report them as passed.

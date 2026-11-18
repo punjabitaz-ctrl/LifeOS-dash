@@ -132,6 +132,17 @@
   var ai = null;
   var dlgEl = null, dlgReturn = null;
   var idleTimer = null, lastActive = 0, locking = null;
+  var pwaApply = null, narrowMQ = null;
+  // v1.4.0 B5: in-app history (view names only). See src/core/nav.js.
+  var hist = L.nav.create({
+    history: window.history,
+    getView: function () { return view; },
+    setView: function (v) { show(v.name, Object.assign({}, v, { name: undefined })); },
+    isUnlocked: function () { return L.store.isUnlocked(); },
+    dialogOpen: function () { return !!dlgEl; },
+    closeDialog: function (fromPop) { closeDialog(fromPop); }
+  });
+  window.addEventListener('popstate', function (e) { hist.onPop(e.state); });
 
   function setNotice(kind, text) {
     notice = text ? { kind: kind, text: text } : null;
@@ -223,36 +234,45 @@
     var a = { dashboard: 'dashboard', review: 'review', memory: 'memory', settings: 'settings', private: 'private', archive: 'archive', business: 'business', print: 'business' }[view.name];
     return a || 'app';
   }
-  function go(name, extra) {
+  function show(name, extra) {
     if (name !== 'archive' && L.archive) L.archive.closeArchive();
-    view = Object.assign({ name: name }, extra || {});
+    var e2 = Object.assign({}, extra || {}); delete e2.name;
+    Object.keys(e2).forEach(function (k) { if (e2[k] === undefined) delete e2[k]; });
+    view = Object.assign({ name: name }, e2);
     notice = null; csvPending = null; ai = null; ledger = null; actImp = null;
     render();
     window.scrollTo(0, 0);
     var t = document.querySelector('h1');
     if (t) { t.setAttribute('tabindex', '-1'); t.focus(); }
   }
+  function go(name, extra) {
+    show(name, extra);
+    if (L.store.isUnlocked()) hist.push(view);
+  }
+  function goKey(key) { var v = L.nav.viewOf(key); go(v.name, v); }
 
   // ---------- dialog ----------
-  function closeDialog() {
+  function closeDialog(fromPop) {
+    var was = !!dlgEl;
     if (dlgEl) { dlgEl.remove(); dlgEl = null; }
     if (dlgReturn && dlgReturn.isConnected) dlgReturn.focus();
     dlgReturn = null;
+    if (was && fromPop !== true) hist.dialogClosed();
   }
   function openDialog(o) {
     closeDialog();
     dlgReturn = document.activeElement;
     var err = h('p', { class: 'small', role: 'status', text: '' });
-    var yes = btn(o.yes || 'OK', function () {
+    var yes = o.sheet ? null : btn(o.yes || 'OK', function () {
       if (o.adds) markAddIntent();
       Promise.resolve().then(function () { return o.onYes(); }).then(function (keep) {
         if (keep !== false) closeDialog();
       }, function (e) { try { L.ops.recordError(e); } catch (x) { /* diagnostics never block */ } err.textContent = friendly(e); });
     }, o.danger ? 'bad' : 'pri');
-    var box = h('div', { class: 'dialog' + (o.adds ? ' adds' : ''), role: 'dialog', 'aria-modal': 'true', 'aria-label': o.title },
-      h('h2', { text: o.title }), o.body || null, err,
-      h('div', { class: 'row' }, yes, btn('Cancel', closeDialog)));
-    dlgEl = h('div', { class: 'overlay' }, box);
+    var box = h('div', { class: 'dialog' + (o.adds ? ' adds' : '') + (o.sheet ? ' sheet' : ''), role: 'dialog', 'aria-modal': 'true', 'aria-label': o.title },
+      h('h2', { text: o.title }), o.body || null, o.sheet ? null : err,
+      h('div', { class: 'row' }, yes, btn(o.sheet ? 'Close' : 'Cancel', function () { closeDialog(); })));
+    dlgEl = h('div', { class: 'overlay' + (o.sheet ? ' sheetov' : '') }, box);
     dlgEl.addEventListener('keydown', function (e) {
       if (e.key === 'Escape') { closeDialog(); return; }
       if (e.key === 'Tab') {
@@ -264,9 +284,10 @@
       }
     });
     document.body.appendChild(dlgEl);
+    hist.dialogOpened();
     markAddForms();
     var inp = box.querySelector('input,textarea');
-    (inp || yes).focus();
+    (inp || yes || box.querySelector('button')).focus();
   }
 
   // ---------- auto-lock ----------
@@ -304,6 +325,7 @@
       closeDialog();
       csvPending = null; ledger = null; actImp = null; actImpDone = null; dashEdit = false; ai = null; notice = r[1] ? { kind: 'ok', text: SYNC_NOTE } : null; lastActive = 0;
       view = { name: 'lock' };
+      hist.lock();
       render();
     }).then(function () { locking = null; }, function () { locking = null; });
     return locking;
@@ -327,7 +349,8 @@
   });
   L.ops.install(window);
   window.addEventListener('focus', checkIdle);
-  window.addEventListener('pageshow', checkIdle);
+  // A page restored from the browser's back-forward cache comes back as it was; if the vault is open, lock it.
+  window.addEventListener('pageshow', function (e) { if (e && e.persisted && L.store.isUnlocked()) lockNow(); else checkIdle(); });
   setInterval(checkIdle, 10000);
 
   // ---------- chrome ----------
@@ -351,18 +374,63 @@
         : view.name === 'print' ? printScreen(s)
         : dashScreen(s);
     } catch (e) { L.ops.record('RENDER_ERROR'); body = h('p', { text: friendly(e) }); }
-    var cur = view.name === 'domain' ? (view.domain === 'money' || view.domain === 'assets' || view.domain === 'work' || view.domain === 'health' ? view.domain : 'dashboard') : view.name;
-    var nav = h('nav', { class: 'nav', 'aria-label': 'Main' }, [['dashboard', 'Home'], ['money', 'Money'], ['assets', 'Assets'], ['work', 'Work'], ['health', 'Health'], ['business', 'Business'], ['review', 'Review'], ['memory', 'Memory'], ['settings', 'Settings']].map(function (n) {
-      return h('button', { type: 'button', text: n[1], 'aria-current': n[0] === cur ? 'page' : null, onclick: function () { if (n[0] === 'money' || n[0] === 'assets' || n[0] === 'work' || n[0] === 'health') go('domain', { domain: n[0] }); else go(n[0]); } });
-    }));
+    var nav = mainNav();
     root.appendChild(h('div', { class: 'app' },
       h('header', { class: 'top' }, h('span', { class: 'brand', text: 'LifeOS' }),
         h('span', { class: 'row' }, btn(L.priv.isOpen() ? 'Private (open)' : 'Private', function () { go('private'); }, 'sm', { id: 'nav-private', 'aria-current': view.name === 'private' ? 'page' : null }),
           btn('Lock', function () { lockNow(); }, 'sm lockbtn'))),
       nav,
-      h('main', { class: 'main' }, noticeEl, view.name === 'print' ? null : backupBanner(), privBar(), screenMark(), body)));
+      h('main', { class: 'main' }, noticeEl, updateBanner(), view.name === 'print' ? null : backupBanner(), privBar(), screenMark(), body)));
     markAddForms();
     decorateRows();
+  }
+
+
+  // ---------- navigation (v1.4.0 B5) ----------
+  function isNarrow() { try { return !!(narrowMQ ? narrowMQ.matches : window.innerWidth < 820); } catch (e) { return window.innerWidth < 820; } }
+  // Under 820 px: the bottom bar (Home, Money, Work, Health, More). Wider: the full bar of earlier versions.
+  function mainNav() {
+    var key = L.nav.keyOf(view);
+    if (isNarrow()) {
+      var inBar = L.nav.BAR.some(function (x) { return x.key === key; });
+      var btns = L.nav.BAR.map(function (n) {
+        return h('button', { type: 'button', class: 'navbtn', text: n.label, 'data-key': n.key, 'aria-current': n.key === key ? 'page' : null, onclick: function () { goKey(n.key); } });
+      });
+      btns.push(h('button', { type: 'button', class: 'navbtn', id: 'nav-more', text: 'More', 'aria-haspopup': 'dialog', 'aria-current': inBar ? null : 'page', onclick: moreSheet }));
+      return h('nav', { class: 'nav bar', 'aria-label': 'Main' }, btns);
+    }
+    var cur = view.name === 'domain' ? (view.domain === 'money' || view.domain === 'assets' || view.domain === 'work' || view.domain === 'health' ? view.domain : 'dashboard') : view.name;
+    return h('nav', { class: 'nav', 'aria-label': 'Main' }, [['dashboard', 'Home'], ['money', 'Money'], ['assets', 'Assets'], ['work', 'Work'], ['health', 'Health'], ['business', 'Business'], ['review', 'Review'], ['memory', 'Memory'], ['settings', 'Settings']].map(function (n) {
+      return h('button', { type: 'button', text: n[1], 'aria-current': n[0] === cur ? 'page' : null, onclick: function () { if (n[0] === 'money' || n[0] === 'assets' || n[0] === 'work' || n[0] === 'health') go('domain', { domain: n[0] }); else go(n[0]); } });
+    }));
+  }
+  function moreSheet() {
+    var key = L.nav.keyOf(view);
+    openDialog({
+      title: 'More', sheet: true,
+      body: h('ul', { class: 'sheetlist', id: 'more-list' }, L.nav.MORE.map(function (n) {
+        return h('li', null, h('button', { type: 'button', class: 'btn sheetbtn', text: n.label, 'data-key': n.key, 'aria-current': n.key === key ? 'page' : null, onclick: function () { closeDialog(); goKey(n.key); } }));
+      }))
+    });
+  }
+  // A newer version waits for this tap. Reloading locks the app, so while unlocked it asks first.
+  function updateBanner() {
+    if (!pwaApply) return null;
+    return h('div', { class: 'warn', id: 'update-banner', role: 'status' }, h('span', { text: 'New version ready. ' }),
+      btn('Reload', function () {
+        if (!L.store.isUnlocked()) { pwaApply(); return; }
+        openDialog({ title: 'Reload for the new version?', yes: 'Reload', body: [h('p', { class: 'mut', text: 'Reloading locks LifeOS. Anything you are typing and have not saved is lost.' })], onYes: function () { closeDialog(); /* the dialog's history entry is removed first; a history change would cancel the reload */ setTimeout(function () { pwaApply(); }, 250); return false; } });
+      }, 'sm', { id: 'update-reload' }));
+  }
+
+  // SEC-99: a waiting version adds its banner in place. Redrawing the screen would drop anything typed and not yet saved (a passphrase on
+  // the lock screen, an open form). Without a screen yet, the next render shows it.
+  function showUpdate() {
+    if (document.getElementById('update-banner')) return;
+    var host = document.querySelector('main.main') || document.querySelector('.lockwrap'), b = host ? updateBanner() : null;
+    if (!b) return;
+    var h1 = host.classList.contains('lockwrap') ? host.querySelector('h1') : null;
+    host.insertBefore(b, h1 ? h1.nextSibling : host.firstChild);
   }
 
   // The strip shown while the private vault is open, and the marker line shown while it is closed and something is hidden.
@@ -391,11 +459,26 @@
   });
 
   // ---------- lock screen ----------
+  // v1.4.0 B9: with no vault on this device the lock screen offers three ways in: create, restore from a backup file, use the Drive copy.
+  var lockPath = 'create', restorePick = null, driveCopy = null, driveCid = '';
   function lockScreen() {
     var create = !vaultExists;
+    if (!create) lockPath = 'create';
+    var inner;
+    if (create && lockPath === 'restore') inner = restorePath();
+    else if (create && lockPath === 'drive') inner = drivePath();
+    else inner = unlockForm(create);
+    var intro = h('p', { class: 'mut', text: create ? (lockPath === 'create' ? 'Your private life dashboard. Everything stays on this device, encrypted.' : 'Bring an existing vault to this device.') : 'Unlock your vault.' });
+    var paths = create && lockPath === 'create' ? h('div', { class: 'card lockpaths', id: 'lock-paths' }, h('h2', { text: 'Already have a vault?' }),
+      h('div', { class: 'row' },
+        btn('Restore from a backup file', function () { lockPath = 'restore'; restorePick = null; notice = null; render(); }, '', { id: 'path-restore' }),
+        btn('Use my Google Drive copy', function () { lockPath = 'drive'; notice = null; render(); }, '', { id: 'path-drive' }))) : null;
+    return h('div', { class: 'lockwrap' }, h('h1', { text: 'LifeOS' }), intro, noticeEl, updateBanner(), inner, paths);
+  }
+  function unlockForm(create) {
     var p1 = h('input', { type: 'password', id: 'pass', autocomplete: create ? 'new-password' : 'current-password', required: true, minlength: create ? '12' : null });
     var p2 = create ? h('input', { type: 'password', id: 'pass2', autocomplete: 'new-password', required: true, minlength: '12' }) : null;
-    var form = h('form', {
+    return h('form', {
       onsubmit: function (e) {
         e.preventDefault();
         act(function () {
@@ -414,10 +497,93 @@
       p2 ? field('Confirm passphrase', p2) : null,
       create ? passNote() : null,
       h('button', { type: 'submit', class: 'btn pri', text: create ? 'Create vault' : 'Unlock' }));
-    return h('div', { class: 'lockwrap' },
-      h('h1', { text: 'LifeOS' }),
-      h('p', { class: 'mut', text: create ? 'Your private life dashboard. Everything stays on this device, encrypted.' : 'Unlock your vault.' }),
-      noticeEl, form);
+  }
+  function backLink() { return btn('Back', function () { lockPath = 'create'; restorePick = null; driveCopy = null; notice = null; render(); }, '', { id: 'path-back' }); }
+  // After a vault is made from a backup or a Drive copy: record it, then open it like any unlock. A failed audit write never undoes the vault.
+  function enterNew(action) {
+    vaultExists = true; lockPath = 'create'; restorePick = null; driveCopy = null; driveCid = '';
+    return commit(null, action).catch(function () {}).then(afterUnlock);
+  }
+  function restorePath() {
+    var file = h('input', { type: 'file', id: 'rs-file', accept: '.json,application/json' }), pass = passOnly('rs-pass', 'off'), out = h('div', { id: 'rs-out', role: 'status' });
+    function showPreview(r, text, pv) {
+      var rows = r.rows.map(function (x) { return h('li', { text: x.label + ': ' + x.backup }); });
+      out.replaceChildren(h('div', { id: 'rs-ok' },
+        h('p', { class: 'small', text: 'This file passed the same checks as a restore inside the app. Nothing is saved until you confirm.' }),
+        h('ul', { class: 'small' },
+          h('li', { id: 'rs-schema', text: 'Schema: ' + r.schema + (r.sourceSchema !== r.schema ? ' (file written as schema ' + r.sourceSchema + ')' : '') }),
+          h('li', { id: 'rs-date', text: 'Made on: ' + (r.madeOn || 'not recorded in this file') }),
+          h('li', { id: 'rs-priv', text: 'Private vault in the file: ' + (r.priv ? 'yes' : 'no') })),
+        rows.length ? h('ul', { id: 'rs-rows', class: 'small' }, rows) : h('p', { class: 'mut small', text: 'The file holds no records.' }),
+        h('p', { class: 'mut small', text: 'The backup passphrase becomes this device\'s vault passphrase. You can change it later in Settings.' }),
+        h('div', { class: 'row' }, btn('Use this backup as my vault', function () {
+          act(function () {
+            return L.vault.importBackup(pv, text).then(function (state) { return L.store.createFromBackup(pv, state); }).then(function () { return enterNew('restore from backup'); });
+          }).then(function () { restorePick = null; });
+        }, 'pri', { id: 'rs-use' }), btn('Cancel', function () { restorePick = null; out.replaceChildren(); }, '', { id: 'rs-cancel' }))));
+      setNotice('ok', 'Backup file verified.');
+    }
+    return h('div', { class: 'card', id: 'restore-card' }, h('h2', { text: 'Restore from a backup file' }),
+      h('form', {
+        onsubmit: function (e) {
+          e.preventDefault();
+          var f = file.files && file.files[0];
+          if (!f) { setNotice('err', 'Choose a backup file first.'); return; }
+          if (!pass.value) { setNotice('err', 'Enter the backup passphrase.'); return; }
+          var pv = pass.value; pass.value = '';
+          act(function () {
+            return readFile(f, L.vault.MAX_BACKUP).then(function (text) {
+              return L.ops.verifyBackup(pv, text, { schema: L.store.SCHEMA }).then(function (r) {
+                out.replaceChildren();
+                if (!r.ok) { setNotice('err', r.message); return; }
+                showPreview(r, text, pv);
+              });
+            });
+          });
+        }
+      }, field('Backup file (64 MB max)', file), field('Backup passphrase', pass),
+        h('button', { type: 'submit', class: 'btn pri', id: 'rs-check', text: 'Check backup file' })),
+      out, h('div', { class: 'row' }, backLink()));
+  }
+  function drivePath() {
+    var card = h('div', { class: 'card', id: 'drive-card' }, h('h2', { text: 'Use my Google Drive copy' }));
+    if (!L.sync || !L.sync.isAvailable(window.location)) {
+      card.appendChild(h('p', { class: 'mut', id: 'drive-na', text: 'Google Drive is only offered when this page is served over https.' }));
+      card.appendChild(h('div', { class: 'row' }, backLink()));
+      return card;
+    }
+    if (!driveCid) driveCid = L.sync.takeClientId(window.sessionStorage);
+    if (!L.sync.isConnected()) {
+      var cid = h('input', { type: 'text', id: 'dv-cid', maxlength: '200', placeholder: 'xxxx.apps.googleusercontent.com', value: driveCid });
+      card.appendChild(h('form', {
+        onsubmit: function (e) {
+          e.preventDefault();
+          try { window.location.assign(L.sync.begin(cid.value, { loc: window.location, storage: window.sessionStorage, keepClientId: true })); }
+          catch (x) { setNotice('err', x.message); }
+        }
+      }, h('p', { class: 'mut small', text: 'Sign in to Google, download the encrypted copy, then unlock it with the passphrase it was made with. See docs/SYNC-SETUP.md for the client ID.' }),
+        field('Google OAuth client ID', cid), h('button', { type: 'submit', class: 'btn pri', id: 'dv-connect', text: 'Connect Google Drive' })));
+    } else if (!driveCopy) {
+      card.appendChild(h('p', { class: 'small', text: 'Connected to Google.' }));
+      card.appendChild(btn('Download my Drive copy', function () {
+        act(function () { return L.sync.fetchCopy().then(function (c) { driveCopy = c; render(); }); });
+      }, 'pri', { id: 'dv-fetch' }));
+    } else {
+      var pass = passOnly('dv-pass', 'off');
+      card.appendChild(h('form', {
+        onsubmit: function (e) {
+          e.preventDefault();
+          var pv = pass.value; pass.value = '';
+          if (!pv) { setNotice('err', 'Enter the passphrase of the Drive copy.'); return; }
+          act(function () {
+            return L.sync.installCopy(driveCopy, pv, driveCid).then(function () { return enterNew('restore from Drive'); });
+          });
+        }
+      }, h('p', { class: 'small', id: 'dv-found', text: 'Found your encrypted copy on Drive.' + (driveCopy.copies > 1 ? ' Drive holds ' + driveCopy.copies + ' LifeOS copies; the newest is used.' : '') }),
+        field('Passphrase of the Drive copy', pass), h('button', { type: 'submit', class: 'btn pri', id: 'dv-use', text: 'Open this copy' })));
+    }
+    card.appendChild(h('div', { class: 'row' }, backLink()));
+    return card;
   }
   function archCtx() {
     return { h: h, field: field, btn: btn, openDialog: openDialog, commit: commit, download: download, setNotice: setNotice, render: render, go: go, readFile: readFile, today: today, friendly: friendly };
@@ -429,6 +595,7 @@
     notice = null; csvPending = null; ai = null;
     resetIdle(true);
     view = { name: 'dashboard' };
+    hist.start();
     render();
     if (L.syncUI) L.syncUI.afterUnlock(syncCtx());
     // v1.3.0 B1: ask the browser to keep this storage (until granted); the result is recorded. Never blocks and never throws.
@@ -611,22 +778,45 @@
     built['rev-expected'] = revExpectedTile(s, t);
     built['tax-setaside'] = taxSetAsideMod(s); built['tax-next'] = taxNextMod(s); built['inv-open'] = invOpenMod(s); built['budget-pinned'] = budgetPinnedMod(s); built['payees-near'] = payeesNearMod(s);
     var due = L.metrics.dueRecurring(s, t).length;
-    var w = L.layout.which(window.innerWidth), list = L.layout.get(s.settings, w);
+    var w = L.layout.which(window.innerWidth), list = L.layout.get(s.settings, w, { state: mainState() });
     var mods = [];
     list.forEach(function (m, i) {
       var el = built[m.id];
+      // v1.4.0 B10: on a narrow screen a module with nothing to show is one line (never while editing the layout).
+      if (el && w === 'narrow' && !dashEdit && L.layout.isEmpty(s, m.id)) el = emptyLine(m, el);
       if (!dashEdit && (m.hidden || !el)) return;
       mods.push(h('div', { class: 'mod ' + m.size + (m.hidden ? ' modhidden' : ''), 'data-mod': m.id, 'data-size': m.size, 'data-hidden': m.hidden ? 'true' : 'false' },
         dashEdit ? modBar(list, m, i, w) : null,
         h('div', { class: 'modbody', inert: dashEdit ? true : null }, el || h('p', { class: 'mut small', text: L.layout.label(m.id) + ' has nothing to show right now.' }))));
     });
     return h('div', null, h('div', { class: 'row sp' }, h('h1', { text: 'Dashboard' }), h('div', { class: 'row' }, btn('Log study', function () { studyDialog(''); }, 'qa-btn', { id: 'quick-study' }), btn('Add activity', function () { go('domain', { domain: 'activities', open: 'act-add' }); }, 'qa-btn', { id: 'quick-activity' }), btn('Quick add', quickAdd, 'pri qa-btn', { id: 'quick-add' }), btn(dashEdit ? 'Done' : 'Customize', function () { dashEdit = !dashEdit; render(); }, 'qa-btn', { id: 'dash-customize' }))),
+      setupCard(mainState()),
       L.archiveUI ? L.archiveUI.proposal(archCtx()) : null,
       safetyCard(mainState()),
       due ? h('div', { class: 'warn' }, due + (due === 1 ? ' recurring item is' : ' recurring items are') + ' due. ', btn('Review', function () { go('domain', { domain: 'money' }); }, 'sm', { id: 'due-review' })) : null,
       dashEdit ? h('div', { class: 'card', id: 'dash-edit' }, h('p', { class: 'small', id: 'dash-edit-note', text: 'Editing the layout for ' + (w === 'narrow' ? 'narrow screens (under 720 px wide)' : 'wide screens (720 px and over)') + '. Drag a module or use Move up and Move down. Hidden modules are dimmed.' }),
         btn('Reset to default', function () { act(function () { return commit(function (x) { L.layout.reset(x.settings, w); }).then(function () { setNotice('ok', 'Layout reset.'); render(); }); }); }, 'sm', { id: 'dash-reset' })) : null,
       h('div', { class: 'grid modgrid' + (dashEdit ? ' editing' : ''), id: 'dash-grid', 'data-layout': w }, mods));
+  }
+
+  // A module with no data, drawn as one line that opens the same place the full module does.
+  // The module itself, drawn on one line (CSS hides its chart and detail lines), so it keeps its text, its ids and its tap target.
+  function emptyLine(m, el) {
+    el.classList.add('tile-empty');
+    return el;
+  }
+  // v1.4.0 B9: the setup checklist of a new vault. Items tick from the vault's state; Dismiss hides it for good.
+  function setupCard(s) {
+    if (!L.setup.shown(s)) return null;
+    var its = L.setup.items(s, Number(today().slice(0, 4))), done = its.filter(function (x) { return x.done; }).length;
+    return h('div', { class: 'card', id: 'setup-card' }, h('h2', { text: 'Setup checklist' }),
+      h('p', { class: 'mut small', id: 'setup-count', text: done + ' of ' + its.length + ' done' }),
+      h('ul', { class: 'setuplist' }, its.map(function (x) {
+        return h('li', { class: 'setupitem', 'data-item': x.id, 'data-done': x.done ? 'true' : 'false' },
+          h('span', { class: 'chip' + (x.done ? ' ok' : ''), text: x.done ? 'Done' : 'To do' }), h('span', { text: ' ' + x.label + ' ' }),
+          x.done ? null : btn('Open', function () { goKey(x.where); }, 'sm', { 'aria-label': 'Open: ' + x.label }));
+      })),
+      btn('Dismiss checklist', function () { act(function () { return commit(function (x) { x.settings.setup.dismissed = true; }, 'setup dismissed').then(function () { render(); }); }); }, 'sm', { id: 'setup-dismiss' }));
   }
 
   // ---------- customizable home (v0.12.0) ----------
@@ -3789,7 +3979,7 @@
           if (!(r >= 0 && r <= 100)) throw new Error('Savings rate must be 0 to 100.');
           if (!/^[A-Z]{3}$/.test(cu)) throw new Error('Currency must be a three letter code.');
           var m = Number(al.value);
-          return commit(function (x) { x.settings.targets = { workoutsPerWeek: w, contactDays: c, savingsRate: r / 100 }; x.settings.currency = cu; x.settings.autoLockMin = m; L.learning.setWeeklyTarget(x, study.value); }).then(function () { resetIdle(true); setNotice('ok', 'Settings saved.'); });
+          return commit(function (x) { x.settings.targets = { workoutsPerWeek: w, contactDays: c, savingsRate: r / 100 }; x.settings.currency = cu; x.settings.setup.targetsSaved = true; x.settings.autoLockMin = m; L.learning.setWeeklyTarget(x, study.value); }).then(function () { resetIdle(true); setNotice('ok', 'Settings saved.'); });
         });
       }
     }, h('h2', { text: 'Targets and preferences' }), field('Workouts per week', wpw), field('Days between contacts', cd), field('Savings rate target (%)', sr), field('Study minutes per week (0 for none)', study), field('Currency code', cur), field('Auto-lock after idle', al),
@@ -3896,7 +4086,7 @@
               return commit(null, 'wipe').catch(function () {}).then(function () { return L.store.wipe(); }).then(function () {
                 try { L.store.lock(); } catch (e) { /* already locked */ }
                 clearTimeout(idleTimer); idleTimer = null;
-                vaultExists = false; view = { name: 'lock' }; notice = { kind: 'ok', text: 'All data wiped.' };
+                vaultExists = false; view = { name: 'lock' }; notice = { kind: 'ok', text: 'All data wiped.' }; hist.lock();
                 setTimeout(render, 0);
               });
             }
@@ -4642,7 +4832,22 @@
     var p = Promise.resolve();
     if (!globalThis.crypto || !globalThis.crypto.subtle) notice = { kind: 'err', text: 'This browser does not support the required encryption features.' };
     else p = L.store.exists().then(function (x) { vaultExists = !!x; }, function () { notice = { kind: 'err', text: 'Storage is unavailable in this browser.' }; });
-    p.then(function () { view = { name: 'lock' }; render(); });
+    p.then(function () {
+      view = { name: 'lock' }; hist.reset();
+      // Back from Google sign-in on a device with no vault: open the Drive path (the token is already in memory).
+      if (!vaultExists && L.sync && L.sync.isConnected()) lockPath = 'drive';
+      var ret = !vaultExists && L.sync ? L.sync.takeReturn() : null;
+      if (ret && ret.error) { notice = { kind: 'err', text: ret.error }; if (!vaultExists) lockPath = 'drive'; }
+      render();
+      // v1.4.0 B8: https only; a new version shows a prompt and never reloads by itself.
+      if (L.pwa) L.pwa.register({ loc: window.location, navigator: navigator, document: document, onUpdate: function (apply) { pwaApply = apply; showUpdate(); } });
+    });
+    // The bottom bar and the full desktop bar differ; redraw when the window crosses the breakpoint.
+    try {
+      narrowMQ = window.matchMedia('(max-width: 819px)');
+      var onMQ = function () { if (!locking && !dlgEl) render(); };
+      if (narrowMQ.addEventListener) narrowMQ.addEventListener('change', onMQ); else if (narrowMQ.addListener) narrowMQ.addListener(onMQ);
+    } catch (e) { narrowMQ = null; }
   }
   boot();
 })();

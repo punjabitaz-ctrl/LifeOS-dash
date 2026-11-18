@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { readFileSync } from 'node:fs';
+import { navTo } from './_nav.mjs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const file = path.resolve(here, '..', 'dist', 'lifeos.html');
@@ -7,9 +8,9 @@ let pw;
 try { pw = await import('playwright'); } catch { console.log('SKIPPED: playwright not available'); process.exit(0); }
 let browser;
 for (const o of [{}, { channel: 'chrome' }, { executablePath: '/usr/bin/google-chrome' }]) {
-  try { browser = await pw.chromium.launch(o); break; } catch { /* try next */ }
+  try { browser = await pw[process.env.LIFEOS_SMOKE_BROWSER || 'chromium'].launch(o); break; } catch { /* try next */ }
 }
-if (!browser) { console.log('SKIPPED: chromium unavailable'); process.exit(0); }
+if (!browser) { console.log('SKIPPED: ' + (process.env.LIFEOS_SMOKE_BROWSER || 'chromium') + ' unavailable (not installed); this is not a pass'); process.exit(0); }
 const problems = [];
 async function run(label, viewport) {
 const mobile = !!viewport;
@@ -47,18 +48,18 @@ try {
     await layout('domain');
   });
   await step('workout', async () => {
-    await page.click('.nav button:has-text("Home")');
+    await navTo(page, 'Home');
     await page.click('.tile[data-domain="health"]');
     await page.selectOption('#f-type', 'workout');
     await page.fill('#f-title', 'Run');
     await page.click('button:has-text("Add entry")');
     await page.waitForSelector('.entry:has-text("Run")');
-    await page.click('.nav button:has-text("Home")');
+    await navTo(page, 'Home');
     await page.waitForSelector('.tile');
     if ((await page.locator('.tile').count()) !== 11) throw new Error('tiles missing');
   });
   await step('review', async () => {
-    await page.click('.nav button:has-text("Review")');
+    await navTo(page, 'Review');
     await page.click('#rules-run');
     await page.waitForSelector('button:has-text("Approve")', { timeout: 10000 });
     await page.click('button:has-text("Approve") >> nth=0');
@@ -68,9 +69,9 @@ try {
     await page.waitForSelector('.tile');
   });
   await step('review-layout', async () => {
-    await page.click('.nav button:has-text("Review")'); await page.waitForSelector('#rules-run'); await layout('review');
-    await page.click('.nav button:has-text("Memory")'); await layout('memory');
-    await page.click('.nav button:has-text("Home")'); await page.waitForSelector('.tile');
+    await navTo(page, 'Review'); await page.waitForSelector('#rules-run'); await layout('review');
+    await navTo(page, 'Memory'); await layout('memory');
+    await navTo(page, 'Home'); await page.waitForSelector('.tile');
   });
   await step('lock-unlock', async () => {
     await page.click('.top button:has-text("Lock")');
@@ -82,7 +83,7 @@ try {
     if (!(await page.locator('.card:has-text("One")').count())) throw new Error('priorities not persisted');
     await page.click('.tile[data-domain="money"]');
     await page.waitForSelector('.entry:has-text("Groceries")');
-    await page.click('.nav button:has-text("Memory")');
+    await navTo(page, 'Memory');
     await page.waitForSelector('.chip.ok');
   });
   const bodyText = () => page.evaluate(() => document.body.innerText);
@@ -106,7 +107,7 @@ try {
     if (leak.hit.length || leak.vals.length || leak.tiles) throw new Error('DOM not cleared on lock: ' + JSON.stringify(leak));
   };
   await step('csv-import', async () => {
-    await page.click('.nav button:has-text("Home")');
+    await navTo(page, 'Home');
     await page.click('.tile[data-domain="money"]');
     const csv = 'Date,Payee,Amount,Notes\r\n2026-11-02,Rent,"1,200.00",monthly\r\n2026-11-03,=HYPERLINK("http://x"),50,\r\nnot-a-date,Bad,1,\r\n2026-11-04,Huge,' + '1'.repeat(5000) + 'x,\r\n';
     await page.setInputFiles('#csv-file', { name: 'bank.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) });
@@ -126,9 +127,9 @@ try {
   });
   let backupPath;
   await step('backup-export', async () => {
-    await page.click('.nav button:has-text("Settings")');
+    await navTo(page, 'Settings');
     await layout('settings');
-    if (!/v1\.3\.0/.test(await page.textContent('#app-version'))) throw new Error('version missing');
+    if (!/v1\.4\.0/.test(await page.textContent('#app-version'))) throw new Error('version missing');
     await page.selectOption('#p-kind', 'local');
     await page.fill('#p-base', 'http://localhost:11434/v1');
     if (!/sent to: http:\/\/localhost:11434\/v1\/chat\/completions/.test(await page.textContent('#p-url'))) throw new Error('url preview wrong');
@@ -143,12 +144,12 @@ try {
     if (await page.inputValue('#bk-pass')) throw new Error('backup passphrase left in input');
   });
   await step('backup-import', async () => {
-    await page.click('.nav button:has-text("Home")');
+    await navTo(page, 'Home');
     await page.click('.tile[data-domain="money"]');
     await page.fill('#f-title', 'AfterBackup'); await page.fill('#f-value', '7');
     await page.click('button:has-text("Add entry")');
     await page.waitForSelector('.entry:has-text("AfterBackup")');
-    await page.click('.nav button:has-text("Settings")');
+    await navTo(page, 'Settings');
     await page.setInputFiles('#bk-file', backupPath);
     await page.fill('#bk-ipass', 'wrong passphrase 123');
     await page.click('button:has-text("Import backup")');
@@ -163,15 +164,15 @@ try {
     await layout('import dialog');
     await page.click('.dialog button:has-text("Replace")');
     await page.waitForSelector('.notice:has-text("Backup restored.")', { timeout: 30000 });
-    await page.click('.nav button:has-text("Home")');
+    await navTo(page, 'Home');
     await page.click('.tile[data-domain="money"]');
     await page.waitForSelector('.entry:has-text("Rent")');
     if (await page.locator('.entry:has-text("AfterBackup")').count()) throw new Error('backup import did not replace state');
-    await page.click('.nav button:has-text("Memory")');
+    await navTo(page, 'Memory');
     if (await page.locator('.chip.ok').count()) throw new Error('approved insight survived re-review import');
   });
   await step('csv-person-mapping', async () => {
-    await page.click('.nav button:has-text("Home")');
+    await navTo(page, 'Home');
     await page.click('.tile[data-domain="social"]');
     await page.setInputFiles('#csv-file', { name: 'c.csv', mimeType: 'text/csv', buffer: Buffer.from('Date,Title,Who\r\n2026-11-02,Lunch,Priya\r\n') });
     await page.waitForSelector('#m-person');
@@ -182,7 +183,7 @@ try {
   });
   await step('lock-clears-dom', async () => {
     // Positive control: the same scan must see the data while unlocked, so a clean result after lock means something.
-    await page.click('.nav button:has-text("Home")');
+    await navTo(page, 'Home');
     await page.click('.tile[data-domain="money"]');
     await page.waitForSelector('.entry:has-text("Groceries")');
     const before = await domSecrets(['Groceries']);
@@ -196,11 +197,11 @@ try {
     await page.fill('#pass', PASS);
     await page.click('button:has-text("Unlock")');
     await page.waitForSelector('.tile', { timeout: 30000 });
-    await page.click('.nav button:has-text("Settings")');
+    await navTo(page, 'Settings');
     await page.selectOption('#t-al', '1');
     await page.click('button:has-text("Save settings")');
     await page.waitForSelector('.notice:has-text("Settings saved.")');
-    await page.click('.nav button:has-text("Home")');
+    await navTo(page, 'Home');
     await page.click('.tile[data-domain="money"]');
     await page.waitForSelector('.entry:has-text("Groceries")');
     await page.clock.fastForward('00:30');

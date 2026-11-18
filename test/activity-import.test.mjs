@@ -63,18 +63,18 @@ const full = () => { const { state } = buildAdversarial(L); const s = clone(stat
 
 test('schemas 1 to 12 migrate into 13 as a no-op: every text survives, no importKey is invented, activities are untouched', () => {
   const src = full();
-  assert.equal(S.defaultState().schema, 15);
+  assert.equal(S.defaultState().schema, 16);
   for (let n = 1; n <= 12; n++) {
     const old = asSchema(n, src), oldText = text(old), got = S.validateState(clone(old));
-    assert.equal(got.schema, 15); assert.equal(got.sourceSchema, n);
+    assert.equal(got.schema, 16); assert.equal(got.sourceSchema, n);
     const gotText = text(got);
     for (const m of new Set(oldText.match(/LEAK mark \d+/g) || [])) assert.ok(gotText.includes(m), 'schema ' + n + ' lost ' + m);
     assert.ok(!gotText.includes('importKey'), 'schema ' + n + ' invented an importKey');
     if (n >= 8) assert.deepEqual(got.activities, S.validateState(clone(asSchema(12, src))).activities);
   }
   // a state that carries importKey needs schema 13: an older app (which stops at 12) refuses it, and 14 is refused here
-  assert.throws(() => S.validateState(Object.assign(S.defaultState(), { schema: 16 })), /schema/);
-  assert.match(S.defaultState().schema + '', /15/);
+  assert.throws(() => S.validateState(Object.assign(S.defaultState(), { schema: 17 })), /schema/);
+  assert.match(S.defaultState().schema + '', /16/);
 });
 test('importKey on an activity: 64 hex characters only, kept through validation and a backup round trip', async () => {
   const key = 'a'.repeat(64);
@@ -89,22 +89,22 @@ test('a v1.1.0 backup (schema 12) imports cleanly into an empty vault and a stor
   const twelve = asSchema(12, full());
   const salt = V.newSalt(), key = await REAL_DERIVE('backup passphrase 1', salt);
   const imp = await V.importBackup('backup passphrase 1', JSON.stringify(await V.makeEnvelope(key, salt, twelve)));
-  assert.equal(imp.schema, 15); assert.equal(imp.sourceSchema, 12);
+  assert.equal(imp.schema, 16); assert.equal(imp.sourceSchema, 12);
   await vault(null);
   assert.deepEqual(S.droppedData(S.getState(), imp), []);
   await S.replaceState(imp);
-  assert.equal(S.getState().schema, 15); assert.equal(S.getState().activities.length, 3);
+  assert.equal(S.getState().schema, 16); assert.equal(S.getState().activities.length, 3);
   const ad = memAdapter(); S._setAdapter(ad); S.lock(); await S.init(PASS);
   const env = await S.exportEnvelope(); const salt2 = V.parseEnvelope(env).salt, key2 = await fastDerive(PASS, salt2);
   await ad.set('envelope', await V.makeEnvelope(key2, salt2, twelve));
   S.lock();
   const st = await S.unlock(PASS);
-  assert.equal(st.schema, 15); assert.equal(st.activities.length, 3);
+  assert.equal(st.schema, 16); assert.equal(st.activities.length, 3);
   await S.commit(() => {});
-  assert.equal((await V.decrypt(key2, await ad.get('envelope'))).schema, 15);
+  assert.equal((await V.decrypt(key2, await ad.get('envelope'))).schema, 16);
   // and the downgrade guard still refuses a newer copy
   const salt3 = V.newSalt(), key3 = await REAL_DERIVE(PASS, salt3);
-  await assert.rejects(V.importBackup(PASS, JSON.stringify(await V.makeEnvelope(key3, salt3, Object.assign(clone(S.getState()), { schema: 16 })))), /schema/);
+  await assert.rejects(V.importBackup(PASS, JSON.stringify(await V.makeEnvelope(key3, salt3, Object.assign(clone(S.getState()), { schema: 17 })))), /schema/);
 });
 
 // ---------------------------------------------------------------- mapping, dates, cents, people

@@ -1,5 +1,6 @@
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { navTo } from './_nav.mjs';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const file = path.resolve(here, '..', 'dist', 'lifeos.html');
 let pw;
@@ -38,7 +39,7 @@ async function run(label, viewport) {
   };
   const text = (sel) => page.textContent(sel).then((t) => t.trim());
   const expectText = async (sel, want) => { const got = await text(sel); if (got !== want) throw new Error(sel + ' is ' + JSON.stringify(got) + ', expected ' + JSON.stringify(want)); };
-  const nav = (name) => page.click('.nav button:has-text("' + name + '")');
+  const nav = (name) => navTo(page, name);
   const addProject = async (name, kind, next, date) => {
     if (!(await page.locator('#pj-name').isVisible())) await page.click('#pj-new summary');
     await page.fill('#pj-name', name); await page.selectOption('#pj-kind', kind); await page.fill('#pj-next', next); await page.fill('#pj-date', date);

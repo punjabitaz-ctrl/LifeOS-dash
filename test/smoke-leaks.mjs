@@ -4,6 +4,7 @@
 // prompt, the audit log, an error notice, console output, the URL, sessionStorage, localStorage, cookies or the bytes in IndexedDB,
 // and no network request may be made. Run `node build.mjs` first. Needs Playwright and Chrome at /usr/bin/google-chrome.
 import path from 'node:path';
+import { navTo } from './_nav.mjs';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { buildAdversarial, ADV_MARK } from './_adversarial.mjs';
@@ -13,9 +14,9 @@ let pw;
 try { pw = await import('playwright'); } catch { console.log('SKIPPED: playwright not available'); process.exit(0); }
 let browser;
 for (const o of [{ executablePath: '/usr/bin/google-chrome' }, { channel: 'chrome' }, {}]) {
-  try { browser = await pw.chromium.launch(o); break; } catch { /* try next */ }
+  try { browser = await pw[process.env.LIFEOS_SMOKE_BROWSER || 'chromium'].launch(o); break; } catch { /* try next */ }
 }
-if (!browser) { console.log('SKIPPED: chromium unavailable'); process.exit(0); }
+if (!browser) { console.log('SKIPPED: ' + (process.env.LIFEOS_SMOKE_BROWSER || 'chromium') + ' unavailable (not installed); this is not a pass'); process.exit(0); }
 
 const PASS = 'correct horse battery staple';
 const T = { timeout: 30000 };
@@ -44,7 +45,7 @@ async function run(label, viewport) {
   page.on('request', (r) => { if (!r.url().startsWith('file:') && !r.url().startsWith('data:')) requests.push(r.url()); });
   page.on('framenavigated', (f) => urls.push(f.url()));
   async function step(name, fn) { try { await fn(); } catch (e) { problems.push(label + ' ' + name + ': ' + String(e.message).split('\n').slice(0, 3).join(' | ')); throw e; } }
-  const nav = (name) => page.click('.nav button:has-text("' + name + '")');
+  const nav = (name) => navTo(page, name);
   const seen = [];
   const grab = async (where) => { seen.push({ where, url: page.url(), s: await page.evaluate(() => JSON.stringify([location.href, document.cookie, Object.assign({}, sessionStorage), Object.assign({}, localStorage)])) }); };
   const prompts = [];
@@ -428,7 +429,7 @@ async function runPriv(label, viewport) {
   page.on('request', (r) => { if (!r.url().startsWith('file:') && !r.url().startsWith('data:')) requests.push(r.url()); });
   page.on('framenavigated', (f) => urls.push(f.url()));
   async function step(name, fn) { try { await fn(); } catch (e) { problems.push(label + ' ' + name + ': ' + String(e.message).split('\n').slice(0, 3).join(' | ')); throw e; } }
-  const nav = (name) => page.click('.nav button:has-text("' + name + '")');
+  const nav = (name) => navTo(page, name);
   const dom = () => page.evaluate(() => {
     let t = '';
     const w = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);

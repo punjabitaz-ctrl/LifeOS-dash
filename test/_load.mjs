@@ -1,5 +1,7 @@
 import '../src/core/vault.js';
 import '../src/core/ops.js';
+import '../src/core/nav.js';
+import '../src/core/setup.js';
 import '../src/core/store.js';
 import '../src/core/priv.js';
 import '../src/core/wellbeing.js';
@@ -27,3 +29,4 @@ export function memAdapter() {
 export const PASS = 'correct horse battery';
 let n = 0;
 export const E = (o) => L.metrics.validateEntry(Object.assign({ date: '2026-11-10', title: 't' + (n++) }, o));
+import '../src/ui/pwa.js';

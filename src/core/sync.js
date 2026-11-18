@@ -6,7 +6,7 @@
   const API = 'https://www.googleapis.com';
   const FILE_NAME = 'lifeos-vault.json';
   const MAX_REMOTE = 64 * 1024 * 1024, TIMEOUT_MS = 30000;
-  const NONCE_KEY = 'lifeos.oauth.state';
+  const NONCE_KEY = 'lifeos.oauth.state', CID_KEY = 'lifeos.oauth.client';
   const ID_RE = /^[A-Za-z0-9_-]{5,200}$/;
   let token = null, tokenExp = 0, fetchImpl = null, returned = null;
 
@@ -55,8 +55,14 @@
   function begin(clientId, env) {
     if (!isAvailable(env.loc)) throw err('NOT_HTTPS', 'Google Drive sync needs this page to be served over https.');
     const nonce = newNonce();
+    const url = buildAuthUrl(clientId, env.loc.origin + env.loc.pathname, nonce);
     env.storage.setItem(NONCE_KEY, nonce);
-    return buildAuthUrl(clientId, env.loc.origin + env.loc.pathname, nonce);
+    // v1.4.0: on the lock screen there is no vault to hold the client ID across the redirect; the tab's session storage carries it (never the token).
+    if (env.keepClientId === true) env.storage.setItem(CID_KEY, validateClientId(clientId));
+    return url;
+  }
+  function takeClientId(storage) {
+    try { const v = storage.getItem(CID_KEY); storage.removeItem(CID_KEY); return typeof v === 'string' && /^[A-Za-z0-9._-]{1,150}\.apps\.googleusercontent\.com$/.test(v) ? v : ''; } catch (e) { return ''; }
   }
   // Returns null when the fragment is not an OAuth response. Throws a coded error when it is one but cannot be trusted.
   function parseFragment(hash, expectedNonce) {
@@ -242,7 +248,7 @@
   async function fingerprint(state) {
     const s = JSON.parse(JSON.stringify(state));
     delete s.audit; delete s.ops;
-    if (s.settings) delete s.settings.sync;
+    if (s.settings) { delete s.settings.sync; delete s.settings.setup; }
     const d = await L._webcrypto.subtle.digest('SHA-256', new TextEncoder().encode(stable(s)));
     return Array.from(new Uint8Array(d), (x) => x.toString(16).padStart(2, '0')).join('');
   }
@@ -361,7 +367,35 @@
     return { kind: 'uploaded', rev: ex.env.rev };
   }
 
+  // ---- v1.4.0: use the Drive copy as the first vault on a new device (lock screen, no vault yet) ----
+  // fetchCopy lists and downloads with the same caps and checks as a sync download. installCopy opens it with the passphrase through
+  // store.installEnvelope (the same revision check and validation as sync.inspect), then records the sync bookkeeping.
+  async function fetchCopy() {
+    const file = await findFile();
+    if (!file) throw err('NOT_FOUND', 'No LifeOS copy was found in this Google Drive.');
+    const dl = await download(file);
+    let env;
+    try { env = JSON.parse(dl.text); L.vault.parseEnvelope(env); } catch (e) { throw err('REMOTE_INVALID', 'The Drive file is not a valid LifeOS vault.'); }
+    return hide({ copies: file.copies }, { file, env });
+  }
+  async function installCopy(copy, passphrase, clientId) {
+    const ctx = copy && copy._ctx;
+    if (!ctx) throw err('BAD_DECISION', 'Nothing to install.');
+    let info;
+    try { info = await L.store.installEnvelope(ctx.env, passphrase); }
+    catch (e) {
+      if (e && (e.code === 'NEED_PASSPHRASE' || e.code === 'WRONG_PASSPHRASE')) throw e;
+      if (e && e.message === 'VAULT_EXISTS') throw err('VAULT_EXISTS', 'This device already has a vault. Nothing was replaced.');
+      if (String((e && e.message) || '').indexOf('Vault revision check') === 0) throw err('TAMPER', 'The Drive copy failed its revision check (the outer and inner revision numbers disagree). It was rejected.');
+      throw err('REMOTE_INVALID', 'The Drive file is not a valid LifeOS vault.');
+    }
+    const id = typeof clientId === 'string' && clientId ? validateClientId(clientId) : '';
+    if (id) await bookkeeping(id, info.meta.rev, ctx.file.id, 'sync: downloaded from Drive', await fingerprint(info.state), b64(info.salt));
+    return { kind: 'downloaded', rev: info.meta.rev };
+  }
+
   L.sync = {
+    fetchCopy, installCopy, takeClientId,
     SCOPE, FILE_NAME, MAX_REMOTE, isAvailable, validateClientId, buildAuthUrl, begin, parseFragment, consumeReturn, takeReturn,
     isConnected, expiresAt, disconnect, run, apply, fingerprint, putNamed, getNamed, _setFetch, _setToken,
   };

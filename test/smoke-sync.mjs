@@ -1,5 +1,6 @@
 import path from 'node:path';
 import http from 'node:http';
+import { navTo } from './_nav.mjs';
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -72,14 +73,14 @@ async function create(page) {
   await page.waitForSelector('.tile', T);
 }
 async function addRun(page, title) {
-  await page.click('.nav button:has-text("Home")');
+  await navTo(page, 'Home');
   await page.click('.tile[data-domain="health"]');
   await page.selectOption('#f-type', 'workout');
   await page.fill('#f-title', title);
   await page.click('button:has-text("Add entry")');
   await page.waitForSelector('.entry:has-text("' + title + '")');
 }
-async function settings(page) { await page.click('.nav button:has-text("Settings")'); await page.waitForSelector('#sync-card'); }
+async function settings(page) { await navTo(page, 'Settings'); await page.waitForSelector('#sync-card'); }
 async function connect(page) {
   await settings(page);
   await page.fill('#sync-cid', CID);
@@ -96,13 +97,13 @@ async function connect(page) {
 }
 // Schema 2 money data, entered through the UI (same selectors as smoke-money.mjs).
 async function addMoney(page) {
-  await page.click('.nav button:has-text("Assets")');
+  await navTo(page, 'Assets');
   for (const [name, kind, bal] of [['Checking', 'cash', '5000.00'], ['Visa', 'credit', '1250.25']]) {
     await page.fill('#ac-name', name); await page.selectOption('#ac-kind', kind); await page.fill('#ac-bal', bal);
     await page.click('#ac-add');
     await page.waitForSelector('.acct[data-account="' + name + '"]');
   }
-  await page.click('.nav button:has-text("Money")');
+  await navTo(page, 'Money');
   await page.click('#budgets summary');
   await page.selectOption('#bud-cat', 'Groceries'); await page.fill('#bud-amount', '150');
   await page.click('button:has-text("Save budget")');
@@ -113,12 +114,12 @@ async function addMoney(page) {
   await page.waitForSelector('#due-card:has-text("Gym")');
 }
 async function expectMoney(page, who) {
-  await page.click('.nav button:has-text("Assets")');
+  await navTo(page, 'Assets');
   await page.waitForSelector('.acct[data-account="Visa"]', T);
   await page.waitForSelector('.acct[data-account="Checking"]');
   const net = (await page.textContent('#aw-net')).trim();
   if (net !== '$3,749.75') throw new Error(who + ' net worth ' + net);
-  await page.click('.nav button:has-text("Money")');
+  await navTo(page, 'Money');
   await page.waitForSelector('#due-card:has-text("Gym")');
   const spend = (await page.textContent('#mv-spend')).trim();
   if (spend !== '$0.00') throw new Error(who + ' recurring was posted without a tap: ' + spend);
@@ -217,7 +218,7 @@ try {
     const [dl] = await Promise.all([B.page.waitForEvent('download'), B.page.click('.dialog button:has-text("Continue")')]);
     if (!/lifeos-local-copy/.test(dl.suggestedFilename())) throw new Error('no local backup download: ' + dl.suggestedFilename());
     await B.page.waitForSelector('.notice:has-text("Downloaded")', T);
-    await B.page.click('.nav button:has-text("Home")');
+    await navTo(B.page, 'Home');
     await B.page.click('.tile[data-domain="health"]');
     await B.page.waitForSelector('.entry:has-text("Run A2")');
     if (await B.page.locator('.entry:has-text("Run B2")').count()) throw new Error('local copy should have been replaced');

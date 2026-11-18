@@ -2,6 +2,13 @@
 
 Newest first. One line per change. Versions come from package.json (see docs/RUNBOOK.md); fixes by number are described in docs/SECURITY.md.
 
+## 1.4.0 (schema 16): Phone first
+- Phone navigation: a bottom bar (Home, Money, Work, Health, More) under 820 px and a More sheet that lists every other area, so each area is two taps away. In-app history holds only a view name; back moves between views and closes dialogs; locking clears the history and a reload returns to the lock screen.
+- Install as an app: manifest, PNG icons drawn in the repo and one service worker (https only) that keeps only the app shell for offline use and shows a reload prompt for a new version.
+- Lock screen paths for a new device: create a vault, restore from a backup file, or use the Google Drive copy. Setup checklist on the dashboard (state-driven, dismissible; schema 16 stores the dismissal).
+- Dashboard defaults on narrow screens: empty modules are one line; business and tax modules start hidden until a tax profile exists. A saved layout wins.
+- Accessibility checks and 44 px targets for small buttons on narrow screens; browser smokes for WebKit and Firefox are ready.
+
 ## 1.3.0 (schema 15): Safe to live in
 - Storage: asks the browser to keep the vault on each unlock until granted, records the result, and shows "kept by the browser" or "may be cleared by the browser" with the storage in use. A missing or refusing API never blocks the app.
 - Backups: last backup and last sync dates are kept inside the encrypted state and shown on the dashboard and in Settings; a non-blocking banner offers Export backup after the chosen number of days (default 7, 1 to 60) or more than 200 saves, with Snooze one day. Never automatic.

@@ -52,3 +52,5 @@ Date of run: ____________  Device (phone): ____________  Browser: ____________  
 
 ## Anything else
 ____________
+
+New device (v1.4.0): on the lock screen of a device with no vault choose Restore from a backup file (pick the file, enter its passphrase, check the counts, then confirm) or Use my Google Drive copy (client ID, sign in, download, enter the passphrase). Neither needs a throwaway vault.

@@ -2,6 +2,7 @@
 // expected income, ledger CSV import (preview, import, re-import is a no-op), customizable home (drag and Move buttons, hide, per width),
 // a line moved into the private vault, lock and unlock. Desktop and 390x844. Run `node build.mjs` first.
 import path from 'node:path';
+import { navTo } from './_nav.mjs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const file = path.resolve(here, '..', 'dist', 'lifeos.html');
@@ -39,7 +40,7 @@ async function run(label, viewport) {
   page.on('pageerror', (e) => problems.push(label + ' pageerror: ' + e.message));
   page.on('request', (r) => { if (!r.url().startsWith('file:') && !r.url().startsWith('data:')) requests.push(r.url()); });
   async function step(name, fn) { if (process.env.SMOKE_VERBOSE) console.log(label, 'step:', name); try { await fn(); } catch (e) { problems.push(label + ' ' + name + ': ' + String(e.message).split('\n').slice(0, 3).join(' | ')); if (process.env.SMOKE_VERBOSE) console.log(problems[problems.length - 1]); throw e; } }
-  const nav = (name) => page.click('.nav button:has-text("' + name + '")');
+  const nav = (name) => navTo(page, name);
   const text = (sel) => page.textContent(sel).then((t) => t.trim());
   const poll = async (get, good, what, tries = 60) => {
     let got;
@@ -82,6 +83,8 @@ async function run(label, viewport) {
     await page.waitForSelector('#rev-lines', T);
   };
   const moneyMonth = () => page.evaluate(() => { const m = globalThis.LifeOS.metrics.monthView(globalThis.LifeOS.priv.isOpen() ? globalThis.LifeOS.priv.view(globalThis.LifeOS.store.getState()) : globalThis.LifeOS.store.getState(), '2026-11'); return { inc: m.incomeCents, exp: m.spendCents }; });
+  // v1.4.0 B10: until a tax profile exists, the default narrow layout hides the five business and tax modules.
+  const defaultAt = (narrow) => (narrow ? defaultOrder.filter((m) => !['tax-setaside', 'tax-next', 'inv-open', 'budget-pinned', 'payees-near'].includes(m)) : defaultOrder);
   const order = () => page.$$eval('#dash-grid .mod', (els) => els.map((e) => e.getAttribute('data-mod')));
   const dash = async () => { await nav('Home'); await page.waitForSelector('#dash-grid', T); };
   const unlock = async () => { await page.fill('#pass', PASS); await page.click('button:has-text("Unlock")'); await page.waitForSelector('#dash-grid, .tile', T); };
@@ -185,7 +188,7 @@ async function run(label, viewport) {
     await step('home layout: Move buttons, drag, hide; persists after reload; the other width stays separate', async () => {
       await dash();
       const o0 = await order();
-      if (o0.join() !== defaultOrder.join()) throw new Error('default order ' + o0.join());
+      if (o0.join() !== defaultAt(!!viewport).join()) throw new Error('default order ' + o0.join());
       await page.click('#dash-customize');
       await page.waitForSelector('.modbar', T);
       for (let i = 0; i < 2; i++) { await page.click('.mod[data-mod="rev-month"] .mv-up'); await page.waitForTimeout(150); }
@@ -217,7 +220,7 @@ async function run(label, viewport) {
       if ((await order()).join() !== saved.join()) throw new Error('layout lost on reload');
       // the other width has its own (default) layout
       await page.setViewportSize(other); await page.reload(); await unlock(); await dash();
-      if ((await order()).join() !== defaultOrder.join()) throw new Error('other width does not start from the default: ' + (await order()).join());
+      if ((await order()).join() !== defaultAt(!viewport).join()) throw new Error('other width does not start from the default: ' + (await order()).join());
       await page.click('#dash-customize'); await page.click('.mod[data-mod="tile-goals"] .mv-hide');
       await page.waitForSelector('.mod[data-mod="tile-goals"][data-hidden="true"]', T);
       await page.click('#dash-customize');
@@ -229,7 +232,7 @@ async function run(label, viewport) {
       // reset to default
       await page.click('#dash-customize'); await page.click('#dash-reset'); await page.waitForSelector('.notice:has-text("Layout reset.")', T);
       await page.click('#dash-customize');
-      if ((await order()).join() !== defaultOrder.join()) throw new Error('reset did not restore the default');
+      if ((await order()).join() !== defaultAt(!!viewport).join()) throw new Error('reset did not restore the default');
     });
     await step('move Client Co into the private vault: its money disappears with a marker while closed', async () => {
       const id = await page.evaluate(() => globalThis.LifeOS.store.getState().projects.find((p) => p.name === 'Client Co').id);
@@ -264,7 +267,7 @@ async function run(label, viewport) {
       if (await page.locator(row('rev-lines', 'Client Co')).count()) throw new Error('private line visible after unlock');
       await expectCents('#rev-lines tr[data-total] .c-rev', WANT.total.rev + 50000 - WANT.client.rev);
       await dash();
-      if ((await order()).join() !== defaultOrder.join()) throw new Error('layout changed across lock');
+      if ((await order()).join() !== defaultAt(!!viewport).join()) throw new Error('layout changed across lock');
       await page.click('#nav-private'); await page.fill('#priv-pass', PRIV); await page.click('#priv-open'); await page.waitForSelector('#priv-bar', T);
       await revenue();
       await checkLine('Client Co', WANT.client);

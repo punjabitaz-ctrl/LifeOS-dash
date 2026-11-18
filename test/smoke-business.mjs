@@ -6,6 +6,7 @@
 // unlock, open again, and the same figures return. Fails on console errors, CSP violations, network requests or horizontal scroll.
 // Run `node build.mjs` first. Needs Playwright and Chrome at /usr/bin/google-chrome.
 import path from 'node:path';
+import { navTo } from './_nav.mjs';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -59,7 +60,7 @@ async function run(label, viewport) {
     const n = await page.evaluate(() => document.querySelectorAll('input:not([autocomplete=off]),textarea:not([autocomplete=off]),form:not([autocomplete=off])').length);
     if (n) throw new Error(where + ': ' + n + ' fields without autocomplete off');
   };
-  const nav = (name) => page.click('.nav button:has-text("' + name + '")');
+  const nav = (name) => navTo(page, name);
   const tab = async (t) => { await nav('Business'); await page.click('#bz-tab-' + t); await page.waitForSelector('#bz-tab-' + t + '[aria-pressed="true"]', T); await page.waitForTimeout(30); await noHScroll('business ' + t); await autofillOff('business ' + t); };
   const notice = (t) => page.waitForSelector('.notice:has-text("' + t + '")', T);
   const addEntry = async (type, title, value, o) => {

@@ -2,7 +2,7 @@
   'use strict';
   const L = (globalThis.LifeOS = globalThis.LifeOS || {});
   const KEY = 'envelope';
-  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 15, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
+  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 16, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
   const HABIT_CAP = 8, HABIT_LOG_CAP = 100000, KIND_CAP = 30;
   const RENEWAL_TOTAL_CAP = 2000;
   const ENTRY_CAP = 50000, INSIGHT_CAP = 5000, REVIEW_CAP = 1000, LESSON_CAP = 30, AUDIT_CAP = 200;
@@ -127,7 +127,14 @@
       archiveSuggestMB: schema >= 14 && s.archiveSuggestMB !== undefined ? num(s.archiveSuggestMB, 20, 60, 'archiveSuggestMB', true) : 40,
       // v1.3.0: backup reminder interval (days) and the optional sync reminder.
       ...L.ops.cleanSettings(s, schema),
+      // v1.4.0: the setup checklist. A vault from before schema 16 counts as set up (no checklist); a new vault starts with it shown.
+      setup: cleanSetup(s.setup, schema),
     };
+  }
+  function cleanSetup(x, schema) {
+    if (schema < 16 || x === undefined || x === null) return { dismissed: schema < 16, targetsSaved: false };
+    if (!isObj(x) || typeof x.dismissed !== 'boolean' || typeof x.targetsSaved !== 'boolean') fail('setup');
+    return { dismissed: x.dismissed, targetsSaved: x.targetsSaved };
   }
   // 6 decimals, like converted weights, so a unit switch round trip does not drift.
   const r6 = (x) => Math.round(x * 1e6) / 1e6;
@@ -614,7 +621,7 @@
   function validateStateRaw(o, opts) {
     if (!isObj(o)) fail('state must be an object');
     scan(o, 0, { n: 4e6 });
-    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, SCHEMA].includes(o.schema)) fail('unsupported schema');
+    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, SCHEMA].includes(o.schema)) fail('unsupported schema');
     if (!L.metrics) fail('metrics module missing');
     const settings = cleanSettings(o.settings, o.schema), entries = cleanEntries(o.entries);
     const out = { schema: SCHEMA, settings, entries };
@@ -823,6 +830,7 @@
         business: L.business.defaultSettings(true),
         archiveSuggestMB: 40,
         backupReminderDays: 7, syncReminder: false,
+        setup: { dismissed: false, targetsSaved: false },
       },
       entries: [],
       accounts: [], recurring: [], budgets: [], categories: defaultCategories(),
@@ -1053,6 +1061,60 @@
       replaceContents(st, next);
     });
   }
+
+  // ---- v1.4.0: first-run paths on the lock screen (no vault exists yet) ----
+  // Both build the whole vault in memory, check it exactly as a backup restore (validateState) or a Drive download (revision check and
+  // validateState, as inspectEnvelope) does, and only then make one write. Any failure before that write leaves nothing stored.
+  async function startFrom(passphrase, clean, rev, deviceFrom) {
+    const a = getAdapter();
+    const sl = V().newSalt();
+    const k = await V().deriveKey(passphrase, sl);
+    const sealed = await seal(k, sl, clean, rev);
+    if (await a.get(KEY)) throw new Error('VAULT_EXISTS');
+    await a.set(KEY, sealed.env);
+    key = k; salt = sl; state = clean; meta = sealed.m;
+    return clean;
+  }
+  // Restore a verified backup (the state importBackup returned) as this device's new vault under `passphrase`.
+  function createFromBackup(passphrase, backupState) {
+    return serial(async () => {
+      if (state || key) throw new Error('VAULT_EXISTS');
+      V().checkPassphrase(passphrase);
+      const clean = validateState(backupState);
+      const src = backupState && typeof backupState.sourceSchema === 'number' ? backupState.sourceSchema : clean.sourceSchema;
+      if (typeof src !== 'number') throw new Error('Invalid data: unknown format');
+      if (clean.priv && L.priv && (await L.priv.matches(clean.priv, passphrase))) throw new Error('The vault passphrase must be different from the private vault passphrase. Use a backup whose passphrase differs.');
+      // Like a restore: the backup brings no sync bookkeeping, no device dates and no diagnostics of its own.
+      const fresh = defaultState();
+      clean.settings.sync = fresh.settings.sync;
+      clean.ops = fresh.ops;
+      if (src < 15) { clean.settings.backupReminderDays = fresh.settings.backupReminderDays; clean.settings.syncReminder = fresh.settings.syncReminder; }
+      return startFrom(passphrase, validateState(clean), 0);
+    });
+  }
+  // Use a Drive copy (an envelope) as this device's new vault under the same passphrase. Same checks as sync.inspect and adoptEnvelope.
+  function installEnvelope(env, passphrase) {
+    return serial(async () => {
+      if (state || key) throw new Error('VAULT_EXISTS');
+      if (typeof passphrase !== 'string' || !passphrase) { const e = new Error('Enter the passphrase of the Drive copy.'); e.code = 'NEED_PASSPHRASE'; throw e; }
+      const { salt: sl } = V().parseEnvelope(env);
+      const k = await V().deriveKey(passphrase, sl);
+      let raw;
+      try { raw = await V().decrypt(k, env); }
+      catch (e) { const x = new Error('The Drive copy uses a different passphrase.'); x.code = 'WRONG_PASSPHRASE'; throw x; }
+      const m = readMeta(env, raw), st = validateState(raw), a = getAdapter();
+      if (await a.get(KEY)) throw new Error('VAULT_EXISTS');
+      // Persist only the known envelope fields, never whatever else the remote JSON carried.
+      const out = { v: env.v, kdf: { name: env.kdf.name, hash: env.kdf.hash, iter: env.kdf.iter, salt: env.kdf.salt }, iv: env.iv, ct: env.ct };
+      if (env.rev !== undefined) Object.assign(out, { rev: env.rev, updatedAt: env.updatedAt, deviceId: env.deviceId });
+      await a.set(KEY, out);
+      key = k; salt = sl; meta = Object.assign({}, m); deviceId = m.deviceId || deviceId;
+      const fresh = defaultState();
+      st.ops = fresh.ops; // the device's own dates and diagnostics start empty, as after a restore
+      state = st;
+      return { meta: Object.assign({}, m), state: st, sourceSchema: raw && raw.schema, salt: sl };
+    });
+  }
   async function wipe() {
     await serial(async () => { await getAdapter().del(KEY); });
     lock();
@@ -1060,5 +1122,5 @@
 
   // Validation helpers shared with home.js and admin.js (same rules and messages as the rest of validateState).
   L.validate = { fail, isObj, str, num, date, oneOf, bool, arr, strip, ts, newId };
-  L.store = { SCHEMA, _rawEnvelope: () => getAdapter().get(KEY), matchesMain, _setAdapter, exists, init, unlock, lock, isUnlocked, getState, commit, changePassphrase, replaceState, wipe, validateState, newId, defaultState, getMeta, saltId, exportEnvelope, inspectEnvelope, adoptEnvelope, dropsWork, droppedData, nameList, lossText, lossWhy, validateGoals: (list, privOk) => cleanGoals(list, privOk === true) };
+  L.store = { SCHEMA, _rawEnvelope: () => getAdapter().get(KEY), matchesMain, _setAdapter, exists, init, unlock, lock, isUnlocked, getState, commit, changePassphrase, replaceState, wipe, validateState, newId, defaultState, getMeta, saltId, exportEnvelope, inspectEnvelope, adoptEnvelope, createFromBackup, installEnvelope, dropsWork, droppedData, nameList, lossText, lossWhy, validateGoals: (list, privOk) => cleanGoals(list, privOk === true) };
 })();

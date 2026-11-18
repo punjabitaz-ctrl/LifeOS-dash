@@ -4,6 +4,7 @@
 // nothing duplicated; lock, unlock and reload confirm persistence. Fails on console errors, CSP violations or horizontal scroll.
 // Run `node build.mjs` first. Needs Playwright and Chrome at /usr/bin/google-chrome.
 import path from 'node:path';
+import { navTo } from './_nav.mjs';
 import http from 'node:http';
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -102,7 +103,7 @@ const figFn = new Function('today', 'const L = globalThis.LifeOS; return (' + fi
 async function run(label, viewport) {
   const { ctx, page } = await newPage(label, viewport);
   const mobile = !!viewport;
-  const nav = (name) => page.click('.nav button:has-text("' + name + '")');
+  const nav = (name) => navTo(page, name);
   async function step(name, fn) { try { await fn(); } catch (e) { problems.push(label + ' ' + name + ': ' + String(e.message).split('\n').slice(0, 3).join(' | ')); throw e; } }
   const assertFields = async (where) => {
     const badFields = await page.$$eval('input, textarea', (els) => els.filter((e) => e.getAttribute('type') !== 'password' && !(e.getAttribute('spellcheck') === 'false' && e.getAttribute('autocorrect') === 'off' && e.getAttribute('autocapitalize') === 'off')).map((e) => e.id || e.tagName));

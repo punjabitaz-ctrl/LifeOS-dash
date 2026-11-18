@@ -43,6 +43,16 @@ A run for a tag that already exists ends with "Tag ... already exists" and chang
 - To go back across a schema change anyway: you need a backup file made on the older version (the same schema as the version you roll back to). A backup made on the newer version cannot be restored by the older app. Before rolling back, export a backup on the newer version too and keep it, so you can roll forward later without loss. Then, on each device: roll back, clear the site data for the LifeOS address in the browser settings (this erases the vault on that device, so be sure the backups exist first), create a new vault, and use Settings, Import backup with the older backup. Everything entered after that older backup was made is not in the older app. Drive sync from a device still on the newer schema is refused by the older app. When unsure, roll forward instead.
 - After any rollback, open Settings and confirm the version line.
 
+## Install as an app and updates
+- Sign in to Cloudflare Access in that browser first. The page fetches its manifest with that sign-in (crossorigin use-credentials); without it the install would get the sign-in page instead.
+- iPhone: open the live address in Safari, tap Share, then Add to Home Screen. The home-screen icon is carried inside the page (a data: link, so the page policy stays images from data: only). Not yet tried on a real iPhone.
+- Android: open the live address in Chrome, then the menu and Install app (or Add to Home screen). Not yet tried on a real phone.
+- The service worker (dist/sw.js) keeps only the app shell (the page, the manifest and the icons) so the app opens offline. Your data stays only in the encrypted vault in the browser; nothing private is ever in that cache. It registers on https only.
+- If the Access sign-in has expired, opening the app online shows the sign-in page (the worker passes it through and never keeps it); offline it opens the kept copy of the page.
+- Updates: the worker asks the network first. When a new version is deployed, a "New version ready" notice with a Reload button appears. Reloading locks the app, so it asks first while unlocked. Nothing reloads by itself.
+- If an install or an update looks stuck: close the app fully and open it again, or clear the site data for the LifeOS address after exporting a backup.
+- Cloudflare headers: `_headers` gives dist/sw.js its own policy (it removes the page policy for that one file and allows fetches to its own origin). Confirm with scripts/check-live.mjs and by opening the live address once with developer tools.
+
 ## If the vault will not open
 1. Check the passphrase for typing errors, caps lock and keyboard layout. The same passphrase must be used on every device unless it was changed on one of them.
 2. "The data may be damaged" with the right passphrase: do not wipe. Close the tab, reopen the page and try again; try another browser profile on the same device only to read, never to write.

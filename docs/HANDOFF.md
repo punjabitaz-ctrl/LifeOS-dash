@@ -1,6 +1,6 @@
 # LifeOS handoff
 
-Version <!--version-->1.3.0<!--/version-->. Updated 18 Nov 2026. Read this first in any new session, then SPEC.md and docs/SECURITY.md.
+Version <!--version-->1.4.0<!--/version-->. Updated 18 Nov 2026. Read this first in any new session, then SPEC.md and docs/SECURITY.md.
 
 ## What it is
 LifeOS (Living Independent and Free Everyday Operating System): one offline-capable HTML file, vanilla JS, no dependencies. All data sits in one passphrase-encrypted envelope in the browser's IndexedDB. Optional AI (Anthropic key, local model, or copy/paste into Claude) only ever sees weekly numbers. Owner: Taz Abbas. Proprietary licence (see LICENSE).
@@ -8,7 +8,7 @@ LifeOS (Living Independent and Free Everyday Operating System): one offline-capa
 ## Where things are
 - Repo: github.com/punjabitaz-ctrl/LifeOS-dash, branch main, push straight to main.
 - Live copy: https://lfs-dsh.punjabitaz.workers.dev/dist/lifeos (Cloudflare Worker with static assets, free tier, behind a Cloudflare Access sign-in that stays on). Deploys on push.
-- Source: src/core/*.js (vault, store, priv, wellbeing, csv, metrics, home, admin, learning, activities, social, revenue, tax, business, layout, goals, memory, ai, sync), src/ui/* (shell, styles, app, sync-ui). `node build.mjs` writes dist/lifeos.html and `_headers`.
+- Source: src/core/*.js (vault, ops, nav, setup, store, priv, wellbeing, csv, metrics, home, admin, learning, activities, social, revenue, tax, business, layout, goals, memory, ai, sync, archive), src/ui/* (shell, styles, app, sync-ui, pwa, archive-ui), src/sw.js (service worker), src/icons.mjs (icons and manifest). `node build.mjs` writes dist/lifeos.html, `_headers`, dist/sw.js, dist/manifest.webmanifest and dist/icons/.
 - Tests: `node --test test/` and `node test/smokes.mjs` (every test/smoke*.mjs plus test/review-ui.mjs) (test/smoke-leaks.mjs, the leak test in test/v090-audit.test.mjs and the Social error test in test/v0100-audit.test.mjs check that no free text from any domain leaves the vault) (Playwright with system Chrome; `npm i --no-save playwright`).
 - Spec: SPEC.md, one addendum per version. Audit log: docs/SECURITY.md. Sync setup guide: docs/SYNC-SETUP.md.
 
@@ -32,8 +32,9 @@ LifeOS (Living Independent and Free Everyday Operating System): one offline-capa
 | 1.2.0-a | Activity CSV import, schema 13 (activities gain optional importKey): map, preview, confirm, batch Money offer on a tap, import as private; `activities.planImport/applyImport`, `csv.exportActivities`; audited with 1.2.0 (SEC-90, SEC-91), not committed |
 | 1.2.0 | Vault archiving (src/core/archive.js, src/ui/archive-ui.js), schema 14, spell check off app-wide; verified archive files, summaries keep every figure (private ones inside the private vault); audited (SEC-85 High, SEC-84 and SEC-87 Medium, SEC-86, SEC-88 to SEC-90 and SEC-92 Low, SEC-91 Info, all fixed), not committed |
 | 1.3.0 | Safe to live in, schema 15 (src/core/ops.js): persistent storage, backup and sync dates, backup reminder and snooze, verify a backup file, codes-only diagnostics, one version source, tag workflow, CHANGELOG, RUNBOOK, FIRST-RUN, scripts/check-live.mjs, smoke time limit | audited (SEC-93 to SEC-97), not committed |
+| 1.4.0 | Phone first, schema 16: bottom bar and More sheet, in-app history (names only), manifest, icons and service worker (https only), lock-screen restore and Drive paths, setup checklist, narrow dashboard defaults, accessibility checks; WebKit and Firefox smokes are ready but could not be installed here (download blocked), so they have not been run | audited (SEC-98 Medium, SEC-99 and SEC-100 Low, SEC-101 Info, all fixed), not committed |
 
-Schema: 15 as of v1.3.0 (14 at v1.2.0, 13 at v1.2.0-a, 12 at v1.1.0, 11 at v0.12.0 and v1.0.0, 10 at v0.11.0). The private vault's inner plaintext may carry `summaries` (numbers only) since the v1.2.0 audit. Every schema change needs a tested migration and the downgrade guards (SEC-27/28) extended to the new collections.
+Schema: 16 as of v1.4.0 (15 at v1.3.0, 14 at v1.2.0, 13 at v1.2.0-a, 12 at v1.1.0, 11 at v0.12.0 and v1.0.0, 10 at v0.11.0). The private vault's inner plaintext may carry `summaries` (numbers only) since the v1.2.0 audit. Every schema change needs a tested migration and the downgrade guards (SEC-27/28) extended to the new collections.
 
 ## How each build cycle runs
 1. Owner picks the next domain and answers scope questions.
@@ -58,6 +59,8 @@ Haiku is used for short, capped research only. Keep prompts lean and cap reply l
 - A physical phone (tests use desktop Chrome at 390x844).
 - A real AI call (simulated providers only).
 - The live site's response headers (the Access gate blocks outside checks; `_headers` on a Worker is unconfirmed).
+- Installing the hosted copy on a real iPhone or Android phone (home-screen icon, standalone window, manifest fetched through Cloudflare Access, service worker updates).
+- WebKit and Firefox smokes (the browser download was blocked with 403 here; the scripts print SKIPPED and the runner never counts them as passed).
 
 ## Owner's to-do
 00. v1.1.0 tax setup: open Business, Tax, start the 2026 profile, and enter your federal and NJ effective income tax rates (no default; until then the views say "set your rate"), last year's federal and NJ tax (for the safe-harbor targets), the prior-year AGI flag, and your W-2 wages if any. Check every 2026 default against its source (wage base, mileage rates and dates, 1099 threshold, holidays, the $400 floor). Confirm the business and personal counts once. Have your accountant confirm every figure: all are estimates.
@@ -79,11 +82,11 @@ Known test defect for v1.3.0 B6: test/smoke-command.mjs waits 15 s nine times pe
 - Local model (Ollama) may be unreachable from the hosted HTTPS copy in some browsers; untested.
 
 ## Current step
-Updated 18 Nov 2026 by the v1.3.0 auditor.
+- On main: v1.4.0 (schema 16), verified by the orchestrator (722 unit tests in three zones, 21 smokes in Chrome; WebKit and Firefox skipped, not installable here) and pushed 18 Nov 2026 "Phone first" (SPEC.md "v1.4.0 addendum"), audited 18 Nov 2026: SEC-98 (Medium: the manifest is now fetched with the Access sign-in), SEC-99 (Low: the update prompt no longer redraws the screen and drops typed text), SEC-100 (Low: skipped WebKit and Firefox smokes are reported as skipped, never passed), SEC-101 (Info: proofs added: no user data in Cache Storage, the accessibility checker fails when it should, lock-screen paths refuse a locked vault on disk, a stale shell refuses a newer vault). The iPhone home-screen icon is a data: link inside the page (a same-origin link is blocked by img-src in Chrome). See docs/SECURITY.md "v1.4.0 audit"; tests in test/v140-audit.test.mjs.
+- Next: the owner's first real run on phone and PC, including an install on the iPhone and the live header check. Then v1.5.0 weekly loop.
+Updated 18 Nov 2026 by the v1.4.0 auditor.
 
 - On main: v1.3.0 (schema 15), audited (SEC-93 to SEC-97), verified by the orchestrator (679 unit tests in three zones, 20 smokes) and pushed 18 Nov 2026. Before it: v1.2.0 (schema 14), audited (SEC-84 to SEC-92).
-- On disk, not committed: v1.3.0 (schema 15) "Safe to live in": persistent storage, backup dates and reminder, verify-backup, codes-only diagnostics, version source and tag workflow, CHANGELOG, RUNBOOK, FIRST-RUN, scripts/check-live.mjs, smoke time limit. Audited: SEC-93 to SEC-97 (1 Medium, 4 Low) fixed with regression tests in test/v130-audit.test.mjs; see docs/SECURITY.md "v1.3.0 audit". 679 unit tests pass in three zones; all 20 smokes passed twice.
-- Next: commit and push v1.3.0, then run the tag workflow backfill (docs/RUNBOOK.md) and the owner's first real run (docs/FIRST-RUN.md, including the live header check). Then v1.4.0 phone first, v1.5.0 weekly loop, v1.6.0 job search, v1.7.0 AYiN and media tabs, v2.0.0 NAS sync. Full build list B1 to B26 in docs/review/product-ops.md.
-- Not yet run for real: the tag workflow on GitHub, the live header check against Cloudflare Access, persistent storage on a real phone.
+- Not yet run for real: the tag workflow on GitHub, the live header check against Cloudflare Access, persistent storage on a real phone, an install of the hosted copy on a real phone, WebKit and Firefox smokes.
 - Owner decisions recorded 17 Nov 2026: release order above; backup reminder every 7 days; he creates a Cloudflare Access service token for the live header check (never in the repo or chat); codes-only diagnostics; spell check off; PV-6 and PV-9 permanent.
-- Release blockers for daily use: phone navigation (v1.4.0) and the owner's first real run.
+- Release blockers for daily use: the owner's first real run (phone navigation is built in v1.4.0).
