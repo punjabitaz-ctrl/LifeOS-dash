@@ -81,7 +81,7 @@ Known test defect for v1.3.0 B6: test/smoke-command.mjs waits 15 s nine times pe
 ## Current step
 Updated 18 Nov 2026 by the v1.3.0 auditor.
 
-- On main: v1.2.0 (schema 14). Audited (SEC-84 to SEC-92).
+- On main: v1.3.0 (schema 15), audited (SEC-93 to SEC-97), verified by the orchestrator (679 unit tests in three zones, 20 smokes) and pushed 18 Nov 2026. Before it: v1.2.0 (schema 14), audited (SEC-84 to SEC-92).
 - On disk, not committed: v1.3.0 (schema 15) "Safe to live in": persistent storage, backup dates and reminder, verify-backup, codes-only diagnostics, version source and tag workflow, CHANGELOG, RUNBOOK, FIRST-RUN, scripts/check-live.mjs, smoke time limit. Audited: SEC-93 to SEC-97 (1 Medium, 4 Low) fixed with regression tests in test/v130-audit.test.mjs; see docs/SECURITY.md "v1.3.0 audit". 679 unit tests pass in three zones; all 20 smokes passed twice.
 - Next: commit and push v1.3.0, then run the tag workflow backfill (docs/RUNBOOK.md) and the owner's first real run (docs/FIRST-RUN.md, including the live header check). Then v1.4.0 phone first, v1.5.0 weekly loop, v1.6.0 job search, v1.7.0 AYiN and media tabs, v2.0.0 NAS sync. Full build list B1 to B26 in docs/review/product-ops.md.
 - Not yet run for real: the tag workflow on GitHub, the live header check against Cloudflare Access, persistent storage on a real phone.
