@@ -514,3 +514,26 @@ The addendum left the rates ambiguous; the builder's definitions are kept and re
 - `followedUpOn` (optional, YYYY-MM-DD, job items only, schema 18): the date the owner last tapped "Followed up". Validated as a date; older formats never carry it; the downgrade guard names it with the other "job search details".
 - Weekly review: a "Job search follow-ups" step without a number, shown only when job items exist (so the numbered steps keep their numbers), listing follow-ups due by the end of the week with a one-tap "Followed up" and the week's applications, follow-ups done and contacts logged.
 - Import: a rejected row's reason never quotes a cell (SEC-110); unknown values are listed separately for mapping.
+
+## v1.7.0 addendum: Command center for AYiN and media (19 Nov 2026)
+Source: docs/review/product-ops.md B15 and B16, with the scope the owner approved on 17 Nov 2026 and his podcast decisions on 19 Nov 2026. Schema 19 with tested migrations from 1 to 18 and downgrade guards that name the new details. Manual entry first: nothing about the owner's businesses, shows or sites is seeded in code; only generic platform names are offered as defaults. Reuse existing data (business records, revenue lines, invoices, Social people and links, Admin renewals, calendar file, glance providers, search index) instead of duplicating it.
+
+### B15 Command center: AYiN Advisors and clients tab
+- A rollup of the business's lines of work (the existing revenue lines): revenue this month, quarter and year, invoices open and overdue, budget vs actual where a budget is set, and the tax set-aside figure the Business tab already computes, shown with its existing estimate wording. Numbers come from the existing records; nothing is re-entered.
+- Clients: a client record (name, status active, paused or past, optional line of work, notes) links to Social people as contacts, to projects (existing pipeline or project items), to invoices (existing business invoices gain an optional client link) and to an optional budget in integer cents. Each client shows revenue to date, open and overdue invoices, budget vs actual, and last contact (the latest logged contact with any linked person). One-tap "log contact" follows the SEC-57/58 name rules.
+- Clients with an overdue invoice or no contact in a user-set number of days (default 30) appear at a glance and in the weekly review, numbers and generic labels only.
+
+### B16 Podcasts tab
+- Shows: the owner adds each show (name, website link to a Websites tab site, optional line of work for revenue and costs). Each show has its own platform list. Defaults offered when a show is created: YouTube, Spotify, Apple Podcasts, YouTube Podcasts and the show's website; the owner can rename, remove or add platforms.
+- Episodes: title, number, status (idea, booked, recorded, edited, published), record date, guests (Social people), notes, and per format (video, audio, text) a publish date per platform. Guests show the episode on their Social record.
+- Platform numbers, per platform: the owner types a number with a date, a platform and a measure (views, downloads, listens, reads, subscribers or followers), optionally tied to one episode. The tab shows each platform's latest and monthly totals and each episode's numbers by platform. Numbers are never summed across different measures and never estimated; a missing month is shown as no data, not 0. Cadence: episodes published per month and the gap since the last one.
+- Costs and revenue come from the show's line of work (existing business expenses and revenue), so ROI follows the existing rule: costs count once paid.
+
+### B16 Websites tab
+- Each site: domain, purpose (business, show, personal, other), optional line of work and show link, hosting provider name, and domain and hosting renewal dates and costs that create or link Admin renewals (so they reach at a glance and the calendar file with the existing generic labels). Monthly traffic is typed in per site (visits and optionally visitors), shown by month with no data for gaps.
+
+### Shared rules
+- Placement: Podcasts and Websites join the More sheet; the AYiN and clients tab sits beside Business. Search covers clients, shows, episodes and sites.
+- AI and privacy: client names, people, show and episode titles, platform names, domains, notes and money per client never reach prompts, digest, insights, audit, errors or the URL. The digest gains numbers only: clients with overdue invoices, episodes published this month, sites with a renewal in the next 30 days. Private-vault rules apply to every new record and link; totals that skip locked private records show the lock marker. Wellbeing is untouched.
+- Imports: none in this release.
+- All new inputs follow the spell check rule; integer cents for money; no advice wording; no em dashes; mobile layout holds at 390 px.
