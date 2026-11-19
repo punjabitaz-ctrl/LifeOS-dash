@@ -30,7 +30,7 @@
 
   // Reads the body as a stream and aborts as soon as more than MAX_BODY bytes arrive.
   async function readCapped(res, ctl) {
-    const tooBig = () => new Error('The AI provider reply was too large');
+    const tooBig = () => coded(new Error('The AI provider reply was too large'), 'AI_BAD_REPLY');
     const cl = res.headers && typeof res.headers.get === 'function' ? Number(res.headers.get('content-length')) : NaN;
     if (cl > MAX_BODY) { ctl.abort(); throw tooBig(); }
     if (!res.body || typeof res.body.getReader !== 'function') throw coded(new Error('The AI provider sent an unreadable reply'), 'AI_BAD_REPLY');
@@ -51,7 +51,7 @@
       }
     } catch (e) {
       if (e && e.message === tooBig().message) throw e;
-      throw new Error(ctl.signal.aborted ? 'The AI request timed out' : 'The AI provider sent an unreadable reply');
+      throw ctl.signal.aborted ? coded(new Error('The AI request timed out'), 'AI_TIMEOUT') : coded(new Error('The AI provider sent an unreadable reply'), 'AI_BAD_REPLY');
     }
     const buf = new Uint8Array(total);
     let o = 0;
@@ -93,7 +93,7 @@
       if (!res || !res.ok) throw coded(new Error('The AI provider returned an error' + (res && res.status ? ' (HTTP ' + res.status + ')' : '')), 'AI_HTTP');
       let j;
       const raw = await readCapped(res, ctl);
-      try { j = JSON.parse(raw); } catch (e) { throw new Error('The AI provider sent an unreadable reply'); }
+      try { j = JSON.parse(raw); } catch (e) { throw coded(new Error('The AI provider sent an unreadable reply'), 'AI_BAD_REPLY'); }
       let text;
       if (p.kind === 'anthropic') {
         text = Array.isArray(j && j.content) ? j.content.filter((b) => b && b.type === 'text' && typeof b.text === 'string').map((b) => b.text).join('') : undefined;
@@ -106,5 +106,22 @@
     } finally { clearTimeout(timer); }
   }
 
-  L.ai = { validateProvider, complete, isLocalUrl };
+  // v1.5.0 B13: "Test connection". The prompt is fixed text: no digest, no insight, no setting, nothing from the vault. The result is
+  // success or one fixed code (the B7 codes AI_TIMEOUT, AI_NETWORK, AI_HTTP, AI_BAD_REPLY, AI_FAIL); error text is never returned or kept.
+  const TEST_PROMPT = Object.freeze({ system: 'Connection test. Reply with the single word OK.', user: 'Reply with OK.' });
+  const TEST_CODES = new Set(['AI_TIMEOUT', 'AI_NETWORK', 'AI_HTTP', 'AI_BAD_REPLY', 'AI_FAIL']);
+  async function testConnection(provider, fetchImpl) {
+    try {
+      await complete(provider, { system: TEST_PROMPT.system, user: TEST_PROMPT.user }, fetchImpl);
+      return { ok: true, code: null };
+    } catch (e) {
+      let code = null;
+      try { code = L.ops && L.ops.codeFor ? L.ops.codeFor(e) : null; } catch (x) { /* a hostile error object */ }
+      if (!TEST_CODES.has(code)) code = 'AI_FAIL';
+      if (L.ops && L.ops.record) L.ops.record(code, 'ai');
+      return { ok: false, code };
+    }
+  }
+
+  L.ai = { validateProvider, complete, isLocalUrl, testConnection, TEST_PROMPT };
 })();

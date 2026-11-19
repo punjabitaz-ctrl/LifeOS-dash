@@ -466,3 +466,27 @@ Source: docs/review/product-ops.md items B5, B8, B9, B10, B19, B20. Schema chang
 
 ### B20 Browser coverage
 - Run the core smokes (smoke, smoke-money, smoke-priv, smoke-leaks, smoke-safety and the new phone smoke) on Playwright WebKit and Firefox as well as Chrome. If those browsers cannot be installed in the build environment, say so plainly, keep the scripts ready, and note it in HANDOFF; never report them as passed.
+
+## v1.5.0 addendum: Weekly loop (19 Nov 2026)
+Source: docs/review/product-ops.md items B11, B12, B13, B17. The owner said "continue" without answering three questions, so the orchestrator applied its stated recommendations; each is reversible in a later build. Schema 17 with tested migrations from 1 to 16 and downgrade guards.
+
+### B11 Review prompts and consolidation offers
+- Track `lastReviewAt` (date). When 7 or more days have passed, the dashboard shows a "Weekly review due" card and the lock screen after unlock shows a one-line notice; one tap opens the review. Never automatic.
+- On the first review after a month or quarter ends, offer (never automatic) to consolidate that period's approved insights into a monthly or quarterly memory entry, showing what would be merged. Show a review streak (consecutive weeks reviewed).
+
+### B12 Continual learning (decision: reason categories may reach the AI, typed text never)
+- Rejecting an insight asks for one reason category from a fixed list: wrong number, not relevant, already known, too vague, other. Typed reasons stay optional and on the device only (PV-6 stands).
+- The AI prompt may include counts of rejections per category per area over the last 12 weeks, numbers only.
+- Rules learn: when the same insight kind in the same area is rejected 3 times within 8 weeks, rules stop proposing it and the Memory screen lists it as muted with a one-tap unmute. Muting is shown, never silent.
+- Insights may propose a numeric target change (workouts per week, study minutes, savings rate, contact days, backup reminder days) within the existing validated ranges. Approving shows before and after and applies it in one commit only on the user's tap; AI-proposed values outside the range are rejected.
+
+### B13 Real AI runs (decision: LAN model host deferred to v2.0.0)
+- docs/AI-SETUP.md: Anthropic API key setup with a spend limit and the model setting, manual mode with Claude (copy prompt, paste reply), and a local model on the same machine (Ollama, including allowing the live origin through its allowed-origins setting). Add a "Test connection" button that sends a fixed prompt containing no user data and reports success or a coded error (B7 codes).
+- A model host elsewhere on the home network is deferred to v2.0.0 with NAS sync: the hosted copy is https, so browsers block plain-http LAN calls as mixed content, and the fixed Content Security Policy cannot list a user-entered address without loosening it. The NAS build will add an https host with a fixed name.
+
+### B17 Calendar file (decision: generic labels by default, real titles optional)
+- Export an .ics file of dated items in the next 12 months: renewals, maintenance, estimated tax payments, invoice due dates, goal due dates, exams and certification expiries, planned activities, and important dates. Default titles are generic by kind ("LifeOS: renewal due", "LifeOS: tax payment due"), with no names, amounts, places or notes. An "Include real titles" tick, off by default, shows a plain warning that the file is unencrypted and the calendar provider will see the titles.
+- Private-vault items are excluded unless the vault is open and the user ticks "Include private items". Download only, no network, no subscription feed. Stable event UIDs so re-importing updates rather than duplicates.
+
+### Privacy
+- No new free text reaches prompts; leak smoke covers reason categories, muted kinds, target proposals and the calendar file in both label modes.

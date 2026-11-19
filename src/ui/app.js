@@ -598,6 +598,8 @@
     hist.start();
     render();
     if (L.syncUI) L.syncUI.afterUnlock(syncCtx());
+    // v1.5.0 B11: one line after unlock when a weekly review is due. The dashboard card has the button; nothing starts by itself.
+    try { var rd = L.memory.reviewDue(mainState(), today()); if (rd.due) setNotice('ok', rd.never ? 'Weekly review due: none finished yet.' : 'Weekly review due: the last one was ' + rd.days + ' days ago.'); } catch (e) { /* the notice is optional */ }
     // v1.3.0 B1: ask the browser to keep this storage (until granted); the result is recorded. Never blocks and never throws.
     try { L.ops.persistOnUnlock(navigator.storage, today()).catch(function () {}); } catch (e) { /* the API may be missing */ }
   }
@@ -770,6 +772,8 @@
       pr.appendChild(h('ol', null, rv.priorities.map(function (p) { return h('li', { text: p }); })));
       if (rv.weekOf !== wk) pr.appendChild(h('p', { class: 'mut small', text: 'From the week of ' + rv.weekOf + '.' }));
     } else pr.appendChild(h('p', { class: 'mut', text: 'No priorities yet. Run your weekly review to set three.' }));
+    var stk = L.memory.reviewStreak(s, t);
+    pr.appendChild(h('p', { class: 'mut small', id: 'dash-streak', text: 'Review streak: ' + stk + (stk === 1 ? ' week' : ' weeks') + ' in a row.' }));
     if (!rv || rv.weekOf !== wk) pr.appendChild(btn('Start weekly review', function () { go('review'); }, 'pri'));
     built.priorities = pr;
     built.glance = glanceCard(s, t, 'dash-glance');
@@ -790,6 +794,7 @@
         h('div', { class: 'modbody', inert: dashEdit ? true : null }, el || h('p', { class: 'mut small', text: L.layout.label(m.id) + ' has nothing to show right now.' }))));
     });
     return h('div', null, h('div', { class: 'row sp' }, h('h1', { text: 'Dashboard' }), h('div', { class: 'row' }, btn('Log study', function () { studyDialog(''); }, 'qa-btn', { id: 'quick-study' }), btn('Add activity', function () { go('domain', { domain: 'activities', open: 'act-add' }); }, 'qa-btn', { id: 'quick-activity' }), btn('Quick add', quickAdd, 'pri qa-btn', { id: 'quick-add' }), btn(dashEdit ? 'Done' : 'Customize', function () { dashEdit = !dashEdit; render(); }, 'qa-btn', { id: 'dash-customize' }))),
+      reviewDueCard(mainState(), t),
       setupCard(mainState()),
       L.archiveUI ? L.archiveUI.proposal(archCtx()) : null,
       safetyCard(mainState()),
@@ -1466,31 +1471,49 @@
 
   // ---------- insights and AI ----------
   function insightCard(i, withActions) {
+    var tp = null;
+    if (i.target) { try { tp = L.memory.targetPreview(mainState(), i.id); } catch (e) { tp = null; } }
     var kids = [
       h('div', { class: 'row' },
         h('span', { class: 'chip', text: domainLabel(i.domain) }),
         h('span', { class: 'chip', text: 'Level ' + i.level }),
         h('span', { class: 'chip', text: i.source === 'ai' ? 'AI' : 'Rules' }),
-        i.status !== 'proposed' ? h('span', { class: 'chip ' + (i.status === 'approved' ? 'ok' : 'bad'), text: i.status }) : null),
+        i.status !== 'proposed' ? h('span', { class: 'chip ' + (i.status === 'approved' ? 'ok' : 'bad'), text: i.status }) : null,
+        i.status === 'rejected' && i.reason ? h('span', { class: 'chip', 'data-reason': i.reason, text: L.memory.REASON_LABEL[i.reason] }) : null,
+        i.target && i.target.applied ? h('span', { class: 'chip ok', text: 'Change applied' }) : null),
       h('p', { text: i.text })
     ];
+    // v1.5.0 B12: a proposed target change shows before and after; nothing changes until a tap.
+    if (tp) kids.push(h('p', { class: 'small target-change', 'data-key': tp.key, text: tp.applied ? 'Target change: ' + tp.label + ' set to ' + tp.afterText + '.' : 'Proposed target change: ' + tp.label + ' from ' + tp.beforeText + ' to ' + tp.afterText + '. Nothing changes until you tap Apply.' }));
     if (withActions && i.status === 'proposed') {
       kids.push(h('div', { class: 'row' },
-        btn('Approve', function () {
+        tp ? btn('Approve and apply change', function () {
+          act(function () { return commit(function (x) { L.memory.decide(x, i.id, 'approved'); L.memory.applyTarget(x, i.id); }, 'target change').then(function () { setNotice('ok', 'Approved. ' + tp.label + ' is now ' + tp.afterText + '.'); render(); }); });
+        }, 'pri sm', { id: 'approve-apply' }) : null,
+        btn(tp ? 'Approve only' : 'Approve', function () {
           act(function () { return commit(function (x) { L.memory.decide(x, i.id, 'approved'); }).then(render); });
-        }, 'pri sm'),
+        }, tp ? 'sm' : 'pri sm', tp ? { id: 'approve-only' } : null),
         btn('Reject', function () { rejectDialog(i); }, 'sm')));
+    } else if (withActions && i.status === 'approved' && tp && !tp.applied) {
+      kids.push(h('div', { class: 'row' }, btn('Apply change', function () {
+        act(function () { return commit(function (x) { L.memory.applyTarget(x, i.id); }, 'target change').then(function () { setNotice('ok', tp.label + ' is now ' + tp.afterText + '.'); render(); }); });
+      }, 'pri sm', { id: 'apply-change' })));
     }
-    return h('div', { class: 'card' }, kids);
+    return h('div', { class: 'card', 'data-insight': i.id }, kids);
   }
+  // v1.5.0 B12: one fixed reason category is required. The typed note stays optional and on this device (PV-6).
   function rejectDialog(i) {
     var why = h('input', { type: 'text', id: 'reject-reason', maxlength: '200' });
+    var cat = sel('reject-category', [{ v: '', t: 'Choose a reason' }].concat(L.memory.REASONS.map(function (r) { return { v: r, t: L.memory.REASON_LABEL[r].charAt(0).toUpperCase() + L.memory.REASON_LABEL[r].slice(1) }; })), '');
     openDialog({
       title: 'Reject this insight', yes: 'Reject',
-      body: [h('p', { class: 'mut', text: i.text }), field('Why? (optional, kept as a note on this device)', why, 'Your reason is never sent to the AI. The AI only learns how many insights were rejected in each area.')],
+      body: [h('p', { class: 'mut', text: i.text }),
+        field('Reason', cat, 'Only this category and how many times it was chosen in each area can reach the AI.'),
+        field('Why? (optional, kept as a note on this device)', why, 'Your reason is never sent to the AI.')],
       onYes: function () {
-        var r = why.value.trim().slice(0, 200);
-        return commit(function (x) { L.memory.decide(x, i.id, 'rejected', r || undefined); }).then(function () { render(); });
+        if (!cat.value) throw new Error('Choose a reason.');
+        var r = why.value.trim().slice(0, 200), c = cat.value;
+        return commit(function (x) { L.memory.decide(x, i.id, 'rejected', r || undefined, { category: c }); }).then(function () { render(); });
       }
     });
   }
@@ -1518,13 +1541,13 @@
   function aiPanel(level, period, label) {
     var kind = mainState().settings.provider.kind;
     var box = h('div', null,
-      h('div', { class: 'row' }, btn(label, function () { suggestAI(level, period); }, 'sm', { id: 'ai-suggest' })),
-      h('p', { class: 'mut small', text: kind === 'anthropic' ? 'Sends only the numeric digest, approved insights and counts of rejected insights to api.anthropic.com.' : kind === 'local' ? 'Sends only the numeric digest, approved insights and counts of rejected insights to your local model.' : 'Manual mode: copy the prompt into your own AI chat and paste the reply here.' }));
+      h('div', { class: 'row' }, btn(label, function () { suggestAI(level, period); }, 'sm', { id: level === 1 ? 'ai-suggest' : 'ai-suggest-' + level })),
+      h('p', { class: 'mut small', text: kind === 'anthropic' ? 'Sends only the numeric digest, your current targets, approved insights and counts of rejected insights to api.anthropic.com.' : kind === 'local' ? 'Sends only the numeric digest, your current targets, approved insights and counts of rejected insights to your local model.' : 'Manual mode: copy the prompt into your own AI chat and paste the reply here.' }));
     if (ai && ai.level === level && ai.period.from === period.from) {
       var ta = h('textarea', { id: 'ai-prompt', readOnly: true, value: ai.prompt, 'aria-label': 'Prompt to copy' });
       var paste = h('textarea', { id: 'ai-paste', 'aria-label': 'Paste the AI reply here', maxlength: '20000' });
       box.appendChild(h('div', { class: 'card' },
-        h('p', { class: 'small', text: 'The prompt holds the numeric digest, your approved insights and counts of rejected insights. No entries, titles, names or rejection reasons.' }),
+        h('p', { class: 'small', text: 'The prompt holds the numeric digest, your current targets, your approved insights and counts of rejected insights (by area and by the reason you chose). No entries, titles, names or typed reasons.' }),
         ta,
         h('div', { class: 'row' }, btn('Copy', function () { copyText(ta).then(function () { setNotice('ok', 'Copied.'); }, function (e) { setNotice('err', friendly(e)); }); }, 'sm')),
         field('Paste the reply (a JSON list)', paste),
@@ -1538,6 +1561,56 @@
           btn('Close', function () { ai = null; render(); }, 'sm'))));
     }
     return box;
+  }
+
+  // ---------- weekly loop (v1.5.0) ----------
+  var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  function periodLabel(level, p) {
+    var y = p.from.slice(0, 4), m = Number(p.from.slice(5, 7));
+    return level === 2 ? MONTHS[m - 1] + ' ' + y : 'Q' + (Math.floor((m - 1) / 3) + 1) + ' ' + y;
+  }
+  // Offers only: each needs a tap, and nothing is created until then. Shows what would be merged.
+  function consolidationOffers(s, t) {
+    var offers = L.memory.consolidationOffers(mainState(), t);
+    if (!offers.length) return null;
+    return h('div', { id: 'offers' }, offers.map(function (o) {
+      var kind = o.level === 2 ? 'month' : 'quarter', lbl = periodLabel(o.level, o.period);
+      return h('div', { class: 'card', id: 'offer-' + kind, 'data-period': o.period.from },
+        h('h2', { text: (o.level === 2 ? 'Month' : 'Quarter') + ' ended: ' + lbl }),
+        h('p', { class: 'small', text: 'Offer, nothing happens until you tap. ' + o.count + ' approved ' + (o.level === 2 ? 'weekly' : 'monthly') + (o.count === 1 ? ' insight' : ' insights') + ' would be merged into one ' + (o.level === 2 ? 'monthly' : 'quarterly') + ' entry for you to approve:' }),
+        h('ul', { class: 'small' }, o.items.map(function (x) { return h('li', { text: domainLabel(x.domain) + ': ' + x.text }); })),
+        h('div', { class: 'row' }, btn('Merge into one entry', function () {
+          act(function () { return commit(function (x) { L.memory.mergeByRules(x, o.level, o.period); }, 'consolidation offer').then(function () { setNotice('ok', 'One proposed ' + (o.level === 2 ? 'monthly' : 'quarterly') + ' entry was added. Approve or reject it under Memory.'); render(); }); });
+        }, 'pri sm', { id: 'offer-merge-' + kind })),
+        aiPanel(o.level, o.period, 'Consolidate with AI'));
+    }));
+  }
+  function mutedNote() {
+    var n = L.memory.mutedList(mainState()).length;
+    if (!n) return null;
+    return h('p', { class: 'small', id: 'rv-muted-note', text: n + (n === 1 ? ' kind of suggestion is' : ' kinds of suggestion are') + ' muted. ' }, btn('See muted', function () { go('memory'); }, 'sm', { id: 'rv-muted-link' }));
+  }
+  function mutedSection(s) {
+    var list = L.memory.mutedList(s);
+    var out = [h('h2', { text: 'Muted suggestions (' + list.length + ')' }),
+      h('p', { class: 'mut small', text: 'A kind of rules suggestion you reject 3 times in the same area within 8 weeks is muted: rules stop proposing it. Unmute brings it back.' })];
+    if (!list.length) out.push(h('p', { class: 'mut', id: 'muted-none', text: 'None muted.' }));
+    list.forEach(function (m) {
+      out.push(h('div', { class: 'card item', 'data-muted': m.domain + ':' + m.kind },
+        h('div', null, h('span', { class: 'chip', text: domainLabel(m.domain) }), h('span', { text: ' ' + m.label + ' (muted ' + String(m.at).slice(0, 10) + ')' })),
+        btn('Unmute', function () {
+          act(function () { return commit(function (x) { L.memory.unmute(x, m.domain, m.kind); }, 'unmute').then(function () { setNotice('ok', 'Unmuted. Rules may propose it again.'); render(); }); });
+        }, 'sm', { 'aria-label': 'Unmute ' + m.label + ' in ' + domainLabel(m.domain) })));
+    });
+    return out;
+  }
+  // The dashboard card: after 7 days without a finished review. A tap opens the review; nothing starts by itself.
+  function reviewDueCard(s, t) {
+    var d = L.memory.reviewDue(s, t);
+    if (!d.due) return null;
+    var n = L.memory.reviewStreak(s, t);
+    return h('div', { class: 'warn', id: 'review-due', role: 'status' }, h('span', { text: 'Weekly review due. ' + (d.never ? 'You have not finished a weekly review yet.' : 'The last one was ' + d.days + ' days ago (' + d.last + ').') + ' Review streak: ' + n + (n === 1 ? ' week.' : ' weeks.') + ' ' }),
+      btn('Start weekly review', function () { go('review'); }, 'sm pri', { id: 'review-due-start' }));
   }
 
   // ---------- weekly review ----------
@@ -1559,6 +1632,8 @@
     });
     return h('div', null, h('h1', { text: 'Weekly review' }),
       h('p', { class: 'mut', text: 'Week of ' + wk }),
+      h('p', { class: 'small', id: 'rv-streak', text: 'Review streak: ' + L.memory.reviewStreak(mainState(), t) + (L.memory.reviewStreak(mainState(), t) === 1 ? ' week' : ' weeks') + ' in a row.' }),
+      consolidationOffers(s, t),
       L.archiveUI ? L.archiveUI.proposal(archCtx()) : null,
       h('h2', { text: '1. This week vs last week' }),
       h('div', { class: 'card' }, h('table', null, h('thead', null, h('tr', null, ['Area', 'This week', 'Last week', 'Change'].map(function (x) { return h('th', { text: x }); }))), h('tbody', null, rows))),
@@ -1572,6 +1647,7 @@
           });
         }, 'pri sm', { id: 'rules-run', disabled: haveRules })),
       aiPanel(1, period, 'Suggest with AI'),
+      mutedNote(),
       mine.length ? mine.map(function (i) { return insightCard(i, true); }) : h('p', { class: 'mut', text: 'No insights yet this week.' }),
       carryCard(s, wk, render),
       h('h2', { text: '3. Goals' }),
@@ -1599,6 +1675,7 @@
             return commit(function (x) {
               x.memory.reviews = x.memory.reviews.filter(function (r) { return r.weekOf !== wk; });
               x.memory.reviews.push({ id: L.store.newId(), weekOf: wk, digest: digest, priorities: ps, completedAt: new Date().toISOString() });
+              L.memory.markReviewed(x, today());
             }).then(function () { go('dashboard'); setNotice('ok', 'Review finished.'); });
           });
         }
@@ -3308,6 +3385,7 @@
       if (!a.length) out.push(h('p', { class: 'mut', text: 'None yet.' }));
       a.forEach(function (i) { out.push(insightCard(i, false)); });
     });
+    mutedSection(s).forEach(function (x) { out.push(x); });
     out.push(h('h2', { text: 'Lessons from rejections (' + s.memory.lessons.length + ')' }));
     out.push(h('p', { class: 'mut small', id: 'lessons-local', text: 'These reasons stay on this device. They are never sent to the AI.' }));
     if (!s.memory.lessons.length) out.push(h('p', { class: 'mut', text: 'None yet.' }));
@@ -3922,6 +4000,41 @@
 
   // ---------- settings ----------
   var passOnly = function (id, auto) { return h('input', { type: 'password', id: id, autocomplete: auto || 'off', minlength: '12' }); };
+  // v1.5.0 B13: "Test connection" sends a fixed prompt with no user data and shows success or one fixed code.
+  var TEST_TEXT = { AI_TIMEOUT: 'The request timed out.', AI_NETWORK: 'The provider could not be reached.', AI_HTTP: 'The provider returned an error. Check the key, the model name and the spend limit.', AI_BAD_REPLY: 'The provider sent a reply that could not be read.', AI_FAIL: 'The test could not run. Check the mode, the key and the model name.' };
+  function testConnection(kind, base, model, key, pv, out) {
+    if (kind === 'none') { out.textContent = 'Rules only: no AI is set up, so there is no connection to test.'; out.setAttribute('data-code', 'NONE'); return; }
+    if (kind === 'manual') { out.textContent = 'Manual mode has no connection to test. Copy the prompt into your own AI chat and paste the reply.'; out.setAttribute('data-code', 'MANUAL'); return; }
+    var p;
+    try {
+      p = L.ai.validateProvider({ kind: kind, baseUrl: kind === 'local' ? base.value.trim() : '', model: model.value.trim(), apiKey: kind === 'anthropic' ? (key.value.trim() || pv.apiKey || '') : '' });
+    } catch (e) { out.textContent = 'Connection failed. Code: AI_FAIL. ' + TEST_TEXT.AI_FAIL; return; }
+    out.textContent = 'Testing. A fixed message with no data from your vault is being sent.';
+    L.ai.testConnection(p).then(function (r) {
+      out.textContent = r.ok ? 'Connection works. The provider answered the fixed test message.' : 'Connection failed. Code: ' + r.code + '. ' + TEST_TEXT[r.code];
+      out.setAttribute('data-code', r.ok ? 'OK' : r.code);
+    });
+  }
+  // v1.5.0 B17: the calendar file. Two ticks, both off; each shows a plain warning when ticked. Download only.
+  function calendarCard() {
+    var real = h('input', { type: 'checkbox', id: 'cal-real' }), priv = h('input', { type: 'checkbox', id: 'cal-priv' });
+    var open = L.priv.isOpen();
+    var warnReal = h('p', { class: 'warn small hidden', id: 'cal-real-warn', role: 'status', text: 'Warning: the calendar file is not encrypted. With this ticked, the titles of your items are written into it, and any calendar app or provider you add it to can read them.' });
+    var warnPriv = h('p', { class: 'warn small hidden', id: 'cal-priv-warn', role: 'status', text: 'Warning: items from the private vault would be written into a file that is not encrypted, outside the vault lock.' });
+    real.addEventListener('change', function () { warnReal.classList.toggle('hidden', !real.checked); });
+    priv.addEventListener('change', function () { warnPriv.classList.toggle('hidden', !priv.checked); });
+    return h('div', { class: 'card', id: 'calendar-card' }, h('h2', { text: 'Calendar file' }),
+      h('p', { class: 'mut small', text: 'Dated items in the next 12 months as a file you add to your own calendar app: renewals, maintenance, estimated tax payments, invoice due dates, goal due dates, exams and certification expiries, planned activities and important dates. Built on this device and downloaded; nothing is sent anywhere. Titles are generic by default, for example "LifeOS: renewal due". Importing the file again updates the same events.' }),
+      h('label', { class: 'field check' }, real, ' Include real titles'), warnReal,
+      open ? h('label', { class: 'field check' }, priv, ' Include private items') : h('p', { class: 'mut small', text: 'Private items are left out. Open the private vault to offer them.' }), open ? warnPriv : null,
+      h('div', { class: 'row' }, btn('Download calendar file', function () {
+        act(function () {
+          var r = L.calendar.build(L.store.getState(), { today: today(), realTitles: real.checked, includePrivate: open && priv.checked });
+          download(L.calendar.filename(today()), r.text, 'text/calendar');
+          return commit(null, 'calendar export').then(function () { setNotice('ok', 'Calendar file downloaded with ' + r.count + (r.count === 1 ? ' event.' : ' events.')); });
+        });
+      }, 'pri', { id: 'cal-download' })));
+  }
   function settingsScreen(s) {
     var set = s.settings, pv = set.provider;
     var kind = view.kind || pv.kind;
@@ -3938,6 +4051,7 @@
     showUrl();
     var model = h('input', { type: 'text', id: 'p-model', value: pv.model || '', autocomplete: 'off', maxlength: '100' });
     var key = h('input', { type: 'password', id: 'p-key', autocomplete: 'off', placeholder: pv.apiKey ? 'Leave blank to keep the saved key' : 'Paste API key' });
+    var testOut = h('p', { class: 'small', id: 'p-test-out', role: 'status', text: '' });
     var provCard = h('form', {
       class: 'card',
       onsubmit: function (e) {
@@ -3955,9 +4069,11 @@
         h('p', { class: 'mut small', text: 'The key is stored only inside your encrypted vault. Requests go straight from this page to api.anthropic.com.' })] : null,
       kind === 'local' ? [field('Base URL (localhost only)', base), urlShow, field('Model', model)] : null,
       h('div', { class: 'row' }, h('button', { type: 'submit', class: 'btn pri', text: 'Save provider' }),
+        btn('Test connection', function () { testConnection(kind, base, model, key, pv, testOut); }, '', { id: 'p-test' }),
         pv.apiKey ? btn('Remove saved key', function () {
           act(function () { return commit(function (x) { x.settings.provider.apiKey = ''; }, 'provider change').then(function () { setNotice('ok', 'Key removed.'); render(); }); });
-        }) : null));
+        }) : null),
+      testOut);
     out.push(provCard);
 
     // targets
@@ -4002,6 +4118,7 @@
 
     // storage, reminders, verify and diagnostics (v1.3.0)
     out.push(safetySettings(mainState()));
+    out.push(calendarCard());
 
     // backup
     var bp = passOnly('bk-pass', 'new-password'), bp2 = passOnly('bk-pass2', 'new-password');

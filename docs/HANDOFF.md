@@ -1,6 +1,6 @@
 # LifeOS handoff
 
-Version <!--version-->1.4.0<!--/version-->. Updated 18 Nov 2026. Read this first in any new session, then SPEC.md and docs/SECURITY.md.
+Version <!--version-->1.5.0<!--/version-->. Updated 19 Nov 2026. Read this first in any new session, then SPEC.md and docs/SECURITY.md.
 
 ## What it is
 LifeOS (Living Independent and Free Everyday Operating System): one offline-capable HTML file, vanilla JS, no dependencies. All data sits in one passphrase-encrypted envelope in the browser's IndexedDB. Optional AI (Anthropic key, local model, or copy/paste into Claude) only ever sees weekly numbers. Owner: Taz Abbas. Proprietary licence (see LICENSE).
@@ -33,8 +33,9 @@ LifeOS (Living Independent and Free Everyday Operating System): one offline-capa
 | 1.2.0 | Vault archiving (src/core/archive.js, src/ui/archive-ui.js), schema 14, spell check off app-wide; verified archive files, summaries keep every figure (private ones inside the private vault); audited (SEC-85 High, SEC-84 and SEC-87 Medium, SEC-86, SEC-88 to SEC-90 and SEC-92 Low, SEC-91 Info, all fixed), not committed |
 | 1.3.0 | Safe to live in, schema 15 (src/core/ops.js): persistent storage, backup and sync dates, backup reminder and snooze, verify a backup file, codes-only diagnostics, one version source, tag workflow, CHANGELOG, RUNBOOK, FIRST-RUN, scripts/check-live.mjs, smoke time limit | audited (SEC-93 to SEC-97), not committed |
 | 1.4.0 | Phone first, schema 16: bottom bar and More sheet, in-app history (names only), manifest, icons and service worker (https only), lock-screen restore and Drive paths, setup checklist, narrow dashboard defaults, accessibility checks; WebKit and Firefox smokes are ready but could not be installed here (download blocked), so they have not been run | audited (SEC-98 Medium, SEC-99 and SEC-100 Low, SEC-101 Info, all fixed), not committed |
+| 1.5.0 | Weekly loop, schema 17: review-due card and streak, consolidation offers, rejection reasons and muting, target changes on tap, Test connection, local calendar file (docs/AI-SETUP.md) | audited (SEC-102 Medium, SEC-103 to SEC-108 Low, all fixed; SEC-109 Info documented), not committed; 776 unit tests in three zones, 22 smokes in Chrome |
 
-Schema: 16 as of v1.4.0 (15 at v1.3.0, 14 at v1.2.0, 13 at v1.2.0-a, 12 at v1.1.0, 11 at v0.12.0 and v1.0.0, 10 at v0.11.0). The private vault's inner plaintext may carry `summaries` (numbers only) since the v1.2.0 audit. Every schema change needs a tested migration and the downgrade guards (SEC-27/28) extended to the new collections.
+Schema: 17 as of v1.5.0 (16 at v1.4.0, 15 at v1.3.0, 14 at v1.2.0, 13 at v1.2.0-a, 12 at v1.1.0, 11 at v0.12.0 and v1.0.0, 10 at v0.11.0). The private vault's inner plaintext may carry `summaries` (numbers only) since the v1.2.0 audit. Every schema change needs a tested migration and the downgrade guards (SEC-27/28) extended to the new collections.
 
 ## How each build cycle runs
 1. Owner picks the next domain and answers scope questions.
@@ -82,6 +83,12 @@ Known test defect for v1.3.0 B6: test/smoke-command.mjs waits 15 s nine times pe
 - Local model (Ollama) may be unreachable from the hosted HTTPS copy in some browsers; untested.
 
 ## Current step
+- 19 Nov 2026: v1.5.0 (schema 17) audited (SEC-102 to SEC-109), verified by the orchestrator (776 unit tests in three zones, 22 smokes in Chrome) and pushed to main. Known flake: test/smoke-home-admin.mjs fails about 1 run in 3 (seen by the v1.5.0 auditor); fix its root cause in the next build.
+- Next: v1.6.0 job search tab and search across all areas (docs/review/product-ops.md B14, B18), then v1.7.0 AYiN, clients, podcasts and websites tabs, v2.0.0 NAS sync and LAN model host.
+- v1.5.0 (schema 17) "Weekly loop" (SPEC.md "v1.5.0 addendum: Weekly loop") audited 19 Nov 2026, not committed: SEC-102 (Medium: a vault that never finished a review is now due once 7 days old; new `memory.startedOn`), SEC-103 (Low: docs/AI-SETUP.md no longer claims lessons are sent or that the file:// copy works with Ollama; prompt notes name the targets), SEC-104 (Low: merged entries never mute), SEC-105 (Low: Test connection text for rules-only mode), SEC-106 (Low: unique AI button ids with offers shown), SEC-107 (Low: downgrade guard names proposed target changes), SEC-108 (Low: an invalid target says nothing was added), SEC-109 (Info, documented). See docs/SECURITY.md "v1.5.0 audit"; tests in test/v150-audit.test.mjs and a smoke-loop step. 776 unit tests pass in UTC, America/New_York and Pacific/Auckland; 22 smokes passed twice in Chrome.
+- Next: orchestrator re-runs tests and smokes, commits and pushes v1.5.0; then the owner's first real run on phone and PC (still never done), including a real Test connection and a real calendar import.
+Updated 19 Nov 2026 by the v1.5.0 auditor.
+
 - On main: v1.4.0 (schema 16), verified by the orchestrator (722 unit tests in three zones, 21 smokes in Chrome; WebKit and Firefox skipped, not installable here) and pushed 18 Nov 2026 "Phone first" (SPEC.md "v1.4.0 addendum"), audited 18 Nov 2026: SEC-98 (Medium: the manifest is now fetched with the Access sign-in), SEC-99 (Low: the update prompt no longer redraws the screen and drops typed text), SEC-100 (Low: skipped WebKit and Firefox smokes are reported as skipped, never passed), SEC-101 (Info: proofs added: no user data in Cache Storage, the accessibility checker fails when it should, lock-screen paths refuse a locked vault on disk, a stale shell refuses a newer vault). The iPhone home-screen icon is a data: link inside the page (a same-origin link is blocked by img-src in Chrome). See docs/SECURITY.md "v1.4.0 audit"; tests in test/v140-audit.test.mjs.
 - Next: the owner's first real run on phone and PC, including an install on the iPhone and the live header check. Then v1.5.0 weekly loop.
 Updated 18 Nov 2026 by the v1.4.0 auditor.

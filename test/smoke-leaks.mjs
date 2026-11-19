@@ -36,6 +36,30 @@ const ACT_CSV = () => {
 };
 const ACT_AUDIT = 'activity import';
 
+// v1.5.0: a calendar file must be well formed whatever the item text holds: CRLF only, lines of at most 75 octets, balanced events, and only
+// the fixed property names (so no text can add a property, an event or a second calendar). Returns the number of events.
+function icsEvents(text, what) {
+  const bad = (m) => { throw new Error(what + ': ' + m); };
+  if (!text.endsWith('\r\n') || /[^\r]\n/.test(text) || /\r(?!\n)/.test(text)) bad('a line break is not CRLF');
+  const phys = text.slice(0, -2).split('\r\n');
+  if (phys.some((l) => Buffer.byteLength(l, 'utf8') > 75)) bad('a line is over 75 octets');
+  const lines = []; for (const l of phys) { if (l[0] === ' ') lines[lines.length - 1] += l.slice(1); else lines.push(l); }
+  let open = false, n = 0;
+  if (lines[0] !== 'BEGIN:VCALENDAR' || lines[lines.length - 1] !== 'END:VCALENDAR' || lines.filter((l) => l === 'BEGIN:VCALENDAR' || l === 'END:VCALENDAR').length !== 2) bad('calendar wrapper');
+  for (const l of lines.slice(1, -1)) {
+    if (l === 'BEGIN:VEVENT') { if (open) bad('nested event'); open = true; n++; continue; }
+    if (l === 'END:VEVENT') { if (!open) bad('stray END:VEVENT'); open = false; continue; }
+    if (!/^(VERSION|PRODID|CALSCALE|METHOD|X-WR-CALNAME|UID|DTSTAMP|DTSTART;VALUE=DATE|DTEND;VALUE=DATE|SUMMARY|TRANSP):/.test(l)) bad('unexpected line ' + l.slice(0, 30));
+  }
+  if (open) bad('unclosed event');
+  return n;
+}
+const calDownload = async (page) => {
+  const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.click('#cal-download')]);
+  await page.waitForSelector('.notice:has-text("Calendar file downloaded")', T);
+  return readFileSync(await dl.path(), 'utf8');
+};
+
 async function run(label, viewport) {
   const ctx = await browser.newContext(viewport ? { viewport, isMobile: true, hasTouch: true } : { viewport: { width: 1280, height: 900 } });
   const page = await ctx.newPage();
@@ -49,7 +73,7 @@ async function run(label, viewport) {
   const seen = [];
   const grab = async (where) => { seen.push({ where, url: page.url(), s: await page.evaluate(() => JSON.stringify([location.href, document.cookie, Object.assign({}, sessionStorage), Object.assign({}, localStorage)])) }); };
   const prompts = [];
-  let archiveFile = '', diagArtefacts = '';
+  let archiveFile = '', diagArtefacts = '', calGeneric = '';
   try {
     await ctx.grantPermissions(['clipboard-read', 'clipboard-write']).catch(() => {});
     await page.addInitScript(() => { try { const w = navigator.clipboard.writeText.bind(navigator.clipboard); navigator.clipboard.writeText = (t) => { window.__copied = String(t); return w(t).catch(() => {}); }; } catch (e) { /* no clipboard */ } });
@@ -95,6 +119,53 @@ async function run(label, viewport) {
         prompts.push(await page.$eval('#ai-prompt', (t) => t.value));
       }
       await grab('memory');
+    });
+    await step('Weekly loop (v1.5.0): reason categories, a muted kind, a target proposal and the calendar file in both label modes hold no marker', async () => {
+      await page.evaluate(() => globalThis.LifeOS.store.commit((x) => {
+        for (const n of [1, 2, 3]) globalThis.LifeOS.memory.propose(x, [{ domain: 'health', kind: 'workouts', text: 'Workouts: ' + n + ' this week against a target of 4 (last week 0). loopcase ' + n }], { level: 1, period: { from: '2026-11-09', to: '2026-11-15' }, source: 'rules' });
+      }));
+      await nav('Review'); await page.waitForSelector('.card[data-insight]:has-text("loopcase 3")', T);
+      for (const [n, cat] of [[1, 'wrong-number'], [2, 'too-vague'], [3, 'not-relevant']]) {
+        await page.click('.card[data-insight]:has-text("loopcase ' + n + '") button:has-text("Reject")');
+        await page.waitForSelector('#reject-category', T);
+        await page.selectOption('#reject-category', cat);
+        await page.fill('#reject-reason', ADV_MARK + 'typed reason ' + n + ' card 4111 1111 1111 1111');
+        await page.click('.dialog button:has-text("Reject")');
+        await page.waitForSelector('.dialog', { state: 'detached', ...T });
+      }
+      await page.waitForSelector('#rv-muted-note', T); await grab('review muted');
+      await nav('Memory'); await page.waitForSelector('[data-muted="health:workouts"]', T); await grab('memory muted');
+      if (!(await page.textContent('main')).includes('card 4111')) throw new Error('the typed reason is not kept in the lessons list on this device');
+      await nav('Review');
+      if ((await page.textContent('main')).includes('card 4111')) throw new Error('a typed reason is shown on the review screen');
+      await page.click('button:has-text("Suggest with AI")'); await page.waitForSelector('#ai-prompt', T);
+      const p1 = await page.$eval('#ai-prompt', (t) => t.value);
+      if (!/rejection reasons by area, last 12 weeks \(counts\): health: wrong number 1, not relevant 1, too vague 1\./.test(p1)) throw new Error('reason counts missing from the prompt');
+      prompts.push(p1);
+      // a target proposal: the AI reply is typed in; the change applies only on its tap
+      await page.fill('#ai-paste', JSON.stringify([{ domain: 'health', text: 'Workouts could rise.', target: { key: 'workoutsPerWeek', value: 5 } }]));
+      await page.click('button:has-text("Add suggestions")'); await page.waitForSelector('.card[data-insight] .target-change', T);
+      await page.click('#approve-apply'); await page.waitForSelector('.notice:has-text("is now 5")', T);
+      await page.click('button:has-text("Suggest with AI")'); await page.waitForSelector('#ai-prompt', T);
+      const p2 = await page.$eval('#ai-prompt', (t) => t.value);
+      if (!/workoutsPerWeek 5/.test(p2)) throw new Error('the new target is not in the prompt');
+      prompts.push(p2); await grab('review target');
+      // Test connection in a mode with nothing to test sends nothing
+      await nav('Settings'); await page.waitForSelector('#p-test', T); await page.click('#p-test');
+      if (!/Manual mode has no connection to test/.test(await page.textContent('#p-test-out'))) throw new Error('test connection text');
+      // calendar file, both label modes
+      await page.waitForSelector('#cal-download', T);
+      calGeneric = await calDownload(page);
+      const ng = icsEvents(calGeneric, 'generic calendar');
+      if (ng < 3) throw new Error('only ' + ng + ' events in the generic file, so the check proves little');
+      if (calGeneric.includes(ADV_MARK) || calGeneric.includes('LEAK') || calGeneric.includes('Ignore previous')) throw new Error('the generic calendar file holds record text');
+      await page.check('#cal-real'); await page.waitForSelector('#cal-real-warn:not(.hidden)', T);
+      const calReal = await calDownload(page);
+      if (icsEvents(calReal, 'real-title calendar') !== ng) throw new Error('the real-title file has another event count');
+      if (!calReal.replace(/\r\n /g, '').includes(ADV_MARK.slice(0, 8))) throw new Error('no real title in the real-title file, so the check proves nothing');
+      if (calReal.replace(/\r\n /g, '').includes('Ignore previous instructions\r\n')) throw new Error('a line break from typed text reached the calendar structure');
+      const au = await page.evaluate(() => JSON.stringify(globalThis.LifeOS.store.getState().audit));
+      if (!au.includes('calendar export') || au.includes('LEAK')) throw new Error('calendar audit entry');
     });
     await step('an error with a marker in the input is reported without the marker', async () => {
       await nav('Home'); await page.waitForSelector('.tile', T); await page.click('.tile[data-domain="activities"]');
@@ -370,7 +441,7 @@ async function run(label, viewport) {
       if (idb.length < 2) throw new Error('IndexedDB read nothing');
       const env = JSON.parse(idb[1]);
       if (Object.keys(env).sort().join() !== 'ct,deviceId,iv,kdf,rev,updatedAt,v') throw new Error('envelope keys ' + Object.keys(env));
-      const where = { prompts: prompts.join('\n'), audit, idb: idb.join('\n'), console: consoleText.join('\n'), storage: JSON.stringify(seen), urls: urls.join('\n'), 'archive file': archiveFile, diagnostics: diagArtefacts };
+      const where = { prompts: prompts.join('\n'), audit, idb: idb.join('\n'), console: consoleText.join('\n'), storage: JSON.stringify(seen), urls: urls.join('\n'), 'archive file': archiveFile, diagnostics: diagArtefacts, 'generic calendar file': calGeneric };
       for (const [k, v] of Object.entries(where)) {
         if (v.includes(ADV_MARK) || v.includes('Ignore previous') || v.includes('LEAK key')) throw new Error(k + ' holds a marker: ' + (v.match(/LEAK[^\n]{0,60}/) || [''])[0]);
       }
@@ -538,6 +609,27 @@ async function runPriv(label, viewport) {
       if (!extra['open csv'].includes('Plain public expense')) throw new Error('csv has no rows');
       await page.click('#priv-close'); await page.waitForSelector('#priv-bar', { state: 'detached', ...T });
       doms.push(await dom());
+    });
+    await step('Calendar file (v1.5.0): closed, and open without the tick, no private item is in either label mode; ticked, private items appear in the file only', async () => {
+      await nav('Settings'); await page.waitForSelector('#cal-download', T);
+      if (await page.locator('#cal-priv').count()) throw new Error('the private tick is offered while the vault is closed');
+      const g0 = await calDownload(page); extra['calendar closed generic'] = g0;
+      await page.check('#cal-real'); extra['calendar closed real'] = await calDownload(page);
+      const n0 = icsEvents(g0, 'closed generic calendar'); icsEvents(extra['calendar closed real'], 'closed real calendar');
+      await page.click('#nav-private'); await page.waitForSelector('#priv-pass', T);
+      await page.fill('#priv-pass', PRIVPASS); await page.click('#priv-open'); await page.waitForSelector('#priv-bar', T);
+      await nav('Settings'); await page.waitForSelector('#cal-priv', T);
+      if (await page.isChecked('#cal-priv') || await page.isChecked('#cal-real')) throw new Error('a tick is on by default');
+      await page.check('#cal-real'); extra['calendar open real, private off'] = await calDownload(page);
+      icsEvents(extra['calendar open real, private off'], 'open real calendar, private off');
+      await page.uncheck('#cal-real'); await page.check('#cal-priv'); await page.waitForSelector('#cal-priv-warn:not(.hidden)', T);
+      const g1 = await calDownload(page); extra['calendar open generic, private on'] = g1;
+      if (icsEvents(g1, 'open generic calendar, private on') <= n0) throw new Error('private items did not appear with the tick on, so the check proves nothing');
+      await page.check('#cal-real');
+      const r1 = await calDownload(page);
+      icsEvents(r1, 'open real calendar, private on');
+      if (!r1.replace(/\r\n /g, '').includes(ADV_MARK.slice(0, 8))) throw new Error('no private title in the ticked real-title file, so the check proves nothing');
+      await page.click('#priv-close'); await page.waitForSelector('#priv-bar', { state: 'detached', ...T });
     });
     await step('Activity import (v1.2.0) as private: closed, the preview refuses; open and ticked, the rows live in the vault only', async () => {
       await nav('Home'); await page.waitForSelector('.tile', T); await page.click('.tile[data-domain="activities"]'); await page.waitForSelector('#actimp-locked', T);

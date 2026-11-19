@@ -1,6 +1,6 @@
 # LifeOS
 
-Version <!--version-->1.4.0<!--/version--> (set by package.json; `node build.mjs` writes it here).
+Version <!--version-->1.5.0<!--/version--> (set by package.json; `node build.mjs` writes it here).
 
 LifeOS (Living Independent and Free Everyday Operating System) is a single-file, offline, local-first life dashboard. It tracks eleven areas (money, assets, work, health and more) plus business records and tax estimates, keeps a private vault with its own passphrase (Wellbeing lives there), builds weekly reviews, and keeps a memory of insights you approve. Vanilla JS, no dependencies.
 
@@ -72,6 +72,14 @@ Build, then open `dist/lifeos.html` in a browser (double-click works, it needs n
 - Important dates (label and name only) appear in the dashboard "At a glance" card; Feb 29 shows on Feb 28 in other years. Pipeline items and projects show linked people and their last contact; unlinking never deletes either side.
 - The weekly review gains a Social step (offers only); Goals gain people overdue and contacts per week. The AI and digest see counts only, with groups numbered by position.
 - Vault schema 9, migrated from schema 1 to 8 with no data loss: each distinct name in old contact entries becomes a person with those entries as the log; an entry that cannot map stays a visible entry. Contact entries added later (for example by CSV import) are offered for conversion, once. `node test/smoke-social.mjs` runs the flow. Audited: names, group names, labels, facts, channels and notes never leave the vault. See the v0.10.0 audit in docs/SECURITY.md.
+
+## v1.5.0: Weekly loop
+
+- A "Weekly review due" card on the dashboard after 7 days (and one line after unlock), a review streak, and offers to consolidate the last month or quarter with what would be merged. Nothing starts by itself.
+- Rejecting an insight asks for one reason (wrong number, not relevant, already known, too vague, other). The AI may receive counts per reason and area over 12 weeks, never typed text. A kind of rules suggestion rejected 3 times in an area within 8 weeks is muted (listed under Memory, one-tap unmute). Insights can propose a target change inside the Settings ranges; it applies only when you tap Apply.
+- Settings: Test connection (a fixed message with no vault data; success or a fixed code) and a calendar file (.ics) of dated items for the next 12 months with generic titles by default; real titles and private items only with their own ticks and warnings. See docs/AI-SETUP.md. Vault schema 17.
+- `node test/smoke-loop.mjs` runs the flow.
+- Audited 19 Nov 2026: SEC-102 to SEC-108 fixed with regression tests (test/v150-audit.test.mjs and a smoke-loop step), see docs/SECURITY.md "v1.5.0 audit". A vault that has never finished a review now shows the due card once it is 7 days old; docs/AI-SETUP.md no longer claims lessons are sent or that the local file copy works with Ollama.
 
 ## v1.4.0: Phone first
 

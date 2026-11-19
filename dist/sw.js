@@ -1,8 +1,8 @@
-/* LifeOS service worker (v1.4.0). Built by build.mjs. It keeps only the app shell for offline use: the built page, the manifest and
+/* LifeOS service worker (v1.5.0). Built by build.mjs. It keeps only the app shell for offline use: the built page, the manifest and
    the icons. It never touches requests to other origins (the AI provider, Google), never caches a redirect, a non-200 answer or anything
    that does not carry this version's shell marker (so a Cloudflare Access sign-in page is never kept as the app), and it holds no user data. */
 'use strict';
-var VERSION = '1.4.0';
+var VERSION = '1.5.0';
 var PREFIX = 'lifeos-shell-';
 var CACHE = PREFIX + VERSION;
 var PAGE = 'lifeos';

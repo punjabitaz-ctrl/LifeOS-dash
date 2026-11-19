@@ -2,7 +2,7 @@
   'use strict';
   const L = (globalThis.LifeOS = globalThis.LifeOS || {});
   const KEY = 'envelope';
-  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 16, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
+  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 17, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
   const HABIT_CAP = 8, HABIT_LOG_CAP = 100000, KIND_CAP = 30;
   const RENEWAL_TOTAL_CAP = 2000;
   const ENTRY_CAP = 50000, INSIGHT_CAP = 5000, REVIEW_CAP = 1000, LESSON_CAP = 30, AUDIT_CAP = 200;
@@ -383,7 +383,7 @@
     }
     return out;
   }
-  function cleanMemory(m) {
+  function cleanMemory(m, schema) {
     if (!isObj(m)) fail('memory');
     const doms = domainIds().concat(['overall']);
     const insights = arr(m.insights, INSIGHT_CAP, 'insights').map((x) => {
@@ -399,6 +399,12 @@
         createdAt: ts(x.createdAt, 'createdAt'),
       };
       if (x.decidedAt !== undefined) o.decidedAt = ts(x.decidedAt, 'decidedAt');
+      // Schema 17 (v1.5.0): the kind of a rules insight, the fixed reason code of a rejection and an optional target change.
+      if (schema >= 17) {
+        if (x.kind !== undefined) { if (typeof x.kind !== 'string' || !/^[a-z][a-z0-9-]{0,29}$/.test(x.kind)) fail('insight kind'); o.kind = x.kind; }
+        if (x.reason !== undefined) o.reason = oneOf(x.reason, L.memory.REASONS, 'rejection reason');
+        if (x.target !== undefined) { try { o.target = L.memory.cleanTarget(x.target, true); } catch (e) { fail('insight target'); } }
+      }
       return o;
     });
     const lessons = arr(m.lessons, LESSON_CAP, 'lessons').map((x) => {
@@ -415,7 +421,38 @@
         completedAt: ts(x.completedAt, 'completedAt'),
       };
     });
-    return { insights, lessons, reviews };
+    // Schema 17: the date of the last finished review (older vaults take it from their latest review) and the muted rules kinds.
+    let lastReviewAt = '';
+    if (schema >= 17 && m.lastReviewAt !== undefined && m.lastReviewAt !== '') lastReviewAt = date(m.lastReviewAt, 'lastReviewAt');
+    else if (reviews.length) { const t = new Date(Math.max.apply(null, reviews.map((r) => (typeof r.completedAt === 'number' ? r.completedAt : Date.parse(r.completedAt)))).valueOf()); if (!isNaN(t.getTime())) lastReviewAt = t.toISOString().slice(0, 10); }
+    const seenMute = new Set();
+    const mutes = schema >= 17 && m.mutes !== undefined ? arr(m.mutes, 500, 'mutes').map((x) => {
+      if (!isObj(x)) fail('mute');
+      const mo = { domain: oneOf(x.domain, doms, 'mute area'), kind: str(x.kind, 30, 'mute kind'), at: ts(x.at, 'mute time'), active: bool(x.active, 'mute active') };
+      if (!/^[a-z][a-z0-9-]{0,29}$/.test(mo.kind)) fail('mute kind');
+      if (seenMute.has(mo.domain + '|' + mo.kind)) fail('duplicate mute');
+      seenMute.add(mo.domain + '|' + mo.kind);
+      return mo;
+    }) : [];
+    // SEC-102 (v1.5.0 audit): the date the review loop started counting, so a vault that has never finished a review is still shown
+    // as due once it is 7 days old. Kept when valid; otherwise (older vaults, or a missing value) the caller derives it.
+    const startedOn = schema >= 17 && m.startedOn !== undefined && m.startedOn !== '' ? date(m.startedOn, 'startedOn') : '';
+    return { insights, lessons, reviews, lastReviewAt, mutes, startedOn };
+  }
+  const localToday = () => { const d = new Date(), p2 = (n) => (n < 10 ? '0' : '') + n; return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()); };
+  // The earliest dated trace the vault holds (audit log, insights, reviews, backup, sync and storage dates); today when there is none.
+  // A trace can only be later than the real creation day, so the age is never overstated.
+  function deriveStartedOn(out) {
+    const days = [];
+    const add = (v) => { const t = typeof v === 'number' ? v : Date.parse(v); if (isFinite(t)) days.push(new Date(t).toISOString().slice(0, 10)); };
+    for (const a of out.audit || []) if (a.ts) add(a.ts);
+    for (const i of out.memory.insights) add(i.createdAt);
+    for (const r of out.memory.reviews) add(r.completedAt);
+    const ops = out.ops || {};
+    for (const d of [ops.lastBackupAt, ops.lastSyncAt, ops.persist && ops.persist.at]) if (d) add(d);
+    const ok = days.filter(isDate).sort();
+    const t = localToday();
+    return ok.length && ok[0] < t ? ok[0] : t;
   }
   function cleanAudit(a) {
     if (a === undefined) return [];
@@ -621,7 +658,7 @@
   function validateStateRaw(o, opts) {
     if (!isObj(o)) fail('state must be an object');
     scan(o, 0, { n: 4e6 });
-    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, SCHEMA].includes(o.schema)) fail('unsupported schema');
+    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, SCHEMA].includes(o.schema)) fail('unsupported schema');
     if (!L.metrics) fail('metrics module missing');
     const settings = cleanSettings(o.settings, o.schema), entries = cleanEntries(o.entries);
     const out = { schema: SCHEMA, settings, entries };
@@ -728,8 +765,9 @@
     out.summaries = o.schema >= 14 ? L.archive.cleanSummaries(o.summaries, out.archives) : {};
     // Schema 15 adds the device bookkeeping block: backup and sync dates, the save counter, the storage result and the codes-only diagnostics ring.
     out.ops = L.ops.cleanOps(o.ops, o.schema);
-    out.memory = cleanMemory(o.memory);
+    out.memory = cleanMemory(o.memory, o.schema);
     out.audit = cleanAudit(o.audit);
+    if (!out.memory.startedOn) out.memory.startedOn = deriveStartedOn(out);
     // Schema 10 adds the private vault: checked structurally only (types, base64, sizes, iteration count, mark names); the key is never needed.
     if (o.priv !== undefined) {
       if (o.schema < 10) fail('private vault needs schema 10');
@@ -792,6 +830,13 @@
       const b = cur.settings && cur.settings.business;
       if (b && (b.name || b.address || b.paymentTerms || b.invoiceNext > 1 || b.reserveAccountId || b.pinnedProjectId)) out.push('business settings');
     }
+    if (src < 17) {
+      // v1.5.0: muted suggestion kinds and rejection reason codes.
+      const mem = cur.memory || {};
+      if ((mem.mutes || []).some((x) => x.active)) out.push('muted suggestions');
+      if ((mem.insights || []).some((i) => i.reason)) out.push('rejection reasons');
+      if ((mem.insights || []).some((i) => i.target)) out.push('proposed target changes');
+    }
     if (src < 4) {
       if (cur.cycle) out.push('training cycle');
       if ((cur.habits || []).length) out.push('daily checks');
@@ -842,7 +887,7 @@
       payees: [], invoices: [], trips: [], taxPayments: [], taxYears: {}, homeOffice: {}, taxMap: [],
       archives: [], summaries: {}, ops: L.ops.defaultOps(),
       cycle: null, kinds: L.metrics.DEFAULT_KINDS.slice(), habits: [], habitLog: [],
-      memory: { insights: [], lessons: [], reviews: [] },
+      memory: { insights: [], lessons: [], reviews: [], lastReviewAt: '', mutes: [], startedOn: localToday() },
       audit: [],
     };
   }

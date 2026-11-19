@@ -2,6 +2,12 @@
 
 Newest first. One line per change. Versions come from package.json (see docs/RUNBOOK.md); fixes by number are described in docs/SECURITY.md.
 
+## 1.5.0 (schema 17): Weekly loop
+- Weekly review due card on the dashboard after 7 days (a one-line notice after unlock), a review streak, and offers to consolidate the last month or quarter with what would be merged. Nothing starts by itself.
+- Rejecting an insight asks for one fixed reason (wrong number, not relevant, already known, too vague, other). Counts per reason and area over 12 weeks may reach the AI; typed notes never do. A kind of rules suggestion rejected 3 times in the same area within 8 weeks is muted, listed under Memory with one-tap unmute.
+- Insights may propose a numeric target change inside the Settings ranges; approving shows before and after and applies it only on the Apply tap.
+- Settings: Test connection (fixed message, no vault data, coded errors) and a calendar file (.ics) of dated items in the next 12 months, generic titles by default. docs/AI-SETUP.md.
+
 ## 1.4.0 (schema 16): Phone first
 - Phone navigation: a bottom bar (Home, Money, Work, Health, More) under 820 px and a More sheet that lists every other area, so each area is two taps away. In-app history holds only a view name; back moves between views and closes dialogs; locking clears the history and a reload returns to the lock screen.
 - Install as an app: manifest, PNG icons drawn in the repo and one service worker (https only) that keeps only the app shell for offline use and shows a reload prompt for a new version.

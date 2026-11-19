@@ -725,3 +725,53 @@ Real iPhone and Android installs (home-screen icon, standalone window, manifest 
 
 ### Final results (v1.4.0)
 `node build.mjs` ok. `node --test test/`: 722 tests, 722 pass, in UTC, America/New_York and Pacific/Auckland. `node test/smokes.mjs` twice: all 21 scripts passed both times (Chrome only; WebKit and Firefox skipped, not run).
+
+## v1.5.0 audit
+Independent audit of the uncommitted v1.5.0 "Weekly loop" delta, schema 17 (SPEC.md "v1.5.0 addendum: Weekly loop"; docs/review/product-ops.md B11, B12, B13, B17), 19 Nov 2026. The auditor did not write the code.
+
+### Method
+Read the addendum, docs/HANDOFF.md, the hard rules, private vault and memory loop sections of SPEC.md, src/core/memory.js, ai.js, store.js, the new src/core/calendar.js, the app.js changes, docs/AI-SETUP.md, the new tests (test/v150.test.mjs, test/smoke-loop.mjs, the smoke-leaks additions) and every change to existing tests. Ollama's allowed-origin defaults and environment set-up were checked against its FAQ and envconfig source. SEC-106 was checked by restoring the old code and watching the new smoke step fail; the other fixes add behaviour or text the old code did not have, so their tests fail on it by construction.
+
+### Findings
+| ID | Severity | Where | Finding | Fix and test |
+|---|---|---|---|---|
+| SEC-102 | Medium | `memory.reviewDue`, store (deviation c) | A vault that had never finished a review was never shown as due, so the owner, who has never reviewed, would never see the prompt. | `memory.startedOn` (schema 17): set to the local date when a vault is created; an older vault, or a missing value, takes its earliest dated trace (audit log, insights, reviews, backup, sync and storage dates; a trace can only understate the age), else the upgrade day. Never reviewed is due from day 7 ("You have not finished a weekly review yet", and "none finished yet" after unlock). Tests in test/v150-audit.test.mjs (creation, day 6 and 7, save and unlock, migration, invalid values) and a smoke-loop step. The builder's assertion "never reviewed is not due" was changed to the stricter rule with a fixed start date. |
+| SEC-103 | Low | docs/AI-SETUP.md, review prompt notes | The guide said "up to 8 lessons" are sent; lessons (typed reasons) are never sent (PV-6). It recommended the file:// copy for Ollama as a working fallback, untested (a file page sends no web origin). The in-app prompt notes did not mention the targets now sent. | Guide lists exactly what is sent and what never is, and states the local-file case and the browser blocking as untested; notes name the current targets. Test checks the guide against the code (codes, 20 s timeout, default model, local URL rule, fixed test message). |
+| SEC-104 | Low | `memory.decide` | Rejecting three rules-only merged entries muted "overall: Merged entry". Offers do not consult mutes, so Memory listed a mute that changed nothing. | Merged entries never mute. Test (four rejections, nothing muted; a rules kind still mutes at exactly three). |
+| SEC-105 | Low | Settings, Test connection | In "None (rules only)" mode the result said "Manual mode has no connection to test". | Own text for each mode, both return before any call. Unit test (also a hostile error object: fixed code, no message kept, fixed prompt only) and smoke-loop checks; the builder's smoke expectation was corrected to the right text and a manual-mode check added. |
+| SEC-106 | Low | review screen | With a consolidation offer shown, two or three AI buttons carried the id `ai-suggest`. | Level 2 and 3 buttons use `ai-suggest-2` and `ai-suggest-3`. Smoke step asserts no duplicate id on the review screen with an offer (failed on the old code). |
+| SEC-107 | Low | `store.droppedData` | An older-format copy replacing the vault silently dropped proposed target changes (only mutes and reasons were named). | Named as "proposed target changes". Test. |
+| SEC-108 | Low | `memory.parseResponse` (deviation b) | An invalid target refused the reply with "AI item has an invalid target change", which did not say nothing was added. | "The AI reply has an invalid target change (an unknown setting or a value outside its range). Nothing was added." Test that one bad item among good ones stores nothing. |
+| SEC-109 | Info | memory | Documented, not changed: an older vault's `lastReviewAt` is the UTC date of its latest review (can differ by one day from the local date); rejection counts have no upper date bound (a decision after the period end still counts); a `lastReviewAt` in the future (a device with a wrong clock) delays the due card until that date. | Residual. |
+
+Counts: 8 findings (Medium 1, Low 6, Info 1); every Medium and Low fixed with a regression test. No Critical or High.
+
+### Deviation verdicts
+- (a) "current targets" line: acceptable. It is built from the five fixed keys only (workouts per week, contact days, savings rate, study minutes, backup reminder days) from the main state. Proven identical whatever the vault holds: adversarial markers in every free-text field, body-weight and body-fat start and target values, wellbeing entries, private items with the vault open and closed, and business records made private so the year's tax figures refuse (no business line in that prompt, none in the targets line). Only numbers follow each key.
+- (b) Whole reply refused on one invalid target: acceptable after SEC-108. Parsing happens before anything is stored, so nothing partial is applied (tested in Node and in the smoke), and the message now says so plainly.
+- (c) Never-reviewed vault not due: not acceptable; fixed as SEC-102.
+- (d) contactDays 1 to 365: acceptable. The store range is unchanged (1 to 3650 since v0.1) and only AI proposals are held to 1 to 365; 366, 400 and 3650 migrate from schema 16 unchanged, stay through a schema 17 round trip and show in the prompt; a proposal down from 400 previews and applies. Residual: the Settings form already refused saving targets with contact days above 365 (since v0.1), so such a value must be lowered there before other targets can be saved.
+- (e) Rules-only merge: acceptable. Offers change nothing; the button needs a tap and stores exactly one proposed level 2 or 3 entry with the same fields as an AI consolidation plus `kind: 'merge'`, and nothing else (no setting, lesson, review, mute or approval; tested by diff). Merged text excludes wellbeing and body-metric insights.
+
+### Verified as specified (no finding)
+- PV-6 with categories: typed reasons with markers in every area never reach a prompt at levels 1 to 3; the reasons line holds only area ids, the five fixed category words and counts; unknown categories are refused. Wellbeing reasons are not counted (SEC-66).
+- Target proposals: unknown and prototype keys (`__proto__`, `constructor`, `hasOwnProperty`, `valueOf`), own `__proto__` fields, `applied` from the AI, out-of-range, fractional whole numbers, strings, null, arrays and nested shapes are refused; a proposal never changes a setting; apply refuses until approved, refuses twice, and re-checks a tampered key or value; stored targets are validated on load. Insight text and labels reach the screen through text nodes only (a smoke puts an `<img onerror>` reply in an offer and checks no element or script results).
+- Muting: exactly 3 rejections of one rules kind in one area within 56 days (boundary included) mute it, 2 do not, a different kind or area does not count; unmute is one tap and earlier rejections stop counting (builder tests, reviewed).
+- Test connection: the fixed two-line prompt only, no digest, insight or setting; results are one of five codes; error text is never returned or kept; only the code reaches diagnostics.
+- Calendar file: CRLF only; folding at 75 octets counting the leading space and multi-byte characters, never splitting a character or surrogate pair; comma, semicolon, backslash and every line break escaped, other control characters made spaces; 300 fuzzed titles made of CR, LF, U+2028, U+2029, NEL, NUL, ESC, `END:VEVENT`, `SUMMARY:` and `DTSTART` fragments, emoji and CJK never add a line, property or event and round trip after unescaping. UIDs are a fixed-format hash of kind and id (`lifeos-` plus 28 hex characters); no name or id appears. Generic mode over the adversarial vault holds only the fixed titles and dates (no digit outside date, stamp and UID lines). Private items only with the vault open and the tick on (builder tests and smokes, reviewed).
+- Schema 17: migrations from every schema 1 to 16 (new tests; mutes, reasons and kinds from an older format are not trusted); older apps refuse 17 (existing guards); new fields validated.
+- DOM, CSP, inputs: no new DOM sink; the CSP changes only by the script hash; the new checkboxes, select and reason field are built by `h()`, which sets autocomplete off and spell check off on every input (UI-1, v1.2.0). No em dashes, no advice wording in new UI or docs.
+- Test changes: every change to existing tests is a mechanical bump (schema 16 to 17, newer-schema probes 17 to 18, version 1.4.0 to 1.5.0, CHANGELOG head count 16 to 17, the accepted schema list gaining 16). No assertion was removed or weakened. The auditor changed two builder assertions to stricter or corrected ones (SEC-102, SEC-105).
+- SEC-01 to SEC-101 and the CR, PV and UI series: every earlier regression test and smoke still passes.
+
+### Residual risks
+- An older vault with no dated trace counts its age from the upgrade day, so the first due card can come up to 7 days later than ideal.
+- Contact days above 365 block saving the Settings targets form until lowered (pre-existing).
+- Real titles and private items in a calendar file are unencrypted once downloaded and visible to any calendar provider; the warnings say so.
+- The UID hash is not cryptographic; it hides ids from casual reading only, and ids carry no user text.
+
+### Not tested
+Real Anthropic and Ollama calls (simulated providers only), Ollama's response to a file:// page or to the hosted origin, a real calendar import (Google, Apple, Outlook), a real phone, WebKit and Firefox.
+
+### Final results (v1.5.0)
+`node build.mjs` ok. `node --test test/`: 776 tests, 776 pass, in UTC, America/New_York and Pacific/Auckland (759 before the audit plus 17 in test/v150-audit.test.mjs). `node test/smokes.mjs`: all 22 scripts passed in two consecutive runs (Chrome only; WebKit and Firefox not run). An earlier run had one failure in smoke-home-admin (mobile, waiting for "Recurring item added."), the flake already recorded in the v1.2.0 audit; it failed once in three solo reruns too. A likely cause, not proven: a tap during a busy action is dropped by `act()` with no message. It is outside this delta and was not changed.

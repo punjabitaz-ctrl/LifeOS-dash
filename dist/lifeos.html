@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-sWJSHf4i6gOZ7oQf9jmh47Hi3ZyM0FFGCwVY9vipWHU='; style-src 'sha256-JTjZ3WCLG1KxpohmQAcZ4Fx+ucH4AmAWS1xO2eiHsY4='; connect-src https://api.anthropic.com https://www.googleapis.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'; manifest-src 'self'; worker-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-d5qURu8spDuK8TVKGlK23IAoXz1ffBJh3bMGjxygvPQ='; style-src 'sha256-JTjZ3WCLG1KxpohmQAcZ4Fx+ucH4AmAWS1xO2eiHsY4='; connect-src https://api.anthropic.com https://www.googleapis.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'; manifest-src 'self'; worker-src 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#2255d4">
-<meta name="lifeos-shell" content="1.4.0">
-<link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAA9zQYyAAAAEnRFWHRsaWZlb3Mtc2hlbGwAMS40LjC8iPQqAAADOklEQVR42u3dvU0DMRiA4czCGowRsQNFNkhLnQ0omAGxAiUVTZoUKaBJQ0FDc+hDuigCKfzkfPg+P5ZeiQqF4+FkfLEzO7t47KQszVwEAS0BLQEtAS2gJaAloCWgJaAFtAS0BLQEtAS0gJaAloCWgJaAFtAS0BLQEtAS0AJaAloCWgJaAlpAS0BLQEtAS0ALaAloCWgJaAHtQghoCWgJ6NNbrLbd3f1L97R7604d8X2ubp6788s1QECPXwAsMeKPY77cQAT09DEfonanBnqU4u45xri+3YEEdPkC2lgDJKAnP90AGmigBTTQAhpooIGuH3QsEfYPiR7Wr18e+MQ/wq2vjQM9AdAB+TerNrE+Hk8zgQa6OtAB04MfoFOAHupniGkK0ED/K+ihX38rqIGuEPQp04xjo4XpB9CVgQ50pUasjAAN9KigPy/HDT2yL+sBXRHoknfnVu7SQFcEutTcuaW5NNAVgR7rNWde8QC6ItBjjbg2QAMNNNBAAw000EADDbSNvUBb5QAaaOvQQAPtSSHQbb6Xo/R5It7LAXSad9tlXt0AuuL3Q8c/bUOPVrZjAd3IjpVWdoMDXfGewiHm03FntqcQ6CpA99OPvx7UHisadn0DXRXow7v1T2EH5FYPnAF6IqAP79iBO36+/mM2+q/jwYyTk4CeFGgBDTTQQAMNNNACGmgBDbSABhpooIEGGmgBDbSABlpAAw000EADDbSABlpAAy2ggQYaaKCBBlpAAy2ggRbQQAMNNNBAAy2ggRbQQAMNNNBAAw000EALaKAFNNBAA518xEHocYY00ECnGpk/EQtoqIEGOseIj7YAGuhUc2qggU41gAYaaKCBBhpooIEGGmiggQYaaKCBBhpooIEGGmiggQYaaKCBBhpooIEGGmiggQbaABpooIEGGmigixbbi4zjw46VCTVfboj9ZmQ80iAtaNOO4yN2fTvGAOo0mJ3LMeEWq+0H7PhFtjziGjg5SQJaAloCWgJaQEtAS0BLQEtAC2gJaAloCWgB7SIIaAloCWgJaAEtAS0BLQEtAS2gJaAloCWgJaAFtAS0BLQEtAS0gJaAloCWgJaAFtAS0BLQEtDSvncTEEXALVKZAwAAAABJRU5ErkJggg==">
+<meta name="lifeos-shell" content="1.5.0">
+<link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAA9zQYyAAAAEnRFWHRsaWZlb3Mtc2hlbGwAMS41LjC9Sp4dAAADOklEQVR42u3dvU0DMRiA4czCGowRsQNFNkhLnQ0omAGxAiUVTZoUKaBJQ0FDc+hDuigCKfzkfPg+P5ZeiQqF4+FkfLEzO7t47KQszVwEAS0BLQEtAS2gJaAloCWgJaAFtAS0BLQEtAS0gJaAloCWgJaAFtAS0BLQEtAS0AJaAloCWgJaAlpAS0BLQEtAS0ALaAloCWgJaAHtQghoCWgJ6NNbrLbd3f1L97R7604d8X2ubp6788s1QECPXwAsMeKPY77cQAT09DEfonanBnqU4u45xri+3YEEdPkC2lgDJKAnP90AGmigBTTQAhpooIGuH3QsEfYPiR7Wr18e+MQ/wq2vjQM9AdAB+TerNrE+Hk8zgQa6OtAB04MfoFOAHupniGkK0ED/K+ihX38rqIGuEPQp04xjo4XpB9CVgQ50pUasjAAN9KigPy/HDT2yL+sBXRHoknfnVu7SQFcEutTcuaW5NNAVgR7rNWde8QC6ItBjjbg2QAMNNNBAAw000EADDbSNvUBb5QAaaOvQQAPtSSHQbb6Xo/R5It7LAXSad9tlXt0AuuL3Q8c/bUOPVrZjAd3IjpVWdoMDXfGewiHm03FntqcQ6CpA99OPvx7UHisadn0DXRXow7v1T2EH5FYPnAF6IqAP79iBO36+/mM2+q/jwYyTk4CeFGgBDTTQQAMNNNACGmgBDbSABhpooIEGGmgBDbSABlpAAw000EADDbSABlpAAy2ggQYaaKCBBlpAAy2ggRbQQAMNNNBAAy2ggRbQQAMNNNBAAw000EALaKAFNNBAA518xEHocYY00ECnGpk/EQtoqIEGOseIj7YAGuhUc2qggU41gAYaaKCBBhpooIEGGmiggQYaaKCBBhpooIEGGmiggQYaaKCBBhpooIEGGmiggQbaABpooIEGGmigixbbi4zjw46VCTVfboj9ZmQ80iAtaNOO4yN2fTvGAOo0mJ3LMeEWq+0H7PhFtjziGjg5SQJaAloCWgJaQEtAS0BLQEtAC2gJaAloCWgB7SIIaAloCWgJaAEtAS0BLQEtAS2gJaAloCWgJaAFtAS0BLQEtAS0gJaAloCWgJaAFtAS0BLQEtDSvncTEEXALVKZAwAAAABJRU5ErkJggg==">
 <title>LifeOS</title>
 <style>:root{color-scheme:light dark;--bg:#f4f5f7;--card:#fff;--fg:#14171c;--mut:#5b6573;--line:#dde1e7;--acc:#2255d4;--acc-fg:#fff;--ok:#1c7a46;--warn:#9a5b00;--bad:#b42318;--r:14px;--sh:0 1px 2px rgba(0,0,0,.06);--font:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
 @media (prefers-color-scheme:dark){:root{--bg:#0f1216;--card:#181c22;--fg:#e8ebf0;--mut:#9aa4b2;--line:#2a313a;--acc:#6b93ff;--acc-fg:#0b1020;--ok:#4ac283;--warn:#e2a03f;--bad:#f2766b;--sh:none}}
@@ -213,7 +213,7 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
 <body>
 <div id="app"></div>
 <script>globalThis.LifeOS = globalThis.LifeOS || {};
-globalThis.LifeOS.VERSION = "1.4.0";
+globalThis.LifeOS.VERSION = "1.5.0";
 ;
 (function () {
   'use strict';
@@ -646,7 +646,7 @@ globalThis.LifeOS.VERSION = "1.4.0";
   'use strict';
   const L = (globalThis.LifeOS = globalThis.LifeOS || {});
   const KEY = 'envelope';
-  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 16, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
+  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 17, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
   const HABIT_CAP = 8, HABIT_LOG_CAP = 100000, KIND_CAP = 30;
   const RENEWAL_TOTAL_CAP = 2000;
   const ENTRY_CAP = 50000, INSIGHT_CAP = 5000, REVIEW_CAP = 1000, LESSON_CAP = 30, AUDIT_CAP = 200;
@@ -1027,7 +1027,7 @@ globalThis.LifeOS.VERSION = "1.4.0";
     }
     return out;
   }
-  function cleanMemory(m) {
+  function cleanMemory(m, schema) {
     if (!isObj(m)) fail('memory');
     const doms = domainIds().concat(['overall']);
     const insights = arr(m.insights, INSIGHT_CAP, 'insights').map((x) => {
@@ -1043,6 +1043,12 @@ globalThis.LifeOS.VERSION = "1.4.0";
         createdAt: ts(x.createdAt, 'createdAt'),
       };
       if (x.decidedAt !== undefined) o.decidedAt = ts(x.decidedAt, 'decidedAt');
+      // Schema 17 (v1.5.0): the kind of a rules insight, the fixed reason code of a rejection and an optional target change.
+      if (schema >= 17) {
+        if (x.kind !== undefined) { if (typeof x.kind !== 'string' || !/^[a-z][a-z0-9-]{0,29}$/.test(x.kind)) fail('insight kind'); o.kind = x.kind; }
+        if (x.reason !== undefined) o.reason = oneOf(x.reason, L.memory.REASONS, 'rejection reason');
+        if (x.target !== undefined) { try { o.target = L.memory.cleanTarget(x.target, true); } catch (e) { fail('insight target'); } }
+      }
       return o;
     });
     const lessons = arr(m.lessons, LESSON_CAP, 'lessons').map((x) => {
@@ -1059,7 +1065,38 @@ globalThis.LifeOS.VERSION = "1.4.0";
         completedAt: ts(x.completedAt, 'completedAt'),
       };
     });
-    return { insights, lessons, reviews };
+    // Schema 17: the date of the last finished review (older vaults take it from their latest review) and the muted rules kinds.
+    let lastReviewAt = '';
+    if (schema >= 17 && m.lastReviewAt !== undefined && m.lastReviewAt !== '') lastReviewAt = date(m.lastReviewAt, 'lastReviewAt');
+    else if (reviews.length) { const t = new Date(Math.max.apply(null, reviews.map((r) => (typeof r.completedAt === 'number' ? r.completedAt : Date.parse(r.completedAt)))).valueOf()); if (!isNaN(t.getTime())) lastReviewAt = t.toISOString().slice(0, 10); }
+    const seenMute = new Set();
+    const mutes = schema >= 17 && m.mutes !== undefined ? arr(m.mutes, 500, 'mutes').map((x) => {
+      if (!isObj(x)) fail('mute');
+      const mo = { domain: oneOf(x.domain, doms, 'mute area'), kind: str(x.kind, 30, 'mute kind'), at: ts(x.at, 'mute time'), active: bool(x.active, 'mute active') };
+      if (!/^[a-z][a-z0-9-]{0,29}$/.test(mo.kind)) fail('mute kind');
+      if (seenMute.has(mo.domain + '|' + mo.kind)) fail('duplicate mute');
+      seenMute.add(mo.domain + '|' + mo.kind);
+      return mo;
+    }) : [];
+    // SEC-102 (v1.5.0 audit): the date the review loop started counting, so a vault that has never finished a review is still shown
+    // as due once it is 7 days old. Kept when valid; otherwise (older vaults, or a missing value) the caller derives it.
+    const startedOn = schema >= 17 && m.startedOn !== undefined && m.startedOn !== '' ? date(m.startedOn, 'startedOn') : '';
+    return { insights, lessons, reviews, lastReviewAt, mutes, startedOn };
+  }
+  const localToday = () => { const d = new Date(), p2 = (n) => (n < 10 ? '0' : '') + n; return d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate()); };
+  // The earliest dated trace the vault holds (audit log, insights, reviews, backup, sync and storage dates); today when there is none.
+  // A trace can only be later than the real creation day, so the age is never overstated.
+  function deriveStartedOn(out) {
+    const days = [];
+    const add = (v) => { const t = typeof v === 'number' ? v : Date.parse(v); if (isFinite(t)) days.push(new Date(t).toISOString().slice(0, 10)); };
+    for (const a of out.audit || []) if (a.ts) add(a.ts);
+    for (const i of out.memory.insights) add(i.createdAt);
+    for (const r of out.memory.reviews) add(r.completedAt);
+    const ops = out.ops || {};
+    for (const d of [ops.lastBackupAt, ops.lastSyncAt, ops.persist && ops.persist.at]) if (d) add(d);
+    const ok = days.filter(isDate).sort();
+    const t = localToday();
+    return ok.length && ok[0] < t ? ok[0] : t;
   }
   function cleanAudit(a) {
     if (a === undefined) return [];
@@ -1265,7 +1302,7 @@ globalThis.LifeOS.VERSION = "1.4.0";
   function validateStateRaw(o, opts) {
     if (!isObj(o)) fail('state must be an object');
     scan(o, 0, { n: 4e6 });
-    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, SCHEMA].includes(o.schema)) fail('unsupported schema');
+    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, SCHEMA].includes(o.schema)) fail('unsupported schema');
     if (!L.metrics) fail('metrics module missing');
     const settings = cleanSettings(o.settings, o.schema), entries = cleanEntries(o.entries);
     const out = { schema: SCHEMA, settings, entries };
@@ -1372,8 +1409,9 @@ globalThis.LifeOS.VERSION = "1.4.0";
     out.summaries = o.schema >= 14 ? L.archive.cleanSummaries(o.summaries, out.archives) : {};
     // Schema 15 adds the device bookkeeping block: backup and sync dates, the save counter, the storage result and the codes-only diagnostics ring.
     out.ops = L.ops.cleanOps(o.ops, o.schema);
-    out.memory = cleanMemory(o.memory);
+    out.memory = cleanMemory(o.memory, o.schema);
     out.audit = cleanAudit(o.audit);
+    if (!out.memory.startedOn) out.memory.startedOn = deriveStartedOn(out);
     // Schema 10 adds the private vault: checked structurally only (types, base64, sizes, iteration count, mark names); the key is never needed.
     if (o.priv !== undefined) {
       if (o.schema < 10) fail('private vault needs schema 10');
@@ -1436,6 +1474,13 @@ globalThis.LifeOS.VERSION = "1.4.0";
       const b = cur.settings && cur.settings.business;
       if (b && (b.name || b.address || b.paymentTerms || b.invoiceNext > 1 || b.reserveAccountId || b.pinnedProjectId)) out.push('business settings');
     }
+    if (src < 17) {
+      // v1.5.0: muted suggestion kinds and rejection reason codes.
+      const mem = cur.memory || {};
+      if ((mem.mutes || []).some((x) => x.active)) out.push('muted suggestions');
+      if ((mem.insights || []).some((i) => i.reason)) out.push('rejection reasons');
+      if ((mem.insights || []).some((i) => i.target)) out.push('proposed target changes');
+    }
     if (src < 4) {
       if (cur.cycle) out.push('training cycle');
       if ((cur.habits || []).length) out.push('daily checks');
@@ -1486,7 +1531,7 @@ globalThis.LifeOS.VERSION = "1.4.0";
       payees: [], invoices: [], trips: [], taxPayments: [], taxYears: {}, homeOffice: {}, taxMap: [],
       archives: [], summaries: {}, ops: L.ops.defaultOps(),
       cycle: null, kinds: L.metrics.DEFAULT_KINDS.slice(), habits: [], habitLog: [],
-      memory: { insights: [], lessons: [], reviews: [] },
+      memory: { insights: [], lessons: [], reviews: [], lastReviewAt: '', mutes: [], startedOn: localToday() },
       audit: [],
     };
   }
@@ -8139,6 +8184,34 @@ globalThis.LifeOS.VERSION = "1.4.0";
   // and new proposals leave it out; earlier wellbeing insights stay in the vault but are never sent.
   const NO_AI = new Set(['wellbeing']);
   const domains = () => L.DOMAINS.map((d) => d.id).filter((id) => !NO_AI.has(id)).concat(['overall']);
+  // v1.5.0 B12: the fixed rejection reasons. Only these codes (as counts) can reach a prompt; typed text never does (PV-6).
+  const REASONS = Object.freeze(['wrong-number', 'not-relevant', 'already-known', 'too-vague', 'other']);
+  const REASON_LABEL = Object.freeze({ 'wrong-number': 'wrong number', 'not-relevant': 'not relevant', 'already-known': 'already known', 'too-vague': 'too vague', other: 'other' });
+  const KIND_LABEL = Object.freeze({ workouts: 'Workout target', contacts: 'Contact overdue', savings: 'Savings rate', 'net-worth': 'Net worth move', maintenance: 'Maintenance overdue', admin: 'Admin due', goals: 'Goals on track', change: 'Weekly change', sleep: 'Average sleep', 'daily-checks': 'Daily checks', merge: 'Merged entry' });
+  const MUTE_AFTER = 3, MUTE_WINDOW_DAYS = 56, REJECT_WINDOW_DAYS = 84, MUTES_CAP = 500, DAY = 86400000;
+  const KIND_RE = /^[a-z][a-z0-9-]{0,29}$/;
+  // Numeric targets an insight may propose. Ranges are the Settings ranges (contact days 1 to 365 as in the form).
+  const TARGETS = Object.freeze({
+    workoutsPerWeek: { label: 'Workouts per week', min: 0, max: 21, int: true, get: (s) => s.settings.targets.workoutsPerWeek, set: (s, v) => { s.settings.targets.workoutsPerWeek = v; }, fmt: (v) => String(v) },
+    contactDays: { label: 'Days between contacts', min: 1, max: 365, int: true, get: (s) => s.settings.targets.contactDays, set: (s, v) => { s.settings.targets.contactDays = v; }, fmt: (v) => String(v) },
+    savingsRate: { label: 'Savings rate target', min: 0, max: 1, int: false, get: (s) => s.settings.targets.savingsRate, set: (s, v) => { s.settings.targets.savingsRate = v; }, fmt: (v) => Math.round(v * 10000) / 100 + '%' },
+    studyMinutes: { label: 'Study minutes per week', min: 0, max: 10080, int: true, get: (s) => (s.settings.learning ? s.settings.learning.weeklyMinutes : 0), set: (s, v) => { s.settings.learning = Object.assign({}, s.settings.learning, { weeklyMinutes: v }); }, fmt: (v) => String(v) },
+    backupReminderDays: { label: 'Backup reminder (days)', min: 1, max: 60, int: true, get: (s) => s.settings.backupReminderDays, set: (s, v) => { s.settings.backupReminderDays = v; }, fmt: (v) => String(v) },
+  });
+  // A target change: { key, value } plus applied:true once the owner tapped Apply. Anything outside its range is refused.
+  function cleanTarget(t, allowApplied) {
+    const bad = () => new Error('Invalid target change');
+    if (!t || typeof t !== 'object' || Array.isArray(t)) throw bad();
+    const keys = Object.keys(t);
+    if (keys.some((k) => k !== 'key' && k !== 'value' && !(allowApplied && k === 'applied'))) throw bad();
+    if (typeof t.key !== 'string' || !Object.prototype.hasOwnProperty.call(TARGETS, t.key)) throw bad();
+    const d = TARGETS[t.key], v = t.value;
+    if (typeof v !== 'number' || !isFinite(v) || v < d.min || v > d.max || (d.int && !Number.isInteger(v))) throw bad();
+    const out = { key: t.key, value: d.int ? v : Math.round(v * 10000) / 10000 };
+    if (allowApplied && t.applied !== undefined) { if (t.applied !== true) throw bad(); out.applied = true; }
+    return out;
+  }
+  const msOf = (v) => (typeof v === 'number' ? v : Date.parse(v));
   const BIDI = /[\u061C\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF]/g;
   const newId = () => L._webcrypto.randomUUID();
 
@@ -8148,6 +8221,8 @@ globalThis.LifeOS.VERSION = "1.4.0";
   }
   function checkLevel(l) { if (l !== 1 && l !== 2 && l !== 3) throw new Error('Invalid level'); return l; }
 
+  // v1.5.0 B12: a kind the owner rejected 3 times within 8 weeks stays out of the rules suggestions until it is unmuted.
+  const isMuted = (state, domain, kind) => ((state.memory && state.memory.mutes) || []).some((m) => m.active && m.domain === domain && m.kind === kind);
   function rulesInsights(state, weekStartISO) {
     if (L.priv) state = L.priv.mainOnly(state);
     const dg = L.metrics.weeklyDigest(state, weekStartISO);
@@ -8158,49 +8233,56 @@ globalThis.LifeOS.VERSION = "1.4.0";
       if (!dg.domains[d.id]) continue;
       const { now, prev, unit } = dg.domains[d.id];
       if (now === 0 && prev === 0) continue;
-      let text = null;
+      let text = null, kind = 'change';
       const dir = now > prev ? 'up' : 'down';
       switch (d.id) {
         case 'health':
+          kind = 'workouts';
           text = now < t.workoutsPerWeek
             ? 'Workouts: ' + now + ' this week against a target of ' + t.workoutsPerWeek + ' (last week ' + prev + ').'
             : 'Workout target met: ' + now + ' of ' + t.workoutsPerWeek + ' this week.';
           break;
         case 'social':
+          kind = 'contacts';
           if (now > 0) text = now + (now === 1 ? ' person is' : ' people are') + ' overdue for contact (more than ' + t.contactDays + ' days).';
           else if (prev > 0) text = 'Nobody is overdue for contact now, down from ' + prev + ' last week.';
           break;
         case 'money':
+          kind = 'savings';
           if (now === 0) break;
           text = now < t.savingsRate * 100
             ? 'Savings rate this week was ' + now + '%, below your ' + Math.round(t.savingsRate * 100) + '% target.'
             : 'Savings rate this week was ' + now + '%, at or above your ' + Math.round(t.savingsRate * 100) + '% target.';
           break;
         case 'assets':
+          kind = 'net-worth';
           if (now !== prev) text = 'Net worth moved ' + dir + ' from ' + money(prev) + ' to ' + money(now) + '.';
           break;
         case 'home':
+          kind = 'maintenance';
           text = 'Maintenance tasks overdue: ' + now + ' (last week ' + prev + ').';
           break;
         case 'admin':
+          kind = 'admin';
           text = 'Admin items due within 30 days: ' + now + ' (last week ' + prev + ').';
           break;
         case 'goals':
+          kind = 'goals';
           if (now === 0 && prev === 0) break;
           if (now !== prev) text = 'Share of goals on track moved ' + dir + ' from ' + prev + '% to ' + now + '%.';
           break;
         default:
           if (now !== prev) text = d.label + ': ' + now + ' ' + unit + ' this week, ' + dir + ' from ' + prev + '.';
       }
-      if (text) out.push({ domain: d.id, text: text.slice(0, MAX_TEXT) });
+      if (text && !isMuted(state, d.id, kind)) out.push({ domain: d.id, kind, text: text.slice(0, MAX_TEXT) });
     }
     // Health: numeric facts only, never advice.
     const hd = dg.health, ph = L.metrics.healthDigest(state, L.metrics.addDays(dg.week, -7));
     if (hd) {
       const unit = state.settings.health ? state.settings.health.units : 'lb';
-      if (hd.avgSleep > 0) out.push({ domain: 'health', text: ('Average sleep this week was ' + hd.avgSleep + ' hours' + (ph.avgSleep > 0 ? ' (last week ' + ph.avgSleep + ').' : '.')).slice(0, MAX_TEXT) });
+      if (hd.avgSleep > 0 && !isMuted(state, 'health', 'sleep')) out.push({ domain: 'health', kind: 'sleep', text: ('Average sleep this week was ' + hd.avgSleep + ' hours' + (ph.avgSleep > 0 ? ' (last week ' + ph.avgSleep + ').' : '.')).slice(0, MAX_TEXT) });
       // PV-9 (owner rule): body metrics never become a stored insight that states a value or a change, so there is no weight rule.
-      if ((state.habits || []).length && (hd.habitRate > 0 || ph.habitRate > 0)) out.push({ domain: 'health', text: ('Daily checks completed: ' + hd.habitRate + '% this week (last week ' + ph.habitRate + '%).').slice(0, MAX_TEXT) });
+      if ((state.habits || []).length && (hd.habitRate > 0 || ph.habitRate > 0) && !isMuted(state, 'health', 'daily-checks')) out.push({ domain: 'health', kind: 'daily-checks', text: ('Daily checks completed: ' + hd.habitRate + '% this week (last week ' + ph.habitRate + '%).').slice(0, MAX_TEXT) });
     }
     return out;
   }
@@ -8253,6 +8335,8 @@ globalThis.LifeOS.VERSION = "1.4.0";
       if (rv && (rv.revenueWeekCents || rv.expensesWeekCents || rv.revenueMonthCents || rv.expensesMonthCents || rv.expectedNext30Cents || rv.overdueCount)) lines.push('- revenue detail: received this week ' + fm(rv.revenueWeekCents) + ', expenses this week ' + fm(rv.expensesWeekCents) + ', net this week ' + fm(rv.netWeekCents) + ', received this month ' + fm(rv.revenueMonthCents) + ', expenses this month ' + fm(rv.expensesMonthCents) + ', net this month ' + fm(rv.netMonthCents) + ', expected in the next 30 days ' + fm(rv.expectedNext30Cents) + ', overdue expected income ' + rv.overdueCount + ', lines of work ' + rv.lines);
       const bz = dg.business;
       if (bz && (bz.openInvoices || bz.tax)) lines.push('- business detail (numbers only): open invoices ' + bz.openInvoices + ' totalling ' + fm(bz.openInvoiceCents) + ', overdue ' + bz.overdueInvoices + (bz.tax ? ', business profit this year ' + fm(bz.tax.profitCents) + (bz.tax.estimatedTaxCents !== undefined ? ', estimated tax set-aside ' + fm(bz.tax.estimatedTaxCents) : '') + (bz.tax.gapCents !== undefined ? ', set-aside gap ' + fm(bz.tax.gapCents) : '') : ''));
+      // v1.5.0 B12: the five numeric targets, so a proposed change can be sized. Numbers only.
+      lines.push('- current targets: ' + Object.keys(TARGETS).map((k) => k + ' ' + TARGETS[k].get(state)).join(', '));
       ctx = approvedAll.filter((i) => !isBodyInsight(i)).slice(-CTX_MAX);
       lines.push('Approved insights so far:');
     } else {
@@ -8271,11 +8355,16 @@ globalThis.LifeOS.VERSION = "1.4.0";
     for (const i of rej) byDom.set(i.domain, (byDom.get(i.domain) || 0) + 1);
     if (!byDom.size) lines.push('- none');
     else lines.push('- recently rejected insights by area: ' + [...byDom.keys()].sort().map((d) => d + ' ' + byDom.get(d)).join(', ') + '. Propose different kinds of insight in those areas.');
+    // v1.5.0 B12 (owner decision): fixed reason categories may reach the AI as counts per area over the last 12 weeks. Typed text never does.
+    const rc = rejectionCounts(state, p.to), rcAreas = Object.keys(rc).sort();
+    if (rcAreas.length) lines.push('- rejection reasons by area, last 12 weeks (counts): ' + rcAreas.map((d) => d + ': ' + REASONS.filter((r) => rc[d][r]).map((r) => REASON_LABEL[r] + ' ' + rc[d][r]).join(', ')).join('; ') + '.');
     lines.push('Return the JSON array now.');
     const system = 'You are a careful personal reflection assistant. You only see numeric summaries and short approved notes, never raw records. ' +
       'Reply with ONLY a JSON array of at most ' + MAX_ITEMS + ' objects shaped {"domain":string,"text":string}. ' +
       'domain must be one of: ' + domains().join(', ') + '. text is plain text, at most ' + MAX_TEXT + ' characters, specific and grounded in the numbers given. ' +
-      'Do not invent data. Do not give medical, legal or financial advice. Follow the lessons.';
+      'Do not invent data. Do not give medical, legal or financial advice. Follow the lessons. ' +
+      'An item may also carry "target":{"key":string,"value":number} to propose one numeric target change; key and allowed value range: ' +
+      Object.keys(TARGETS).map((k) => k + ' ' + TARGETS[k].min + ' to ' + TARGETS[k].max + (TARGETS[k].int ? ' (whole number)' : ' (fraction)')).join(', ') + '. Leave target out otherwise.';
     return { system, user: lines.join('\n') };
   }
 
@@ -8296,7 +8385,12 @@ globalThis.LifeOS.VERSION = "1.4.0";
       if (typeof x.text !== 'string') throw new Error('AI item text is not text');
       const s = x.text.replace(BIDI, '').replace(/[\u0000-\u001f\u007f]+/g, ' ').trim();
       if (!s || s.length > MAX_TEXT) throw new Error('AI item text is empty or too long');
-      return { domain: x.domain, text: s };
+      const o = { domain: x.domain, text: s };
+      if (x.target !== undefined) {
+        // A value outside its range, an unknown key or an extra field refuses the whole reply, like any other bad item.
+        try { o.target = cleanTarget(x.target, false); } catch (e) { throw new Error('The AI reply has an invalid target change (an unknown setting or a value outside its range). Nothing was added.'); }
+      }
+      return o;
     });
   }
 
@@ -8312,18 +8406,28 @@ globalThis.LifeOS.VERSION = "1.4.0";
       if (!it || !ok.includes(it.domain) || typeof it.text !== 'string') throw new Error('Invalid insight');
       const text = it.text.trim();
       if (!text || text.length > MAX_TEXT) throw new Error('Invalid insight text');
+      if (it.kind !== undefined && (typeof it.kind !== 'string' || !KIND_RE.test(it.kind))) throw new Error('Invalid insight kind');
+      const target = it.target === undefined ? undefined : cleanTarget(it.target, false);
       if (ins.some((x) => x.level === level && x.period.from === p.from && x.domain === it.domain && x.text === text)) continue;
       if (ins.length >= INSIGHT_CAP) throw new Error('Insight limit reached');
-      ins.push({ id: newId(), level, period: { from: p.from, to: p.to }, domain: it.domain, text, source, status: 'proposed', createdAt: new Date().toISOString() });
+      const row = { id: newId(), level, period: { from: p.from, to: p.to }, domain: it.domain, text, source, status: 'proposed', createdAt: new Date().toISOString() };
+      if (it.kind !== undefined) row.kind = it.kind;
+      if (target) row.target = target;
+      ins.push(row);
     }
   }
 
-  function decide(state, id, decision, reason) {
+  // opts: { category, now }. category is one of REASONS (a fixed code, never text); now is a Date or ISO string (tests).
+  function decide(state, id, decision, reason, opts) {
     if (decision !== 'approved' && decision !== 'rejected') throw new Error('Invalid decision');
     const ins = state.memory.insights.find((i) => i.id === id);
     if (!ins) throw new Error('Insight not found');
+    const o = opts || {}, at = o.now === undefined ? new Date() : new Date(o.now);
+    if (isNaN(at.getTime())) throw new Error('Invalid time');
+    if (o.category !== undefined && !REASONS.includes(o.category)) throw new Error('Invalid rejection reason');
     ins.status = decision;
-    ins.decidedAt = new Date().toISOString();
+    ins.decidedAt = at.toISOString();
+    delete ins.reason;
     // Lessons are sent with every prompt, so a reason given for an earlier wellbeing insight is not kept as one (SEC-66).
     if (decision === 'rejected' && typeof reason === 'string' && !NO_AI.has(ins.domain)) {
       const r = reason.replace(/[\u0000-\u001f\u007f]+/g, ' ').trim().slice(0, MAX_TEXT);
@@ -8333,7 +8437,124 @@ globalThis.LifeOS.VERSION = "1.4.0";
         while (ls.length > LESSON_CAP) ls.shift();
       }
     }
+    if (decision === 'rejected') {
+      if (o.category !== undefined) ins.reason = o.category;
+      // SEC-104: a merged entry is an offer made on a tap, not a rules suggestion, so it never mutes (a muted merge would be listed but change nothing).
+      if (ins.source === 'rules' && ins.kind && ins.kind !== 'merge') updateMute(state, ins, at);
+    }
     return ins;
+  }
+
+  // Three rejections of the same rules kind in the same area within 8 weeks (56 days, boundary included) mute it. Rejections made before
+  // the last unmute do not count again.
+  function updateMute(state, ins, at) {
+    const mem = state.memory;
+    if (!Array.isArray(mem.mutes)) mem.mutes = [];
+    const m = mem.mutes.find((x) => x.domain === ins.domain && x.kind === ins.kind);
+    if (m && m.active) return;
+    const now = at.getTime(), lo = now - MUTE_WINDOW_DAYS * DAY, since = m ? msOf(m.at) : -Infinity;
+    const n = mem.insights.filter((i) => i.status === 'rejected' && i.source === 'rules' && i.domain === ins.domain && i.kind === ins.kind && i.decidedAt !== undefined &&
+      msOf(i.decidedAt) >= lo && msOf(i.decidedAt) <= now && msOf(i.decidedAt) > since).length;
+    if (n < MUTE_AFTER) return;
+    if (m) { m.active = true; m.at = at.toISOString(); }
+    else if (mem.mutes.length < MUTES_CAP) mem.mutes.push({ domain: ins.domain, kind: ins.kind, at: at.toISOString(), active: true });
+  }
+  const mutedList = (state) => ((state.memory && state.memory.mutes) || []).filter((m) => m.active).map((m) => ({ domain: m.domain, kind: m.kind, label: KIND_LABEL[m.kind] || m.kind, at: m.at }));
+  // One tap: the kind is proposed again from now on, and its earlier rejections stop counting.
+  function unmute(state, domain, kind, opts) {
+    const m = ((state.memory && state.memory.mutes) || []).find((x) => x.active && x.domain === domain && x.kind === kind);
+    if (!m) throw new Error('That suggestion is not muted');
+    const at = opts && opts.now !== undefined ? new Date(opts.now) : new Date();
+    if (isNaN(at.getTime())) throw new Error('Invalid time');
+    m.active = false; m.at = at.toISOString();
+    return m;
+  }
+
+  // Counts per area and fixed reason over the 12 weeks up to `to`. Wellbeing is left out (SEC-66). Typed reasons are not read.
+  function rejectionCounts(state, to) {
+    const lo = new Date(Date.parse(to + 'T00:00:00Z') - REJECT_WINDOW_DAYS * DAY).toISOString().slice(0, 10), out = {};
+    for (const i of state.memory.insights) {
+      if (i.status !== 'rejected' || !REASONS.includes(i.reason) || NO_AI.has(i.domain) || i.decidedAt === undefined) continue;
+      const d = new Date(msOf(i.decidedAt)).toISOString().slice(0, 10);
+      if (!(d >= lo)) continue;
+      const a = out[i.domain] || (out[i.domain] = {});
+      a[i.reason] = (a[i.reason] || 0) + 1;
+    }
+    return out;
+  }
+
+  // ---- B12: numeric target changes, applied only on a tap ----
+  function targetPreview(state, id) {
+    const ins = state.memory.insights.find((i) => i.id === id);
+    if (!ins || !ins.target) throw new Error('That insight has no target change');
+    const t = cleanTarget(ins.target, true), d = TARGETS[t.key];
+    return { key: t.key, label: d.label, before: d.get(state), after: t.value, beforeText: d.fmt(d.get(state)), afterText: d.fmt(t.value), applied: !!t.applied };
+  }
+  // Sets the one setting and marks the insight applied. The caller commits it together with the approval, so it is one write.
+  function applyTarget(state, id) {
+    const ins = state.memory.insights.find((i) => i.id === id);
+    if (!ins || !ins.target) throw new Error('That insight has no target change');
+    if (ins.status !== 'approved') throw new Error('Approve the insight before applying its target change');
+    const t = cleanTarget(ins.target, true);
+    if (t.applied) throw new Error('That target change was already applied');
+    const d = TARGETS[t.key], before = d.get(state);
+    d.set(state, t.value);
+    ins.target = { key: t.key, value: t.value, applied: true };
+    return { key: t.key, label: d.label, before, after: t.value };
+  }
+
+  // ---- B11: review due, streak, consolidation offers ----
+  const dayNo = (iso) => { const p = iso.split('-').map(Number); return Date.UTC(p[0], p[1] - 1, p[2]) / DAY; };
+  const pad2 = (n) => (n < 10 ? '0' : '') + n;
+  const monthEnd = (y, m) => y + '-' + pad2(m) + '-' + pad2(new Date(Date.UTC(y, m, 0)).getUTCDate());
+  function reviewDue(state, today) {
+    const last = state.memory.lastReviewAt || '';
+    // SEC-102: never reviewed counts from the day the loop started (vault creation; for an older vault its earliest dated trace, else the upgrade day).
+    if (!last) {
+      const since = state.memory.startedOn || '';
+      return { due: !!since && dayNo(today) - dayNo(since) >= 7, never: true, days: null, last: '' };
+    }
+    const days = Math.max(0, dayNo(today) - dayNo(last));
+    return { due: days >= 7, never: false, days, last };
+  }
+  function markReviewed(state, today) {
+    if (!L.metrics.isDate(today)) throw new Error('Invalid date');
+    if (!state.memory.lastReviewAt || today > state.memory.lastReviewAt) state.memory.lastReviewAt = today;
+  }
+  // Consecutive ISO weeks with a finished review, counted back from this week (or from last week while this week has none yet).
+  function reviewStreak(state, today) {
+    const weeks = new Set(state.memory.reviews.map((r) => L.metrics.weekStart(r.weekOf)));
+    let w = L.metrics.weekStart(today), n = 0;
+    if (!weeks.has(w)) w = L.metrics.addDays(w, -7);
+    while (weeks.has(w)) { n++; w = L.metrics.addDays(w, -7); }
+    return n;
+  }
+  const mergeable = (state) => state.memory.insights.filter((i) => i.status === 'approved' && !NO_AI.has(i.domain) && !isBodyInsight(i));
+  // The last month and the last quarter that have ended, with what would be merged. Offers only: nothing is created until a tap.
+  function consolidationOffers(state, today) {
+    if (!L.metrics.isDate(today)) throw new Error('Invalid date');
+    const y = +today.slice(0, 4), m = +today.slice(5, 7), ins = state.memory.insights, all = mergeable(state), out = [];
+    const pm = m === 1 ? 12 : m - 1, py = m === 1 ? y - 1 : y;
+    const mp = { from: py + '-' + pad2(pm) + '-01', to: monthEnd(py, pm) };
+    const mi = all.filter((i) => i.level === 1 && i.period.from >= mp.from && i.period.from <= mp.to);
+    if (mi.length && !ins.some((i) => i.level === 2 && i.period.from === mp.from)) out.push({ level: 2, period: mp, count: mi.length, items: mi.map((i) => ({ domain: i.domain, text: i.text })) });
+    const q = Math.floor((m - 1) / 3), pq = q === 0 ? 3 : q - 1, qy = q === 0 ? y - 1 : y;
+    const qp = { from: qy + '-' + pad2(pq * 3 + 1) + '-01', to: monthEnd(qy, pq * 3 + 3) };
+    const qi = all.filter((i) => i.level === 2 && i.period.from >= qp.from && i.period.from <= qp.to);
+    if (qi.length && !ins.some((i) => i.level === 3 && i.period.from === qp.from)) out.push({ level: 3, period: qp, count: qi.length, items: qi.map((i) => ({ domain: i.domain, text: i.text })) });
+    return out;
+  }
+  // Without an AI: one proposed entry that joins the approved insights of the period (their own words, cut at 280 characters).
+  function mergeByRules(state, level, period) {
+    checkLevel(level);
+    if (level === 1) throw new Error('Invalid level');
+    const p = checkPeriod(period);
+    const src = mergeable(state).filter((i) => i.level === level - 1 && i.period.from >= p.from && i.period.from <= p.to);
+    if (!src.length) throw new Error('Nothing approved to merge for that period.');
+    let text = src.map((i) => i.text).join(' | ');
+    if (text.length > MAX_TEXT) text = text.slice(0, MAX_TEXT - 3) + '...';
+    propose(state, [{ domain: 'overall', kind: 'merge', text }], { level, period: p, source: 'rules' });
+    return src.length;
   }
 
   // Pure: returns a deep copy of state with every approved insight set back to proposed (no decidedAt).
@@ -8349,7 +8570,7 @@ globalThis.LifeOS.VERSION = "1.4.0";
     return state.memory.insights.filter((i) => i.status === 'approved' && (level === undefined || i.level === level));
   }
 
-  L.memory = { rulesInsights, buildPrompt, parseResponse, propose, decide, approved, demoteApproved };
+  L.memory = { REASONS, REASON_LABEL, KIND_LABEL, TARGETS, rulesInsights, buildPrompt, parseResponse, propose, decide, approved, demoteApproved, cleanTarget, isMuted, mutedList, unmute, rejectionCounts, targetPreview, applyTarget, reviewDue, markReviewed, reviewStreak, consolidationOffers, mergeByRules };
 })();
 
 ;
@@ -8385,7 +8606,7 @@ globalThis.LifeOS.VERSION = "1.4.0";
 
   // Reads the body as a stream and aborts as soon as more than MAX_BODY bytes arrive.
   async function readCapped(res, ctl) {
-    const tooBig = () => new Error('The AI provider reply was too large');
+    const tooBig = () => coded(new Error('The AI provider reply was too large'), 'AI_BAD_REPLY');
     const cl = res.headers && typeof res.headers.get === 'function' ? Number(res.headers.get('content-length')) : NaN;
     if (cl > MAX_BODY) { ctl.abort(); throw tooBig(); }
     if (!res.body || typeof res.body.getReader !== 'function') throw coded(new Error('The AI provider sent an unreadable reply'), 'AI_BAD_REPLY');
@@ -8406,7 +8627,7 @@ globalThis.LifeOS.VERSION = "1.4.0";
       }
     } catch (e) {
       if (e && e.message === tooBig().message) throw e;
-      throw new Error(ctl.signal.aborted ? 'The AI request timed out' : 'The AI provider sent an unreadable reply');
+      throw ctl.signal.aborted ? coded(new Error('The AI request timed out'), 'AI_TIMEOUT') : coded(new Error('The AI provider sent an unreadable reply'), 'AI_BAD_REPLY');
     }
     const buf = new Uint8Array(total);
     let o = 0;
@@ -8448,7 +8669,7 @@ globalThis.LifeOS.VERSION = "1.4.0";
       if (!res || !res.ok) throw coded(new Error('The AI provider returned an error' + (res && res.status ? ' (HTTP ' + res.status + ')' : '')), 'AI_HTTP');
       let j;
       const raw = await readCapped(res, ctl);
-      try { j = JSON.parse(raw); } catch (e) { throw new Error('The AI provider sent an unreadable reply'); }
+      try { j = JSON.parse(raw); } catch (e) { throw coded(new Error('The AI provider sent an unreadable reply'), 'AI_BAD_REPLY'); }
       let text;
       if (p.kind === 'anthropic') {
         text = Array.isArray(j && j.content) ? j.content.filter((b) => b && b.type === 'text' && typeof b.text === 'string').map((b) => b.text).join('') : undefined;
@@ -8461,7 +8682,130 @@ globalThis.LifeOS.VERSION = "1.4.0";
     } finally { clearTimeout(timer); }
   }
 
-  L.ai = { validateProvider, complete, isLocalUrl };
+  // v1.5.0 B13: "Test connection". The prompt is fixed text: no digest, no insight, no setting, nothing from the vault. The result is
+  // success or one fixed code (the B7 codes AI_TIMEOUT, AI_NETWORK, AI_HTTP, AI_BAD_REPLY, AI_FAIL); error text is never returned or kept.
+  const TEST_PROMPT = Object.freeze({ system: 'Connection test. Reply with the single word OK.', user: 'Reply with OK.' });
+  const TEST_CODES = new Set(['AI_TIMEOUT', 'AI_NETWORK', 'AI_HTTP', 'AI_BAD_REPLY', 'AI_FAIL']);
+  async function testConnection(provider, fetchImpl) {
+    try {
+      await complete(provider, { system: TEST_PROMPT.system, user: TEST_PROMPT.user }, fetchImpl);
+      return { ok: true, code: null };
+    } catch (e) {
+      let code = null;
+      try { code = L.ops && L.ops.codeFor ? L.ops.codeFor(e) : null; } catch (x) { /* a hostile error object */ }
+      if (!TEST_CODES.has(code)) code = 'AI_FAIL';
+      if (L.ops && L.ops.record) L.ops.record(code, 'ai');
+      return { ok: false, code };
+    }
+  }
+
+  L.ai = { validateProvider, complete, isLocalUrl, testConnection, TEST_PROMPT };
+})();
+
+;
+(function () {
+  'use strict';
+  // v1.5.0 B17: a calendar file (.ics) of dated items in the next 12 months. Built locally from the vault state and handed to a download;
+  // no network, no feed. Event UIDs are a hash of the item kind and id, so importing the file again updates rather than duplicates.
+  // Titles are generic by kind unless the owner ticks "Include real titles". Notes, amounts, places and people are never written
+  // in either mode. Private-vault items are left out unless the vault is open and the owner ticks "Include private items".
+  // No user text can reach the iCalendar structure: text values are escaped (backslash, semicolon, comma, line breaks), other control
+  // characters become spaces, and every ID and hash that appears is generated here from fixed characters.
+  const L = (globalThis.LifeOS = globalThis.LifeOS || {});
+  const DAYS = 365, FOLD = 75;
+  const GENERIC = Object.freeze({
+    renewal: 'LifeOS: renewal due', maintenance: 'LifeOS: maintenance due', taxpay: 'LifeOS: tax payment due', filing: 'LifeOS: tax filing due', invoice: 'LifeOS: invoice due', goal: 'LifeOS: goal due',
+    exam: 'LifeOS: exam', cert: 'LifeOS: certification expires', activity: 'LifeOS: planned activity', date: 'LifeOS: important date',
+  });
+  const KINDS = Object.freeze(Object.keys(GENERIC));
+  const isDate = (s) => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && new Date(s + 'T00:00:00Z').toISOString().slice(0, 10) === s;
+  const addDays = (iso, n) => { const p = iso.split('-').map(Number); return new Date(Date.UTC(p[0], p[1] - 1, p[2] + n)).toISOString().slice(0, 10); };
+  const list = (state, k) => (state && Array.isArray(state[k]) ? state[k] : []);
+
+  // Two 53-bit hashes (different seeds) give a fixed-length hex id from any text, so an id with odd characters never reaches the file.
+  function cyrb53(str, seed) {
+    let h1 = 0xdeadbeef ^ seed, h2 = 0x41c6ce57 ^ seed;
+    for (let i = 0; i < str.length; i++) { const ch = str.charCodeAt(i); h1 = Math.imul(h1 ^ ch, 2654435761); h2 = Math.imul(h2 ^ ch, 1597334677); }
+    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+    return (4294967296 * (2097151 & h2) + (h1 >>> 0)).toString(16).padStart(14, '0');
+  }
+  const uidOf = (kind, id) => 'lifeos-' + cyrb53(kind + '|' + id, 1) + cyrb53(kind + '|' + id, 2) + '@lifeos.local';
+
+  // TEXT value escaping (RFC 5545 3.3.11): backslash, semicolon and comma get a backslash; every kind of line break becomes the two
+  // characters \n; other control characters become spaces. Nothing typed can start a new line in the file.
+  function escape(v) {
+    const parts = String(v).split(/\r\n|\r|\n|\u2028|\u2029/);
+    return parts.map((p) => p.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\\/g, '\\\\').replace(/;/g, '\\;').replace(/,/g, '\\,')).join('\\n');
+  }
+  const utf8 = (cp) => (cp < 0x80 ? 1 : cp < 0x800 ? 2 : cp < 0x10000 ? 3 : 4);
+  // Folding (RFC 5545 3.1): lines of at most 75 octets; a continuation starts with one space, which counts. Never splits a character.
+  function fold(line) {
+    const out = [];
+    let cur = '', bytes = 0, limit = FOLD;
+    for (const ch of line) {
+      const n = utf8(ch.codePointAt(0));
+      if (bytes + n > limit) { out.push(cur); cur = ' '; bytes = 1; limit = FOLD; }
+      cur += ch; bytes += n;
+    }
+    out.push(cur);
+    return out.join('\r\n');
+  }
+  const ymd = (iso) => iso.replace(/-/g, '');
+  const stampOf = (d) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+
+  // Collect { kind, id, date, endDate?, real } rows inside [today, end].
+  function collect(src, today) {
+    const end = addDays(today, DAYS), rows = [];
+    const add = (kind, id, date, real, endDate) => {
+      if (!isDate(date) || date < today || date > end || typeof id !== 'string') return;
+      const r = { kind, id, date, real: typeof real === 'string' ? real : '' };
+      if (endDate && isDate(endDate) && endDate > date) r.endDate = endDate;
+      rows.push(r);
+    };
+    // Renewals, estimated tax payments (and the 1099-NEC filing) and certification expiries come from the Admin timeline rows (open ones only).
+    if (L.admin) for (const x of L.admin.dated(src)) {
+      if (x.closed !== null) continue;
+      if (x.src === 'renewal') add('renewal', x.id, x.date, x.title);
+      else if (x.src === 'learning') add('cert', x.id, x.date, x.title);
+      else if (x.src === 'taxpay') add(String(x.id).indexOf('nec1099:') === 0 ? 'filing' : 'taxpay', x.id, x.date, x.title);
+    }
+    for (const m of list(src, 'maintenance')) if (m.state === 'open' && m.nextDue) add('maintenance', m.id, m.nextDue, m.title);
+    for (const i of list(src, 'invoices')) if (i.status === 'sent' && i.dueDate) add('invoice', i.id, i.dueDate, 'Invoice ' + i.number);
+    for (const g of list(src, 'goals')) if (g.state === 'active' && g.dueDate) add('goal', g.id, g.dueDate, g.title);
+    if (L.learning) for (const x of L.learning.upcomingExams(src, today)) add('exam', x.id, x.date, x.title);
+    for (const a of list(src, 'activities')) if (a.state === 'planned') add('activity', a.id, a.date, a.title, a.endDate);
+    if (L.social) for (const x of L.social.importantDates(src, today, DAYS + 1)) add('date', x.id, x.date, x.label + ': ' + x.person);
+    return rows;
+  }
+
+  // build(state, opts): opts { today:'YYYY-MM-DD' (local date), realTitles:false, includePrivate:false, stamp: Date (tests) }.
+  // Returns { text, count, realTitles, privateIncluded }.
+  function build(state, opts) {
+    const o = opts || {};
+    if (!isDate(o.today)) throw new Error('Today must be a date');
+    const realTitles = o.realTitles === true;
+    const base = L.priv ? L.priv.mainOnly(state) : state;
+    let src = base;
+    if (o.includePrivate === true && L.priv && L.priv.isOpen()) src = L.priv.view(base);
+    const privateIncluded = src !== base;
+    const stamp = stampOf(o.stamp instanceof Date && !isNaN(o.stamp.getTime()) ? o.stamp : new Date());
+    const rows = collect(src, o.today).map((r) => Object.assign(r, { uid: uidOf(r.kind, r.id) }));
+    rows.sort((a, b) => a.date.localeCompare(b.date) || a.kind.localeCompare(b.kind) || a.uid.localeCompare(b.uid));
+    // The same UID twice (two rows for one record) would make a calendar merge them: keep the first.
+    const seen = new Set(), uniq = rows.filter((r) => (seen.has(r.uid) ? false : (seen.add(r.uid), true)));
+    const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//LifeOS//Calendar file//EN', 'CALSCALE:GREGORIAN', 'METHOD:PUBLISH', 'X-WR-CALNAME:LifeOS'];
+    for (const r of uniq) {
+      const title = realTitles && r.real ? 'LifeOS: ' + r.real : GENERIC[r.kind];
+      lines.push('BEGIN:VEVENT', 'UID:' + r.uid, 'DTSTAMP:' + stamp, 'DTSTART;VALUE=DATE:' + ymd(r.date), 'DTEND;VALUE=DATE:' + ymd(addDays(r.endDate || r.date, 1)),
+        'SUMMARY:' + escape(title), 'TRANSP:TRANSPARENT', 'END:VEVENT');
+    }
+    lines.push('END:VCALENDAR');
+    return { text: lines.map(fold).join('\r\n') + '\r\n', count: uniq.length, realTitles, privateIncluded };
+  }
+  const filename = (today) => 'lifeos-calendar-' + today + '.ics';
+
+  L.calendar = { DAYS, GENERIC, KINDS, build, filename, escape, fold, uidOf };
 })();
 
 ;
@@ -10102,6 +10446,8 @@ globalThis.LifeOS.VERSION = "1.4.0";
     hist.start();
     render();
     if (L.syncUI) L.syncUI.afterUnlock(syncCtx());
+    // v1.5.0 B11: one line after unlock when a weekly review is due. The dashboard card has the button; nothing starts by itself.
+    try { var rd = L.memory.reviewDue(mainState(), today()); if (rd.due) setNotice('ok', rd.never ? 'Weekly review due: none finished yet.' : 'Weekly review due: the last one was ' + rd.days + ' days ago.'); } catch (e) { /* the notice is optional */ }
     // v1.3.0 B1: ask the browser to keep this storage (until granted); the result is recorded. Never blocks and never throws.
     try { L.ops.persistOnUnlock(navigator.storage, today()).catch(function () {}); } catch (e) { /* the API may be missing */ }
   }
@@ -10274,6 +10620,8 @@ globalThis.LifeOS.VERSION = "1.4.0";
       pr.appendChild(h('ol', null, rv.priorities.map(function (p) { return h('li', { text: p }); })));
       if (rv.weekOf !== wk) pr.appendChild(h('p', { class: 'mut small', text: 'From the week of ' + rv.weekOf + '.' }));
     } else pr.appendChild(h('p', { class: 'mut', text: 'No priorities yet. Run your weekly review to set three.' }));
+    var stk = L.memory.reviewStreak(s, t);
+    pr.appendChild(h('p', { class: 'mut small', id: 'dash-streak', text: 'Review streak: ' + stk + (stk === 1 ? ' week' : ' weeks') + ' in a row.' }));
     if (!rv || rv.weekOf !== wk) pr.appendChild(btn('Start weekly review', function () { go('review'); }, 'pri'));
     built.priorities = pr;
     built.glance = glanceCard(s, t, 'dash-glance');
@@ -10294,6 +10642,7 @@ globalThis.LifeOS.VERSION = "1.4.0";
         h('div', { class: 'modbody', inert: dashEdit ? true : null }, el || h('p', { class: 'mut small', text: L.layout.label(m.id) + ' has nothing to show right now.' }))));
     });
     return h('div', null, h('div', { class: 'row sp' }, h('h1', { text: 'Dashboard' }), h('div', { class: 'row' }, btn('Log study', function () { studyDialog(''); }, 'qa-btn', { id: 'quick-study' }), btn('Add activity', function () { go('domain', { domain: 'activities', open: 'act-add' }); }, 'qa-btn', { id: 'quick-activity' }), btn('Quick add', quickAdd, 'pri qa-btn', { id: 'quick-add' }), btn(dashEdit ? 'Done' : 'Customize', function () { dashEdit = !dashEdit; render(); }, 'qa-btn', { id: 'dash-customize' }))),
+      reviewDueCard(mainState(), t),
       setupCard(mainState()),
       L.archiveUI ? L.archiveUI.proposal(archCtx()) : null,
       safetyCard(mainState()),
@@ -10970,31 +11319,49 @@ globalThis.LifeOS.VERSION = "1.4.0";
 
   // ---------- insights and AI ----------
   function insightCard(i, withActions) {
+    var tp = null;
+    if (i.target) { try { tp = L.memory.targetPreview(mainState(), i.id); } catch (e) { tp = null; } }
     var kids = [
       h('div', { class: 'row' },
         h('span', { class: 'chip', text: domainLabel(i.domain) }),
         h('span', { class: 'chip', text: 'Level ' + i.level }),
         h('span', { class: 'chip', text: i.source === 'ai' ? 'AI' : 'Rules' }),
-        i.status !== 'proposed' ? h('span', { class: 'chip ' + (i.status === 'approved' ? 'ok' : 'bad'), text: i.status }) : null),
+        i.status !== 'proposed' ? h('span', { class: 'chip ' + (i.status === 'approved' ? 'ok' : 'bad'), text: i.status }) : null,
+        i.status === 'rejected' && i.reason ? h('span', { class: 'chip', 'data-reason': i.reason, text: L.memory.REASON_LABEL[i.reason] }) : null,
+        i.target && i.target.applied ? h('span', { class: 'chip ok', text: 'Change applied' }) : null),
       h('p', { text: i.text })
     ];
+    // v1.5.0 B12: a proposed target change shows before and after; nothing changes until a tap.
+    if (tp) kids.push(h('p', { class: 'small target-change', 'data-key': tp.key, text: tp.applied ? 'Target change: ' + tp.label + ' set to ' + tp.afterText + '.' : 'Proposed target change: ' + tp.label + ' from ' + tp.beforeText + ' to ' + tp.afterText + '. Nothing changes until you tap Apply.' }));
     if (withActions && i.status === 'proposed') {
       kids.push(h('div', { class: 'row' },
-        btn('Approve', function () {
+        tp ? btn('Approve and apply change', function () {
+          act(function () { return commit(function (x) { L.memory.decide(x, i.id, 'approved'); L.memory.applyTarget(x, i.id); }, 'target change').then(function () { setNotice('ok', 'Approved. ' + tp.label + ' is now ' + tp.afterText + '.'); render(); }); });
+        }, 'pri sm', { id: 'approve-apply' }) : null,
+        btn(tp ? 'Approve only' : 'Approve', function () {
           act(function () { return commit(function (x) { L.memory.decide(x, i.id, 'approved'); }).then(render); });
-        }, 'pri sm'),
+        }, tp ? 'sm' : 'pri sm', tp ? { id: 'approve-only' } : null),
         btn('Reject', function () { rejectDialog(i); }, 'sm')));
+    } else if (withActions && i.status === 'approved' && tp && !tp.applied) {
+      kids.push(h('div', { class: 'row' }, btn('Apply change', function () {
+        act(function () { return commit(function (x) { L.memory.applyTarget(x, i.id); }, 'target change').then(function () { setNotice('ok', tp.label + ' is now ' + tp.afterText + '.'); render(); }); });
+      }, 'pri sm', { id: 'apply-change' })));
     }
-    return h('div', { class: 'card' }, kids);
+    return h('div', { class: 'card', 'data-insight': i.id }, kids);
   }
+  // v1.5.0 B12: one fixed reason category is required. The typed note stays optional and on this device (PV-6).
   function rejectDialog(i) {
     var why = h('input', { type: 'text', id: 'reject-reason', maxlength: '200' });
+    var cat = sel('reject-category', [{ v: '', t: 'Choose a reason' }].concat(L.memory.REASONS.map(function (r) { return { v: r, t: L.memory.REASON_LABEL[r].charAt(0).toUpperCase() + L.memory.REASON_LABEL[r].slice(1) }; })), '');
     openDialog({
       title: 'Reject this insight', yes: 'Reject',
-      body: [h('p', { class: 'mut', text: i.text }), field('Why? (optional, kept as a note on this device)', why, 'Your reason is never sent to the AI. The AI only learns how many insights were rejected in each area.')],
+      body: [h('p', { class: 'mut', text: i.text }),
+        field('Reason', cat, 'Only this category and how many times it was chosen in each area can reach the AI.'),
+        field('Why? (optional, kept as a note on this device)', why, 'Your reason is never sent to the AI.')],
       onYes: function () {
-        var r = why.value.trim().slice(0, 200);
-        return commit(function (x) { L.memory.decide(x, i.id, 'rejected', r || undefined); }).then(function () { render(); });
+        if (!cat.value) throw new Error('Choose a reason.');
+        var r = why.value.trim().slice(0, 200), c = cat.value;
+        return commit(function (x) { L.memory.decide(x, i.id, 'rejected', r || undefined, { category: c }); }).then(function () { render(); });
       }
     });
   }
@@ -11022,13 +11389,13 @@ globalThis.LifeOS.VERSION = "1.4.0";
   function aiPanel(level, period, label) {
     var kind = mainState().settings.provider.kind;
     var box = h('div', null,
-      h('div', { class: 'row' }, btn(label, function () { suggestAI(level, period); }, 'sm', { id: 'ai-suggest' })),
-      h('p', { class: 'mut small', text: kind === 'anthropic' ? 'Sends only the numeric digest, approved insights and counts of rejected insights to api.anthropic.com.' : kind === 'local' ? 'Sends only the numeric digest, approved insights and counts of rejected insights to your local model.' : 'Manual mode: copy the prompt into your own AI chat and paste the reply here.' }));
+      h('div', { class: 'row' }, btn(label, function () { suggestAI(level, period); }, 'sm', { id: level === 1 ? 'ai-suggest' : 'ai-suggest-' + level })),
+      h('p', { class: 'mut small', text: kind === 'anthropic' ? 'Sends only the numeric digest, your current targets, approved insights and counts of rejected insights to api.anthropic.com.' : kind === 'local' ? 'Sends only the numeric digest, your current targets, approved insights and counts of rejected insights to your local model.' : 'Manual mode: copy the prompt into your own AI chat and paste the reply here.' }));
     if (ai && ai.level === level && ai.period.from === period.from) {
       var ta = h('textarea', { id: 'ai-prompt', readOnly: true, value: ai.prompt, 'aria-label': 'Prompt to copy' });
       var paste = h('textarea', { id: 'ai-paste', 'aria-label': 'Paste the AI reply here', maxlength: '20000' });
       box.appendChild(h('div', { class: 'card' },
-        h('p', { class: 'small', text: 'The prompt holds the numeric digest, your approved insights and counts of rejected insights. No entries, titles, names or rejection reasons.' }),
+        h('p', { class: 'small', text: 'The prompt holds the numeric digest, your current targets, your approved insights and counts of rejected insights (by area and by the reason you chose). No entries, titles, names or typed reasons.' }),
         ta,
         h('div', { class: 'row' }, btn('Copy', function () { copyText(ta).then(function () { setNotice('ok', 'Copied.'); }, function (e) { setNotice('err', friendly(e)); }); }, 'sm')),
         field('Paste the reply (a JSON list)', paste),
@@ -11042,6 +11409,56 @@ globalThis.LifeOS.VERSION = "1.4.0";
           btn('Close', function () { ai = null; render(); }, 'sm'))));
     }
     return box;
+  }
+
+  // ---------- weekly loop (v1.5.0) ----------
+  var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  function periodLabel(level, p) {
+    var y = p.from.slice(0, 4), m = Number(p.from.slice(5, 7));
+    return level === 2 ? MONTHS[m - 1] + ' ' + y : 'Q' + (Math.floor((m - 1) / 3) + 1) + ' ' + y;
+  }
+  // Offers only: each needs a tap, and nothing is created until then. Shows what would be merged.
+  function consolidationOffers(s, t) {
+    var offers = L.memory.consolidationOffers(mainState(), t);
+    if (!offers.length) return null;
+    return h('div', { id: 'offers' }, offers.map(function (o) {
+      var kind = o.level === 2 ? 'month' : 'quarter', lbl = periodLabel(o.level, o.period);
+      return h('div', { class: 'card', id: 'offer-' + kind, 'data-period': o.period.from },
+        h('h2', { text: (o.level === 2 ? 'Month' : 'Quarter') + ' ended: ' + lbl }),
+        h('p', { class: 'small', text: 'Offer, nothing happens until you tap. ' + o.count + ' approved ' + (o.level === 2 ? 'weekly' : 'monthly') + (o.count === 1 ? ' insight' : ' insights') + ' would be merged into one ' + (o.level === 2 ? 'monthly' : 'quarterly') + ' entry for you to approve:' }),
+        h('ul', { class: 'small' }, o.items.map(function (x) { return h('li', { text: domainLabel(x.domain) + ': ' + x.text }); })),
+        h('div', { class: 'row' }, btn('Merge into one entry', function () {
+          act(function () { return commit(function (x) { L.memory.mergeByRules(x, o.level, o.period); }, 'consolidation offer').then(function () { setNotice('ok', 'One proposed ' + (o.level === 2 ? 'monthly' : 'quarterly') + ' entry was added. Approve or reject it under Memory.'); render(); }); });
+        }, 'pri sm', { id: 'offer-merge-' + kind })),
+        aiPanel(o.level, o.period, 'Consolidate with AI'));
+    }));
+  }
+  function mutedNote() {
+    var n = L.memory.mutedList(mainState()).length;
+    if (!n) return null;
+    return h('p', { class: 'small', id: 'rv-muted-note', text: n + (n === 1 ? ' kind of suggestion is' : ' kinds of suggestion are') + ' muted. ' }, btn('See muted', function () { go('memory'); }, 'sm', { id: 'rv-muted-link' }));
+  }
+  function mutedSection(s) {
+    var list = L.memory.mutedList(s);
+    var out = [h('h2', { text: 'Muted suggestions (' + list.length + ')' }),
+      h('p', { class: 'mut small', text: 'A kind of rules suggestion you reject 3 times in the same area within 8 weeks is muted: rules stop proposing it. Unmute brings it back.' })];
+    if (!list.length) out.push(h('p', { class: 'mut', id: 'muted-none', text: 'None muted.' }));
+    list.forEach(function (m) {
+      out.push(h('div', { class: 'card item', 'data-muted': m.domain + ':' + m.kind },
+        h('div', null, h('span', { class: 'chip', text: domainLabel(m.domain) }), h('span', { text: ' ' + m.label + ' (muted ' + String(m.at).slice(0, 10) + ')' })),
+        btn('Unmute', function () {
+          act(function () { return commit(function (x) { L.memory.unmute(x, m.domain, m.kind); }, 'unmute').then(function () { setNotice('ok', 'Unmuted. Rules may propose it again.'); render(); }); });
+        }, 'sm', { 'aria-label': 'Unmute ' + m.label + ' in ' + domainLabel(m.domain) })));
+    });
+    return out;
+  }
+  // The dashboard card: after 7 days without a finished review. A tap opens the review; nothing starts by itself.
+  function reviewDueCard(s, t) {
+    var d = L.memory.reviewDue(s, t);
+    if (!d.due) return null;
+    var n = L.memory.reviewStreak(s, t);
+    return h('div', { class: 'warn', id: 'review-due', role: 'status' }, h('span', { text: 'Weekly review due. ' + (d.never ? 'You have not finished a weekly review yet.' : 'The last one was ' + d.days + ' days ago (' + d.last + ').') + ' Review streak: ' + n + (n === 1 ? ' week.' : ' weeks.') + ' ' }),
+      btn('Start weekly review', function () { go('review'); }, 'sm pri', { id: 'review-due-start' }));
   }
 
   // ---------- weekly review ----------
@@ -11063,6 +11480,8 @@ globalThis.LifeOS.VERSION = "1.4.0";
     });
     return h('div', null, h('h1', { text: 'Weekly review' }),
       h('p', { class: 'mut', text: 'Week of ' + wk }),
+      h('p', { class: 'small', id: 'rv-streak', text: 'Review streak: ' + L.memory.reviewStreak(mainState(), t) + (L.memory.reviewStreak(mainState(), t) === 1 ? ' week' : ' weeks') + ' in a row.' }),
+      consolidationOffers(s, t),
       L.archiveUI ? L.archiveUI.proposal(archCtx()) : null,
       h('h2', { text: '1. This week vs last week' }),
       h('div', { class: 'card' }, h('table', null, h('thead', null, h('tr', null, ['Area', 'This week', 'Last week', 'Change'].map(function (x) { return h('th', { text: x }); }))), h('tbody', null, rows))),
@@ -11076,6 +11495,7 @@ globalThis.LifeOS.VERSION = "1.4.0";
           });
         }, 'pri sm', { id: 'rules-run', disabled: haveRules })),
       aiPanel(1, period, 'Suggest with AI'),
+      mutedNote(),
       mine.length ? mine.map(function (i) { return insightCard(i, true); }) : h('p', { class: 'mut', text: 'No insights yet this week.' }),
       carryCard(s, wk, render),
       h('h2', { text: '3. Goals' }),
@@ -11103,6 +11523,7 @@ globalThis.LifeOS.VERSION = "1.4.0";
             return commit(function (x) {
               x.memory.reviews = x.memory.reviews.filter(function (r) { return r.weekOf !== wk; });
               x.memory.reviews.push({ id: L.store.newId(), weekOf: wk, digest: digest, priorities: ps, completedAt: new Date().toISOString() });
+              L.memory.markReviewed(x, today());
             }).then(function () { go('dashboard'); setNotice('ok', 'Review finished.'); });
           });
         }
@@ -12812,6 +13233,7 @@ globalThis.LifeOS.VERSION = "1.4.0";
       if (!a.length) out.push(h('p', { class: 'mut', text: 'None yet.' }));
       a.forEach(function (i) { out.push(insightCard(i, false)); });
     });
+    mutedSection(s).forEach(function (x) { out.push(x); });
     out.push(h('h2', { text: 'Lessons from rejections (' + s.memory.lessons.length + ')' }));
     out.push(h('p', { class: 'mut small', id: 'lessons-local', text: 'These reasons stay on this device. They are never sent to the AI.' }));
     if (!s.memory.lessons.length) out.push(h('p', { class: 'mut', text: 'None yet.' }));
@@ -13426,6 +13848,41 @@ globalThis.LifeOS.VERSION = "1.4.0";
 
   // ---------- settings ----------
   var passOnly = function (id, auto) { return h('input', { type: 'password', id: id, autocomplete: auto || 'off', minlength: '12' }); };
+  // v1.5.0 B13: "Test connection" sends a fixed prompt with no user data and shows success or one fixed code.
+  var TEST_TEXT = { AI_TIMEOUT: 'The request timed out.', AI_NETWORK: 'The provider could not be reached.', AI_HTTP: 'The provider returned an error. Check the key, the model name and the spend limit.', AI_BAD_REPLY: 'The provider sent a reply that could not be read.', AI_FAIL: 'The test could not run. Check the mode, the key and the model name.' };
+  function testConnection(kind, base, model, key, pv, out) {
+    if (kind === 'none') { out.textContent = 'Rules only: no AI is set up, so there is no connection to test.'; out.setAttribute('data-code', 'NONE'); return; }
+    if (kind === 'manual') { out.textContent = 'Manual mode has no connection to test. Copy the prompt into your own AI chat and paste the reply.'; out.setAttribute('data-code', 'MANUAL'); return; }
+    var p;
+    try {
+      p = L.ai.validateProvider({ kind: kind, baseUrl: kind === 'local' ? base.value.trim() : '', model: model.value.trim(), apiKey: kind === 'anthropic' ? (key.value.trim() || pv.apiKey || '') : '' });
+    } catch (e) { out.textContent = 'Connection failed. Code: AI_FAIL. ' + TEST_TEXT.AI_FAIL; return; }
+    out.textContent = 'Testing. A fixed message with no data from your vault is being sent.';
+    L.ai.testConnection(p).then(function (r) {
+      out.textContent = r.ok ? 'Connection works. The provider answered the fixed test message.' : 'Connection failed. Code: ' + r.code + '. ' + TEST_TEXT[r.code];
+      out.setAttribute('data-code', r.ok ? 'OK' : r.code);
+    });
+  }
+  // v1.5.0 B17: the calendar file. Two ticks, both off; each shows a plain warning when ticked. Download only.
+  function calendarCard() {
+    var real = h('input', { type: 'checkbox', id: 'cal-real' }), priv = h('input', { type: 'checkbox', id: 'cal-priv' });
+    var open = L.priv.isOpen();
+    var warnReal = h('p', { class: 'warn small hidden', id: 'cal-real-warn', role: 'status', text: 'Warning: the calendar file is not encrypted. With this ticked, the titles of your items are written into it, and any calendar app or provider you add it to can read them.' });
+    var warnPriv = h('p', { class: 'warn small hidden', id: 'cal-priv-warn', role: 'status', text: 'Warning: items from the private vault would be written into a file that is not encrypted, outside the vault lock.' });
+    real.addEventListener('change', function () { warnReal.classList.toggle('hidden', !real.checked); });
+    priv.addEventListener('change', function () { warnPriv.classList.toggle('hidden', !priv.checked); });
+    return h('div', { class: 'card', id: 'calendar-card' }, h('h2', { text: 'Calendar file' }),
+      h('p', { class: 'mut small', text: 'Dated items in the next 12 months as a file you add to your own calendar app: renewals, maintenance, estimated tax payments, invoice due dates, goal due dates, exams and certification expiries, planned activities and important dates. Built on this device and downloaded; nothing is sent anywhere. Titles are generic by default, for example "LifeOS: renewal due". Importing the file again updates the same events.' }),
+      h('label', { class: 'field check' }, real, ' Include real titles'), warnReal,
+      open ? h('label', { class: 'field check' }, priv, ' Include private items') : h('p', { class: 'mut small', text: 'Private items are left out. Open the private vault to offer them.' }), open ? warnPriv : null,
+      h('div', { class: 'row' }, btn('Download calendar file', function () {
+        act(function () {
+          var r = L.calendar.build(L.store.getState(), { today: today(), realTitles: real.checked, includePrivate: open && priv.checked });
+          download(L.calendar.filename(today()), r.text, 'text/calendar');
+          return commit(null, 'calendar export').then(function () { setNotice('ok', 'Calendar file downloaded with ' + r.count + (r.count === 1 ? ' event.' : ' events.')); });
+        });
+      }, 'pri', { id: 'cal-download' })));
+  }
   function settingsScreen(s) {
     var set = s.settings, pv = set.provider;
     var kind = view.kind || pv.kind;
@@ -13442,6 +13899,7 @@ globalThis.LifeOS.VERSION = "1.4.0";
     showUrl();
     var model = h('input', { type: 'text', id: 'p-model', value: pv.model || '', autocomplete: 'off', maxlength: '100' });
     var key = h('input', { type: 'password', id: 'p-key', autocomplete: 'off', placeholder: pv.apiKey ? 'Leave blank to keep the saved key' : 'Paste API key' });
+    var testOut = h('p', { class: 'small', id: 'p-test-out', role: 'status', text: '' });
     var provCard = h('form', {
       class: 'card',
       onsubmit: function (e) {
@@ -13459,9 +13917,11 @@ globalThis.LifeOS.VERSION = "1.4.0";
         h('p', { class: 'mut small', text: 'The key is stored only inside your encrypted vault. Requests go straight from this page to api.anthropic.com.' })] : null,
       kind === 'local' ? [field('Base URL (localhost only)', base), urlShow, field('Model', model)] : null,
       h('div', { class: 'row' }, h('button', { type: 'submit', class: 'btn pri', text: 'Save provider' }),
+        btn('Test connection', function () { testConnection(kind, base, model, key, pv, testOut); }, '', { id: 'p-test' }),
         pv.apiKey ? btn('Remove saved key', function () {
           act(function () { return commit(function (x) { x.settings.provider.apiKey = ''; }, 'provider change').then(function () { setNotice('ok', 'Key removed.'); render(); }); });
-        }) : null));
+        }) : null),
+      testOut);
     out.push(provCard);
 
     // targets
@@ -13506,6 +13966,7 @@ globalThis.LifeOS.VERSION = "1.4.0";
 
     // storage, reminders, verify and diagnostics (v1.3.0)
     out.push(safetySettings(mainState()));
+    out.push(calendarCard());
 
     // backup
     var bp = passOnly('bk-pass', 'new-password'), bp2 = passOnly('bk-pass2', 'new-password');
