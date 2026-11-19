@@ -59,7 +59,7 @@ test('B11 schema 17 migration: an older vault takes lastReviewAt from its latest
   const old = clone(fresh()); old.schema = 16; delete old.memory.lastReviewAt; delete old.memory.mutes;
   old.memory.reviews.push({ id: 'a', weekOf: '2026-11-02', digest: { week: '2026-11-02', domains: {} }, priorities: ['a', 'b', 'c'], completedAt: '2026-11-06T09:00:00.000Z' }, { id: 'b', weekOf: '2026-11-09', digest: { week: '2026-11-02', domains: {} }, priorities: ['a', 'b', 'c'], completedAt: '2026-11-13T09:00:00.000Z' });
   const got = S.validateState(old);
-  assert.equal(got.schema, 17); assert.equal(got.sourceSchema, 16); assert.equal(got.memory.lastReviewAt, '2026-11-13'); assert.deepEqual(got.memory.mutes, []);
+  assert.equal(got.schema, 18); assert.equal(got.sourceSchema, 16); assert.equal(got.memory.lastReviewAt, '2026-11-13'); assert.deepEqual(got.memory.mutes, []);
   assert.equal(fresh().memory.lastReviewAt, '');
   const bad = clone(fresh()); bad.memory.lastReviewAt = '2026-02-30'; assert.throws(() => S.validateState(bad), /lastReviewAt/);
 });
@@ -524,8 +524,8 @@ test('B17 the calendar file touches no network, builds from the state it is give
 
 // ---------------------------------------------------------------- wiring
 test('v1.5.0 wiring: version, schema, build order, new UI ids, and the insight card keeps its approve-only-on-tap rule', () => {
-  assert.equal(JSON.parse(src('package.json')).version, '1.5.0'); assert.equal(S.SCHEMA, 17); assert.equal(fresh().schema, 17);
-  assert.match(src('build.mjs'), /'memory', 'ai', 'calendar'\]/);
+  assert.equal(JSON.parse(src('package.json')).version, '1.6.0'); assert.equal(S.SCHEMA, 18); assert.equal(fresh().schema, 18);
+  assert.match(src('build.mjs'), /'memory', 'ai', 'calendar', 'jobs', 'search'\]/);
   const app = src('src/ui/app.js');
   for (const id of ['review-due', 'review-due-start', 'rv-streak', 'dash-streak', 'offer-merge-', 'reject-category', 'approve-apply', 'apply-change', 'muted-none']) assert.ok(app.includes(id), id);
   assert.ok(!/L\.memory\.decide\([^)]*\)[^;]*setTimeout/.test(app));

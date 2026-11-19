@@ -129,7 +129,7 @@ try {
   await step('backup-export', async () => {
     await navTo(page, 'Settings');
     await layout('settings');
-    if (!/v1\.5\.0/.test(await page.textContent('#app-version'))) throw new Error('version missing');
+    if (!/v1\.6\.0/.test(await page.textContent('#app-version'))) throw new Error('version missing');
     await page.selectOption('#p-kind', 'local');
     await page.fill('#p-base', 'http://localhost:11434/v1');
     if (!/sent to: http:\/\/localhost:11434\/v1\/chat\/completions/.test(await page.textContent('#p-url'))) throw new Error('url preview wrong');

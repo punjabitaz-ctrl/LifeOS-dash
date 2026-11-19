@@ -120,7 +120,7 @@ h1{margin-right:auto}
 @media (min-width:820px){.board{grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}}
 .stage h3{font-size:.9rem;margin:.4rem 0;color:var(--mut);text-transform:uppercase;letter-spacing:.05em}
 .pitem{border:1px solid var(--line);border-radius:10px;padding:10px;margin:0 0 8px;min-width:0;overflow-wrap:anywhere}
-.pitem select{width:auto;min-height:36px;padding:4px 8px}
+.pitem select{width:auto;max-width:100%;min-height:36px;padding:4px 8px}
 .pitem .row{margin-top:6px}
 .nav button{overflow:hidden;text-overflow:ellipsis;min-width:0}
 .ln-raw{fill:none;stroke:var(--mut);stroke-width:1;stroke-linejoin:round}
@@ -198,3 +198,13 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
 .lockpaths .row{gap:8px}
 .setuplist{list-style:none;margin:0 0 10px;padding:0}
 .setupitem{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid var(--line)}
+.searchbox{position:relative;min-width:0;margin:0 0 10px}
+.top .searchbox{margin:0;width:240px}
+.searchres:empty{display:none}
+.top .searchres{position:absolute;right:0;top:100%;width:min(420px,90vw);max-height:60vh;overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px;z-index:10;box-shadow:var(--sh)}
+.searchhit{display:flex;gap:4px;width:100%;text-align:left;justify-content:flex-start;margin:0 0 4px;overflow-wrap:anywhere}
+.search-area{font-size:.85rem;margin:.5rem 0 .25rem;color:var(--mut);text-transform:uppercase;letter-spacing:.05em}
+.search-hit{outline:2px solid var(--acc);outline-offset:2px}
+.jobitem .jb-comp{font-variant-numeric:tabular-nums}
+#js-months{table-layout:fixed}
+#js-months th,#js-months td{padding:6px 3px;font-size:.8rem;overflow-wrap:anywhere}

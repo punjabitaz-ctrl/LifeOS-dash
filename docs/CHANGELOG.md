@@ -2,6 +2,12 @@
 
 Newest first. One line per change. Versions come from package.json (see docs/RUNBOOK.md); fixes by number are described in docs/SECURITY.md.
 
+## 1.6.0 (schema 18): Job search and search across everything
+- Job search tab (Work, or More): applications are the Work pipeline items of kind job, with role, company, location type, compensation target and offer (OTE and base, integer cents), source, applied date, resume version label, follow-up date and an outcome reason when lost. Board on desktop, stage list on phones, one-tap stage moves, funnel counts and rates ("no data" at a zero denominator), a weekly view, people from Social linked to an application with a one-tap contact log, follow-ups in the weekly review, at a glance and the calendar file (generic title by default), and a tracker CSV import (map, preview, no duplicates, unknown values offered).
+- The digest gains four numbers (applications this week, follow-ups due, interviews, offers). Company names, roles, people, notes and compensation never leave the vault.
+- Search box in the More sheet and the desktop header over every area; the index is built in memory on unlock, includes private and Wellbeing text only while the private vault is open, and is dropped on lock and on private close. Never stored, never sent.
+- Test fix: smoke-home-admin waited on a notice whose text did not change between adds.
+
 ## 1.5.0 (schema 17): Weekly loop
 - Weekly review due card on the dashboard after 7 days (a one-line notice after unlock), a review streak, and offers to consolidate the last month or quarter with what would be merged. Nothing starts by itself.
 - Rejecting an insight asks for one fixed reason (wrong number, not relevant, already known, too vague, other). Counts per reason and area over 12 weeks may reach the AI; typed notes never do. A kind of rules suggestion rejected 3 times in the same area within 8 weeks is muted, listed under Memory with one-tap unmute.

@@ -5,7 +5,7 @@ import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
 import { L, memAdapter, PASS, E } from './_load.mjs';
 import { drive, putRemote, TOKEN, clone } from './_v070.mjs';
-import { buildAdversarial, ADV_MARK } from './_adversarial.mjs';
+import { buildAdversarial, ADV_MARK, stripJobFields } from './_adversarial.mjs';
 
 // Live views: the whole suite shares one process, and other files swap L.* for the built bundle, so resolve on every use.
 const live = (k) => new Proxy({}, { get: (_, p) => L[k][p], set: (_, p, v) => { L[k][p] = v; return true; } });
@@ -607,6 +607,7 @@ test('a private record whose key collides with a public one is shadowed, kept, a
 const OLD = { 3: ['projects', 'pipeline'], 4: ['cycle', 'kinds', 'habits', 'habitLog'], 5: ['goals'], 6: ['properties', 'vehicles', 'maintenance', 'renewals', 'documents', 'taxItems'], 7: ['learningItems', 'studySessions', 'takeaways'], 8: ['activities', 'activityCategories'], 9: ['groups', 'people', 'contacts'] };
 function asSchema(n, st) {
   const o = clone(st); o.schema = n; delete o.priv;
+  if (n < 18) stripJobFields(o); // v1.6.0 audit: an older format holds no job fields
   for (const [v, keys] of Object.entries(OLD)) if (Number(v) > n) for (const k of keys) delete o[k];
   if (n < 6) { delete o.settings.home; for (const r of o.recurring || []) delete r.household; }
   if (n < 7) delete o.settings.learning;
@@ -628,7 +629,7 @@ test('schema 1 to 9 migrate into 10 with no loss: every text an old copy held is
   for (let n = 1; n <= 9; n++) {
     const old = asSchema(n, src), oldText = text(old);
     const got = S.validateState(clone(old));
-    assert.equal(got.schema, 17); assert.equal(got.sourceSchema, n); assert.ok(!got.priv); assert.equal(got.settings.privAutoLockSec, 60);
+    assert.equal(got.schema, 18); assert.equal(got.sourceSchema, n); assert.ok(!got.priv); assert.equal(got.settings.privAutoLockSec, 60);
     const gotText = text(got);
     for (const m of new Set(oldText.match(/LEAK mark \d+/g) || [])) assert.ok(gotText.includes(m), 'schema ' + n + ' lost ' + m);
     for (const c of P.COLLECTIONS) assert.ok(c === 'cycle' ? got.cycle === null || typeof got.cycle === 'object' : Array.isArray(got[c]), c);
@@ -645,15 +646,15 @@ test('a stored v0.10.0 vault unlocks, migrates and persists; a v0.10.0 backup im
   await ad.set('envelope', await V.makeEnvelope(key, salt, nine));
   S.lock();
   const st = await S.unlock(PASS);
-  assert.equal(st.schema, 17); assert.equal(st.people.length, 1);
+  assert.equal(st.schema, 18); assert.equal(st.people.length, 1);
   await S.commit(() => {});
-  assert.equal((await V.decrypt(key, await ad.get('envelope'))).schema, 17);
+  assert.equal((await V.decrypt(key, await ad.get('envelope'))).schema, 18);
   const backup = JSON.stringify(await V.makeEnvelope(await realDerive('backup passphrase 1', salt), salt, nine));
   const imp = await V.importBackup('backup passphrase 1', backup);
-  assert.equal(imp.schema, 17); assert.equal(imp.sourceSchema, 9);
+  assert.equal(imp.schema, 18); assert.equal(imp.sourceSchema, 9);
   assert.deepEqual(S.droppedData(S.getState(), imp), []);
   await S.replaceState(imp);
-  assert.equal(S.getState().schema, 17);
+  assert.equal(S.getState().schema, 18);
   // while a vault with a private vault would lose it
   await P.setUp(PRIV);
   assert.deepEqual(S.droppedData(S.getState(), imp), ['private vault']);
@@ -663,7 +664,7 @@ test('a stored v0.10.0 vault unlocks, migrates and persists; a v0.10.0 backup im
 test('an older app (v0.10.0, schema 9) refuses a schema 10 vault in unlock, backup and sync, so it can never strip the private vault', async () => {
   // Rebuild the v0.10.0 validateState gate (SCHEMA 9, accepted list 1 to 8 and SCHEMA) from the current source in a clean context.
   const read = (f) => readFileSync(new URL('../src/core/' + f, import.meta.url), 'utf8');
-  const store = read('store.js').replace('SCHEMA = 17,', 'SCHEMA = 9,').replace('[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, SCHEMA]', '[1, 2, 3, 4, 5, 6, 7, 8, SCHEMA]');
+  const store = read('store.js').replace('SCHEMA = 18,', 'SCHEMA = 9,').replace('[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, SCHEMA]', '[1, 2, 3, 4, 5, 6, 7, 8, SCHEMA]');
   assert.ok(/SCHEMA = 9,/.test(store) && /\[1, 2, 3, 4, 5, 6, 7, 8, SCHEMA\]/.test(store));
   const ctx = vm.createContext({ crypto: globalThis.crypto, TextEncoder, TextDecoder, btoa, atob, console, JSON, Promise, Uint8Array, Date, Math, Array, Object, Set, Map, Number, String, Error, WeakSet, WeakMap, setTimeout, clearTimeout, AbortController, URL, URLSearchParams, structuredClone });
   ctx.globalThis = ctx;

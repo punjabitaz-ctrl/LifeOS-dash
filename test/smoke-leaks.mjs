@@ -420,6 +420,41 @@ async function run(label, viewport) {
       if (copied.includes('LEAK') || ring.includes('LEAK') || settingsDom.includes('LEAK')) throw new Error('a marker reached the diagnostics');
       await grab('settings after diagnostics');
     });
+    await step('Job search (v1.6.0): marked text in every job field, the screen, the import, the search box, the prompt and the audit hold no marker or compensation outside the vault', async () => {
+      const JOB_CSV = () => ['role,company,stage,source,applied date,notes,next step,target ote,offer base',
+        '"' + ADV_MARK + 'csv role",' + ADV_MARK + 'csv co,applied,referral,2026-11-09,"' + ADV_MARK + 'csv note",' + ADV_MARK + 'csv next,111222.33,99887.66'].join('\n');
+      await nav('Work'); await page.waitForSelector('#open-jobs', T); await page.click('#open-jobs'); await page.waitForSelector('#js-open', T);
+      if (!(await page.textContent('main')).includes(ADV_MARK)) throw new Error('the adversarial job is not shown, so the check proves nothing');
+      await grab('job search');
+      await page.evaluate(() => { const d = document.querySelector('#js-new'); if (d) d.open = true; });
+      await page.fill('#ja-role', ADV_MARK + 'typed role'); await page.fill('#ja-org', ADV_MARK + 'typed company');
+      await page.fill('#ja-notes', ADV_MARK + 'card 4111 1111 1111 1111'); await page.click('#ja-add');
+      await page.waitForSelector('.notice.err', T);
+      if ((await page.textContent('.notice.err')).includes(ADV_MARK)) throw new Error('job secrets notice echoes input');
+      await page.fill('#ja-notes', ADV_MARK + 'typed note'); await page.fill('#ja-tote', '246810.12'); await page.fill('#ja-resume', ADV_MARK + 'typed resume'.slice(0, 40));
+      await page.click('#ja-add'); await page.waitForSelector('.notice.ok:has-text("Application added")', T);
+      await page.setInputFiles('#jobimp-file', { name: 'jobs.csv', mimeType: 'text/csv', buffer: Buffer.from(JOB_CSV()) });
+      await page.waitForSelector('#jobimp-preview', T); await page.click('#jobimp-preview'); await page.waitForSelector('#jobimp-summary', T);
+      if (!/1 to add, 0 rejected/.test(await page.textContent('#jobimp-summary'))) throw new Error('job import summary: ' + (await page.textContent('#jobimp-summary')));
+      await page.click('#jobimp-confirm'); await page.waitForSelector('#jobimp-done', T);
+      // the search box: a marker is found, shown in the DOM only
+      const narrow = !(await page.locator('#hs-q').count());
+      if (narrow) { await page.click('#nav-more'); await page.waitForSelector('#ms-q', T); }
+      const qid = narrow ? '#ms-q' : '#hs-q', rid = narrow ? '#ms-results' : '#hs-results';
+      await page.fill(qid, 'LEAK mark csv co'); await page.waitForSelector(rid + ' .searchhit', T);
+      if (!(await page.textContent(rid)).includes(ADV_MARK)) throw new Error('the search shows no marked hit, so the check proves nothing');
+      await grab('search results');
+      if (narrow) await page.keyboard.press('Escape').catch(() => {});
+      await nav('Review'); await page.waitForSelector('h1:has-text("Weekly review")', T);
+      await page.click('button:has-text("Suggest with AI")'); await page.waitForSelector('#ai-prompt', T);
+      const jp = await page.$eval('#ai-prompt', (t) => t.value);
+      if (!/job search detail \(numbers only\)/.test(jp)) throw new Error('no job numbers line in the prompt: ' + jp.slice(0, 120));
+      prompts.push(jp);
+      if (/87654321|76543211|65432111|54321111|246810|111222|99887/.test(jp.replace(/[ ,.$]/g, ''))) throw new Error('compensation reached the prompt');
+      const st = await page.evaluate(() => JSON.stringify([globalThis.LifeOS.store.getState().audit, globalThis.LifeOS.store.getState().digest || null]));
+      if (st.includes('LEAK') || /87654321|246810|111222/.test(st)) throw new Error('audit or digest holds job text or compensation');
+      if (!st.includes('job add') || !st.includes('job import')) throw new Error('job writes are not in the audit log: ' + st.slice(0, 120));
+    });
     await step('lock, unlock and reload', async () => {
       await page.click('.top .lockbtn'); await page.waitForSelector('#pass', T);
       if ((await page.textContent('body')).includes(ADV_MARK)) throw new Error('locked page shows data');

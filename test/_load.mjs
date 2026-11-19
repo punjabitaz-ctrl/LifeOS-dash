@@ -20,6 +20,8 @@ import '../src/core/goals.js';
 import '../src/core/memory.js';
 import '../src/core/ai.js';
 import '../src/core/calendar.js';
+import '../src/core/jobs.js';
+import '../src/core/search.js';
 import '../src/core/sync.js';
 import '../src/core/archive.js';
 export const L = globalThis.LifeOS;

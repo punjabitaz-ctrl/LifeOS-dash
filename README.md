@@ -1,6 +1,6 @@
 # LifeOS
 
-Version <!--version-->1.5.0<!--/version--> (set by package.json; `node build.mjs` writes it here).
+Version <!--version-->1.6.0<!--/version--> (set by package.json; `node build.mjs` writes it here).
 
 LifeOS (Living Independent and Free Everyday Operating System) is a single-file, offline, local-first life dashboard. It tracks eleven areas (money, assets, work, health and more) plus business records and tax estimates, keeps a private vault with its own passphrase (Wellbeing lives there), builds weekly reviews, and keeps a memory of insights you approve. Vanilla JS, no dependencies.
 
@@ -72,6 +72,14 @@ Build, then open `dist/lifeos.html` in a browser (double-click works, it needs n
 - Important dates (label and name only) appear in the dashboard "At a glance" card; Feb 29 shows on Feb 28 in other years. Pipeline items and projects show linked people and their last contact; unlinking never deletes either side.
 - The weekly review gains a Social step (offers only); Goals gain people overdue and contacts per week. The AI and digest see counts only, with groups numbered by position.
 - Vault schema 9, migrated from schema 1 to 8 with no data loss: each distinct name in old contact entries becomes a person with those entries as the log; an entry that cannot map stays a visible entry. Contact entries added later (for example by CSV import) are offered for conversion, once. `node test/smoke-social.mjs` runs the flow. Audited: names, group names, labels, facts, channels and notes never leave the vault. See the v0.10.0 audit in docs/SECURITY.md.
+
+## v1.6.0: Job search and search across everything
+
+- Job search tab (Work, or More): applications are the Work pipeline items of kind job, with role, company, location type, compensation target and offer (OTE and base, integer cents, shown only on this screen), source, applied date, resume version label, follow-up date and an outcome reason when lost. Funnel counts and rates ("no data" at a zero denominator), a weekly view, people from Social with a one-tap contact log, follow-ups in the weekly review, at a glance and the calendar file (generic title by default), and a tracker CSV import (map, preview, confirm; nothing created from unknown values). The rate and weekly definitions are in SPEC.md, "Amendment (v1.6.0 audit)".
+- Search box in the desktop header and the More sheet over every area: plain case- and accent-insensitive substring matching, an index kept only in memory while unlocked, private and Wellbeing text only while the private vault is open, dropped on lock and on private close.
+- The digest gains four numbers only (applications this week, follow-ups due, interviews, offers). Company names, roles, people, notes, resume labels and compensation never leave the vault.
+- `node test/smoke-jobs.mjs` runs the flow.
+- Audited 19 Nov 2026: SEC-110 to SEC-114 (Low) fixed with regression tests (test/v160-audit.test.mjs and a smoke-jobs step), SEC-115 and SEC-116 (Info) documented, see docs/SECURITY.md "v1.6.0 audit". The unit run peaks at about 3.5 GB with two files at a time; run the three time zones one after another, never together (see docs/HANDOFF.md).
 
 ## v1.5.0: Weekly loop
 

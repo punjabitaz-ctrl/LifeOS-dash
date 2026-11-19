@@ -129,7 +129,7 @@ async function run(label, viewport) {
         if (info[0].cur !== 'page') throw new Error('Home is not marked current');
         await page.click('#nav-more'); await page.waitForSelector('#more-list', T);
         const bad = await a11y(page); if (bad.length) throw new Error(bad.join('; '));
-        const n = await page.locator('#more-list button').count(); if (n !== 14) throw new Error('More lists ' + n + ' areas');
+        const n = await page.locator('#more-list button').count(); if (n !== 15) throw new Error('More lists ' + n + ' areas');
         await page.keyboard.press('Escape'); await page.waitForSelector('#more-list', { state: 'detached', timeout: 5000 });
       });
       // v1.4.0 audit: the checker itself must fail on a missing name, a missing label and a target under 44 px, or its passes prove nothing

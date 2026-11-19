@@ -7,19 +7,20 @@
   const NAMES = ['dashboard', 'review', 'memory', 'settings', 'private', 'archive', 'business'];
   // The phone bottom bar, and every other area (the More sheet). Each entry is { key, label }; a key is a view key.
   const BAR = Object.freeze([['dashboard', 'Home'], ['v:money', 'Money'], ['v:work', 'Work'], ['v:health', 'Health']].map(([key, label]) => Object.freeze({ key: key === 'dashboard' ? 'dashboard' : key, label })));
-  const MORE = Object.freeze([['v:assets', 'Assets'], ['v:command', 'Command center'], ['business', 'Business'], ['v:goals', 'Goals'], ['v:home', 'Home and property'], ['v:admin', 'Admin'],
+  const MORE = Object.freeze([['v:assets', 'Assets'], ['v:command', 'Command center'], ['v:jobs', 'Job search'], ['business', 'Business'], ['v:goals', 'Goals'], ['v:home', 'Home and property'], ['v:admin', 'Admin'],
     ['v:learning', 'Learning'], ['v:activities', 'Activities'], ['v:social', 'Social'], ['private', 'Private vault'], ['v:wellbeing', 'Wellbeing'], ['review', 'Review'], ['memory', 'Memory'], ['settings', 'Settings']]
     .map(([key, label]) => Object.freeze({ key, label })));
-  const KEYS = new Set(['dashboard', 'v:command'].concat(NAMES, DOMAINS.map((d) => 'v:' + d)));
+  const KEYS = new Set(['dashboard', 'v:command', 'v:jobs'].concat(NAMES, DOMAINS.map((d) => 'v:' + d)));
   // A view object ({ name, domain, revenue }) to its key, and back. Anything unknown maps to the dashboard.
   function keyOf(view) {
     if (!view || typeof view !== 'object') return 'dashboard';
-    if (view.name === 'domain') return view.domain === 'work' && view.revenue ? 'v:command' : (DOMAINS.includes(view.domain) ? 'v:' + view.domain : 'dashboard');
+    if (view.name === 'domain') return view.domain === 'work' && view.jobs ? 'v:jobs' : view.domain === 'work' && view.revenue ? 'v:command' : (DOMAINS.includes(view.domain) ? 'v:' + view.domain : 'dashboard');
     if (view.name === 'print') return 'business';
     return NAMES.includes(view.name) ? view.name : 'dashboard';
   }
   function viewOf(key) {
     if (key === 'v:command') return { name: 'domain', domain: 'work', revenue: true };
+    if (key === 'v:jobs') return { name: 'domain', domain: 'work', jobs: true };
     if (typeof key === 'string' && key.startsWith('v:') && DOMAINS.includes(key.slice(2))) return { name: 'domain', domain: key.slice(2) };
     return NAMES.includes(key) ? { name: key } : { name: 'dashboard' };
   }

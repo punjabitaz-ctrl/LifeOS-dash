@@ -2,7 +2,7 @@
   'use strict';
   const L = (globalThis.LifeOS = globalThis.LifeOS || {});
   const KEY = 'envelope';
-  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 17, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
+  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 18, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
   const HABIT_CAP = 8, HABIT_LOG_CAP = 100000, KIND_CAP = 30;
   const RENEWAL_TOTAL_CAP = 2000;
   const ENTRY_CAP = 50000, INSIGHT_CAP = 5000, REVIEW_CAP = 1000, LESSON_CAP = 30, AUDIT_CAP = 200;
@@ -272,7 +272,20 @@
     for (const p of out) if (p.parentId !== undefined && byId.get(p.parentId).parentId !== undefined) fail('projects nest one level only');
     return out;
   }
-  function cleanPipeline(list) {
+  // v1.6.0 B14: job items (kind 'job') carry optional search fields. Compensation is integer cents. Older formats and other kinds carry none.
+  const LOCATION_TYPES = ['remote', 'hybrid', 'on site'], LOST_REASONS = ['no response', 'rejected', 'withdrew', 'role closed', 'other'];
+  const COMP_FIELDS = ['targetOteCents', 'targetBaseCents', 'offerOteCents', 'offerBaseCents'], COMP_MAX = 100000000000;
+  function cleanJobFields(x, o, t0) {
+    const t = (v, max, name) => { if (typeof v !== 'string') fail(name + ' must be text'); return t0(v, max, name); };
+    if (x.role !== undefined && x.role !== '') o.role = t(x.role, 200, 'role');
+    if (x.locationType !== undefined && x.locationType !== '') o.locationType = oneOf(x.locationType, LOCATION_TYPES, 'location type');
+    for (const k of COMP_FIELDS) if (x[k] !== undefined && x[k] !== null) o[k] = num(x[k], 0, COMP_MAX, k, true);
+    for (const k of ['appliedOn', 'followUp', 'followedUpOn']) if (x[k] !== undefined && x[k] !== '') o[k] = date(x[k], k);
+    if (x.resume !== undefined && x.resume !== '') o.resume = t(x.resume, 60, 'resume version');
+    if (x.lostReason !== undefined && x.lostReason !== '') { const r = oneOf(x.lostReason, LOST_REASONS, 'outcome reason'); if (o.stage === 'lost') o.lostReason = r; }
+    if (x.importKey !== undefined && x.importKey !== '') { if (typeof x.importKey !== 'string' || !/^[0-9a-f]{64}$/.test(x.importKey)) fail('invalid import key'); o.importKey = x.importKey; }
+  }
+  function cleanPipeline(list, schema) {
     if (list === undefined) return [];
     const seen = new Set();
     return arr(list, PIPELINE_CAP, 'pipeline').map((x) => {
@@ -289,6 +302,7 @@
       if (x.nextDate !== undefined && x.nextDate !== '') o.nextDate = date(x.nextDate, 'nextDate');
       o.updatedAt = date(x.updatedAt, 'updatedAt');
       o.notes = t(x.notes, 2000, 'notes', true);
+      if (o.kind === 'job' && (schema === undefined || schema >= 18)) cleanJobFields(x, o, t);
       return o;
     });
   }
@@ -314,6 +328,11 @@
       w.pipeline = {};
       for (const k of STAGES) w.pipeline[k] = num(d.work.pipeline[k], 0, 1e9, 'digest work', true);
       out.work = w;
+    }
+    if (d.jobs !== undefined) {
+      if (!isObj(d.jobs)) fail('digest jobs');
+      out.jobs = {};
+      for (const k of ['applied', 'followUpsDue', 'interviews', 'offers']) out.jobs[k] = num(d.jobs[k], 0, 1e9, 'digest jobs', true);
     }
     if (d.health !== undefined) {
       if (!isObj(d.health)) fail('digest health');
@@ -658,7 +677,7 @@
   function validateStateRaw(o, opts) {
     if (!isObj(o)) fail('state must be an object');
     scan(o, 0, { n: 4e6 });
-    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, SCHEMA].includes(o.schema)) fail('unsupported schema');
+    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, SCHEMA].includes(o.schema)) fail('unsupported schema');
     if (!L.metrics) fail('metrics module missing');
     const settings = cleanSettings(o.settings, o.schema), entries = cleanEntries(o.entries);
     const out = { schema: SCHEMA, settings, entries };
@@ -666,7 +685,7 @@
     else Object.assign(out, { accounts: cleanAccounts(o.accounts), recurring: cleanRecurring(o.recurring), budgets: cleanBudgets(o.budgets), categories: cleanCategories(o.categories) });
     // Schema 1 and 2 carry no work data; schema 3 data is whitelisted and capped like everything else.
     out.projects = o.schema >= 3 ? cleanProjects(o.projects) : [];
-    out.pipeline = o.schema >= 3 ? cleanPipeline(o.pipeline) : [];
+    out.pipeline = o.schema >= 3 ? cleanPipeline(o.pipeline, o.schema) : [];
     // Schema 4 adds the training cycle, workout types, daily checks and their log; older formats get empty defaults.
     out.cycle = o.schema >= 4 ? cleanCycle(o.cycle) : null;
     out.kinds = o.schema >= 4 ? cleanKinds(o.kinds) : cleanKinds(undefined);
@@ -837,6 +856,11 @@
       if ((mem.insights || []).some((i) => i.reason)) out.push('rejection reasons');
       if ((mem.insights || []).some((i) => i.target)) out.push('proposed target changes');
     }
+    if (src < 18) {
+      // v1.6.0: job search details on pipeline items.
+      const JOB = ['role', 'locationType', 'targetOteCents', 'targetBaseCents', 'offerOteCents', 'offerBaseCents', 'appliedOn', 'resume', 'followUp', 'followedUpOn', 'lostReason', 'importKey'];
+      if ((cur.pipeline || []).some((x) => JOB.some((k) => x[k] !== undefined))) out.push('job search details');
+    }
     if (src < 4) {
       if (cur.cycle) out.push('training cycle');
       if ((cur.habits || []).length) out.push('daily checks');
@@ -942,6 +966,7 @@
     const sealed = await seal(k, sl, st, 0);
     await a.set(KEY, sealed.env);
     key = k; salt = sl; state = st; meta = sealed.m;
+    if (L.search) L.search.build();
     return st;
   }
   async function unlock(passphrase) {
@@ -953,11 +978,13 @@
     const st = validateState(raw);
     meta = readMeta(env, raw); deviceId = meta.deviceId || deviceId;
     key = k; salt = sl; state = st;
+    if (L.search) L.search.build(); // v1.6.0: built on unlock, in memory only
     return st;
   }
   function lock() {
     dropPriv();
     if (L.archive) L.archive.drop();
+    if (L.search) L.search.drop(); // v1.6.0: the search index lives only while unlocked
     // Empty the live state object too, so any reference still held elsewhere no longer reaches plaintext.
     if (state) { try { replaceContents(state, {}); } catch (e) { /* ignore */ } }
     key = null; salt = null; state = null; meta = { rev: 0, updatedAt: '', deviceId: '' };
@@ -982,6 +1009,7 @@
         if (state !== st) throw new Error('LOCKED');
         meta = sealed.m;
         replaceContents(st, clean);
+        if (L.search) L.search.invalidate();
       } catch (e) {
         if (state === st) replaceContents(st, snapshot);
         if (taken.length) L.ops.requeue(taken);
@@ -1041,6 +1069,7 @@
       if (state !== st) throw new Error('LOCKED');
       meta = sealed.m;
       replaceContents(st, clean);
+      if (L.search) L.search.invalidate();
     });
   }
   // ---- sync support (additive) ----
@@ -1104,6 +1133,7 @@
       const next = JSON.parse(JSON.stringify(info.state));
       keepLocalOps(next, st, info.sourceSchema);
       replaceContents(st, next);
+      if (L.search) L.search.invalidate();
     });
   }
 
@@ -1118,6 +1148,7 @@
     if (await a.get(KEY)) throw new Error('VAULT_EXISTS');
     await a.set(KEY, sealed.env);
     key = k; salt = sl; state = clean; meta = sealed.m;
+    if (L.search) L.search.build();
     return clean;
   }
   // Restore a verified backup (the state importBackup returned) as this device's new vault under `passphrase`.
@@ -1157,6 +1188,7 @@
       const fresh = defaultState();
       st.ops = fresh.ops; // the device's own dates and diagnostics start empty, as after a restore
       state = st;
+      if (L.search) L.search.build();
       return { meta: Object.assign({}, m), state: st, sourceSchema: raw && raw.schema, salt: sl };
     });
   }
@@ -1167,5 +1199,5 @@
 
   // Validation helpers shared with home.js and admin.js (same rules and messages as the rest of validateState).
   L.validate = { fail, isObj, str, num, date, oneOf, bool, arr, strip, ts, newId };
-  L.store = { SCHEMA, _rawEnvelope: () => getAdapter().get(KEY), matchesMain, _setAdapter, exists, init, unlock, lock, isUnlocked, getState, commit, changePassphrase, replaceState, wipe, validateState, newId, defaultState, getMeta, saltId, exportEnvelope, inspectEnvelope, adoptEnvelope, createFromBackup, installEnvelope, dropsWork, droppedData, nameList, lossText, lossWhy, validateGoals: (list, privOk) => cleanGoals(list, privOk === true) };
+  L.store = { SCHEMA, _rawEnvelope: () => getAdapter().get(KEY), matchesMain, _setAdapter, exists, init, unlock, lock, isUnlocked, getState, commit, changePassphrase, replaceState, wipe, validateState, newId, defaultState, getMeta, saltId, exportEnvelope, inspectEnvelope, adoptEnvelope, createFromBackup, installEnvelope, dropsWork, droppedData, nameList, lossText, lossWhy, LOCATION_TYPES, LOST_REASONS, COMP_FIELDS, validateGoals: (list, privOk) => cleanGoals(list, privOk === true) };
 })();

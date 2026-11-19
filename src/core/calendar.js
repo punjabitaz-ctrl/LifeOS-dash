@@ -10,7 +10,7 @@
   const DAYS = 365, FOLD = 75;
   const GENERIC = Object.freeze({
     renewal: 'LifeOS: renewal due', maintenance: 'LifeOS: maintenance due', taxpay: 'LifeOS: tax payment due', filing: 'LifeOS: tax filing due', invoice: 'LifeOS: invoice due', goal: 'LifeOS: goal due',
-    exam: 'LifeOS: exam', cert: 'LifeOS: certification expires', activity: 'LifeOS: planned activity', date: 'LifeOS: important date',
+    exam: 'LifeOS: exam', followup: 'LifeOS: follow-up due', cert: 'LifeOS: certification expires', activity: 'LifeOS: planned activity', date: 'LifeOS: important date',
   });
   const KINDS = Object.freeze(Object.keys(GENERIC));
   const isDate = (s) => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && new Date(s + 'T00:00:00Z').toISOString().slice(0, 10) === s;
@@ -70,6 +70,8 @@
     for (const g of list(src, 'goals')) if (g.state === 'active' && g.dueDate) add('goal', g.id, g.dueDate, g.title);
     if (L.learning) for (const x of L.learning.upcomingExams(src, today)) add('exam', x.id, x.date, x.title);
     for (const a of list(src, 'activities')) if (a.state === 'planned') add('activity', a.id, a.date, a.title, a.endDate);
+    // v1.6.0: follow-up dates of open job applications. The generic label names nothing; real titles are the owner's opt-in.
+    if (L.jobs) for (const x of L.jobs.followUps(src, today)) add('followup', x.id, x.date, x.title);
     if (L.social) for (const x of L.social.importantDates(src, today, DAYS + 1)) add('date', x.id, x.date, x.label + ': ' + x.person);
     return rows;
   }

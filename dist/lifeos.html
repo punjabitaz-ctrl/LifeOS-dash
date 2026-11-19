@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-d5qURu8spDuK8TVKGlK23IAoXz1ffBJh3bMGjxygvPQ='; style-src 'sha256-JTjZ3WCLG1KxpohmQAcZ4Fx+ucH4AmAWS1xO2eiHsY4='; connect-src https://api.anthropic.com https://www.googleapis.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'; manifest-src 'self'; worker-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-HK/EV0KaoWP7W9qRqJAB8lM+9aERWEuLiA8d0BNCBHA='; style-src 'sha256-UfuMRav5LonhVPsstJCZwZKCMspP2EXXOkSvEopOwlQ='; connect-src https://api.anthropic.com https://www.googleapis.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'; manifest-src 'self'; worker-src 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#2255d4">
-<meta name="lifeos-shell" content="1.5.0">
-<link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAA9zQYyAAAAEnRFWHRsaWZlb3Mtc2hlbGwAMS41LjC9Sp4dAAADOklEQVR42u3dvU0DMRiA4czCGowRsQNFNkhLnQ0omAGxAiUVTZoUKaBJQ0FDc+hDuigCKfzkfPg+P5ZeiQqF4+FkfLEzO7t47KQszVwEAS0BLQEtAS2gJaAloCWgJaAFtAS0BLQEtAS0gJaAloCWgJaAFtAS0BLQEtAS0AJaAloCWgJaAlpAS0BLQEtAS0ALaAloCWgJaAHtQghoCWgJ6NNbrLbd3f1L97R7604d8X2ubp6788s1QECPXwAsMeKPY77cQAT09DEfonanBnqU4u45xri+3YEEdPkC2lgDJKAnP90AGmigBTTQAhpooIGuH3QsEfYPiR7Wr18e+MQ/wq2vjQM9AdAB+TerNrE+Hk8zgQa6OtAB04MfoFOAHupniGkK0ED/K+ihX38rqIGuEPQp04xjo4XpB9CVgQ50pUasjAAN9KigPy/HDT2yL+sBXRHoknfnVu7SQFcEutTcuaW5NNAVgR7rNWde8QC6ItBjjbg2QAMNNNBAAw000EADDbSNvUBb5QAaaOvQQAPtSSHQbb6Xo/R5It7LAXSad9tlXt0AuuL3Q8c/bUOPVrZjAd3IjpVWdoMDXfGewiHm03FntqcQ6CpA99OPvx7UHisadn0DXRXow7v1T2EH5FYPnAF6IqAP79iBO36+/mM2+q/jwYyTk4CeFGgBDTTQQAMNNNACGmgBDbSABhpooIEGGmgBDbSABlpAAw000EADDbSABlpAAy2ggQYaaKCBBlpAAy2ggRbQQAMNNNBAAy2ggRbQQAMNNNBAAw000EALaKAFNNBAA518xEHocYY00ECnGpk/EQtoqIEGOseIj7YAGuhUc2qggU41gAYaaKCBBhpooIEGGmiggQYaaKCBBhpooIEGGmiggQYaaKCBBhpooIEGGmiggQbaABpooIEGGmigixbbi4zjw46VCTVfboj9ZmQ80iAtaNOO4yN2fTvGAOo0mJ3LMeEWq+0H7PhFtjziGjg5SQJaAloCWgJaQEtAS0BLQEtAC2gJaAloCWgB7SIIaAloCWgJaAEtAS0BLQEtAS2gJaAloCWgJaAFtAS0BLQEtAS0gJaAloCWgJaAFtAS0BLQEtDSvncTEEXALVKZAwAAAABJRU5ErkJggg==">
+<meta name="lifeos-shell" content="1.6.0">
+<link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAA9zQYyAAAAEnRFWHRsaWZlb3Mtc2hlbGwAMS42LjC/DCBEAAADOklEQVR42u3dvU0DMRiA4czCGowRsQNFNkhLnQ0omAGxAiUVTZoUKaBJQ0FDc+hDuigCKfzkfPg+P5ZeiQqF4+FkfLEzO7t47KQszVwEAS0BLQEtAS2gJaAloCWgJaAFtAS0BLQEtAS0gJaAloCWgJaAFtAS0BLQEtAS0AJaAloCWgJaAlpAS0BLQEtAS0ALaAloCWgJaAHtQghoCWgJ6NNbrLbd3f1L97R7604d8X2ubp6788s1QECPXwAsMeKPY77cQAT09DEfonanBnqU4u45xri+3YEEdPkC2lgDJKAnP90AGmigBTTQAhpooIGuH3QsEfYPiR7Wr18e+MQ/wq2vjQM9AdAB+TerNrE+Hk8zgQa6OtAB04MfoFOAHupniGkK0ED/K+ihX38rqIGuEPQp04xjo4XpB9CVgQ50pUasjAAN9KigPy/HDT2yL+sBXRHoknfnVu7SQFcEutTcuaW5NNAVgR7rNWde8QC6ItBjjbg2QAMNNNBAAw000EADDbSNvUBb5QAaaOvQQAPtSSHQbb6Xo/R5It7LAXSad9tlXt0AuuL3Q8c/bUOPVrZjAd3IjpVWdoMDXfGewiHm03FntqcQ6CpA99OPvx7UHisadn0DXRXow7v1T2EH5FYPnAF6IqAP79iBO36+/mM2+q/jwYyTk4CeFGgBDTTQQAMNNNACGmgBDbSABhpooIEGGmgBDbSABlpAAw000EADDbSABlpAAy2ggQYaaKCBBlpAAy2ggRbQQAMNNNBAAy2ggRbQQAMNNNBAAw000EALaKAFNNBAA518xEHocYY00ECnGpk/EQtoqIEGOseIj7YAGuhUc2qggU41gAYaaKCBBhpooIEGGmiggQYaaKCBBhpooIEGGmiggQYaaKCBBhpooIEGGmiggQbaABpooIEGGmigixbbi4zjw46VCTVfboj9ZmQ80iAtaNOO4yN2fTvGAOo0mJ3LMeEWq+0H7PhFtjziGjg5SQJaAloCWgJaQEtAS0BLQEtAC2gJaAloCWgB7SIIaAloCWgJaAEtAS0BLQEtAS2gJaAloCWgJaAFtAS0BLQEtAS0gJaAloCWgJaAFtAS0BLQEtDSvncTEEXALVKZAwAAAABJRU5ErkJggg==">
 <title>LifeOS</title>
 <style>:root{color-scheme:light dark;--bg:#f4f5f7;--card:#fff;--fg:#14171c;--mut:#5b6573;--line:#dde1e7;--acc:#2255d4;--acc-fg:#fff;--ok:#1c7a46;--warn:#9a5b00;--bad:#b42318;--r:14px;--sh:0 1px 2px rgba(0,0,0,.06);--font:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
 @media (prefers-color-scheme:dark){:root{--bg:#0f1216;--card:#181c22;--fg:#e8ebf0;--mut:#9aa4b2;--line:#2a313a;--acc:#6b93ff;--acc-fg:#0b1020;--ok:#4ac283;--warn:#e2a03f;--bad:#f2766b;--sh:none}}
@@ -130,7 +130,7 @@ h1{margin-right:auto}
 @media (min-width:820px){.board{grid-template-columns:repeat(auto-fill,minmax(230px,1fr))}}
 .stage h3{font-size:.9rem;margin:.4rem 0;color:var(--mut);text-transform:uppercase;letter-spacing:.05em}
 .pitem{border:1px solid var(--line);border-radius:10px;padding:10px;margin:0 0 8px;min-width:0;overflow-wrap:anywhere}
-.pitem select{width:auto;min-height:36px;padding:4px 8px}
+.pitem select{width:auto;max-width:100%;min-height:36px;padding:4px 8px}
 .pitem .row{margin-top:6px}
 .nav button{overflow:hidden;text-overflow:ellipsis;min-width:0}
 .ln-raw{fill:none;stroke:var(--mut);stroke-width:1;stroke-linejoin:round}
@@ -208,12 +208,22 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
 .lockpaths .row{gap:8px}
 .setuplist{list-style:none;margin:0 0 10px;padding:0}
 .setupitem{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:6px 0;border-bottom:1px solid var(--line)}
+.searchbox{position:relative;min-width:0;margin:0 0 10px}
+.top .searchbox{margin:0;width:240px}
+.searchres:empty{display:none}
+.top .searchres{position:absolute;right:0;top:100%;width:min(420px,90vw);max-height:60vh;overflow:auto;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px;z-index:10;box-shadow:var(--sh)}
+.searchhit{display:flex;gap:4px;width:100%;text-align:left;justify-content:flex-start;margin:0 0 4px;overflow-wrap:anywhere}
+.search-area{font-size:.85rem;margin:.5rem 0 .25rem;color:var(--mut);text-transform:uppercase;letter-spacing:.05em}
+.search-hit{outline:2px solid var(--acc);outline-offset:2px}
+.jobitem .jb-comp{font-variant-numeric:tabular-nums}
+#js-months{table-layout:fixed}
+#js-months th,#js-months td{padding:6px 3px;font-size:.8rem;overflow-wrap:anywhere}
 </style>
 </head>
 <body>
 <div id="app"></div>
 <script>globalThis.LifeOS = globalThis.LifeOS || {};
-globalThis.LifeOS.VERSION = "1.5.0";
+globalThis.LifeOS.VERSION = "1.6.0";
 ;
 (function () {
   'use strict';
@@ -541,19 +551,20 @@ globalThis.LifeOS.VERSION = "1.5.0";
   const NAMES = ['dashboard', 'review', 'memory', 'settings', 'private', 'archive', 'business'];
   // The phone bottom bar, and every other area (the More sheet). Each entry is { key, label }; a key is a view key.
   const BAR = Object.freeze([['dashboard', 'Home'], ['v:money', 'Money'], ['v:work', 'Work'], ['v:health', 'Health']].map(([key, label]) => Object.freeze({ key: key === 'dashboard' ? 'dashboard' : key, label })));
-  const MORE = Object.freeze([['v:assets', 'Assets'], ['v:command', 'Command center'], ['business', 'Business'], ['v:goals', 'Goals'], ['v:home', 'Home and property'], ['v:admin', 'Admin'],
+  const MORE = Object.freeze([['v:assets', 'Assets'], ['v:command', 'Command center'], ['v:jobs', 'Job search'], ['business', 'Business'], ['v:goals', 'Goals'], ['v:home', 'Home and property'], ['v:admin', 'Admin'],
     ['v:learning', 'Learning'], ['v:activities', 'Activities'], ['v:social', 'Social'], ['private', 'Private vault'], ['v:wellbeing', 'Wellbeing'], ['review', 'Review'], ['memory', 'Memory'], ['settings', 'Settings']]
     .map(([key, label]) => Object.freeze({ key, label })));
-  const KEYS = new Set(['dashboard', 'v:command'].concat(NAMES, DOMAINS.map((d) => 'v:' + d)));
+  const KEYS = new Set(['dashboard', 'v:command', 'v:jobs'].concat(NAMES, DOMAINS.map((d) => 'v:' + d)));
   // A view object ({ name, domain, revenue }) to its key, and back. Anything unknown maps to the dashboard.
   function keyOf(view) {
     if (!view || typeof view !== 'object') return 'dashboard';
-    if (view.name === 'domain') return view.domain === 'work' && view.revenue ? 'v:command' : (DOMAINS.includes(view.domain) ? 'v:' + view.domain : 'dashboard');
+    if (view.name === 'domain') return view.domain === 'work' && view.jobs ? 'v:jobs' : view.domain === 'work' && view.revenue ? 'v:command' : (DOMAINS.includes(view.domain) ? 'v:' + view.domain : 'dashboard');
     if (view.name === 'print') return 'business';
     return NAMES.includes(view.name) ? view.name : 'dashboard';
   }
   function viewOf(key) {
     if (key === 'v:command') return { name: 'domain', domain: 'work', revenue: true };
+    if (key === 'v:jobs') return { name: 'domain', domain: 'work', jobs: true };
     if (typeof key === 'string' && key.startsWith('v:') && DOMAINS.includes(key.slice(2))) return { name: 'domain', domain: key.slice(2) };
     return NAMES.includes(key) ? { name: key } : { name: 'dashboard' };
   }
@@ -646,7 +657,7 @@ globalThis.LifeOS.VERSION = "1.5.0";
   'use strict';
   const L = (globalThis.LifeOS = globalThis.LifeOS || {});
   const KEY = 'envelope';
-  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 17, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
+  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 18, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
   const HABIT_CAP = 8, HABIT_LOG_CAP = 100000, KIND_CAP = 30;
   const RENEWAL_TOTAL_CAP = 2000;
   const ENTRY_CAP = 50000, INSIGHT_CAP = 5000, REVIEW_CAP = 1000, LESSON_CAP = 30, AUDIT_CAP = 200;
@@ -916,7 +927,20 @@ globalThis.LifeOS.VERSION = "1.5.0";
     for (const p of out) if (p.parentId !== undefined && byId.get(p.parentId).parentId !== undefined) fail('projects nest one level only');
     return out;
   }
-  function cleanPipeline(list) {
+  // v1.6.0 B14: job items (kind 'job') carry optional search fields. Compensation is integer cents. Older formats and other kinds carry none.
+  const LOCATION_TYPES = ['remote', 'hybrid', 'on site'], LOST_REASONS = ['no response', 'rejected', 'withdrew', 'role closed', 'other'];
+  const COMP_FIELDS = ['targetOteCents', 'targetBaseCents', 'offerOteCents', 'offerBaseCents'], COMP_MAX = 100000000000;
+  function cleanJobFields(x, o, t0) {
+    const t = (v, max, name) => { if (typeof v !== 'string') fail(name + ' must be text'); return t0(v, max, name); };
+    if (x.role !== undefined && x.role !== '') o.role = t(x.role, 200, 'role');
+    if (x.locationType !== undefined && x.locationType !== '') o.locationType = oneOf(x.locationType, LOCATION_TYPES, 'location type');
+    for (const k of COMP_FIELDS) if (x[k] !== undefined && x[k] !== null) o[k] = num(x[k], 0, COMP_MAX, k, true);
+    for (const k of ['appliedOn', 'followUp', 'followedUpOn']) if (x[k] !== undefined && x[k] !== '') o[k] = date(x[k], k);
+    if (x.resume !== undefined && x.resume !== '') o.resume = t(x.resume, 60, 'resume version');
+    if (x.lostReason !== undefined && x.lostReason !== '') { const r = oneOf(x.lostReason, LOST_REASONS, 'outcome reason'); if (o.stage === 'lost') o.lostReason = r; }
+    if (x.importKey !== undefined && x.importKey !== '') { if (typeof x.importKey !== 'string' || !/^[0-9a-f]{64}$/.test(x.importKey)) fail('invalid import key'); o.importKey = x.importKey; }
+  }
+  function cleanPipeline(list, schema) {
     if (list === undefined) return [];
     const seen = new Set();
     return arr(list, PIPELINE_CAP, 'pipeline').map((x) => {
@@ -933,6 +957,7 @@ globalThis.LifeOS.VERSION = "1.5.0";
       if (x.nextDate !== undefined && x.nextDate !== '') o.nextDate = date(x.nextDate, 'nextDate');
       o.updatedAt = date(x.updatedAt, 'updatedAt');
       o.notes = t(x.notes, 2000, 'notes', true);
+      if (o.kind === 'job' && (schema === undefined || schema >= 18)) cleanJobFields(x, o, t);
       return o;
     });
   }
@@ -958,6 +983,11 @@ globalThis.LifeOS.VERSION = "1.5.0";
       w.pipeline = {};
       for (const k of STAGES) w.pipeline[k] = num(d.work.pipeline[k], 0, 1e9, 'digest work', true);
       out.work = w;
+    }
+    if (d.jobs !== undefined) {
+      if (!isObj(d.jobs)) fail('digest jobs');
+      out.jobs = {};
+      for (const k of ['applied', 'followUpsDue', 'interviews', 'offers']) out.jobs[k] = num(d.jobs[k], 0, 1e9, 'digest jobs', true);
     }
     if (d.health !== undefined) {
       if (!isObj(d.health)) fail('digest health');
@@ -1302,7 +1332,7 @@ globalThis.LifeOS.VERSION = "1.5.0";
   function validateStateRaw(o, opts) {
     if (!isObj(o)) fail('state must be an object');
     scan(o, 0, { n: 4e6 });
-    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, SCHEMA].includes(o.schema)) fail('unsupported schema');
+    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, SCHEMA].includes(o.schema)) fail('unsupported schema');
     if (!L.metrics) fail('metrics module missing');
     const settings = cleanSettings(o.settings, o.schema), entries = cleanEntries(o.entries);
     const out = { schema: SCHEMA, settings, entries };
@@ -1310,7 +1340,7 @@ globalThis.LifeOS.VERSION = "1.5.0";
     else Object.assign(out, { accounts: cleanAccounts(o.accounts), recurring: cleanRecurring(o.recurring), budgets: cleanBudgets(o.budgets), categories: cleanCategories(o.categories) });
     // Schema 1 and 2 carry no work data; schema 3 data is whitelisted and capped like everything else.
     out.projects = o.schema >= 3 ? cleanProjects(o.projects) : [];
-    out.pipeline = o.schema >= 3 ? cleanPipeline(o.pipeline) : [];
+    out.pipeline = o.schema >= 3 ? cleanPipeline(o.pipeline, o.schema) : [];
     // Schema 4 adds the training cycle, workout types, daily checks and their log; older formats get empty defaults.
     out.cycle = o.schema >= 4 ? cleanCycle(o.cycle) : null;
     out.kinds = o.schema >= 4 ? cleanKinds(o.kinds) : cleanKinds(undefined);
@@ -1481,6 +1511,11 @@ globalThis.LifeOS.VERSION = "1.5.0";
       if ((mem.insights || []).some((i) => i.reason)) out.push('rejection reasons');
       if ((mem.insights || []).some((i) => i.target)) out.push('proposed target changes');
     }
+    if (src < 18) {
+      // v1.6.0: job search details on pipeline items.
+      const JOB = ['role', 'locationType', 'targetOteCents', 'targetBaseCents', 'offerOteCents', 'offerBaseCents', 'appliedOn', 'resume', 'followUp', 'followedUpOn', 'lostReason', 'importKey'];
+      if ((cur.pipeline || []).some((x) => JOB.some((k) => x[k] !== undefined))) out.push('job search details');
+    }
     if (src < 4) {
       if (cur.cycle) out.push('training cycle');
       if ((cur.habits || []).length) out.push('daily checks');
@@ -1586,6 +1621,7 @@ globalThis.LifeOS.VERSION = "1.5.0";
     const sealed = await seal(k, sl, st, 0);
     await a.set(KEY, sealed.env);
     key = k; salt = sl; state = st; meta = sealed.m;
+    if (L.search) L.search.build();
     return st;
   }
   async function unlock(passphrase) {
@@ -1597,11 +1633,13 @@ globalThis.LifeOS.VERSION = "1.5.0";
     const st = validateState(raw);
     meta = readMeta(env, raw); deviceId = meta.deviceId || deviceId;
     key = k; salt = sl; state = st;
+    if (L.search) L.search.build(); // v1.6.0: built on unlock, in memory only
     return st;
   }
   function lock() {
     dropPriv();
     if (L.archive) L.archive.drop();
+    if (L.search) L.search.drop(); // v1.6.0: the search index lives only while unlocked
     // Empty the live state object too, so any reference still held elsewhere no longer reaches plaintext.
     if (state) { try { replaceContents(state, {}); } catch (e) { /* ignore */ } }
     key = null; salt = null; state = null; meta = { rev: 0, updatedAt: '', deviceId: '' };
@@ -1626,6 +1664,7 @@ globalThis.LifeOS.VERSION = "1.5.0";
         if (state !== st) throw new Error('LOCKED');
         meta = sealed.m;
         replaceContents(st, clean);
+        if (L.search) L.search.invalidate();
       } catch (e) {
         if (state === st) replaceContents(st, snapshot);
         if (taken.length) L.ops.requeue(taken);
@@ -1685,6 +1724,7 @@ globalThis.LifeOS.VERSION = "1.5.0";
       if (state !== st) throw new Error('LOCKED');
       meta = sealed.m;
       replaceContents(st, clean);
+      if (L.search) L.search.invalidate();
     });
   }
   // ---- sync support (additive) ----
@@ -1748,6 +1788,7 @@ globalThis.LifeOS.VERSION = "1.5.0";
       const next = JSON.parse(JSON.stringify(info.state));
       keepLocalOps(next, st, info.sourceSchema);
       replaceContents(st, next);
+      if (L.search) L.search.invalidate();
     });
   }
 
@@ -1762,6 +1803,7 @@ globalThis.LifeOS.VERSION = "1.5.0";
     if (await a.get(KEY)) throw new Error('VAULT_EXISTS');
     await a.set(KEY, sealed.env);
     key = k; salt = sl; state = clean; meta = sealed.m;
+    if (L.search) L.search.build();
     return clean;
   }
   // Restore a verified backup (the state importBackup returned) as this device's new vault under `passphrase`.
@@ -1801,6 +1843,7 @@ globalThis.LifeOS.VERSION = "1.5.0";
       const fresh = defaultState();
       st.ops = fresh.ops; // the device's own dates and diagnostics start empty, as after a restore
       state = st;
+      if (L.search) L.search.build();
       return { meta: Object.assign({}, m), state: st, sourceSchema: raw && raw.schema, salt: sl };
     });
   }
@@ -1811,7 +1854,7 @@ globalThis.LifeOS.VERSION = "1.5.0";
 
   // Validation helpers shared with home.js and admin.js (same rules and messages as the rest of validateState).
   L.validate = { fail, isObj, str, num, date, oneOf, bool, arr, strip, ts, newId };
-  L.store = { SCHEMA, _rawEnvelope: () => getAdapter().get(KEY), matchesMain, _setAdapter, exists, init, unlock, lock, isUnlocked, getState, commit, changePassphrase, replaceState, wipe, validateState, newId, defaultState, getMeta, saltId, exportEnvelope, inspectEnvelope, adoptEnvelope, createFromBackup, installEnvelope, dropsWork, droppedData, nameList, lossText, lossWhy, validateGoals: (list, privOk) => cleanGoals(list, privOk === true) };
+  L.store = { SCHEMA, _rawEnvelope: () => getAdapter().get(KEY), matchesMain, _setAdapter, exists, init, unlock, lock, isUnlocked, getState, commit, changePassphrase, replaceState, wipe, validateState, newId, defaultState, getMeta, saltId, exportEnvelope, inspectEnvelope, adoptEnvelope, createFromBackup, installEnvelope, dropsWork, droppedData, nameList, lossText, lossWhy, LOCATION_TYPES, LOST_REASONS, COMP_FIELDS, validateGoals: (list, privOk) => cleanGoals(list, privOk === true) };
 })();
 
 ;
@@ -3491,7 +3534,7 @@ globalThis.LifeOS.VERSION = "1.5.0";
     const we = addDays(ws, 6), wm = sumMoney(byDomain(state, 'money'), ws, we), nw = netWorthDetail(state, we);
     const mv = monthView(state, monthOf(we));
     const money = { income: dollars(wm.incC), spend: dollars(wm.expC), budgetUsedPct: mv.budgetCents > 0 ? r1(mv.budgetedSpentCents * 100 / mv.budgetCents) : 0, netWorth: nw.total, liabilities: nw.liabilities };
-    return { week: ws, domains, money, work: workDigest(state, ws), health: healthDigest(state, ws), activities: L.activities.digest(state, ws), goals: L.goals.digestCounts(state, ws), home: L.home.digest(state, ws), admin: L.admin.digest(state, ws), learning: L.learning.digest(state, ws), social: L.social.digest(state, ws), revenue: L.revenue.digest(state, ws), business: L.business.digest(state, ws) };
+    return { week: ws, domains, money, work: workDigest(state, ws), jobs: L.jobs ? L.jobs.digest(state, ws) : undefined, health: healthDigest(state, ws), activities: L.activities.digest(state, ws), goals: L.goals.digestCounts(state, ws), home: L.home.digest(state, ws), admin: L.admin.digest(state, ws), learning: L.learning.digest(state, ws), social: L.social.digest(state, ws), revenue: L.revenue.digest(state, ws), business: L.business.digest(state, ws) };
   }
   function series(state, domainId, n, today) {
     if (!DOMAINS.some((d) => d.id === domainId)) throw new Error('Unknown domain');
@@ -8311,6 +8354,9 @@ globalThis.LifeOS.VERSION = "1.5.0";
         lines.push('- work detail: outcomes done ' + w.done + ' of ' + w.planned + ', active projects ' + w.activeProjects + ', overdue next actions ' + w.overdueNext + ', moved this week ' + w.moved + ', pipeline ' +
           Object.keys(w.pipeline).map((k) => k + ' ' + w.pipeline[k]).join(', '));
       }
+      // v1.6.0 job search: four numbers only. No company, role, person, source, note or compensation ever leaves the vault.
+      const jb = dg.jobs;
+      if (jb && (jb.applied || jb.followUpsDue || jb.interviews || jb.offers)) lines.push('- job search detail (numbers only): applications this week ' + jb.applied + ', follow-ups due ' + jb.followUpsDue + ', interviews ' + jb.interviews + ', offers ' + jb.offers);
       const hh = dg.health;
       // Body metrics (weight change) stay in the vault: they are never sent to a provider.
       if (hh) lines.push('- health detail: sessions ' + hh.sessions + ', minutes ' + hh.minutes + ', average sleep ' + hh.avgSleep + ' hours, daily checks completed ' + hh.habitRate + '%');
@@ -8715,7 +8761,7 @@ globalThis.LifeOS.VERSION = "1.5.0";
   const DAYS = 365, FOLD = 75;
   const GENERIC = Object.freeze({
     renewal: 'LifeOS: renewal due', maintenance: 'LifeOS: maintenance due', taxpay: 'LifeOS: tax payment due', filing: 'LifeOS: tax filing due', invoice: 'LifeOS: invoice due', goal: 'LifeOS: goal due',
-    exam: 'LifeOS: exam', cert: 'LifeOS: certification expires', activity: 'LifeOS: planned activity', date: 'LifeOS: important date',
+    exam: 'LifeOS: exam', followup: 'LifeOS: follow-up due', cert: 'LifeOS: certification expires', activity: 'LifeOS: planned activity', date: 'LifeOS: important date',
   });
   const KINDS = Object.freeze(Object.keys(GENERIC));
   const isDate = (s) => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && new Date(s + 'T00:00:00Z').toISOString().slice(0, 10) === s;
@@ -8775,6 +8821,8 @@ globalThis.LifeOS.VERSION = "1.5.0";
     for (const g of list(src, 'goals')) if (g.state === 'active' && g.dueDate) add('goal', g.id, g.dueDate, g.title);
     if (L.learning) for (const x of L.learning.upcomingExams(src, today)) add('exam', x.id, x.date, x.title);
     for (const a of list(src, 'activities')) if (a.state === 'planned') add('activity', a.id, a.date, a.title, a.endDate);
+    // v1.6.0: follow-up dates of open job applications. The generic label names nothing; real titles are the owner's opt-in.
+    if (L.jobs) for (const x of L.jobs.followUps(src, today)) add('followup', x.id, x.date, x.title);
     if (L.social) for (const x of L.social.importantDates(src, today, DAYS + 1)) add('date', x.id, x.date, x.label + ': ' + x.person);
     return rows;
   }
@@ -8806,6 +8854,455 @@ globalThis.LifeOS.VERSION = "1.5.0";
   const filename = (today) => 'lifeos-calendar-' + today + '.ics';
 
   L.calendar = { DAYS, GENERIC, KINDS, build, filename, escape, fold, uidOf };
+})();
+
+;
+(function () {
+  'use strict';
+  // v1.6.0 B14: job search. Applications are the Work pipeline items of kind 'job'; this module holds the rules on top of them: the
+  // add and edit checks, stage moves, follow-ups, funnel and weekly numbers, links to Social people, the CSV import and the numbers the
+  // digest may carry. Nothing here is automatic: every write is a function a user tap calls inside a commit.
+  // Compensation (OTE and base, target and offer, integer cents) is shown only to the owner. It is never part of the digest, a prompt,
+  // an insight, the audit log, an error, a calendar file or a diagnostic. Funnel rates are null ("no data") when the denominator is zero.
+  const L = (globalThis.LifeOS = globalThis.LifeOS || {});
+  const SOURCES = Object.freeze(['referral', 'recruiter', 'job board', 'direct', 'network']);
+  const LOCATIONS = Object.freeze(['remote', 'hybrid', 'on site']);
+  const REASONS = Object.freeze(['no response', 'rejected', 'withdrew', 'role closed', 'other']);
+  const STAGES = Object.freeze(['lead', 'contacted', 'applied', 'interview', 'offer', 'won', 'lost']);
+  const OPEN = Object.freeze(['lead', 'contacted', 'applied', 'interview', 'offer']);
+  const COMP = Object.freeze(['targetOteCents', 'targetBaseCents', 'offerOteCents', 'offerBaseCents']);
+  const CAP = 1000, NOTES_MAX = 2000, TEXT_MAX = 200, RESUME_MAX = 60;
+  const SECRET_MESSAGE = 'That looks like an ID number or a card number. Do not enter ID numbers, account numbers or passwords here.';
+  const BIDI = /[؜​-‏‪-‮⁠-⁩﻿]/g;
+  const M = () => L.metrics;
+  const given = (v) => v !== undefined && v !== null && v !== '';
+  const list = (state, k) => (state && Array.isArray(state[k]) ? state[k] : []);
+  const isJob = (x) => !!x && x.kind === 'job';
+  const jobsOf = (state) => list(state, 'pipeline').filter(isJob);
+  const isOpen = (x) => OPEN.includes(x.stage);
+  // Same folding as names elsewhere: invisible characters out, whitespace collapsed, case folded.
+  const norm = (s) => String(s == null ? '' : s).replace(BIDI, '').replace(/\s+/g, ' ').trim().toLowerCase();
+  const pct = (n, d) => (d > 0 ? Math.round((n * 1000) / d) / 10 : null);
+
+  // ---- classification (one definition, used by every number below) ----
+  // Applied: an applied date is set, or the item is at applied, interview, offer or won.
+  const isApplied = (x) => isJob(x) && (!!x.appliedOn || ['applied', 'interview', 'offer', 'won'].includes(x.stage));
+  // Responded: an applied item that is now at contacted or later (interview, offer, won), or was lost with the reason "rejected".
+  const responded = (x) => isApplied(x) && (['contacted', 'interview', 'offer', 'won'].includes(x.stage) || (x.stage === 'lost' && x.lostReason === 'rejected'));
+  const interviewed = (x) => isApplied(x) && ['interview', 'offer', 'won'].includes(x.stage);
+  const offered = (x) => isApplied(x) && ['offer', 'won'].includes(x.stage);
+  const sourceOf = (x) => { const k = norm(x.source); return !k ? 'unknown' : SOURCES.includes(k) ? k : 'other'; };
+  const monthOf = (x) => (x.appliedOn || x.updatedAt).slice(0, 7);
+
+  // ---- funnel: counts per stage now and per month, and the three rates ----
+  function rates(items) {
+    const a = items.filter(isApplied).length, r = items.filter(responded).length, i = items.filter(interviewed).length, o = items.filter(offered).length;
+    return { applied: a, responded: r, interviews: i, offers: o, responseRate: pct(r, a), interviewRate: pct(i, a), offerRate: pct(o, a) };
+  }
+  function funnel(state) {
+    const items = jobsOf(state), counts = {};
+    for (const s of STAGES) counts[s] = 0;
+    for (const x of items) counts[x.stage]++;
+    const months = new Map();
+    for (const x of items) { const k = monthOf(x); if (!months.has(k)) months.set(k, []); months.get(k).push(x); }
+    const byMonth = [...months.entries()].sort((a, b) => b[0].localeCompare(a[0])).map(([month, xs]) => {
+      const c = {}; for (const s of STAGES) c[s] = xs.filter((x) => x.stage === s).length;
+      return Object.assign({ month, items: xs.length, counts: c }, rates(xs));
+    });
+    const bySource = new Map();
+    for (const x of items) bySource.set(sourceOf(x), (bySource.get(sourceOf(x)) || 0) + 1);
+    return Object.assign({ total: items.length, open: items.filter(isOpen).length, counts, byMonth, sources: [...bySource.entries()].map(([source, count]) => ({ source, count })).sort((a, b) => b.count - a.count || a.source.localeCompare(b.source)) }, rates(items));
+  }
+
+  // ---- follow-ups ----
+  // Open items with a follow-up date, soonest first. due: on or before `asOf`.
+  function followUps(state, asOf) {
+    return jobsOf(state).filter((x) => isOpen(x) && x.followUp).map((x) => ({ id: x.id, title: x.title, org: x.org || '', date: x.followUp, overdue: x.followUp < asOf, due: x.followUp <= asOf }))
+      .sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title) || a.id.localeCompare(b.id));
+  }
+  const followUpsDueBy = (state, d) => jobsOf(state).filter((x) => isOpen(x) && x.followUp && x.followUp <= d);
+
+  // ---- people: Social people linked to job items through the existing pipeline links ----
+  function peopleOf(state, id, asOf) { return L.social ? L.social.peopleForPipeline(state, id, M().isDate(asOf) ? asOf : M().todayISO()) : []; }
+  function linkedPersonIds(state) {
+    const ids = new Set(jobsOf(state).map((x) => x.id)), out = new Set();
+    for (const p of list(state, 'people')) if (!p.archived && (p.pipelineIds || []).some((i) => ids.has(i))) out.add(p.id);
+    return out;
+  }
+
+  // ---- weekly view (Monday start, same as every other weekly number) ----
+  function weekly(state, wk) {
+    const ws = M().weekStart(wk), we = M().addDays(ws, 6), jobs = jobsOf(state), inW = (d) => !!d && d >= ws && d <= we;
+    const people = linkedPersonIds(state), contacts = list(state, 'contacts').filter((c) => c.personId && people.has(c.personId) && inW(c.date));
+    const apps = jobs.filter((x) => inW(x.appliedOn)), bySource = new Map();
+    for (const x of apps) bySource.set(sourceOf(x), (bySource.get(sourceOf(x)) || 0) + 1);
+    return {
+      week: ws, end: we, applications: apps.length, followUpsDone: jobs.filter((x) => inW(x.followedUpOn)).length,
+      outreach: contacts.length, peopleContacted: new Set(contacts.map((c) => c.personId)).size,
+      followUpsDue: followUpsDueBy(state, we).length, interviews: jobs.filter((x) => x.stage === 'interview').length, offers: jobs.filter((x) => x.stage === 'offer').length,
+      sources: [...bySource.entries()].map(([source, count]) => ({ source, count })).sort((a, b) => b.count - a.count || a.source.localeCompare(b.source)),
+    };
+  }
+  // The only job numbers the digest carries. Callers pass the main state (the digest never sees private records).
+  function digest(state, wk) {
+    const w = weekly(state, wk);
+    return { applied: w.applications, followUpsDue: w.followUpsDue, interviews: w.interviews, offers: w.offers };
+  }
+  const hasData = (state) => jobsOf(state).length > 0;
+  function reviewWeek(state, wk, today) {
+    const w = weekly(state, wk);
+    return { weekly: w, due: followUps(state, w.end).filter((x) => x.due), asOf: M().isDate(today) ? today : w.end };
+  }
+
+  // ---- add and edit ----
+  const fail = (m) => { throw new Error(m); };
+  function text(v, max, name, req) {
+    const s = String(v == null ? '' : v).replace(BIDI, '').replace(/\s+/g, ' ').trim();
+    if (req && !s) fail('Enter the ' + name + '.');
+    if (s.length > max) fail('The ' + name + ' can be up to ' + max + ' characters.');
+    if (L.admin && L.admin.looksSecret(s)) fail(SECRET_MESSAGE);
+    return s;
+  }
+  function dateIn(v, name) { if (!M().isDate(v)) fail('The ' + name + ' must be a valid date.'); return v; }
+  // Dollars as typed ("175,000" or "$175000.50") to integer cents; never floating point.
+  function centsIn(v, name) {
+    const c = L.revenue.parseCents(String(v));
+    if (c === null || c < 0 || c > 100000000000) fail('The ' + name + ' must be an amount from 0 to 1,000,000,000.');
+    return c;
+  }
+  const titleOf = (role, org) => (role && org ? role + ' at ' + org : role || org).slice(0, 200);
+  // input: { role, org, locationType, source, appliedOn, resume, followUp, nextStep, notes, lostReason, targetOte, targetBase, offerOte, offerBase }
+  // (the four amounts in dollars as typed). Returns the checked fields for the item; empty values clear a field.
+  function fieldsIn(input) {
+    if (!input || typeof input !== 'object') fail('Application must be an object');
+    const o = {};
+    o.role = text(input.role, TEXT_MAX, 'role');
+    o.org = text(input.org, TEXT_MAX, 'company');
+    if (!o.role && !o.org) fail('Enter the role or the company.');
+    o.source = text(input.source, TEXT_MAX, 'source');
+    o.nextStep = text(input.nextStep, TEXT_MAX, 'next step');
+    o.notes = text(input.notes, NOTES_MAX, 'notes');
+    o.resume = text(input.resume, RESUME_MAX, 'resume version');
+    if (given(input.locationType)) { if (!LOCATIONS.includes(input.locationType)) fail('Pick a location type from the list.'); o.locationType = input.locationType; } else o.locationType = '';
+    if (given(input.lostReason)) { if (!REASONS.includes(input.lostReason)) fail('Pick an outcome reason from the list.'); o.lostReason = input.lostReason; } else o.lostReason = '';
+    o.appliedOn = given(input.appliedOn) ? dateIn(input.appliedOn, 'applied date') : '';
+    o.followUp = given(input.followUp) ? dateIn(input.followUp, 'follow-up date') : '';
+    for (const [k, f] of [['targetOte', 'targetOteCents'], ['targetBase', 'targetBaseCents'], ['offerOte', 'offerOteCents'], ['offerBase', 'offerBaseCents']]) o[f] = given(input[k]) ? centsIn(input[k], k.replace(/([A-Z])/g, ' $1').toLowerCase()) : null;
+    return o;
+  }
+  const OPTIONAL = ['role', 'locationType', 'resume', 'appliedOn', 'followUp', 'lostReason'].concat(COMP);
+  function apply(item, f) {
+    item.org = f.org; item.source = f.source; item.nextStep = f.nextStep; item.notes = f.notes;
+    item.title = titleOf(f.role, f.org);
+    for (const k of OPTIONAL) { if (f[k] === '' || f[k] === null || f[k] === undefined) delete item[k]; else item[k] = f[k]; }
+    if (item.stage !== 'lost') delete item.lostReason;
+  }
+  function addJob(state, input, today) {
+    if (list(state, 'pipeline').length >= CAP) fail('You can keep up to ' + CAP + ' pipeline items.');
+    const f = fieldsIn(input), stage = given(input.stage) ? input.stage : 'lead';
+    if (!STAGES.includes(stage)) fail('Pick a stage from the list.');
+    const t = M().isDate(today) ? today : M().todayISO();
+    const item = { id: L.store.newId(), kind: 'job', stage, updatedAt: t };
+    apply(item, f);
+    if (!item.appliedOn && ['applied', 'interview', 'offer', 'won'].includes(stage)) item.appliedOn = t;
+    state.pipeline = list(state, 'pipeline').concat([item]);
+    return item;
+  }
+  const find = (state, id) => { const x = list(state, 'pipeline').find((p) => p.id === id); if (!x) fail('Application not found'); if (!isJob(x)) fail('That item is not a job application.'); return x; };
+  function updateJob(state, id, input, today) {
+    const x = find(state, id), f = fieldsIn(input);
+    apply(x, f);
+    x.updatedAt = M().isDate(today) ? today : M().todayISO();
+    return x;
+  }
+  // A stage move. Moving to applied sets the applied date when there is none; leaving lost drops the reason. `reason` only applies to lost.
+  function setStage(state, id, stage, today, reason) {
+    const x = find(state, id);
+    if (!STAGES.includes(stage)) fail('Pick a stage from the list.');
+    if (stage === 'lost' && given(reason) && !REASONS.includes(reason)) fail('Pick an outcome reason from the list.');
+    stamp(x, stage, today);
+    if (stage === 'lost' && given(reason)) x.lostReason = reason;
+    return x;
+  }
+  // SEC-111: the one stage rule for a job item, also used by the Work board and its add form (a job moved or added there at applied or
+  // later gets its applied date, so it counts in "applications this week" and the digest exactly as from the Job search tab).
+  function stamp(x, stage, today) {
+    if (!isJob(x) || !STAGES.includes(stage)) return x;
+    const t = M().isDate(today) ? today : M().todayISO();
+    x.stage = stage; x.updatedAt = t;
+    if (['applied', 'interview', 'offer', 'won'].includes(stage) && !x.appliedOn) x.appliedOn = t;
+    if (stage !== 'lost') delete x.lostReason;
+    return x;
+  }
+  // "Followed up": records today as the follow-up done and clears the date, or sets the next one when given.
+  function markFollowedUp(state, id, today, nextDate) {
+    const x = find(state, id), t = M().isDate(today) ? today : M().todayISO();
+    x.followedUpOn = t; x.updatedAt = t;
+    if (given(nextDate)) x.followUp = dateIn(nextDate, 'next follow-up date'); else delete x.followUp;
+    return x;
+  }
+  // One-tap contact log for a person linked to this application. The person must already be linked; nothing is linked here.
+  function logContact(state, id, personId, today, channel) {
+    const x = find(state, id), p = list(state, 'people').find((q) => q.id === personId);
+    if (!p || !(p.pipelineIds || []).includes(x.id)) fail('That person is not linked to this application.');
+    const t = M().isDate(today) ? today : M().todayISO();
+    const c = L.social.logContact(state, personId, { date: t, channel: given(channel) ? channel : 'other' }, t);
+    x.updatedAt = t;
+    return c;
+  }
+
+  // ---- CSV import (the ledger import pattern: map, preview, importKey dedupe, unknown values offered, never created) ----
+  const TARGETS = Object.freeze(['role', 'company', 'stage', 'location', 'source', 'appliedOn', 'followUp', 'resume', 'lostReason', 'notes', 'nextStep', 'targetOte', 'targetBase', 'offerOte', 'offerBase']);
+  const ENUM = { stage: STAGES, location: LOCATIONS, source: SOURCES, lostReason: REASONS };
+  const key = (v) => norm(v).replace(/[_-]/g, ' ');
+  const importKey = (company, role, appliedOn, occurrence) => L.revenue.sha256Hex([norm(company), norm(role), appliedOn || ''].concat(occurrence > 0 ? [String(occurrence)] : []).join('\u001f'));
+  // opts: { map:{target:columnIndex}, dateFormat:'auto'|'dmy', defaultStage, values:{stage|location|source|lostReason:{value:target}}, asPrivate }
+  // Unknown stage values reject their rows until the user maps them; unknown location, source and reason values leave that field empty
+  // until mapped. Every unknown value is listed in `unknown`, and nothing is created from it.
+  async function planImport(parsed, opts, state, today) {
+    if (!parsed || !Array.isArray(parsed.headers) || !Array.isArray(parsed.rows)) fail('Nothing to import');
+    if (!opts || typeof opts.map !== 'object' || !opts.map) fail('Column mapping required');
+    const map = {}, nh = parsed.headers.length;
+    for (const k of TARGETS) { const v = opts.map[k]; if (v === undefined || v === null || v === '') continue; if (!Number.isInteger(v) || v < 0 || v >= nh) fail('Column not found for ' + k); map[k] = v; }
+    if (map.company === undefined && map.role === undefined) fail('Choose the company or the role column.');
+    const fmt = opts.dateFormat === 'dmy' ? 'dmy' : 'auto', rv = L.revenue;
+    const dflt = given(opts.defaultStage) ? opts.defaultStage : 'applied';
+    if (!STAGES.includes(dflt)) fail('Pick a stage from the list.');
+    const empty = (extra) => Object.assign({ rows: parsed.rows.length, add: [], rejected: [], duplicates: 0, byStage: {}, unknown: { stage: [], location: [], source: [], lostReason: [] }, empty: true }, extra);
+    // PV-1: the main state alone cannot tell which rows were already imported and then moved into the private vault.
+    const pm = state.priv && Array.isArray(state.priv.marks) ? state.priv.marks : [];
+    if (pm.includes('pipeline')) return empty({ blocked: 'private' });
+    const vmap = {};
+    for (const f of Object.keys(ENUM)) { vmap[f] = new Map(); const src = (opts.values && opts.values[f]) || {}; for (const k of Object.keys(src)) { if (ENUM[f].includes(src[k])) vmap[f].set(key(k), src[k]); } }
+    const resolve = (f, raw) => { const k = key(raw); if (!k) return { v: '' }; const direct = ENUM[f].find((e) => e === k); if (direct) return { v: direct }; if (vmap[f].has(k)) return { v: vmap[f].get(k) }; return { v: '', unknown: raw }; };
+    const have = new Set();
+    for (const x of list(state, 'pipeline')) if (x.importKey) have.add(x.importKey);
+    const seenInFile = new Map(), unknown = { stage: new Map(), location: new Map(), source: new Map(), lostReason: new Map() };
+    const add = [], rejected = [], byStage = {};
+    let duplicates = 0;
+    for (let i = 0; i < parsed.rows.length; i++) {
+      const r = parsed.rows[i], rowNo = i + 2, reject = (why) => rejected.push({ row: rowNo, reason: why });
+      if (!Array.isArray(r) || r.length !== nh) { reject('wrong number of columns'); continue; }
+      const cell = (k) => (map[k] === undefined ? '' : rv.tidy(r[map[k]]));
+      const company = cell('company'), role = cell('role');
+      if (!company && !role) { reject('company and role are both empty'); continue; }
+      if (company.length > TEXT_MAX || role.length > TEXT_MAX) { reject('company or role is longer than ' + TEXT_MAX + ' characters'); continue; }
+      const notes = cell('notes'), resume = cell('resume'), nextStep = cell('nextStep');
+      if (notes.length > NOTES_MAX) { reject('notes are longer than ' + NOTES_MAX + ' characters'); continue; }
+      if (resume.length > RESUME_MAX) { reject('resume version is longer than ' + RESUME_MAX + ' characters'); continue; }
+      if (nextStep.length > TEXT_MAX) { reject('next step is longer than ' + TEXT_MAX + ' characters'); continue; }
+      if (L.admin && [company, role, notes, resume, nextStep, cell('source')].some((x) => L.admin.looksSecretText(x))) { reject('looks like an ID or card number'); continue; }
+      let stage = dflt;
+      if (map.stage !== undefined) {
+        const s = resolve('stage', cell('stage'));
+        if (s.unknown !== undefined) { if (!unknown.stage.has(key(s.unknown))) unknown.stage.set(key(s.unknown), s.unknown); reject('stage is not one of the stages; map the value below'); continue; } // SEC-110: no cell text in a reason
+        if (s.v) stage = s.v;
+      }
+      const o = { id: '', kind: 'job', stage };
+      const dates = {};
+      let bad = false;
+      for (const [k, label] of [['appliedOn', 'applied date'], ['followUp', 'follow-up date']]) {
+        const raw = cell(k);
+        if (!raw) continue;
+        const d = rv.parseDate(raw, fmt);
+        if (!d) { reject(label + ' is not a valid ' + (fmt === 'dmy' ? 'DD/MM/YYYY or YYYY-MM-DD' : 'YYYY-MM-DD or MM/DD/YYYY') + ' date'); bad = true; break; }
+        dates[k] = d;
+      }
+      if (bad) continue;
+      const comp = {};
+      for (const [k, f] of [['targetOte', 'targetOteCents'], ['targetBase', 'targetBaseCents'], ['offerOte', 'offerOteCents'], ['offerBase', 'offerBaseCents']]) {
+        const raw = cell(k);
+        if (!raw) continue;
+        const c = rv.parseCents(raw);
+        if (c === null || c < 0 || c > 100000000000) { reject(k.replace(/([A-Z])/g, ' $1').toLowerCase() + ' is not an amount'); bad = true; break; }
+        comp[f] = c;
+      }
+      if (bad) continue;
+      const enums = {};
+      for (const [col, f] of [['location', 'locationType'], ['source', 'source'], ['lostReason', 'lostReason']]) {
+        if (map[col] === undefined || (col === 'lostReason' && stage !== 'lost')) continue;
+        const x = resolve(col, cell(col));
+        if (x.unknown !== undefined && !unknown[col].has(key(x.unknown))) unknown[col].set(key(x.unknown), x.unknown);
+        if (x.v) enums[f] = x.v;
+      }
+      const base = [norm(company), norm(role), dates.appliedOn || ''].join('\u001f'), occ = seenInFile.get(base) || 0;
+      seenInFile.set(base, occ + 1);
+      const ik = await importKey(company, role, dates.appliedOn || '', occ);
+      if (have.has(ik)) { duplicates++; continue; }
+      Object.assign(o, { title: titleOf(role, company), org: company, source: enums.source || '', nextStep, notes, updatedAt: M().isDate(today) ? today : M().todayISO(), importKey: ik });
+      if (role) o.role = role;
+      if (resume) o.resume = resume;
+      if (enums.locationType) o.locationType = enums.locationType;
+      if (dates.appliedOn) o.appliedOn = dates.appliedOn;
+      else if (['applied', 'interview', 'offer', 'won'].includes(stage)) o.appliedOn = o.updatedAt;
+      if (dates.followUp) o.followUp = dates.followUp;
+      if (stage === 'lost' && enums.lostReason) o.lostReason = enums.lostReason;
+      Object.assign(o, comp);
+      add.push(o);
+      byStage[stage] = (byStage[stage] || 0) + 1;
+    }
+    const target = opts.asPrivate && L.priv && L.priv.isPrivateRecord ? list(state, 'pipeline').filter((x) => L.priv.isPrivateRecord(x)).length : list(state, 'pipeline').length;
+    if (target + add.length > CAP) fail('This import would pass the ' + CAP + ' pipeline item limit.');
+    return {
+      rows: parsed.rows.length, add, rejected, duplicates, byStage, empty: add.length === 0, asPrivate: !!opts.asPrivate,
+      unknown: { stage: [...unknown.stage.values()], location: [...unknown.location.values()], source: [...unknown.source.values()], lostReason: [...unknown.lostReason.values()] },
+    };
+  }
+  function applyImport(state, pl) {
+    if (!pl || !Array.isArray(pl.add)) fail('Nothing to import');
+    if (pl.blocked) return { added: 0, ids: [] };
+    const pm = state.priv && Array.isArray(state.priv.marks) ? state.priv.marks : [];
+    if (pm.includes('pipeline')) fail('Open the private vault to import applications.');
+    const ids = [], out = list(state, 'pipeline').slice();
+    for (const x of pl.add) { const rec = Object.assign({}, x, { id: L.store.newId() }); out.push(rec); ids.push(rec.id); }
+    state.pipeline = out;
+    return { added: ids.length, ids };
+  }
+  function exportRows(items) { return items.filter(isJob); }
+
+  // ---- at a glance: follow-ups in the next 30 days (an overdue one shows today) ----
+  function registerGlance() {
+    if (!L.activities || !L.activities.registerGlanceProvider) return;
+    try {
+      L.activities.registerGlanceProvider({
+        id: 'job-followups', label: 'Job follow-ups',
+        items: (state, today) => followUps(state, today).map((x) => ({ id: x.id, title: (x.overdue ? 'Follow up (overdue): ' : 'Follow up: ') + x.title, date: x.overdue ? today : x.date })),
+      });
+    } catch (e) { /* already registered */ }
+  }
+  registerGlance();
+
+  L.jobs = {
+    SOURCES, LOCATIONS, REASONS, STAGES, OPEN, COMP, CAP, TARGETS, isJob, jobsOf, isOpen, isApplied, responded, interviewed, offered, sourceOf, funnel, followUps, followUpsDueBy, peopleOf, weekly, digest, hasData, reviewWeek,
+    fieldsIn, addJob, updateJob, setStage, stamp, markFollowedUp, logContact, planImport, applyImport, importKey, exportRows, titleOf,
+  };
+})();
+
+;
+(function () {
+  'use strict';
+  // v1.6.0 B18: search across every area. One in-memory index of the text the owner typed (titles, names, notes, facts) in each
+  // collection. It is built when the vault unlocks, includes private-vault records and Wellbeing notes only while the private vault is
+  // open, and is dropped on lock and on private-vault close. It is never written anywhere (no storage, no history, no URL, no network,
+  // no diagnostic) and never reaches a prompt. Matching is plain substring matching on folded text: case and accents are ignored and no
+  // RegExp is ever built from what the user types.
+  const L = (globalThis.LifeOS = globalThis.LifeOS || {});
+  const BIDI = /[؜​-‏‪-‮⁠-⁩﻿]/g;
+  const MARKS = /[̀-ͯ]/g;
+  const PER_AREA = 20, TOTAL_CAP = 200, MAX_QUERY = 100, LABEL_MAX = 120, SNIP_MAX = 90;
+  // Folding: compatibility-normalise (full-width and composed forms), drop invisible characters, drop accents, fold case, collapse whitespace.
+  const fold = (s) => String(s == null ? '' : s).normalize('NFKC').replace(BIDI, '').normalize('NFD').replace(MARKS, '').toLowerCase().replace(/\s+/g, ' ').trim();
+
+  // area key -> [label, view key]. The view key is a navigation key (nav.js).
+  const AREAS = Object.freeze({
+    money: ['Money', 'v:money'], assets: ['Assets', 'v:assets'], work: ['Work', 'v:work'], jobs: ['Job search', 'v:jobs'], health: ['Health', 'v:health'], goals: ['Goals', 'v:goals'],
+    home: ['Home and property', 'v:home'], admin: ['Admin', 'v:admin'], learning: ['Learning', 'v:learning'], activities: ['Activities', 'v:activities'], social: ['Social', 'v:social'],
+    business: ['Business', 'business'], wellbeing: ['Wellbeing', 'v:wellbeing'],
+  });
+  const ORDER = Object.keys(AREAS);
+  const COLL_AREA = {
+    accounts: 'assets', recurring: 'money', budgets: 'money', projects: 'work', pipeline: 'work', goals: 'goals', maintenance: 'home', vehicles: 'home', properties: 'home', renewals: 'admin',
+    documents: 'admin', taxItems: 'admin', learningItems: 'learning', studySessions: 'learning', takeaways: 'learning', activities: 'activities', people: 'social', groups: 'social', contacts: 'social',
+    habits: 'health', invoices: 'business', trips: 'business', payees: 'business', taxPayments: 'business',
+  };
+  const ENTRY_AREA = { money: 'money', assets: 'assets', work: 'work', health: 'health', goals: 'goals', home: 'home', admin: 'admin', learning: 'learning', activities: 'activities', social: 'social', wellbeing: 'wellbeing' };
+  // Fields that hold a fixed list value, an id, a key or a date are not typed text: they are left out of the index.
+  const SKIP = new Set(['id', 'importKey', 'createdAt', 'updatedAt', 'kind', 'type', 'state', 'status', 'stage', 'cadence', 'channel', 'scope', 'unit', 'locationType', 'lostReason', 'domain', 'monthDay', 'repeat', 'severity']);
+  const LABELS = ['title', 'name', 'text', 'label', 'role', 'org', 'category', 'number', 'nextAction', 'provider', 'notes'];
+  const DATEISH = /^\d{4}-\d{2}(-\d{2})?(T[\d:.]+Z?)?$/;
+  let index = null;
+
+  function collect(rec, out, depth) {
+    if (depth > 2 || rec === null || typeof rec !== 'object') return;
+    if (Array.isArray(rec)) { for (const v of rec.slice(0, 100)) { if (typeof v === 'string') addText(v, out); else collect(v, out, depth + 1); } return; }
+    for (const k of Object.keys(rec)) {
+      if (SKIP.has(k) || /Ids?$/.test(k)) continue;
+      const v = rec[k];
+      if (typeof v === 'string') addText(v, out);
+      else if (v && typeof v === 'object') collect(v, out, depth + 1);
+    }
+  }
+  function addText(v, out) {
+    if (!v || v.length > 20000 || DATEISH.test(v)) return;
+    const f = fold(v);
+    if (f) out.push({ raw: v, f });
+  }
+  function labelOf(rec) {
+    for (const k of LABELS) if (typeof rec[k] === 'string' && rec[k].trim()) return (k === 'number' ? 'Invoice ' : '') + rec[k].trim().slice(0, LABEL_MAX);
+    return '';
+  }
+  function docOf(area, coll, rec, isPriv) {
+    const fields = [];
+    collect(rec, fields, 0);
+    if (!fields.length) return null;
+    return { area, coll, id: typeof rec.id === 'string' ? rec.id : '', label: labelOf(rec) || fields[0].raw.slice(0, LABEL_MAX), fields, priv: !!isPriv };
+  }
+  const listOf = (s, k) => (s && Array.isArray(s[k]) ? s[k] : []);
+
+  // Builds from the live state: the main state alone while the private vault is closed; the merged view (private records included) and
+  // the Wellbeing notes while it is open.
+  function build() {
+    if (!L.store || !L.store.isUnlocked()) { drop(); return null; }
+    const main = L.store.getState(), open = !!(L.priv && L.priv.isOpen()), src = open ? L.priv.view(main) : main, docs = [];
+    const isPriv = (r) => open && L.priv.isPrivateRecord(r);
+    for (const e of listOf(src, 'entries')) {
+      if (e.domain === 'wellbeing' && !open) continue;
+      const d = docOf(ENTRY_AREA[e.domain] || 'work', 'entries', e, isPriv(e));
+      if (d) docs.push(d);
+    }
+    for (const c of Object.keys(COLL_AREA)) {
+      for (const r of listOf(src, c)) {
+        const area = c === 'pipeline' && r.kind === 'job' ? 'jobs' : COLL_AREA[c];
+        const d = docOf(area, c, r, isPriv(r));
+        if (d) docs.push(d);
+      }
+    }
+    if (open && L.priv.getWellbeing) {
+      let wb = null;
+      try { wb = L.priv.getWellbeing(); } catch (e) { wb = null; }
+      for (const c of (wb && Array.isArray(wb.checkins) ? wb.checkins : [])) {
+        if (typeof c.note !== 'string' || !c.note) continue;
+        const f = fold(c.note);
+        if (f) docs.push({ area: 'wellbeing', coll: 'wellbeing', id: c.id, label: 'Check-in ' + c.date, fields: [{ raw: c.note, f }], priv: true });
+      }
+    }
+    index = { docs, priv: open, stale: false };
+    return index;
+  }
+  const drop = () => { index = null; };
+  const invalidate = () => { if (index) index.stale = true; };
+  const isBuilt = () => !!index;
+  const hasPrivate = () => !!(index && index.priv);
+
+  // query(q): { q, total, truncated, groups:[{ area, label, key, count, items:[{ id, coll, label, match, priv }] }] }
+  function query(q) {
+    const needle = fold(typeof q === 'string' ? q.slice(0, MAX_QUERY) : '');
+    const out = { q: needle, total: 0, truncated: false, groups: [] };
+    if (!L.store || !L.store.isUnlocked()) { drop(); return out; }
+    if (!needle) return out;
+    if (!index || index.stale || index.priv !== !!(L.priv && L.priv.isOpen())) build();
+    const by = new Map();
+    for (const d of index.docs) {
+      let hit = -1;
+      for (let i = 0; i < d.fields.length; i++) if (d.fields[i].f.indexOf(needle) >= 0) { hit = i; break; }
+      if (hit < 0) continue;
+      out.total++;
+      let g = by.get(d.area);
+      if (!g) { g = { area: d.area, label: AREAS[d.area][0], key: AREAS[d.area][1], count: 0, items: [] }; by.set(d.area, g); }
+      g.count++;
+      if (g.items.length < PER_AREA && out.total <= TOTAL_CAP * 5) {
+        const raw = d.fields[hit].raw;
+        g.items.push({ id: d.id, coll: d.coll, label: d.label, match: raw === d.label ? '' : raw.replace(/\s+/g, ' ').slice(0, SNIP_MAX), priv: d.priv });
+      }
+    }
+    out.groups = ORDER.filter((a) => by.has(a)).map((a) => by.get(a));
+    out.truncated = out.groups.some((g) => g.count > g.items.length);
+    return out;
+  }
+  // The private vault closing drops everything (a private record must not stay findable); the next search rebuilds from the main state.
+  if (L.priv && typeof L.priv.onClose === 'function') L.priv.onClose(() => { drop(); });
+
+  L.search = { AREAS, ORDER, PER_AREA, fold, build, drop, invalidate, isBuilt, hasPrivate, query };
 })();
 
 ;
@@ -10087,7 +10584,7 @@ globalThis.LifeOS.VERSION = "1.5.0";
     var e2 = Object.assign({}, extra || {}); delete e2.name;
     Object.keys(e2).forEach(function (k) { if (e2[k] === undefined) delete e2[k]; });
     view = Object.assign({ name: name }, e2);
-    notice = null; csvPending = null; ai = null; ledger = null; actImp = null;
+    notice = null; csvPending = null; ai = null; ledger = null; actImp = null; jobImp = null; jobImpDone = null;
     render();
     window.scrollTo(0, 0);
     var t = document.querySelector('h1');
@@ -10169,9 +10666,9 @@ globalThis.LifeOS.VERSION = "1.5.0";
     var remind = unsynced().catch(function () { return false; });
     locking = Promise.all([p, remind]).then(function (r) {
       L.store.lock();
-      privNew = false; goalMemo = new Map();
+      privNew = false; goalMemo = new Map(); searchQ = '';
       closeDialog();
-      csvPending = null; ledger = null; actImp = null; actImpDone = null; dashEdit = false; ai = null; notice = r[1] ? { kind: 'ok', text: SYNC_NOTE } : null; lastActive = 0;
+      csvPending = null; ledger = null; actImp = null; jobImp = null; jobImpDone = null; actImpDone = null; dashEdit = false; ai = null; notice = r[1] ? { kind: 'ok', text: SYNC_NOTE } : null; lastActive = 0;
       view = { name: 'lock' };
       hist.lock();
       render();
@@ -10212,7 +10709,7 @@ globalThis.LifeOS.VERSION = "1.5.0";
     var s = st();
     var body;
     try {
-      body = view.name === 'domain' ? (view.domain === 'money' ? moneyScreen(s) : view.domain === 'assets' ? assetsScreen(s) : view.domain === 'work' ? (view.revenue ? revenueScreen(s) : workScreen(s)) : view.domain === 'health' ? healthScreen(s) : view.domain === 'goals' ? goalsScreen(s) : view.domain === 'home' ? homeScreen(s) : view.domain === 'admin' ? adminScreen(s) : view.domain === 'learning' ? learningScreen(s) : view.domain === 'activities' ? activitiesScreen(s) : view.domain === 'social' ? socialScreen(s) : view.domain === 'wellbeing' ? wellbeingScreen(s) : domainScreen(s))
+      body = view.name === 'domain' ? (view.domain === 'money' ? moneyScreen(s) : view.domain === 'assets' ? assetsScreen(s) : view.domain === 'work' ? (view.jobs ? jobsScreen(s) : view.revenue ? revenueScreen(s) : workScreen(s)) : view.domain === 'health' ? healthScreen(s) : view.domain === 'goals' ? goalsScreen(s) : view.domain === 'home' ? homeScreen(s) : view.domain === 'admin' ? adminScreen(s) : view.domain === 'learning' ? learningScreen(s) : view.domain === 'activities' ? activitiesScreen(s) : view.domain === 'social' ? socialScreen(s) : view.domain === 'wellbeing' ? wellbeingScreen(s) : domainScreen(s))
         : view.name === 'review' ? reviewScreen(s)
         : view.name === 'memory' ? memoryScreen(s)
         : view.name === 'settings' ? settingsScreen(s)
@@ -10225,7 +10722,7 @@ globalThis.LifeOS.VERSION = "1.5.0";
     var nav = mainNav();
     root.appendChild(h('div', { class: 'app' },
       h('header', { class: 'top' }, h('span', { class: 'brand', text: 'LifeOS' }),
-        h('span', { class: 'row' }, btn(L.priv.isOpen() ? 'Private (open)' : 'Private', function () { go('private'); }, 'sm', { id: 'nav-private', 'aria-current': view.name === 'private' ? 'page' : null }),
+        h('span', { class: 'row' }, isNarrow() ? null : searchBox('hs'), btn(L.priv.isOpen() ? 'Private (open)' : 'Private', function () { go('private'); }, 'sm', { id: 'nav-private', 'aria-current': view.name === 'private' ? 'page' : null }),
           btn('Lock', function () { lockNow(); }, 'sm lockbtn'))),
       nav,
       h('main', { class: 'main' }, noticeEl, updateBanner(), view.name === 'print' ? null : backupBanner(), privBar(), screenMark(), body)));
@@ -10256,9 +10753,9 @@ globalThis.LifeOS.VERSION = "1.5.0";
     var key = L.nav.keyOf(view);
     openDialog({
       title: 'More', sheet: true,
-      body: h('ul', { class: 'sheetlist', id: 'more-list' }, L.nav.MORE.map(function (n) {
+      body: [searchBox('ms', function () { closeDialog(); }), h('ul', { class: 'sheetlist', id: 'more-list' }, L.nav.MORE.map(function (n) {
         return h('li', null, h('button', { type: 'button', class: 'btn sheetbtn', text: n.label, 'data-key': n.key, 'aria-current': n.key === key ? 'page' : null, onclick: function () { closeDialog(); goKey(n.key); } }));
-      }))
+      }))]
     });
   }
   // A newer version waits for this tap. Reloading locks the app, so while unlocked it asks first.
@@ -10291,7 +10788,7 @@ globalThis.LifeOS.VERSION = "1.5.0";
   }
   function screenMark() {
     var colls = null;
-    if (view.name === 'domain') { if (view.domain === 'wellbeing') return null; colls = DOMAIN_COLLS[view.domain]; }
+    if (view.name === 'domain') { if (view.domain === 'wellbeing') return null; colls = view.jobs ? ['pipeline', 'people', 'contacts'] : DOMAIN_COLLS[view.domain]; }
     else if (view.name === 'dashboard' || view.name === 'settings' || view.name === 'memory' || view.name === 'private' || view.name === 'business' || view.name === 'print') return null;
     var m = lockMark(colls === undefined ? null : colls);
     return m ? h('p', { class: 'small mut lockrow' }, m, ' Some private items are hidden.') : null;
@@ -10299,9 +10796,9 @@ globalThis.LifeOS.VERSION = "1.5.0";
   // SEC-67: nothing typed or shown while open survives the close: the toggle, the private search text and any notice (a notice can
   // name a private record, for example "Posted <title>.").
   L.priv.onClose(function () {
-    privNew = false; privPick = { coll: 'accounts', q: '' }; notice = null; goalMemo = new Map();
+    privNew = false; privPick = { coll: 'accounts', q: '' }; notice = null; goalMemo = new Map(); searchQ = '';
     if (!L.store.isUnlocked() || locking) return;
-    closeDialog(); csvPending = null; ledger = null; actImp = null; actImpDone = null; ai = null;
+    closeDialog(); csvPending = null; ledger = null; actImp = null; jobImp = null; jobImpDone = null; actImpDone = null; ai = null;
     view = { name: view.name, domain: view.domain };
     render();
   });
@@ -11510,6 +12007,7 @@ globalThis.LifeOS.VERSION = "1.5.0";
       reviewSocialCard(s, wk, t),
       h('h2', { text: '8. Revenue' }),
       reviewRevenueCard(s, wk, t),
+      reviewJobsCard(s, wk, t),
       reviewWellbeingStep(t),
       h('h2', { text: (L.priv.isOpen() ? '10' : '9') + '. Your three priorities' }),
       h('form', {
@@ -11722,6 +12220,7 @@ globalThis.LifeOS.VERSION = "1.5.0";
           if (pipeline.length >= 1000) throw new Error('You have reached the 1000 item limit. Delete some.');
           var it = { id: L.store.newId(), title: title, org: lOrg.value.trim(), kind: lKind.value, stage: lStage.value, source: lSource.value.trim(), nextStep: lNext.value.trim(), updatedAt: t, notes: lNotes.value.trim() };
           if (lDate.value) it.nextDate = lDate.value;
+          L.jobs.stamp(it, it.stage, t); // SEC-111: a job added here at applied or later gets its applied date
           return commit(function (x) { x.pipeline.push(it); }, 'pipeline add').then(function () { setNotice('ok', 'Pipeline item added.'); render(); });
         });
       }
@@ -11748,9 +12247,9 @@ globalThis.LifeOS.VERSION = "1.5.0";
             h('div', { class: 'small' }, stale ? h('span', { class: 'chip bad', text: 'Stale' }) : null, h('span', { class: 'mut', text: 'Updated ' + it.updatedAt })),
             workLinks(s, 'pipelineIds', it.id, t, it.title),
             h('div', { class: 'row' },
-              nxt ? btn('To ' + STAGE_LABEL[nxt], function () { setItem(it, function (z) { z.stage = nxt; }, 'pipeline stage'); }, 'sm pri', { 'aria-label': 'Move ' + it.title + ' to ' + STAGE_LABEL[nxt] }) : null,
+              nxt ? btn('To ' + STAGE_LABEL[nxt], function () { setItem(it, function (z) { z.stage = nxt; L.jobs.stamp(z, nxt, t); }, 'pipeline stage'); }, 'sm pri', { 'aria-label': 'Move ' + it.title + ' to ' + STAGE_LABEL[nxt] }) : null,
               labelled(sel(null, order.map(function (k) { return { v: k, t: STAGE_LABEL[k] }; }), it.stage, function (e) {
-                var v = e.target.value; if (v !== it.stage) setItem(it, function (z) { z.stage = v; }, 'pipeline stage');
+                var v = e.target.value; if (v !== it.stage) setItem(it, function (z) { z.stage = v; L.jobs.stamp(z, v, t); }, 'pipeline stage');
               }), 'Stage of ' + it.title),
               stale ? btn('Touched today', function () { setItem(it, function () {}, 'pipeline touch'); }, 'sm', { 'aria-label': 'Mark ' + it.title + ' updated today' }) : null,
               btn('Delete', function () {
@@ -11765,13 +12264,265 @@ globalThis.LifeOS.VERSION = "1.5.0";
 
     var trend = h('div', { class: 'card' }, h('h2', { text: 'Outcomes completed, last 8 weeks' }), trendChart(L.metrics.series(s, 'work', 8, t)));
     var cc = carryCard(s, wk, render);
-    return h('div', null, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('div', { class: 'row sp' }, h('h1', { text: 'Work' }), btn('Revenue', function () { go('domain', { domain: 'work', revenue: true }); }, 'pri', { id: 'open-revenue' })), stats,
+    return h('div', null, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('div', { class: 'row sp' }, h('h1', { text: 'Work' }), h('span', { class: 'row' }, btn('Job search', function () { go('domain', { domain: 'work', jobs: true }); }, 'pri', { id: 'open-jobs' }), btn('Revenue', function () { go('domain', { domain: 'work', revenue: true }); }, 'pri', { id: 'open-revenue' }))), stats,
       oCard, cc, pCard, lCard, trend,
       details('work-data', 'Entries and CSV', [
         h('div', { class: 'row' },
           btn('Export pipeline CSV', function () { download('lifeos-pipeline.csv', L.csv.exportPipeline(mainState().pipeline || []), 'text/csv'); }, 'sm', { id: 'exp-pipeline' }),
           btn('Export projects CSV', function () { download('lifeos-projects.csv', L.csv.exportProjects(mainState().projects || []), 'text/csv'); }, 'sm', { id: 'exp-projects' }), lockMark(['pipeline', 'projects'])),
         domainScreen(s, { embed: true, noForm: true })]));
+  }
+
+  // ---------- job search (v1.6.0 B14) ----------
+  // Applications are Work pipeline items of kind job. Everything here is a tap; nothing is automatic. Compensation is shown on this
+  // screen only: it never reaches a prompt, the digest, an insight, the audit log, an error or the calendar file.
+  var jobImp = null, jobImpDone = null;
+  var SRC_LABEL = { referral: 'Referral', recruiter: 'Recruiter', 'job board': 'Job board', direct: 'Direct', network: 'Network', other: 'Other', unknown: 'No source' };
+  var LOC_LABEL = { remote: 'Remote', hybrid: 'Hybrid', 'on site': 'On site' };
+  var REASON_LABEL = { 'no response': 'No response', rejected: 'Rejected', withdrew: 'Withdrew', 'role closed': 'Role closed', other: 'Other' };
+  function jobPct(v) { return v === null ? 'no data' : v + '%'; }
+  function dollarsText(c) { return Math.floor(c / 100) + '.' + pad(c % 100); }
+  function compText(s, it) {
+    var parts = [];
+    [['targetOteCents', 'Target OTE'], ['targetBaseCents', 'Target base'], ['offerOteCents', 'Offer OTE'], ['offerBaseCents', 'Offer base']].forEach(function (f) { if (typeof it[f[0]] === 'number') parts.push(f[1] + ' ' + fmtC(s, it[f[0]])); });
+    return parts.join(' | ');
+  }
+  // The add and edit fields in one place. Returns { nodes, read() }; read() gives the input for L.jobs.addJob / updateJob.
+  function jobFields(it, idp) {
+    var J = L.jobs, i = it || {};
+    var inp = function (id, v, max, type) { return h('input', { type: type || 'text', id: idp + id, maxlength: max ? String(max) : null, value: v || '', autocomplete: 'off' }); };
+    var role = inp('role', i.role || (it && !i.org ? i.title : ''), 200), org = inp('org', i.org, 200);
+    var srcOpts = [{ v: '', t: '(none)' }].concat(J.SOURCES.map(function (x) { return { v: x, t: SRC_LABEL[x] }; }));
+    if (i.source && J.SOURCES.indexOf(i.source.toLowerCase()) < 0) srcOpts.push({ v: i.source, t: i.source });
+    var src = sel(idp + 'source', srcOpts, i.source || ''), loc = sel(idp + 'loc', [{ v: '', t: '(none)' }].concat(J.LOCATIONS.map(function (x) { return { v: x, t: LOC_LABEL[x] }; })), i.locationType || '');
+    var applied = inp('applied', i.appliedOn, 0, 'date'), follow = inp('follow', i.followUp, 0, 'date'), resume = inp('resume', i.resume, 60);
+    var tOte = inp('tote', typeof i.targetOteCents === 'number' ? dollarsText(i.targetOteCents) : '', 20), tBase = inp('tbase', typeof i.targetBaseCents === 'number' ? dollarsText(i.targetBaseCents) : '', 20);
+    var oOte = inp('oote', typeof i.offerOteCents === 'number' ? dollarsText(i.offerOteCents) : '', 20), oBase = inp('obase', typeof i.offerBaseCents === 'number' ? dollarsText(i.offerBaseCents) : '', 20);
+    var next = inp('next', i.nextStep, 200), notes = h('textarea', { id: idp + 'notes', maxlength: '2000' });
+    notes.value = i.notes || '';
+    var stage = it ? null : sel(idp + 'stage', L.metrics.STAGES.map(function (k) { return { v: k, t: STAGE_LABEL[k] }; }), 'lead');
+    return {
+      nodes: [field('Role', role), field('Company', org), stage ? field('Stage', stage) : null, field('Location type', loc), field('Source', src), field('Applied date (optional)', applied), field('Next follow-up date (optional)', follow),
+        field('Resume version (a label, up to 60 characters)', resume), field('Target OTE in dollars (optional)', tOte), field('Target base in dollars (optional)', tBase), field('Offer OTE in dollars (optional)', oOte), field('Offer base in dollars (optional)', oBase),
+        field('Next step', next), field('Notes (optional)', notes)],
+      read: function () {
+        return { role: role.value, org: org.value, stage: stage ? stage.value : undefined, locationType: loc.value, source: src.value, appliedOn: applied.value, followUp: follow.value, resume: resume.value, targetOte: tOte.value.trim(), targetBase: tBase.value.trim(),
+          offerOte: oOte.value.trim(), offerBase: oBase.value.trim(), nextStep: next.value, notes: notes.value, lostReason: it && it.lostReason ? it.lostReason : '' };
+      }
+    };
+  }
+  function jobEditDialog(s, it) {
+    var f = jobFields(it, 'je-');
+    openDialog({ title: 'Edit application', yes: 'Save', body: [h('div', { class: 'form' }, f.nodes), movePrivBtn('pipeline', it)],
+      onYes: function () { var input = f.read(), t = today(); return commit(function (x) { L.jobs.updateJob(x, it.id, input, t); }, 'job edit').then(function () { setNotice('ok', 'Application saved.'); render(); }); } });
+  }
+  // People linked to the application, each with the last contact and a one-tap contact log; link and unlink never delete either side.
+  function jobPeople(s, it, t) {
+    var A = L.social, ppl = A.peopleForPipeline(s, it.id, t), linked = {}, kids = [];
+    ppl.forEach(function (x) {
+      linked[x.id] = true;
+      kids.push(h('div', { class: 'row wk-person jb-person', 'data-person': x.name }, chipEl(x.name, 'wk-person-name'), h('span', { class: 'mut small', text: x.last ? 'last contact ' + x.last : 'no contact yet' }),
+        btn('Log contact', function () { actDo({ run: function (y) { L.jobs.logContact(y, it.id, x.id, t); }, audit: 'job contact' }, 'Contact logged.'); }, 'sm pri jb-log', { 'aria-label': 'Log contact with ' + x.name }),
+        btn('Unlink', function () { actDo({ run: function (y) { A.unlinkPipeline(y, x.id, it.id); }, audit: 'person unlink' }, 'Unlinked. Nothing was deleted.'); }, 'sm wk-unlink', { 'aria-label': 'Unlink ' + x.name + ' from ' + it.title })));
+    });
+    var avail = (s.people || []).filter(function (p) { return !p.archived && !linked[p.id]; });
+    if (avail.length) {
+      var pick = sel(null, avail.map(function (p) { return { v: p.id, t: p.name }; }), avail[0].id);
+      pick.setAttribute('aria-label', 'Person to link to ' + it.title);
+      kids.push(h('div', { class: 'row' }, pick, btn('Link person', function () { actDo({ run: function (y) { A.linkPipeline(y, pick.value, it.id); }, audit: 'person link' }, 'Linked.'); }, 'sm wk-link', { 'aria-label': 'Link the chosen person to ' + it.title })));
+    }
+    return h('div', { class: 'wk-people' }, kids);
+  }
+  function jobCard(s, it, t) {
+    var J = L.jobs, order = L.metrics.STAGES, idx = order.indexOf(it.stage), nxt = idx < 4 ? order[idx + 1] : (idx === 4 ? 'won' : null);
+    var stale = L.metrics.isStale(it, t), comp = compText(s, it);
+    var setJob = function (fn, action, okMsg) { actDo({ run: function (x) { fn(x); }, audit: action }, okMsg); };
+    var meta = [it.org, it.role && it.title !== it.role ? it.role : '', it.locationType ? LOC_LABEL[it.locationType] : '', it.source, it.resume ? 'resume ' + it.resume : ''].filter(Boolean).join(' | ');
+    return h('div', ROW({ class: 'pitem jobitem', 'data-item': it.title, 'data-stage': it.stage, 'data-job': it.id }, 'pipeline', it),
+      h('div', { class: 'entry-t', text: it.title }),
+      meta ? h('div', { class: 'mut small', text: meta }) : null,
+      comp ? h('div', { class: 'small jb-comp', text: comp }) : null,
+      h('div', { class: 'small' }, it.appliedOn ? h('span', { class: 'mut', text: 'Applied ' + it.appliedOn + ' ' }) : null,
+        it.followUp && J.isOpen(it) ? chipEl('Follow up ' + it.followUp, 'jb-follow' + (it.followUp < t ? ' bad' : '')) : null, stale ? chipEl('Stale', 'bad') : null,
+        it.stage === 'lost' && it.lostReason ? chipEl(REASON_LABEL[it.lostReason], 'jb-reason') : null),
+      it.nextStep ? h('div', { class: 'small', text: 'Next: ' + it.nextStep }) : null,
+      jobPeople(s, it, t),
+      h('div', { class: 'row' },
+        nxt ? btn('To ' + STAGE_LABEL[nxt], function () { setJob(function (x) { J.setStage(x, it.id, nxt, t); }, 'job stage'); }, 'sm pri jb-next', { 'aria-label': 'Move ' + it.title + ' to ' + STAGE_LABEL[nxt] }) : null,
+        labelled(sel(null, order.map(function (k) { return { v: k, t: STAGE_LABEL[k] }; }), it.stage, function (e) {
+          var v = e.target.value; if (v !== it.stage) setJob(function (x) { J.setStage(x, it.id, v, t); }, 'job stage');
+        }), 'Stage of ' + it.title),
+        it.stage === 'lost' ? labelled(sel(null, [{ v: '', t: '(no reason)' }].concat(J.REASONS.map(function (r) { return { v: r, t: REASON_LABEL[r] }; })), it.lostReason || '', function (e) {
+          var v = e.target.value; setJob(function (x) { var z = x.pipeline.filter(function (p) { return p.id === it.id; })[0]; if (v) z.lostReason = v; else delete z.lostReason; z.updatedAt = t; }, 'job reason');
+        }), 'Outcome reason of ' + it.title) : null,
+        it.followUp && J.isOpen(it) ? btn('Followed up', function () { setJob(function (x) { J.markFollowedUp(x, it.id, t); }, 'job followed up', 'Follow-up recorded.'); }, 'sm jb-done', { 'aria-label': 'Mark the follow-up for ' + it.title + ' done' }) : null,
+        btn('Edit', function () { jobEditDialog(s, it); }, 'sm jb-edit', { 'aria-label': 'Edit ' + it.title }),
+        btn('Delete', function () {
+          openDialog({ title: 'Delete this application?', yes: 'Delete', danger: true, body: h('p', { class: 'mut', text: it.title }),
+            onYes: function () { return commit(function (x) { x.pipeline = x.pipeline.filter(function (z) { return z.id !== it.id; }); }, 'job delete').then(function () { render(); }); } });
+        }, 'sm bad', { 'aria-label': 'Delete ' + it.title })));
+  }
+  function jobsScreen(s) {
+    var J = L.jobs, t = today(), wk = L.metrics.weekStart(t), jobs = J.jobsOf(s), f = J.funnel(s), w = J.weekly(s, wk), due = J.followUps(s, t).filter(function (x) { return x.due; });
+    var stats = h('div', { class: 'stats' }, stat('Open applications', String(f.open), 'js-open'), stat('Applied this week', String(w.applications), 'js-week-apps'), stat('Follow-ups due today', String(due.length), 'js-due', due.length ? 'bad-t' : ''));
+    var funnelCard = h('div', { class: 'card', id: 'js-funnel' }, h('h2', { text: 'Funnel' }),
+      h('div', { class: 'stagecounts' }, L.metrics.STAGES.map(function (k) { return h('span', { class: 'chip', 'data-count': k, text: STAGE_LABEL[k] + ' ' + f.counts[k] }); })),
+      h('div', { class: 'stats' }, stat('Applied', String(f.applied), 'fn-applied'), stat('Response rate', jobPct(f.responseRate), 'fn-response'), stat('Interview rate', jobPct(f.interviewRate), 'fn-interview'), stat('Offer rate', jobPct(f.offerRate), 'fn-offer')),
+      h('p', { class: 'mut small', text: 'Applied means an applied date or the stage applied or later. Response: applied items now at contacted or later, or lost as rejected. Interview and offer rates count items now at that stage or later.' }),
+      f.byMonth.length ? h('table', { id: 'js-months' }, h('thead', null, h('tr', null, ['Month', 'Items', 'Applied', 'Response', 'Interview', 'Offer'].map(function (x) { return h('th', { text: x }); }))),
+        h('tbody', null, f.byMonth.slice(0, 12).map(function (m) {
+          return h('tr', { 'data-month': m.month }, h('td', { text: m.month }), h('td', { text: String(m.items) }), h('td', { text: String(m.applied) }), h('td', { text: jobPct(m.responseRate) }), h('td', { text: jobPct(m.interviewRate) }), h('td', { text: jobPct(m.offerRate) }));
+        }))) : null,
+      f.sources.length ? h('p', { class: 'small', id: 'js-sources', text: 'By source: ' + f.sources.map(function (x) { return SRC_LABEL[x.source] + ' ' + x.count; }).join(', ') + '.' }) : null);
+    var weekCard = h('div', { class: 'card', id: 'js-weekly' }, h('h2', { text: 'This week' }), h('p', { class: 'mut small', text: 'Week of ' + w.week + ' to ' + w.end }),
+      h('div', { class: 'stats' }, stat('Applications submitted', String(w.applications), 'jw-apps'), stat('Follow-ups done', String(w.followUpsDone), 'jw-followups'), stat('Outreach (contacts logged)', String(w.outreach), 'jw-outreach'),
+        stat('People contacted', String(w.peopleContacted), 'jw-people'), stat('Follow-ups due by the end of the week', String(w.followUpsDue), 'jw-due'), stat('Interviews', String(w.interviews), 'jw-interviews'), stat('Offers', String(w.offers), 'jw-offers')),
+      h('p', { class: 'small', id: 'jw-sources', text: w.sources.length ? 'Source of this week\'s applications: ' + w.sources.map(function (x) { return SRC_LABEL[x.source] + ' ' + x.count; }).join(', ') + '.' : 'No applications this week.' }));
+    var counts = f.counts, order = L.metrics.STAGES;
+    var board = h('div', { class: 'board', id: 'js-board' }, order.filter(function (k) { return counts[k] > 0; }).map(function (k) {
+      return h('div', { class: 'stage', 'data-stage': k }, h('h3', { text: STAGE_LABEL[k] + ' (' + counts[k] + ')' }),
+        jobs.filter(function (x) { return x.stage === k; }).sort(function (a, b) { return (a.followUp || '9').localeCompare(b.followUp || '9') || a.updatedAt.localeCompare(b.updatedAt) || a.title.localeCompare(b.title); }).map(function (it) { return jobCard(s, it, t); }));
+    }));
+    var f2 = jobFields(null, 'ja-');
+    var form = h('form', {
+      onsubmit: function (e) {
+        e.preventDefault();
+        act(function () {
+          var input = f2.read();
+          return commit(function (x) { L.jobs.addJob(x, input, t); }, 'job add').then(function () { setNotice('ok', 'Application added.'); render(); });
+        });
+      }
+    }, f2.nodes, h('button', { type: 'submit', class: 'btn pri', id: 'ja-add', text: 'Add application' }));
+    return h('div', null, btn('Back to Work', function () { go('domain', { domain: 'work' }); }, 'sm back'), h('div', { class: 'row sp' }, h('h1', { text: 'Job search' }), btn('Open Revenue', function () { go('domain', { domain: 'work', revenue: true }); }, 'sm', { id: 'js-open-revenue' })),
+      h('p', { class: 'mut small', text: 'Your applications are the job items in your Work pipeline. Numbers only; nothing here is sent anywhere.' }),
+      stats, weekCard, funnelCard,
+      h('div', { class: 'card', id: 'js-apps' }, h('h2', null, 'Applications (' + jobs.length + ') ', lockMark(['pipeline', 'people', 'contacts'])), jobs.length ? board : h('p', { class: 'mut', id: 'js-none', text: 'No applications yet. Add one below or import a tracker CSV.' })),
+      details('js-new', 'Add an application', form, !jobs.length),
+      jobImportCard(s));
+  }
+  var JOB_FIELDS = [['role', 'Role column', /role|position|job title|title/i], ['company', 'Company column', /company|employer|org/i], ['stage', 'Stage column', /stage|status/i], ['location', 'Location type column', /location|remote|work type/i],
+    ['source', 'Source column', /source|found/i], ['appliedOn', 'Applied date column', /appl.*(date|on)|date.*appl|^applied$/i], ['followUp', 'Follow-up date column', /follow/i], ['resume', 'Resume version column', /resume|cv/i],
+    ['lostReason', 'Outcome reason column', /reason|outcome/i], ['notes', 'Notes column', /note|comment/i], ['nextStep', 'Next step column', /next/i], ['targetOte', 'Target OTE column', /target.*ote/i],
+    ['targetBase', 'Target base column', /target.*base/i], ['offerOte', 'Offer OTE column', /offer.*ote/i], ['offerBase', 'Offer base column', /offer.*base/i]];
+  function jobImpStart(parsed) {
+    var hd = parsed.headers, cfg = { fmt: 'auto', dflt: 'applied', asPrivate: false }, used = {};
+    JOB_FIELDS.forEach(function (f) { var i = hd.findIndex(function (x, k) { return !used[k] && f[2].test(x); }); cfg[f[0]] = i >= 0 ? String(i) : ''; if (i >= 0) used[i] = true; });
+    jobImp = { parsed: parsed, plan: null, cfg: cfg, values: { stage: {}, location: {}, source: {}, lostReason: {} } };
+  }
+  function jobImpOpts() {
+    var c = jobImp.cfg, map = {};
+    JOB_FIELDS.forEach(function (f) { map[f[0]] = c[f[0]] === '' || c[f[0]] === undefined ? undefined : Number(c[f[0]]); });
+    return { map: map, dateFormat: c.fmt, defaultStage: c.dflt, values: jobImp.values, asPrivate: !!c.asPrivate && L.priv.isOpen() };
+  }
+  function jobImpRun() { return act(function () { return L.jobs.planImport(jobImp.parsed, jobImpOpts(), st(), today()).then(function (pl) { jobImp.plan = pl; render(); }); }); }
+  function jobImportCard(s) {
+    var J = L.jobs;
+    var card = h('div', { class: 'card', id: 'jobimp-card' }, h('h2', { text: 'Import a tracker CSV' }),
+      h('p', { class: 'mut small', text: 'Map the columns, preview, then confirm. Nothing is saved until you confirm, importing the same file again adds nothing, and values LifeOS does not know are listed for you to map, never created.' }));
+    if (jobImpDone) card.appendChild(h('p', { class: 'small', id: 'jobimp-done', text: jobImpDone }));
+    var pm = L.priv.isOpen() ? [] : L.priv.marks(mainState());
+    if (pm.indexOf('pipeline') >= 0) {
+      card.appendChild(h('p', { class: 'small', id: 'jobimp-locked' }, lockIcon('Some private items are hidden', 'lockmark'), ' Open the private vault to import applications. Rows already imported may be private, and they can only be recognised while it is open.'));
+      return card;
+    }
+    var fileIn = h('input', { type: 'file', id: 'jobimp-file', accept: '.csv,text/csv' });
+    fileIn.addEventListener('change', function () {
+      var f = fileIn.files && fileIn.files[0];
+      if (!f) return;
+      act(function () { return readFile(f).then(function (text) { if (!L.store.isUnlocked()) return; jobImpStart(L.csv.parse(text)); jobImpDone = null; render(); }); });
+    });
+    card.appendChild(field('CSV file (5 MB max)', fileIn));
+    if (!jobImp) return card;
+    var c = jobImp.cfg, hd = jobImp.parsed.headers;
+    var opts = [{ v: '', t: '(none)' }].concat(hd.map(function (x, i) { return { v: String(i), t: x || ('Column ' + (i + 1)) }; }));
+    card.appendChild(h('p', { class: 'mut small', id: 'jobimp-size', text: hd.length + ' columns, ' + jobImp.parsed.rows.length + ' rows. A company or a role column is required.' }));
+    JOB_FIELDS.forEach(function (f) { card.appendChild(field(f[1] + ' (optional)', sel('jobimp-' + f[0], opts, c[f[0]], function (e) { c[f[0]] = e.target.value; jobImp.plan = null; render(); }))); });
+    card.appendChild(field('Date format', sel('jobimp-datefmt', [{ v: 'auto', t: 'YYYY-MM-DD or MM/DD/YYYY' }, { v: 'dmy', t: 'DD/MM/YYYY (or YYYY-MM-DD)' }], c.fmt, function (e) { c.fmt = e.target.value; jobImp.plan = null; })));
+    if (c.stage === '') card.appendChild(field('Stage for every row (no stage column)', sel('jobimp-default', L.metrics.STAGES.map(function (k) { return { v: k, t: STAGE_LABEL[k] }; }), c.dflt, function (e) { c.dflt = e.target.value; jobImp.plan = null; })));
+    if (L.priv.isOpen()) card.appendChild(h('label', { class: 'field check' }, h('input', { type: 'checkbox', id: 'jobimp-private', checked: !!c.asPrivate, onchange: function (e) { c.asPrivate = !!e.target.checked; jobImp.plan = null; render(); } }), h('span', { text: 'Import as private' })));
+    card.appendChild(h('div', { class: 'row' }, btn('Preview', function () { jobImpRun(); }, 'pri', { id: 'jobimp-preview' }), btn('Cancel', function () { jobImp = null; render(); }, null, { id: 'jobimp-cancel' })));
+    var pl = jobImp.plan;
+    if (!pl) return card;
+    var body = h('div', { id: 'jobimp-result' }, h('p', { id: 'jobimp-summary', text: pl.add.length + ' to add, ' + pl.rejected.length + ' rejected, ' + pl.duplicates + ' already imported.' }),
+      h('p', { class: 'small', id: 'jobimp-stages', text: 'By stage: ' + (J.STAGES.filter(function (k) { return pl.byStage[k]; }).map(function (k) { return STAGE_LABEL[k] + ' ' + pl.byStage[k]; }).join(', ') || 'none') + '.' }));
+    var targets = { stage: J.STAGES.map(function (k) { return { v: k, t: STAGE_LABEL[k] }; }), location: J.LOCATIONS.map(function (x) { return { v: x, t: LOC_LABEL[x] }; }), source: J.SOURCES.map(function (x) { return { v: x, t: SRC_LABEL[x] }; }), lostReason: J.REASONS.map(function (x) { return { v: x, t: REASON_LABEL[x] }; }) };
+    var what = { stage: 'Stage', location: 'Location type', source: 'Source', lostReason: 'Outcome reason' };
+    ['stage', 'location', 'source', 'lostReason'].forEach(function (k) {
+      if (!pl.unknown[k].length) return;
+      body.appendChild(h('p', { class: 'small', id: 'jobimp-unknown-' + k, text: what[k] + ' values LifeOS does not know. ' + (k === 'stage' ? 'Rows with an unmapped stage are rejected.' : 'The field stays empty unless you map the value.') }));
+      pl.unknown[k].forEach(function (v, i) {
+        var key = String(v).replace(/\s+/g, ' ').trim().toLowerCase().replace(/[_-]/g, ' ');
+        var pick = sel('jobimp-map-' + k + '-' + i, [{ v: '', t: '(leave unmapped)' }].concat(targets[k]), jobImp.values[k][key] || '', function (e) { if (e.target.value) jobImp.values[k][key] = e.target.value; else delete jobImp.values[k][key]; jobImpRun(); });
+        pick.setAttribute('aria-label', what[k] + ' for "' + v + '"');
+        body.appendChild(h('div', { class: 'row' }, h('span', { class: 'small', text: '"' + v + '" is' }), pick));
+      });
+    });
+    if (pl.rejected.length) body.appendChild(h('div', { id: 'jobimp-rejected' }, h('p', { class: 'small', text: 'Rejected rows' }),
+      h('ul', null, pl.rejected.slice(0, 25).map(function (r) { return h('li', { class: 'small', text: 'Row ' + r.row + ': ' + r.reason }); })), pl.rejected.length > 25 ? h('p', { class: 'mut small', text: 'And ' + (pl.rejected.length - 25) + ' more.' }) : null));
+    if (!pl.add.length && pl.duplicates) body.appendChild(h('p', { class: 'small', id: 'jobimp-nothing', text: 'Nothing new to import: every valid row was already imported.' }));
+    body.appendChild(btn(pl.add.length ? 'Import ' + pl.add.length + (pl.add.length === 1 ? ' row' : ' rows') : 'Nothing to import', function () {
+      act(function () {
+        var res, fn = function (x) { res = J.applyImport(x, pl); addAudit(x, 'job import'); };
+        var done = pl.asPrivate ? L.priv.write(fn, { newPrivate: true }) : commit(fn);
+        return done.then(function () { jobImp = null; jobImpDone = 'Imported ' + res.added + (res.added === 1 ? ' application.' : ' applications.'); setNotice('ok', 'Imported ' + res.added + (res.added === 1 ? ' application.' : ' applications.')); render(); });
+      });
+    }, 'pri', { id: 'jobimp-confirm', disabled: !pl.add.length }));
+    card.appendChild(body);
+    return card;
+  }
+  // Weekly review: follow-ups due this week or overdue, and the week's job numbers. One tap records a follow-up; nothing changes otherwise.
+  function reviewJobsCard(s, wk, t) {
+    var J = L.jobs;
+    if (!J.hasData(s)) return null;
+    var r = J.reviewWeek(s, wk, t), w = r.weekly;
+    return h('div', { id: 'rv-jobs' }, h('h2', { text: 'Job search follow-ups' }),
+      h('div', { class: 'card' },
+        h('p', { class: 'small', id: 'rv-job-stats', text: 'This week: ' + w.applications + (w.applications === 1 ? ' application' : ' applications') + ', ' + w.followUpsDone + (w.followUpsDone === 1 ? ' follow-up' : ' follow-ups') + ' done, ' + w.outreach + (w.outreach === 1 ? ' contact' : ' contacts') + ' logged.' }),
+        h('p', { class: 'small', id: 'rv-job-due-h', text: 'Follow-ups due by the end of this week (' + r.due.length + ')' }),
+        r.due.length ? h('p', { class: 'mut small', text: 'Nothing changes until you tap it.' }) : null,
+        r.due.map(function (x) {
+          return h('div', { class: 'item rv-job-row', 'data-title': x.title }, h('div', null, h('span', { class: 'entry-t', text: x.title }), h('span', { class: 'mut small', text: ' ' + x.date + (x.overdue ? ' (overdue)' : '') })),
+            btn('Followed up', function () { actDo({ run: function (y) { J.markFollowedUp(y, x.id, t); }, audit: 'job followed up' }, 'Follow-up recorded.'); }, 'sm rv-job-done', { 'aria-label': 'Mark the follow-up for ' + x.title + ' done' }));
+        }),
+        btn('Open Job search', function () { go('domain', { domain: 'work', jobs: true }); }, 'sm', { id: 'rv-job-open' })));
+  }
+
+  // ---------- search across all areas (v1.6.0 B18) ----------
+  // The query text lives in this variable and in the input only. It is cleared on lock and when the private vault closes. Typing never
+  // touches the history or the address; only tapping a result goes to a view.
+  var searchQ = '';
+  function focusRecord(label) {
+    var main = document.querySelector('main.main');
+    if (!main || !label) return;
+    var els = main.querySelectorAll('.item, .pitem, .entry, .card, tr, li'), hit = null;
+    for (var i = 0; i < els.length && !hit; i++) if (els[i].textContent.indexOf(label) >= 0 && !els[i].querySelector('.item, .pitem, tr, li')) hit = els[i];
+    if (!hit) return;
+    for (var p = hit.parentElement; p && p !== main; p = p.parentElement) if (p.tagName === 'DETAILS') p.open = true;
+    Array.prototype.forEach.call(main.querySelectorAll('.search-hit'), function (n) { n.classList.remove('search-hit'); });
+    hit.classList.add('search-hit'); hit.setAttribute('tabindex', '-1');
+    if (hit.scrollIntoView) hit.scrollIntoView({ block: 'center' });
+  }
+  function searchBox(idp, onPick) {
+    var out = h('div', { class: 'searchres', id: idp + '-results', role: 'region', 'aria-label': 'Search results', 'aria-live': 'polite' });
+    var inp = h('input', { type: 'search', id: idp + '-q', class: 'searchq', maxlength: '100', placeholder: 'Search everything', 'aria-label': 'Search everything', value: searchQ });
+    function run() {
+      searchQ = inp.value;
+      out.replaceChildren();
+      if (!searchQ.trim()) return;
+      var r = L.search.query(searchQ);
+      if (!r.total) { out.appendChild(h('p', { class: 'mut small', id: idp + '-none', text: 'Nothing found.' })); return; }
+      out.appendChild(h('p', { class: 'mut small', id: idp + '-count', text: r.total + (r.total === 1 ? ' match' : ' matches') + (r.truncated ? ', the first of each area shown' : '') }));
+      r.groups.forEach(function (g) {
+        out.appendChild(h('h3', { class: 'search-area', 'data-area': g.area, text: g.label + ' (' + g.count + ')' }));
+        g.items.forEach(function (x) {
+          out.appendChild(h('button', { type: 'button', class: 'btn sm searchhit', 'data-area': g.area, 'data-label': x.label, 'aria-label': g.label + ': ' + x.label, onclick: function () { if (onPick) onPick(); searchQ = ''; goKey(g.key); focusRecord(x.label); } },
+            x.priv ? lockIcon('Private item', 'lockmark privbadge') : null, h('span', { text: ' ' + x.label + (x.match ? ' - ' + x.match : '') })));
+        });
+      });
+    }
+    inp.addEventListener('input', run);
+    if (searchQ) run();
+    return h('div', { class: 'searchbox' }, inp, out);
   }
 
   // ---------- health (v0.5.0) ----------
@@ -12969,7 +13720,7 @@ globalThis.LifeOS.VERSION = "1.5.0";
     var g = L.activities.glance(s, t), now = g.today.concat(g.week), srcs = {};
     now.concat(g.later).forEach(function (x) { srcs[x.source] = true; });
     var many = Object.keys(srcs).length > 1;
-    var kids = [h('h2', null, 'At a glance ', lockMark(['activities', 'people', 'entries'])),
+    var kids = [h('h2', null, 'At a glance ', lockMark(['activities', 'people', 'entries', 'pipeline'])),
       h('p', { class: 'mut small', id: id + '-sum', text: g.count ? g.count + (g.count === 1 ? ' item' : ' items') + ' in the next 30 days.' : 'Nothing planned in the next 30 days.' })];
     if (g.today.length) kids.push(h('h3', { text: 'Today' }), g.today.map(function (x) { return glanceItem(s, x, many); }));
     if (g.week.length) kids.push(h('h3', { text: 'This week' }), g.week.map(function (x) { return glanceItem(s, x, many); }));

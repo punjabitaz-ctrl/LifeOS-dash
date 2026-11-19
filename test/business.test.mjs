@@ -5,7 +5,7 @@ import test, { describe, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { L, memAdapter, PASS, E } from './_load.mjs';
 import { clone } from './_v070.mjs';
-import { buildAdversarial } from './_adversarial.mjs';
+import { buildAdversarial, stripJobFields } from './_adversarial.mjs';
 
 const live = (k) => new Proxy({}, { get: (_, p) => L[k][p] });
 const S = live('store'), T = live('tax'), B = live('business'), P = live('priv'), M = live('metrics'), V = live('vault'), Mem = live('memory');
@@ -71,6 +71,7 @@ describe('migration, backups and downgrade guards', () => {
   const NEWKEYS = ['payees', 'invoices', 'trips', 'taxPayments', 'taxYears', 'homeOffice', 'taxMap'];
   function asSchema(n, st) {
     const o = clone(st); o.schema = n; delete o.priv;
+    if (n < 18) stripJobFields(o); // v1.6.0 audit: an older format holds no job fields
     for (const [v, keys] of Object.entries(OLD)) if (Number(v) > n) for (const k of keys) delete o[k];
     if (n < 6) { delete o.settings.home; for (const r of o.recurring || []) delete r.household; }
     if (n < 7) delete o.settings.learning;
@@ -94,7 +95,7 @@ describe('migration, backups and downgrade guards', () => {
     const src = full();
     for (let n = 1; n <= 11; n++) {
       const old = asSchema(n, src), oldText = text(old), got = S.validateState(clone(old));
-      assert.equal(got.schema, 17); assert.equal(got.sourceSchema, n);
+      assert.equal(got.schema, 18); assert.equal(got.sourceSchema, n);
       const gotText = text(got);
       for (const m of new Set(oldText.match(/LEAK mark \d+/g) || [])) assert.ok(gotText.includes(m), 'schema ' + n + ' lost ' + m);
       for (const k of ['payees', 'invoices', 'trips', 'taxPayments']) assert.deepEqual(got[k], [], k);
@@ -108,19 +109,19 @@ describe('migration, backups and downgrade guards', () => {
     const eleven = asSchema(11, full());
     const salt = V.newSalt(), key = await ORIG('backup passphrase 1', salt);
     const imp = await V.importBackup('backup passphrase 1', JSON.stringify(await V.makeEnvelope(key, salt, eleven)));
-    assert.equal(imp.schema, 17); assert.equal(imp.sourceSchema, 11);
+    assert.equal(imp.schema, 18); assert.equal(imp.sourceSchema, 11);
     await vault(null);
     assert.deepEqual(S.droppedData(S.getState(), imp), []);
     await S.replaceState(imp);
-    assert.equal(S.getState().schema, 17);
+    assert.equal(S.getState().schema, 18);
     const ad = memAdapter(); S._setAdapter(ad); S.lock(); await S.init(PASS);
     const env = await S.exportEnvelope(); const salt2 = V.parseEnvelope(env).salt, key2 = await fastDerive(PASS, salt2);
     await ad.set('envelope', await V.makeEnvelope(key2, salt2, eleven));
     S.lock();
     const st = await S.unlock(PASS);
-    assert.equal(st.schema, 17); assert.equal(st.settings.business.scopeConfirmed, false);
+    assert.equal(st.schema, 18); assert.equal(st.settings.business.scopeConfirmed, false);
     await S.commit(() => {});
-    assert.equal((await V.decrypt(key2, await ad.get('envelope'))).schema, 17);
+    assert.equal((await V.decrypt(key2, await ad.get('envelope'))).schema, 18);
   });
   test('downgrade guards: an older copy cannot silently strip invoices, trips, payees, tax payments, tax years, home office, the tax map, budgets or scopes', async () => {
     const cur = build((s) => {
@@ -149,7 +150,7 @@ describe('migration, backups and downgrade guards', () => {
     assert.equal(S.getState().invoices.length, 1);
     await S.replaceState(old(cur), { allowWorkLoss: true });
     assert.deepEqual(S.getState().invoices, []);
-    assert.throws(() => S.validateState(Object.assign(S.defaultState(), { schema: 18 })), /schema/);
+    assert.throws(() => S.validateState(Object.assign(S.defaultState(), { schema: 19 })), /schema/);
   });
 });
 

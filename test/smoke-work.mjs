@@ -174,7 +174,8 @@ async function run(label, viewport) {
       await page.click('button:has-text("Import backup")');
       await page.waitForSelector('.dialog #bk-older', { timeout: 30000 });
       if (!/Projects: 0, pipeline items: 0/.test(await page.textContent('#bk-summary'))) throw new Error('summary lacks work counts');
-      if (!/removes your 3 projects and 4 pipeline items/.test(await page.textContent('#bk-older'))) throw new Error('warning text: ' + await page.textContent('#bk-older'));
+      // v1.6.0 audit (SEC-111): job items added at applied on the Work board now get their applied date, which an older backup would drop, so the guard names it.
+      if (!/removes your 3 projects, 4 pipeline items and your job search details\./.test(await page.textContent('#bk-older'))) throw new Error('warning text: ' + await page.textContent('#bk-older'));
       await page.click('.dialog button:has-text("Replace")');
       await page.waitForSelector('.dialog p[role=status]:has-text("older version")', { timeout: 30000 });
       await page.click('.dialog button:has-text("Cancel")');

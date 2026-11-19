@@ -271,12 +271,12 @@ describe('v1.0.0 final review regressions', () => {
   });
 
   test('version 1.0.0: shown in the app, and nothing compares app version strings (schema and rev decide in sync, backup and migration)', () => {
-    assert.equal(JSON.parse(src('package.json')).version, '1.5.0');
+    assert.equal(JSON.parse(src('package.json')).version, '1.6.0');
     assert.ok(ui.includes("text: 'LifeOS v' + L.VERSION"));
     for (const f of ['src/core/store.js', 'src/core/sync.js', 'src/core/vault.js', 'src/core/priv.js']) assert.ok(!/['"]v?(1\.0\.0|0\.12\.0)['"]|appVersion/.test(src(f)), f);
     // The envelope and the backup carry the schema number and revision only, never an app version.
     const s = S.defaultState();
-    assert.equal(s.schema, 17);
+    assert.equal(s.schema, 18);
     assert.ok(!('version' in s) && !('appVersion' in s));
   });
 });

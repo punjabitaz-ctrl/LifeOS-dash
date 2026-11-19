@@ -133,6 +133,9 @@
         lines.push('- work detail: outcomes done ' + w.done + ' of ' + w.planned + ', active projects ' + w.activeProjects + ', overdue next actions ' + w.overdueNext + ', moved this week ' + w.moved + ', pipeline ' +
           Object.keys(w.pipeline).map((k) => k + ' ' + w.pipeline[k]).join(', '));
       }
+      // v1.6.0 job search: four numbers only. No company, role, person, source, note or compensation ever leaves the vault.
+      const jb = dg.jobs;
+      if (jb && (jb.applied || jb.followUpsDue || jb.interviews || jb.offers)) lines.push('- job search detail (numbers only): applications this week ' + jb.applied + ', follow-ups due ' + jb.followUpsDue + ', interviews ' + jb.interviews + ', offers ' + jb.offers);
       const hh = dg.health;
       // Body metrics (weight change) stay in the vault: they are never sent to a provider.
       if (hh) lines.push('- health detail: sessions ' + hh.sessions + ', minutes ' + hh.minutes + ', average sleep ' + hh.avgSleep + ' hours, daily checks completed ' + hh.habitRate + '%');

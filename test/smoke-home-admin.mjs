@@ -104,6 +104,9 @@ async function run(label, viewport) {
     if (f.household) await page.check('#rc-household');
     await page.click('button:has-text("Add recurring")');
     await ok('Recurring item added.');
+    // The notice text is the same for every add, so on the second and third add `ok` matched the previous notice at once and the next
+    // fill ran while this save was still in flight; its re-render then cleared the typed title ("Enter a title."). Wait for this item itself.
+    await page.waitForSelector('#recurring .entry-t:text-is("' + f.title + '")', T);
   }
   const timeline = async (w, where) => {
     for (const [id, n] of Object.entries(w)) await expectText('#' + id + ' h3', ({ 'ad-tl-overdue': 'Overdue', 'ad-tl-30': 'Within 30 days', 'ad-tl-60': '31 to 60 days', 'ad-tl-90': '61 to 90 days' })[id] + ' (' + n + ')');
@@ -325,7 +328,7 @@ async function run(label, viewport) {
     await step('settings: version, and the audit log holds no titles', async () => {
       await nav('Settings');
       await page.waitForSelector('#app-version', T);
-      await expectText('#app-version', 'LifeOS v1.5.0');
+      await expectText('#app-version', 'LifeOS v1.6.0');
       const t = await text('main');
       for (const secret of ['Main house', 'Family car', 'Clean gutters', 'Acme Mutual', 'Netflix', 'Passport', 'Plate registration', 'W-2 from employer', 'Electric']) if (t.includes(secret)) throw new Error('settings page shows ' + secret);
       await layout('settings');

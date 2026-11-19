@@ -2,6 +2,10 @@
 // smoke can pass it to the page as source text: buildAdversarial(LifeOS) -> { state, count }. Every marker holds spaces, so it can
 // never occur by chance in base64 or hex output. Lessons and approved insight text are left out: they reach prompts by design.
 export const ADV_MARK = 'LEAK mark ';
+// The job fields schema 18 added. An older-format copy cannot hold them (validateState drops them below 18), so tests that emulate an
+// older schema remove them, as they remove every other field a later schema added.
+export const JOB_FIELDS = ['role', 'locationType', 'targetOteCents', 'targetBaseCents', 'offerOteCents', 'offerBaseCents', 'appliedOn', 'resume', 'followUp', 'followedUpOn', 'lostReason', 'importKey'];
+export function stripJobFields(o) { for (const p of o.pipeline || []) for (const k of JOB_FIELDS) delete p[k]; return o; }
 export function buildAdversarial(L) {
   const MARK = 'LEAK mark ';
   let k = 0;
@@ -25,6 +29,8 @@ export function buildAdversarial(L) {
   s.recurring.push({ id: 'r1', title: m('recurring'), value: 9, category: 'Other', type: 'expense', cadence: 'monthly', nextDate: '2026-11-12', active: true });
   s.projects.push({ id: 'p1', name: m('project'), kind: 'venture', status: 'active', nextAction: m('next'), nextDate: '2026-11-01', archived: false });
   s.pipeline.push({ id: 'pl1', title: m('pipe'), org: m('org'), kind: 'deal', stage: 'lead', source: m('src'), nextStep: m('step'), nextDate: '2026-11-01', updatedAt: '2026-10-01', notes: m('note') });
+  // v1.6.0: a job application with a marker in every free-text job field (role and resume label too, since the v1.6.0 audit) and distinctive compensation (cents); none may reach any prompt, digest, insight, audit entry, error, calendar file or storage outside the vault.
+  s.pipeline.push({ id: 'pl2', title: m('job'), org: m('company'), kind: 'job', stage: 'applied', source: m('jsrc'), nextStep: m('jstep'), updatedAt: '2026-11-10', notes: m('jnote'), role: m('jrole'), locationType: 'hybrid', targetOteCents: 8765432100, targetBaseCents: 7654321100, offerOteCents: 6543211100, offerBaseCents: 5432111100, appliedOn: '2026-11-10', resume: m('rv').slice(0, 60), followUp: '2026-11-12' });
   s.goals.push({ id: 'g1', title: m('goal'), horizon: 'quarterly', domain: 'health', metric: 'weight', direction: 'down', startValue: 200, targetValue: 170, startDate: '2026-10-01', dueDate: '2026-12-31', state: 'active', notes: m('note'), createdAt: '2026-10-01T00:00:00.000Z' });
   s.goals.push({ id: 'g2', title: m('goal2'), horizon: 'monthly', domain: 'activities', metric: 'avgWorthIt', direction: 'up', startValue: 1, targetValue: 5, startDate: '2026-11-01', dueDate: '2026-11-30', state: 'active', notes: m('note'), createdAt: '2026-10-01T00:00:00.000Z' });
   s.kinds.push(m('kind').slice(0, 40));

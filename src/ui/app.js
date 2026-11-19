@@ -239,7 +239,7 @@
     var e2 = Object.assign({}, extra || {}); delete e2.name;
     Object.keys(e2).forEach(function (k) { if (e2[k] === undefined) delete e2[k]; });
     view = Object.assign({ name: name }, e2);
-    notice = null; csvPending = null; ai = null; ledger = null; actImp = null;
+    notice = null; csvPending = null; ai = null; ledger = null; actImp = null; jobImp = null; jobImpDone = null;
     render();
     window.scrollTo(0, 0);
     var t = document.querySelector('h1');
@@ -321,9 +321,9 @@
     var remind = unsynced().catch(function () { return false; });
     locking = Promise.all([p, remind]).then(function (r) {
       L.store.lock();
-      privNew = false; goalMemo = new Map();
+      privNew = false; goalMemo = new Map(); searchQ = '';
       closeDialog();
-      csvPending = null; ledger = null; actImp = null; actImpDone = null; dashEdit = false; ai = null; notice = r[1] ? { kind: 'ok', text: SYNC_NOTE } : null; lastActive = 0;
+      csvPending = null; ledger = null; actImp = null; jobImp = null; jobImpDone = null; actImpDone = null; dashEdit = false; ai = null; notice = r[1] ? { kind: 'ok', text: SYNC_NOTE } : null; lastActive = 0;
       view = { name: 'lock' };
       hist.lock();
       render();
@@ -364,7 +364,7 @@
     var s = st();
     var body;
     try {
-      body = view.name === 'domain' ? (view.domain === 'money' ? moneyScreen(s) : view.domain === 'assets' ? assetsScreen(s) : view.domain === 'work' ? (view.revenue ? revenueScreen(s) : workScreen(s)) : view.domain === 'health' ? healthScreen(s) : view.domain === 'goals' ? goalsScreen(s) : view.domain === 'home' ? homeScreen(s) : view.domain === 'admin' ? adminScreen(s) : view.domain === 'learning' ? learningScreen(s) : view.domain === 'activities' ? activitiesScreen(s) : view.domain === 'social' ? socialScreen(s) : view.domain === 'wellbeing' ? wellbeingScreen(s) : domainScreen(s))
+      body = view.name === 'domain' ? (view.domain === 'money' ? moneyScreen(s) : view.domain === 'assets' ? assetsScreen(s) : view.domain === 'work' ? (view.jobs ? jobsScreen(s) : view.revenue ? revenueScreen(s) : workScreen(s)) : view.domain === 'health' ? healthScreen(s) : view.domain === 'goals' ? goalsScreen(s) : view.domain === 'home' ? homeScreen(s) : view.domain === 'admin' ? adminScreen(s) : view.domain === 'learning' ? learningScreen(s) : view.domain === 'activities' ? activitiesScreen(s) : view.domain === 'social' ? socialScreen(s) : view.domain === 'wellbeing' ? wellbeingScreen(s) : domainScreen(s))
         : view.name === 'review' ? reviewScreen(s)
         : view.name === 'memory' ? memoryScreen(s)
         : view.name === 'settings' ? settingsScreen(s)
@@ -377,7 +377,7 @@
     var nav = mainNav();
     root.appendChild(h('div', { class: 'app' },
       h('header', { class: 'top' }, h('span', { class: 'brand', text: 'LifeOS' }),
-        h('span', { class: 'row' }, btn(L.priv.isOpen() ? 'Private (open)' : 'Private', function () { go('private'); }, 'sm', { id: 'nav-private', 'aria-current': view.name === 'private' ? 'page' : null }),
+        h('span', { class: 'row' }, isNarrow() ? null : searchBox('hs'), btn(L.priv.isOpen() ? 'Private (open)' : 'Private', function () { go('private'); }, 'sm', { id: 'nav-private', 'aria-current': view.name === 'private' ? 'page' : null }),
           btn('Lock', function () { lockNow(); }, 'sm lockbtn'))),
       nav,
       h('main', { class: 'main' }, noticeEl, updateBanner(), view.name === 'print' ? null : backupBanner(), privBar(), screenMark(), body)));
@@ -408,9 +408,9 @@
     var key = L.nav.keyOf(view);
     openDialog({
       title: 'More', sheet: true,
-      body: h('ul', { class: 'sheetlist', id: 'more-list' }, L.nav.MORE.map(function (n) {
+      body: [searchBox('ms', function () { closeDialog(); }), h('ul', { class: 'sheetlist', id: 'more-list' }, L.nav.MORE.map(function (n) {
         return h('li', null, h('button', { type: 'button', class: 'btn sheetbtn', text: n.label, 'data-key': n.key, 'aria-current': n.key === key ? 'page' : null, onclick: function () { closeDialog(); goKey(n.key); } }));
-      }))
+      }))]
     });
   }
   // A newer version waits for this tap. Reloading locks the app, so while unlocked it asks first.
@@ -443,7 +443,7 @@
   }
   function screenMark() {
     var colls = null;
-    if (view.name === 'domain') { if (view.domain === 'wellbeing') return null; colls = DOMAIN_COLLS[view.domain]; }
+    if (view.name === 'domain') { if (view.domain === 'wellbeing') return null; colls = view.jobs ? ['pipeline', 'people', 'contacts'] : DOMAIN_COLLS[view.domain]; }
     else if (view.name === 'dashboard' || view.name === 'settings' || view.name === 'memory' || view.name === 'private' || view.name === 'business' || view.name === 'print') return null;
     var m = lockMark(colls === undefined ? null : colls);
     return m ? h('p', { class: 'small mut lockrow' }, m, ' Some private items are hidden.') : null;
@@ -451,9 +451,9 @@
   // SEC-67: nothing typed or shown while open survives the close: the toggle, the private search text and any notice (a notice can
   // name a private record, for example "Posted <title>.").
   L.priv.onClose(function () {
-    privNew = false; privPick = { coll: 'accounts', q: '' }; notice = null; goalMemo = new Map();
+    privNew = false; privPick = { coll: 'accounts', q: '' }; notice = null; goalMemo = new Map(); searchQ = '';
     if (!L.store.isUnlocked() || locking) return;
-    closeDialog(); csvPending = null; ledger = null; actImp = null; actImpDone = null; ai = null;
+    closeDialog(); csvPending = null; ledger = null; actImp = null; jobImp = null; jobImpDone = null; actImpDone = null; ai = null;
     view = { name: view.name, domain: view.domain };
     render();
   });
@@ -1662,6 +1662,7 @@
       reviewSocialCard(s, wk, t),
       h('h2', { text: '8. Revenue' }),
       reviewRevenueCard(s, wk, t),
+      reviewJobsCard(s, wk, t),
       reviewWellbeingStep(t),
       h('h2', { text: (L.priv.isOpen() ? '10' : '9') + '. Your three priorities' }),
       h('form', {
@@ -1874,6 +1875,7 @@
           if (pipeline.length >= 1000) throw new Error('You have reached the 1000 item limit. Delete some.');
           var it = { id: L.store.newId(), title: title, org: lOrg.value.trim(), kind: lKind.value, stage: lStage.value, source: lSource.value.trim(), nextStep: lNext.value.trim(), updatedAt: t, notes: lNotes.value.trim() };
           if (lDate.value) it.nextDate = lDate.value;
+          L.jobs.stamp(it, it.stage, t); // SEC-111: a job added here at applied or later gets its applied date
           return commit(function (x) { x.pipeline.push(it); }, 'pipeline add').then(function () { setNotice('ok', 'Pipeline item added.'); render(); });
         });
       }
@@ -1900,9 +1902,9 @@
             h('div', { class: 'small' }, stale ? h('span', { class: 'chip bad', text: 'Stale' }) : null, h('span', { class: 'mut', text: 'Updated ' + it.updatedAt })),
             workLinks(s, 'pipelineIds', it.id, t, it.title),
             h('div', { class: 'row' },
-              nxt ? btn('To ' + STAGE_LABEL[nxt], function () { setItem(it, function (z) { z.stage = nxt; }, 'pipeline stage'); }, 'sm pri', { 'aria-label': 'Move ' + it.title + ' to ' + STAGE_LABEL[nxt] }) : null,
+              nxt ? btn('To ' + STAGE_LABEL[nxt], function () { setItem(it, function (z) { z.stage = nxt; L.jobs.stamp(z, nxt, t); }, 'pipeline stage'); }, 'sm pri', { 'aria-label': 'Move ' + it.title + ' to ' + STAGE_LABEL[nxt] }) : null,
               labelled(sel(null, order.map(function (k) { return { v: k, t: STAGE_LABEL[k] }; }), it.stage, function (e) {
-                var v = e.target.value; if (v !== it.stage) setItem(it, function (z) { z.stage = v; }, 'pipeline stage');
+                var v = e.target.value; if (v !== it.stage) setItem(it, function (z) { z.stage = v; L.jobs.stamp(z, v, t); }, 'pipeline stage');
               }), 'Stage of ' + it.title),
               stale ? btn('Touched today', function () { setItem(it, function () {}, 'pipeline touch'); }, 'sm', { 'aria-label': 'Mark ' + it.title + ' updated today' }) : null,
               btn('Delete', function () {
@@ -1917,13 +1919,265 @@
 
     var trend = h('div', { class: 'card' }, h('h2', { text: 'Outcomes completed, last 8 weeks' }), trendChart(L.metrics.series(s, 'work', 8, t)));
     var cc = carryCard(s, wk, render);
-    return h('div', null, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('div', { class: 'row sp' }, h('h1', { text: 'Work' }), btn('Revenue', function () { go('domain', { domain: 'work', revenue: true }); }, 'pri', { id: 'open-revenue' })), stats,
+    return h('div', null, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('div', { class: 'row sp' }, h('h1', { text: 'Work' }), h('span', { class: 'row' }, btn('Job search', function () { go('domain', { domain: 'work', jobs: true }); }, 'pri', { id: 'open-jobs' }), btn('Revenue', function () { go('domain', { domain: 'work', revenue: true }); }, 'pri', { id: 'open-revenue' }))), stats,
       oCard, cc, pCard, lCard, trend,
       details('work-data', 'Entries and CSV', [
         h('div', { class: 'row' },
           btn('Export pipeline CSV', function () { download('lifeos-pipeline.csv', L.csv.exportPipeline(mainState().pipeline || []), 'text/csv'); }, 'sm', { id: 'exp-pipeline' }),
           btn('Export projects CSV', function () { download('lifeos-projects.csv', L.csv.exportProjects(mainState().projects || []), 'text/csv'); }, 'sm', { id: 'exp-projects' }), lockMark(['pipeline', 'projects'])),
         domainScreen(s, { embed: true, noForm: true })]));
+  }
+
+  // ---------- job search (v1.6.0 B14) ----------
+  // Applications are Work pipeline items of kind job. Everything here is a tap; nothing is automatic. Compensation is shown on this
+  // screen only: it never reaches a prompt, the digest, an insight, the audit log, an error or the calendar file.
+  var jobImp = null, jobImpDone = null;
+  var SRC_LABEL = { referral: 'Referral', recruiter: 'Recruiter', 'job board': 'Job board', direct: 'Direct', network: 'Network', other: 'Other', unknown: 'No source' };
+  var LOC_LABEL = { remote: 'Remote', hybrid: 'Hybrid', 'on site': 'On site' };
+  var REASON_LABEL = { 'no response': 'No response', rejected: 'Rejected', withdrew: 'Withdrew', 'role closed': 'Role closed', other: 'Other' };
+  function jobPct(v) { return v === null ? 'no data' : v + '%'; }
+  function dollarsText(c) { return Math.floor(c / 100) + '.' + pad(c % 100); }
+  function compText(s, it) {
+    var parts = [];
+    [['targetOteCents', 'Target OTE'], ['targetBaseCents', 'Target base'], ['offerOteCents', 'Offer OTE'], ['offerBaseCents', 'Offer base']].forEach(function (f) { if (typeof it[f[0]] === 'number') parts.push(f[1] + ' ' + fmtC(s, it[f[0]])); });
+    return parts.join(' | ');
+  }
+  // The add and edit fields in one place. Returns { nodes, read() }; read() gives the input for L.jobs.addJob / updateJob.
+  function jobFields(it, idp) {
+    var J = L.jobs, i = it || {};
+    var inp = function (id, v, max, type) { return h('input', { type: type || 'text', id: idp + id, maxlength: max ? String(max) : null, value: v || '', autocomplete: 'off' }); };
+    var role = inp('role', i.role || (it && !i.org ? i.title : ''), 200), org = inp('org', i.org, 200);
+    var srcOpts = [{ v: '', t: '(none)' }].concat(J.SOURCES.map(function (x) { return { v: x, t: SRC_LABEL[x] }; }));
+    if (i.source && J.SOURCES.indexOf(i.source.toLowerCase()) < 0) srcOpts.push({ v: i.source, t: i.source });
+    var src = sel(idp + 'source', srcOpts, i.source || ''), loc = sel(idp + 'loc', [{ v: '', t: '(none)' }].concat(J.LOCATIONS.map(function (x) { return { v: x, t: LOC_LABEL[x] }; })), i.locationType || '');
+    var applied = inp('applied', i.appliedOn, 0, 'date'), follow = inp('follow', i.followUp, 0, 'date'), resume = inp('resume', i.resume, 60);
+    var tOte = inp('tote', typeof i.targetOteCents === 'number' ? dollarsText(i.targetOteCents) : '', 20), tBase = inp('tbase', typeof i.targetBaseCents === 'number' ? dollarsText(i.targetBaseCents) : '', 20);
+    var oOte = inp('oote', typeof i.offerOteCents === 'number' ? dollarsText(i.offerOteCents) : '', 20), oBase = inp('obase', typeof i.offerBaseCents === 'number' ? dollarsText(i.offerBaseCents) : '', 20);
+    var next = inp('next', i.nextStep, 200), notes = h('textarea', { id: idp + 'notes', maxlength: '2000' });
+    notes.value = i.notes || '';
+    var stage = it ? null : sel(idp + 'stage', L.metrics.STAGES.map(function (k) { return { v: k, t: STAGE_LABEL[k] }; }), 'lead');
+    return {
+      nodes: [field('Role', role), field('Company', org), stage ? field('Stage', stage) : null, field('Location type', loc), field('Source', src), field('Applied date (optional)', applied), field('Next follow-up date (optional)', follow),
+        field('Resume version (a label, up to 60 characters)', resume), field('Target OTE in dollars (optional)', tOte), field('Target base in dollars (optional)', tBase), field('Offer OTE in dollars (optional)', oOte), field('Offer base in dollars (optional)', oBase),
+        field('Next step', next), field('Notes (optional)', notes)],
+      read: function () {
+        return { role: role.value, org: org.value, stage: stage ? stage.value : undefined, locationType: loc.value, source: src.value, appliedOn: applied.value, followUp: follow.value, resume: resume.value, targetOte: tOte.value.trim(), targetBase: tBase.value.trim(),
+          offerOte: oOte.value.trim(), offerBase: oBase.value.trim(), nextStep: next.value, notes: notes.value, lostReason: it && it.lostReason ? it.lostReason : '' };
+      }
+    };
+  }
+  function jobEditDialog(s, it) {
+    var f = jobFields(it, 'je-');
+    openDialog({ title: 'Edit application', yes: 'Save', body: [h('div', { class: 'form' }, f.nodes), movePrivBtn('pipeline', it)],
+      onYes: function () { var input = f.read(), t = today(); return commit(function (x) { L.jobs.updateJob(x, it.id, input, t); }, 'job edit').then(function () { setNotice('ok', 'Application saved.'); render(); }); } });
+  }
+  // People linked to the application, each with the last contact and a one-tap contact log; link and unlink never delete either side.
+  function jobPeople(s, it, t) {
+    var A = L.social, ppl = A.peopleForPipeline(s, it.id, t), linked = {}, kids = [];
+    ppl.forEach(function (x) {
+      linked[x.id] = true;
+      kids.push(h('div', { class: 'row wk-person jb-person', 'data-person': x.name }, chipEl(x.name, 'wk-person-name'), h('span', { class: 'mut small', text: x.last ? 'last contact ' + x.last : 'no contact yet' }),
+        btn('Log contact', function () { actDo({ run: function (y) { L.jobs.logContact(y, it.id, x.id, t); }, audit: 'job contact' }, 'Contact logged.'); }, 'sm pri jb-log', { 'aria-label': 'Log contact with ' + x.name }),
+        btn('Unlink', function () { actDo({ run: function (y) { A.unlinkPipeline(y, x.id, it.id); }, audit: 'person unlink' }, 'Unlinked. Nothing was deleted.'); }, 'sm wk-unlink', { 'aria-label': 'Unlink ' + x.name + ' from ' + it.title })));
+    });
+    var avail = (s.people || []).filter(function (p) { return !p.archived && !linked[p.id]; });
+    if (avail.length) {
+      var pick = sel(null, avail.map(function (p) { return { v: p.id, t: p.name }; }), avail[0].id);
+      pick.setAttribute('aria-label', 'Person to link to ' + it.title);
+      kids.push(h('div', { class: 'row' }, pick, btn('Link person', function () { actDo({ run: function (y) { A.linkPipeline(y, pick.value, it.id); }, audit: 'person link' }, 'Linked.'); }, 'sm wk-link', { 'aria-label': 'Link the chosen person to ' + it.title })));
+    }
+    return h('div', { class: 'wk-people' }, kids);
+  }
+  function jobCard(s, it, t) {
+    var J = L.jobs, order = L.metrics.STAGES, idx = order.indexOf(it.stage), nxt = idx < 4 ? order[idx + 1] : (idx === 4 ? 'won' : null);
+    var stale = L.metrics.isStale(it, t), comp = compText(s, it);
+    var setJob = function (fn, action, okMsg) { actDo({ run: function (x) { fn(x); }, audit: action }, okMsg); };
+    var meta = [it.org, it.role && it.title !== it.role ? it.role : '', it.locationType ? LOC_LABEL[it.locationType] : '', it.source, it.resume ? 'resume ' + it.resume : ''].filter(Boolean).join(' | ');
+    return h('div', ROW({ class: 'pitem jobitem', 'data-item': it.title, 'data-stage': it.stage, 'data-job': it.id }, 'pipeline', it),
+      h('div', { class: 'entry-t', text: it.title }),
+      meta ? h('div', { class: 'mut small', text: meta }) : null,
+      comp ? h('div', { class: 'small jb-comp', text: comp }) : null,
+      h('div', { class: 'small' }, it.appliedOn ? h('span', { class: 'mut', text: 'Applied ' + it.appliedOn + ' ' }) : null,
+        it.followUp && J.isOpen(it) ? chipEl('Follow up ' + it.followUp, 'jb-follow' + (it.followUp < t ? ' bad' : '')) : null, stale ? chipEl('Stale', 'bad') : null,
+        it.stage === 'lost' && it.lostReason ? chipEl(REASON_LABEL[it.lostReason], 'jb-reason') : null),
+      it.nextStep ? h('div', { class: 'small', text: 'Next: ' + it.nextStep }) : null,
+      jobPeople(s, it, t),
+      h('div', { class: 'row' },
+        nxt ? btn('To ' + STAGE_LABEL[nxt], function () { setJob(function (x) { J.setStage(x, it.id, nxt, t); }, 'job stage'); }, 'sm pri jb-next', { 'aria-label': 'Move ' + it.title + ' to ' + STAGE_LABEL[nxt] }) : null,
+        labelled(sel(null, order.map(function (k) { return { v: k, t: STAGE_LABEL[k] }; }), it.stage, function (e) {
+          var v = e.target.value; if (v !== it.stage) setJob(function (x) { J.setStage(x, it.id, v, t); }, 'job stage');
+        }), 'Stage of ' + it.title),
+        it.stage === 'lost' ? labelled(sel(null, [{ v: '', t: '(no reason)' }].concat(J.REASONS.map(function (r) { return { v: r, t: REASON_LABEL[r] }; })), it.lostReason || '', function (e) {
+          var v = e.target.value; setJob(function (x) { var z = x.pipeline.filter(function (p) { return p.id === it.id; })[0]; if (v) z.lostReason = v; else delete z.lostReason; z.updatedAt = t; }, 'job reason');
+        }), 'Outcome reason of ' + it.title) : null,
+        it.followUp && J.isOpen(it) ? btn('Followed up', function () { setJob(function (x) { J.markFollowedUp(x, it.id, t); }, 'job followed up', 'Follow-up recorded.'); }, 'sm jb-done', { 'aria-label': 'Mark the follow-up for ' + it.title + ' done' }) : null,
+        btn('Edit', function () { jobEditDialog(s, it); }, 'sm jb-edit', { 'aria-label': 'Edit ' + it.title }),
+        btn('Delete', function () {
+          openDialog({ title: 'Delete this application?', yes: 'Delete', danger: true, body: h('p', { class: 'mut', text: it.title }),
+            onYes: function () { return commit(function (x) { x.pipeline = x.pipeline.filter(function (z) { return z.id !== it.id; }); }, 'job delete').then(function () { render(); }); } });
+        }, 'sm bad', { 'aria-label': 'Delete ' + it.title })));
+  }
+  function jobsScreen(s) {
+    var J = L.jobs, t = today(), wk = L.metrics.weekStart(t), jobs = J.jobsOf(s), f = J.funnel(s), w = J.weekly(s, wk), due = J.followUps(s, t).filter(function (x) { return x.due; });
+    var stats = h('div', { class: 'stats' }, stat('Open applications', String(f.open), 'js-open'), stat('Applied this week', String(w.applications), 'js-week-apps'), stat('Follow-ups due today', String(due.length), 'js-due', due.length ? 'bad-t' : ''));
+    var funnelCard = h('div', { class: 'card', id: 'js-funnel' }, h('h2', { text: 'Funnel' }),
+      h('div', { class: 'stagecounts' }, L.metrics.STAGES.map(function (k) { return h('span', { class: 'chip', 'data-count': k, text: STAGE_LABEL[k] + ' ' + f.counts[k] }); })),
+      h('div', { class: 'stats' }, stat('Applied', String(f.applied), 'fn-applied'), stat('Response rate', jobPct(f.responseRate), 'fn-response'), stat('Interview rate', jobPct(f.interviewRate), 'fn-interview'), stat('Offer rate', jobPct(f.offerRate), 'fn-offer')),
+      h('p', { class: 'mut small', text: 'Applied means an applied date or the stage applied or later. Response: applied items now at contacted or later, or lost as rejected. Interview and offer rates count items now at that stage or later.' }),
+      f.byMonth.length ? h('table', { id: 'js-months' }, h('thead', null, h('tr', null, ['Month', 'Items', 'Applied', 'Response', 'Interview', 'Offer'].map(function (x) { return h('th', { text: x }); }))),
+        h('tbody', null, f.byMonth.slice(0, 12).map(function (m) {
+          return h('tr', { 'data-month': m.month }, h('td', { text: m.month }), h('td', { text: String(m.items) }), h('td', { text: String(m.applied) }), h('td', { text: jobPct(m.responseRate) }), h('td', { text: jobPct(m.interviewRate) }), h('td', { text: jobPct(m.offerRate) }));
+        }))) : null,
+      f.sources.length ? h('p', { class: 'small', id: 'js-sources', text: 'By source: ' + f.sources.map(function (x) { return SRC_LABEL[x.source] + ' ' + x.count; }).join(', ') + '.' }) : null);
+    var weekCard = h('div', { class: 'card', id: 'js-weekly' }, h('h2', { text: 'This week' }), h('p', { class: 'mut small', text: 'Week of ' + w.week + ' to ' + w.end }),
+      h('div', { class: 'stats' }, stat('Applications submitted', String(w.applications), 'jw-apps'), stat('Follow-ups done', String(w.followUpsDone), 'jw-followups'), stat('Outreach (contacts logged)', String(w.outreach), 'jw-outreach'),
+        stat('People contacted', String(w.peopleContacted), 'jw-people'), stat('Follow-ups due by the end of the week', String(w.followUpsDue), 'jw-due'), stat('Interviews', String(w.interviews), 'jw-interviews'), stat('Offers', String(w.offers), 'jw-offers')),
+      h('p', { class: 'small', id: 'jw-sources', text: w.sources.length ? 'Source of this week\'s applications: ' + w.sources.map(function (x) { return SRC_LABEL[x.source] + ' ' + x.count; }).join(', ') + '.' : 'No applications this week.' }));
+    var counts = f.counts, order = L.metrics.STAGES;
+    var board = h('div', { class: 'board', id: 'js-board' }, order.filter(function (k) { return counts[k] > 0; }).map(function (k) {
+      return h('div', { class: 'stage', 'data-stage': k }, h('h3', { text: STAGE_LABEL[k] + ' (' + counts[k] + ')' }),
+        jobs.filter(function (x) { return x.stage === k; }).sort(function (a, b) { return (a.followUp || '9').localeCompare(b.followUp || '9') || a.updatedAt.localeCompare(b.updatedAt) || a.title.localeCompare(b.title); }).map(function (it) { return jobCard(s, it, t); }));
+    }));
+    var f2 = jobFields(null, 'ja-');
+    var form = h('form', {
+      onsubmit: function (e) {
+        e.preventDefault();
+        act(function () {
+          var input = f2.read();
+          return commit(function (x) { L.jobs.addJob(x, input, t); }, 'job add').then(function () { setNotice('ok', 'Application added.'); render(); });
+        });
+      }
+    }, f2.nodes, h('button', { type: 'submit', class: 'btn pri', id: 'ja-add', text: 'Add application' }));
+    return h('div', null, btn('Back to Work', function () { go('domain', { domain: 'work' }); }, 'sm back'), h('div', { class: 'row sp' }, h('h1', { text: 'Job search' }), btn('Open Revenue', function () { go('domain', { domain: 'work', revenue: true }); }, 'sm', { id: 'js-open-revenue' })),
+      h('p', { class: 'mut small', text: 'Your applications are the job items in your Work pipeline. Numbers only; nothing here is sent anywhere.' }),
+      stats, weekCard, funnelCard,
+      h('div', { class: 'card', id: 'js-apps' }, h('h2', null, 'Applications (' + jobs.length + ') ', lockMark(['pipeline', 'people', 'contacts'])), jobs.length ? board : h('p', { class: 'mut', id: 'js-none', text: 'No applications yet. Add one below or import a tracker CSV.' })),
+      details('js-new', 'Add an application', form, !jobs.length),
+      jobImportCard(s));
+  }
+  var JOB_FIELDS = [['role', 'Role column', /role|position|job title|title/i], ['company', 'Company column', /company|employer|org/i], ['stage', 'Stage column', /stage|status/i], ['location', 'Location type column', /location|remote|work type/i],
+    ['source', 'Source column', /source|found/i], ['appliedOn', 'Applied date column', /appl.*(date|on)|date.*appl|^applied$/i], ['followUp', 'Follow-up date column', /follow/i], ['resume', 'Resume version column', /resume|cv/i],
+    ['lostReason', 'Outcome reason column', /reason|outcome/i], ['notes', 'Notes column', /note|comment/i], ['nextStep', 'Next step column', /next/i], ['targetOte', 'Target OTE column', /target.*ote/i],
+    ['targetBase', 'Target base column', /target.*base/i], ['offerOte', 'Offer OTE column', /offer.*ote/i], ['offerBase', 'Offer base column', /offer.*base/i]];
+  function jobImpStart(parsed) {
+    var hd = parsed.headers, cfg = { fmt: 'auto', dflt: 'applied', asPrivate: false }, used = {};
+    JOB_FIELDS.forEach(function (f) { var i = hd.findIndex(function (x, k) { return !used[k] && f[2].test(x); }); cfg[f[0]] = i >= 0 ? String(i) : ''; if (i >= 0) used[i] = true; });
+    jobImp = { parsed: parsed, plan: null, cfg: cfg, values: { stage: {}, location: {}, source: {}, lostReason: {} } };
+  }
+  function jobImpOpts() {
+    var c = jobImp.cfg, map = {};
+    JOB_FIELDS.forEach(function (f) { map[f[0]] = c[f[0]] === '' || c[f[0]] === undefined ? undefined : Number(c[f[0]]); });
+    return { map: map, dateFormat: c.fmt, defaultStage: c.dflt, values: jobImp.values, asPrivate: !!c.asPrivate && L.priv.isOpen() };
+  }
+  function jobImpRun() { return act(function () { return L.jobs.planImport(jobImp.parsed, jobImpOpts(), st(), today()).then(function (pl) { jobImp.plan = pl; render(); }); }); }
+  function jobImportCard(s) {
+    var J = L.jobs;
+    var card = h('div', { class: 'card', id: 'jobimp-card' }, h('h2', { text: 'Import a tracker CSV' }),
+      h('p', { class: 'mut small', text: 'Map the columns, preview, then confirm. Nothing is saved until you confirm, importing the same file again adds nothing, and values LifeOS does not know are listed for you to map, never created.' }));
+    if (jobImpDone) card.appendChild(h('p', { class: 'small', id: 'jobimp-done', text: jobImpDone }));
+    var pm = L.priv.isOpen() ? [] : L.priv.marks(mainState());
+    if (pm.indexOf('pipeline') >= 0) {
+      card.appendChild(h('p', { class: 'small', id: 'jobimp-locked' }, lockIcon('Some private items are hidden', 'lockmark'), ' Open the private vault to import applications. Rows already imported may be private, and they can only be recognised while it is open.'));
+      return card;
+    }
+    var fileIn = h('input', { type: 'file', id: 'jobimp-file', accept: '.csv,text/csv' });
+    fileIn.addEventListener('change', function () {
+      var f = fileIn.files && fileIn.files[0];
+      if (!f) return;
+      act(function () { return readFile(f).then(function (text) { if (!L.store.isUnlocked()) return; jobImpStart(L.csv.parse(text)); jobImpDone = null; render(); }); });
+    });
+    card.appendChild(field('CSV file (5 MB max)', fileIn));
+    if (!jobImp) return card;
+    var c = jobImp.cfg, hd = jobImp.parsed.headers;
+    var opts = [{ v: '', t: '(none)' }].concat(hd.map(function (x, i) { return { v: String(i), t: x || ('Column ' + (i + 1)) }; }));
+    card.appendChild(h('p', { class: 'mut small', id: 'jobimp-size', text: hd.length + ' columns, ' + jobImp.parsed.rows.length + ' rows. A company or a role column is required.' }));
+    JOB_FIELDS.forEach(function (f) { card.appendChild(field(f[1] + ' (optional)', sel('jobimp-' + f[0], opts, c[f[0]], function (e) { c[f[0]] = e.target.value; jobImp.plan = null; render(); }))); });
+    card.appendChild(field('Date format', sel('jobimp-datefmt', [{ v: 'auto', t: 'YYYY-MM-DD or MM/DD/YYYY' }, { v: 'dmy', t: 'DD/MM/YYYY (or YYYY-MM-DD)' }], c.fmt, function (e) { c.fmt = e.target.value; jobImp.plan = null; })));
+    if (c.stage === '') card.appendChild(field('Stage for every row (no stage column)', sel('jobimp-default', L.metrics.STAGES.map(function (k) { return { v: k, t: STAGE_LABEL[k] }; }), c.dflt, function (e) { c.dflt = e.target.value; jobImp.plan = null; })));
+    if (L.priv.isOpen()) card.appendChild(h('label', { class: 'field check' }, h('input', { type: 'checkbox', id: 'jobimp-private', checked: !!c.asPrivate, onchange: function (e) { c.asPrivate = !!e.target.checked; jobImp.plan = null; render(); } }), h('span', { text: 'Import as private' })));
+    card.appendChild(h('div', { class: 'row' }, btn('Preview', function () { jobImpRun(); }, 'pri', { id: 'jobimp-preview' }), btn('Cancel', function () { jobImp = null; render(); }, null, { id: 'jobimp-cancel' })));
+    var pl = jobImp.plan;
+    if (!pl) return card;
+    var body = h('div', { id: 'jobimp-result' }, h('p', { id: 'jobimp-summary', text: pl.add.length + ' to add, ' + pl.rejected.length + ' rejected, ' + pl.duplicates + ' already imported.' }),
+      h('p', { class: 'small', id: 'jobimp-stages', text: 'By stage: ' + (J.STAGES.filter(function (k) { return pl.byStage[k]; }).map(function (k) { return STAGE_LABEL[k] + ' ' + pl.byStage[k]; }).join(', ') || 'none') + '.' }));
+    var targets = { stage: J.STAGES.map(function (k) { return { v: k, t: STAGE_LABEL[k] }; }), location: J.LOCATIONS.map(function (x) { return { v: x, t: LOC_LABEL[x] }; }), source: J.SOURCES.map(function (x) { return { v: x, t: SRC_LABEL[x] }; }), lostReason: J.REASONS.map(function (x) { return { v: x, t: REASON_LABEL[x] }; }) };
+    var what = { stage: 'Stage', location: 'Location type', source: 'Source', lostReason: 'Outcome reason' };
+    ['stage', 'location', 'source', 'lostReason'].forEach(function (k) {
+      if (!pl.unknown[k].length) return;
+      body.appendChild(h('p', { class: 'small', id: 'jobimp-unknown-' + k, text: what[k] + ' values LifeOS does not know. ' + (k === 'stage' ? 'Rows with an unmapped stage are rejected.' : 'The field stays empty unless you map the value.') }));
+      pl.unknown[k].forEach(function (v, i) {
+        var key = String(v).replace(/\s+/g, ' ').trim().toLowerCase().replace(/[_-]/g, ' ');
+        var pick = sel('jobimp-map-' + k + '-' + i, [{ v: '', t: '(leave unmapped)' }].concat(targets[k]), jobImp.values[k][key] || '', function (e) { if (e.target.value) jobImp.values[k][key] = e.target.value; else delete jobImp.values[k][key]; jobImpRun(); });
+        pick.setAttribute('aria-label', what[k] + ' for "' + v + '"');
+        body.appendChild(h('div', { class: 'row' }, h('span', { class: 'small', text: '"' + v + '" is' }), pick));
+      });
+    });
+    if (pl.rejected.length) body.appendChild(h('div', { id: 'jobimp-rejected' }, h('p', { class: 'small', text: 'Rejected rows' }),
+      h('ul', null, pl.rejected.slice(0, 25).map(function (r) { return h('li', { class: 'small', text: 'Row ' + r.row + ': ' + r.reason }); })), pl.rejected.length > 25 ? h('p', { class: 'mut small', text: 'And ' + (pl.rejected.length - 25) + ' more.' }) : null));
+    if (!pl.add.length && pl.duplicates) body.appendChild(h('p', { class: 'small', id: 'jobimp-nothing', text: 'Nothing new to import: every valid row was already imported.' }));
+    body.appendChild(btn(pl.add.length ? 'Import ' + pl.add.length + (pl.add.length === 1 ? ' row' : ' rows') : 'Nothing to import', function () {
+      act(function () {
+        var res, fn = function (x) { res = J.applyImport(x, pl); addAudit(x, 'job import'); };
+        var done = pl.asPrivate ? L.priv.write(fn, { newPrivate: true }) : commit(fn);
+        return done.then(function () { jobImp = null; jobImpDone = 'Imported ' + res.added + (res.added === 1 ? ' application.' : ' applications.'); setNotice('ok', 'Imported ' + res.added + (res.added === 1 ? ' application.' : ' applications.')); render(); });
+      });
+    }, 'pri', { id: 'jobimp-confirm', disabled: !pl.add.length }));
+    card.appendChild(body);
+    return card;
+  }
+  // Weekly review: follow-ups due this week or overdue, and the week's job numbers. One tap records a follow-up; nothing changes otherwise.
+  function reviewJobsCard(s, wk, t) {
+    var J = L.jobs;
+    if (!J.hasData(s)) return null;
+    var r = J.reviewWeek(s, wk, t), w = r.weekly;
+    return h('div', { id: 'rv-jobs' }, h('h2', { text: 'Job search follow-ups' }),
+      h('div', { class: 'card' },
+        h('p', { class: 'small', id: 'rv-job-stats', text: 'This week: ' + w.applications + (w.applications === 1 ? ' application' : ' applications') + ', ' + w.followUpsDone + (w.followUpsDone === 1 ? ' follow-up' : ' follow-ups') + ' done, ' + w.outreach + (w.outreach === 1 ? ' contact' : ' contacts') + ' logged.' }),
+        h('p', { class: 'small', id: 'rv-job-due-h', text: 'Follow-ups due by the end of this week (' + r.due.length + ')' }),
+        r.due.length ? h('p', { class: 'mut small', text: 'Nothing changes until you tap it.' }) : null,
+        r.due.map(function (x) {
+          return h('div', { class: 'item rv-job-row', 'data-title': x.title }, h('div', null, h('span', { class: 'entry-t', text: x.title }), h('span', { class: 'mut small', text: ' ' + x.date + (x.overdue ? ' (overdue)' : '') })),
+            btn('Followed up', function () { actDo({ run: function (y) { J.markFollowedUp(y, x.id, t); }, audit: 'job followed up' }, 'Follow-up recorded.'); }, 'sm rv-job-done', { 'aria-label': 'Mark the follow-up for ' + x.title + ' done' }));
+        }),
+        btn('Open Job search', function () { go('domain', { domain: 'work', jobs: true }); }, 'sm', { id: 'rv-job-open' })));
+  }
+
+  // ---------- search across all areas (v1.6.0 B18) ----------
+  // The query text lives in this variable and in the input only. It is cleared on lock and when the private vault closes. Typing never
+  // touches the history or the address; only tapping a result goes to a view.
+  var searchQ = '';
+  function focusRecord(label) {
+    var main = document.querySelector('main.main');
+    if (!main || !label) return;
+    var els = main.querySelectorAll('.item, .pitem, .entry, .card, tr, li'), hit = null;
+    for (var i = 0; i < els.length && !hit; i++) if (els[i].textContent.indexOf(label) >= 0 && !els[i].querySelector('.item, .pitem, tr, li')) hit = els[i];
+    if (!hit) return;
+    for (var p = hit.parentElement; p && p !== main; p = p.parentElement) if (p.tagName === 'DETAILS') p.open = true;
+    Array.prototype.forEach.call(main.querySelectorAll('.search-hit'), function (n) { n.classList.remove('search-hit'); });
+    hit.classList.add('search-hit'); hit.setAttribute('tabindex', '-1');
+    if (hit.scrollIntoView) hit.scrollIntoView({ block: 'center' });
+  }
+  function searchBox(idp, onPick) {
+    var out = h('div', { class: 'searchres', id: idp + '-results', role: 'region', 'aria-label': 'Search results', 'aria-live': 'polite' });
+    var inp = h('input', { type: 'search', id: idp + '-q', class: 'searchq', maxlength: '100', placeholder: 'Search everything', 'aria-label': 'Search everything', value: searchQ });
+    function run() {
+      searchQ = inp.value;
+      out.replaceChildren();
+      if (!searchQ.trim()) return;
+      var r = L.search.query(searchQ);
+      if (!r.total) { out.appendChild(h('p', { class: 'mut small', id: idp + '-none', text: 'Nothing found.' })); return; }
+      out.appendChild(h('p', { class: 'mut small', id: idp + '-count', text: r.total + (r.total === 1 ? ' match' : ' matches') + (r.truncated ? ', the first of each area shown' : '') }));
+      r.groups.forEach(function (g) {
+        out.appendChild(h('h3', { class: 'search-area', 'data-area': g.area, text: g.label + ' (' + g.count + ')' }));
+        g.items.forEach(function (x) {
+          out.appendChild(h('button', { type: 'button', class: 'btn sm searchhit', 'data-area': g.area, 'data-label': x.label, 'aria-label': g.label + ': ' + x.label, onclick: function () { if (onPick) onPick(); searchQ = ''; goKey(g.key); focusRecord(x.label); } },
+            x.priv ? lockIcon('Private item', 'lockmark privbadge') : null, h('span', { text: ' ' + x.label + (x.match ? ' - ' + x.match : '') })));
+        });
+      });
+    }
+    inp.addEventListener('input', run);
+    if (searchQ) run();
+    return h('div', { class: 'searchbox' }, inp, out);
   }
 
   // ---------- health (v0.5.0) ----------
@@ -3121,7 +3375,7 @@
     var g = L.activities.glance(s, t), now = g.today.concat(g.week), srcs = {};
     now.concat(g.later).forEach(function (x) { srcs[x.source] = true; });
     var many = Object.keys(srcs).length > 1;
-    var kids = [h('h2', null, 'At a glance ', lockMark(['activities', 'people', 'entries'])),
+    var kids = [h('h2', null, 'At a glance ', lockMark(['activities', 'people', 'entries', 'pipeline'])),
       h('p', { class: 'mut small', id: id + '-sum', text: g.count ? g.count + (g.count === 1 ? ' item' : ' items') + ' in the next 30 days.' : 'Nothing planned in the next 30 days.' })];
     if (g.today.length) kids.push(h('h3', { text: 'Today' }), g.today.map(function (x) { return glanceItem(s, x, many); }));
     if (g.week.length) kids.push(h('h3', { text: 'This week' }), g.week.map(function (x) { return glanceItem(s, x, many); }));
