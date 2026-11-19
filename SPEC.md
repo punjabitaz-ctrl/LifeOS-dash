@@ -490,3 +490,17 @@ Source: docs/review/product-ops.md items B11, B12, B13, B17. The owner said "con
 
 ### Privacy
 - No new free text reaches prompts; leak smoke covers reason categories, muted kinds, target proposals and the calendar file in both label modes.
+
+## v1.6.0 addendum: Job search tab and search across everything (19 Nov 2026)
+Source: docs/review/product-ops.md B14 and B18, with the job search scope the owner approved on 17 Nov 2026 ("the Work pipeline's job items with stages, contacts from Social and follow-up dates"). Schema 18 with tested migrations from 1 to 17 and downgrade guards. Also fix the root cause of the test/smoke-home-admin.mjs flake (about 1 run in 3), never by loosening its checks.
+
+### B14 Command center: Job search tab
+- Built on existing data: pipeline items of kind `job` are the applications. They gain optional fields: role title, company (an org name, already present), location type (remote, hybrid, on site), compensation target and offer in integer cents (OTE and base as separate optional numbers), source (referral, recruiter, job board, direct, network), applied date, resume version label (free text, 60 characters, for matching against the separate Resume Engine app; no integration), next follow-up date, and outcome reason when lost (fixed list: no response, rejected, withdrew, role closed, other).
+- Stages stay the existing pipeline stages. The tab shows a board on desktop and a stage-grouped list on phones, one-tap stage moves, and a weekly view with outreach and follow-ups done, applications submitted, people contacted (from Social contacts linked to job items) and source of each lead, matching the weekly view the owner asked for in the Resume Engine plan.
+- People link to job items through the existing pipeline links (v0.10.0); the item shows each person's last contact and offers "log contact" in one tap. Follow-ups due appear in the weekly review and at a glance (as a new provider) and in the calendar file (generic label "LifeOS: follow-up due" by default).
+- Funnel numbers: count per stage now and per month, response rate (contacted or later divided by applied), interview rate, offer rate; "no data" where a denominator is zero. Numbers only, no advice wording.
+- The digest gains numbers only: applications this week, follow-ups due, interviews scheduled, offers. Company names, role titles, people, compensation and notes never reach prompts, digest, insights, audit, errors or URL. Compensation is excluded from the AI entirely. Private-vault rules apply to job items and their links.
+- CSV import for job items reusing the ledger import pattern (mapping, preview, importKey dedupe, unknown values offered not created), so the owner's existing tracker spreadsheets can be brought in.
+
+### B18 Search across all areas
+- One search box (in the More sheet and the desktop header) over titles, names, notes and facts in every collection of the main state; private-vault records only while the vault is open, and Wellbeing notes only while open. Plain case- and accent-insensitive substring matching, never a RegExp from user input. Results grouped by area, each one tap to the record. Fast at the caps (index built in memory on unlock, dropped on lock and on private-vault close, never persisted, never sent anywhere). Typing in search never writes to history or the URL.
