@@ -1,6 +1,6 @@
 # LifeOS
 
-Version <!--version-->1.6.0<!--/version--> (set by package.json; `node build.mjs` writes it here).
+Version <!--version-->1.7.0<!--/version--> (set by package.json; `node build.mjs` writes it here).
 
 LifeOS (Living Independent and Free Everyday Operating System) is a single-file, offline, local-first life dashboard. It tracks eleven areas (money, assets, work, health and more) plus business records and tax estimates, keeps a private vault with its own passphrase (Wellbeing lives there), builds weekly reviews, and keeps a memory of insights you approve. Vanilla JS, no dependencies.
 
@@ -72,6 +72,10 @@ Build, then open `dist/lifeos.html` in a browser (double-click works, it needs n
 - Important dates (label and name only) appear in the dashboard "At a glance" card; Feb 29 shows on Feb 28 in other years. Pipeline items and projects show linked people and their last contact; unlinking never deletes either side.
 - The weekly review gains a Social step (offers only); Goals gain people overdue and contacts per week. The AI and digest see counts only, with groups numbered by position.
 - Vault schema 9, migrated from schema 1 to 8 with no data loss: each distinct name in old contact entries becomes a person with those entries as the log; an entry that cannot map stays a visible entry. Contact entries added later (for example by CSV import) are offered for conversion, once. `node test/smoke-social.mjs` runs the flow. Audited: names, group names, labels, facts, channels and notes never leave the vault. See the v0.10.0 audit in docs/SECURITY.md.
+
+## v1.7.0: AYiN and clients, Podcasts, Websites
+
+- Three tabs: AYiN and clients (beside Business; roll-up, clients, invoices per client, contact log and flags), Podcasts (shows, episodes in video, audio and text, guests, numbers typed per platform, cadence) and Websites (domains, hosts, renewals in Admin, monthly traffic typed by hand). Money is in integer cents, measures are never summed together, and a month with nothing typed reads "no data". Any of these records can be private; a show moves with its episodes and numbers. Names, titles, domains, notes and per-client money never reach the AI, the digest, at a glance, the weekly review or the calendar file (counts and generic labels only). Decisions are in SPEC.md, "Amendment (v1.7.0 build)" and "Amendment (v1.7.0 audit)" (each site renewal gets its own numbered generic title, such as "Domain renewal 2"); the audit is in docs/SECURITY.md, "v1.7.0 audit".
 
 ## v1.6.0: Job search and search across everything
 

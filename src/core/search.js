@@ -16,18 +16,19 @@
   const AREAS = Object.freeze({
     money: ['Money', 'v:money'], assets: ['Assets', 'v:assets'], work: ['Work', 'v:work'], jobs: ['Job search', 'v:jobs'], health: ['Health', 'v:health'], goals: ['Goals', 'v:goals'],
     home: ['Home and property', 'v:home'], admin: ['Admin', 'v:admin'], learning: ['Learning', 'v:learning'], activities: ['Activities', 'v:activities'], social: ['Social', 'v:social'],
-    business: ['Business', 'business'], wellbeing: ['Wellbeing', 'v:wellbeing'],
+    business: ['Business', 'business'], clients: ['AYiN and clients', 'clients'], podcasts: ['Podcasts', 'podcasts'], websites: ['Websites', 'websites'], wellbeing: ['Wellbeing', 'v:wellbeing'],
   });
   const ORDER = Object.keys(AREAS);
   const COLL_AREA = {
     accounts: 'assets', recurring: 'money', budgets: 'money', projects: 'work', pipeline: 'work', goals: 'goals', maintenance: 'home', vehicles: 'home', properties: 'home', renewals: 'admin',
     documents: 'admin', taxItems: 'admin', learningItems: 'learning', studySessions: 'learning', takeaways: 'learning', activities: 'activities', people: 'social', groups: 'social', contacts: 'social',
     habits: 'health', invoices: 'business', trips: 'business', payees: 'business', taxPayments: 'business',
+    clients: 'clients', shows: 'podcasts', episodes: 'podcasts', sites: 'websites',
   };
   const ENTRY_AREA = { money: 'money', assets: 'assets', work: 'work', health: 'health', goals: 'goals', home: 'home', admin: 'admin', learning: 'learning', activities: 'activities', social: 'social', wellbeing: 'wellbeing' };
   // Fields that hold a fixed list value, an id, a key or a date are not typed text: they are left out of the index.
-  const SKIP = new Set(['id', 'importKey', 'createdAt', 'updatedAt', 'kind', 'type', 'state', 'status', 'stage', 'cadence', 'channel', 'scope', 'unit', 'locationType', 'lostReason', 'domain', 'monthDay', 'repeat', 'severity']);
-  const LABELS = ['title', 'name', 'text', 'label', 'role', 'org', 'category', 'number', 'nextAction', 'provider', 'notes'];
+  const SKIP = new Set(['id', 'importKey', 'createdAt', 'updatedAt', 'kind', 'type', 'state', 'status', 'stage', 'cadence', 'channel', 'scope', 'unit', 'locationType', 'lostReason', 'domain', 'monthDay', 'repeat', 'severity', 'format', 'measure']);
+  const LABELS = ['title', 'name', 'hostname', 'text', 'label', 'role', 'org', 'category', 'number', 'nextAction', 'provider', 'notes'];
   const DATEISH = /^\d{4}-\d{2}(-\d{2})?(T[\d:.]+Z?)?$/;
   let index = null;
 

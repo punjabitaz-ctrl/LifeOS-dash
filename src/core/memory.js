@@ -136,6 +136,9 @@
       // v1.6.0 job search: four numbers only. No company, role, person, source, note or compensation ever leaves the vault.
       const jb = dg.jobs;
       if (jb && (jb.applied || jb.followUpsDue || jb.interviews || jb.offers)) lines.push('- job search detail (numbers only): applications this week ' + jb.applied + ', follow-ups due ' + jb.followUpsDue + ', interviews ' + jb.interviews + ', offers ' + jb.offers);
+      // v1.7.0 clients, shows and sites: three numbers only. No client, person, show, episode, platform, domain, note or per-client money ever leaves the vault.
+      const md = dg.media;
+      if (md && (md.clientsOverdue || md.episodesThisMonth || md.sitesRenewing)) lines.push('- clients and media detail (numbers only): clients with an overdue invoice ' + md.clientsOverdue + ', episodes published this month ' + md.episodesThisMonth + ', sites with a renewal in the next 30 days ' + md.sitesRenewing);
       const hh = dg.health;
       // Body metrics (weight change) stay in the vault: they are never sent to a provider.
       if (hh) lines.push('- health detail: sessions ' + hh.sessions + ', minutes ' + hh.minutes + ', average sleep ' + hh.avgSleep + ' hours, daily checks completed ' + hh.habitRate + '%');

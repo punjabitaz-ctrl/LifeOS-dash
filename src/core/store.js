@@ -2,7 +2,7 @@
   'use strict';
   const L = (globalThis.LifeOS = globalThis.LifeOS || {});
   const KEY = 'envelope';
-  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 18, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
+  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 19, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
   const HABIT_CAP = 8, HABIT_LOG_CAP = 100000, KIND_CAP = 30;
   const RENEWAL_TOTAL_CAP = 2000;
   const ENTRY_CAP = 50000, INSIGHT_CAP = 5000, REVIEW_CAP = 1000, LESSON_CAP = 30, AUDIT_CAP = 200;
@@ -129,6 +129,8 @@
       ...L.ops.cleanSettings(s, schema),
       // v1.4.0: the setup checklist. A vault from before schema 16 counts as set up (no checklist); a new vault starts with it shown.
       setup: cleanSetup(s.setup, schema),
+      // v1.7.0: days without contact before an active client is flagged.
+      clients: schema >= 19 ? L.clients.cleanSettings(s.clients) : L.clients.cleanSettings(undefined),
     };
   }
   function cleanSetup(x, schema) {
@@ -390,6 +392,11 @@
         if (x.tax.gapCents !== undefined) o.tax.gapCents = num(x.tax.gapCents, -Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, 'digest tax', true);
       }
       out.business = o;
+    }
+    if (d.media !== undefined) {
+      if (!isObj(d.media)) fail('digest media');
+      out.media = {};
+      for (const k of ['clientsOverdue', 'episodesThisMonth', 'sitesRenewing']) out.media[k] = num(d.media[k], 0, 1e9, 'digest media', true);
     }
     for (const k of ['home', 'admin']) {
       if (d[k] === undefined) continue;
@@ -677,7 +684,7 @@
   function validateStateRaw(o, opts) {
     if (!isObj(o)) fail('state must be an object');
     scan(o, 0, { n: 4e6 });
-    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, SCHEMA].includes(o.schema)) fail('unsupported schema');
+    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, SCHEMA].includes(o.schema)) fail('unsupported schema');
     if (!L.metrics) fail('metrics module missing');
     const settings = cleanSettings(o.settings, o.schema), entries = cleanEntries(o.entries);
     const out = { schema: SCHEMA, settings, entries };
@@ -779,6 +786,21 @@
       }
       for (const t of out.trips) if (t.projectId !== undefined && !pids.has(t.projectId)) delete t.projectId;
     }
+    // Schema 19 adds clients (and an optional client link on invoices), shows, episodes, platform numbers, sites and site traffic.
+    // Older formats get empty collections. Links to records that no longer exist are dropped; nothing else is.
+    {
+      const nineteen = o.schema >= 19, Cl = L.clients, Md = L.media;
+      out.clients = nineteen ? Cl.cleanClients(o.clients, { projects: out.projects, people: out.people }) : [];
+      const rawShows = nineteen && Array.isArray(o.shows) ? o.shows.filter((x) => isObj(x) && typeof x.id === 'string').map((x) => ({ id: x.id })) : [];
+      out.sites = nineteen ? Md.cleanSites(o.sites, { projects: out.projects, renewals: out.renewals, shows: rawShows }) : [];
+      out.shows = nineteen ? Md.cleanShows(o.shows, { projects: out.projects, sites: out.sites }) : [];
+      out.episodes = nineteen ? Md.cleanEpisodes(o.episodes, { shows: out.shows, people: out.people }) : [];
+      out.platformStats = nineteen ? Md.cleanStats(o.platformStats, { shows: out.shows, episodes: out.episodes }) : [];
+      out.siteTraffic = nineteen ? Md.cleanTraffic(o.siteTraffic, { sites: out.sites }) : [];
+      const showIds = new Set(out.shows.map((x) => x.id)), clientIds = new Set(out.clients.map((x) => x.id));
+      for (const x of out.sites) if (x.showId !== undefined && !showIds.has(x.showId)) delete x.showId;
+      for (const i of out.invoices) if (i.clientId !== undefined && (!nineteen || !clientIds.has(i.clientId))) delete i.clientId;
+    }
     // Schema 14 adds the archive index and the yearly summaries (numbers only). Older formats have neither.
     out.archives = o.schema >= 14 ? L.archive.cleanArchives(o.archives) : [];
     out.summaries = o.schema >= 14 ? L.archive.cleanSummaries(o.summaries, out.archives) : {};
@@ -861,6 +883,13 @@
       const JOB = ['role', 'locationType', 'targetOteCents', 'targetBaseCents', 'offerOteCents', 'offerBaseCents', 'appliedOn', 'resume', 'followUp', 'followedUpOn', 'lostReason', 'importKey'];
       if ((cur.pipeline || []).some((x) => JOB.some((k) => x[k] !== undefined))) out.push('job search details');
     }
+    if (src < 19) {
+      // v1.7.0: clients, shows, episodes, platform numbers, sites and site traffic, the client link on invoices, the contact reminder days.
+      for (const [k, n] of [['clients', 'clients'], ['shows', 'shows'], ['episodes', 'episodes'], ['platformStats', 'platform numbers'], ['sites', 'sites'], ['siteTraffic', 'site traffic months']]) if ((cur[k] || []).length) out.push(n);
+      if ((cur.invoices || []).some((i) => i.clientId !== undefined)) out.push('client links on invoices');
+      const cs = cur.settings && cur.settings.clients;
+      if (cs && cs.contactDays !== L.clients.DEFAULT_CONTACT_DAYS) out.push('client contact reminder days');
+    }
     if (src < 4) {
       if (cur.cycle) out.push('training cycle');
       if ((cur.habits || []).length) out.push('daily checks');
@@ -873,7 +902,7 @@
   const dropsWork = (cur, next) => droppedData(cur, next).length > 0;
   const andList = (l) => (l.length > 1 ? l.slice(0, -1).join(', ') + ' and ' + l[l.length - 1] : l.join(''));
   // Plain-language list for warnings, with counts: "3 projects and 4 pipeline items". Names only, never values.
-  const COUNTED = { properties: 'properties', vehicles: 'vehicles', 'maintenance items': 'maintenance', renewals: 'renewals', documents: 'documents', 'tax items': 'taxItems', 'learning items': 'learningItems', 'study sessions': 'studySessions', takeaways: 'takeaways', activities: 'activities', 'social groups': 'groups', people: 'people', 'logged contacts': 'contacts', invoices: 'invoices', 'mileage trips': 'trips', payees: 'payees', 'estimated tax payments': 'taxPayments' };
+  const COUNTED = { properties: 'properties', vehicles: 'vehicles', 'maintenance items': 'maintenance', renewals: 'renewals', documents: 'documents', 'tax items': 'taxItems', 'learning items': 'learningItems', 'study sessions': 'studySessions', takeaways: 'takeaways', activities: 'activities', 'social groups': 'groups', people: 'people', 'logged contacts': 'contacts', invoices: 'invoices', 'mileage trips': 'trips', payees: 'payees', 'estimated tax payments': 'taxPayments', clients: 'clients', shows: 'shows', episodes: 'episodes', 'platform numbers': 'platformStats', sites: 'sites', 'site traffic months': 'siteTraffic' };
   function lossText(cur, next, list) {
     return andList((list || droppedData(cur, next)).map((n) => (n === 'projects' ? cur.projects.length + ' projects' : n === 'pipeline items' ? cur.pipeline.length + ' pipeline items' : n === 'daily checks' ? cur.habits.length + ' daily checks' : n === 'goals' ? cur.goals.length + ' goals' : COUNTED[n] ? cur[COUNTED[n]].length + ' ' + n : 'your ' + n)));
   }
@@ -900,6 +929,7 @@
         archiveSuggestMB: 40,
         backupReminderDays: 7, syncReminder: false,
         setup: { dismissed: false, targetsSaved: false },
+        clients: { contactDays: 30 },
       },
       entries: [],
       accounts: [], recurring: [], budgets: [], categories: defaultCategories(),
@@ -909,6 +939,7 @@
       activities: [], activityCategories: L.activities.DEFAULT_CATEGORIES.slice(),
       groups: [], people: [], contacts: [],
       payees: [], invoices: [], trips: [], taxPayments: [], taxYears: {}, homeOffice: {}, taxMap: [],
+      clients: [], shows: [], episodes: [], platformStats: [], sites: [], siteTraffic: [],
       archives: [], summaries: {}, ops: L.ops.defaultOps(),
       cycle: null, kinds: L.metrics.DEFAULT_KINDS.slice(), habits: [], habitLog: [],
       memory: { insights: [], lessons: [], reviews: [], lastReviewAt: '', mutes: [], startedOn: localToday() },

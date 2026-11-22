@@ -157,6 +157,7 @@
       nums.add(nk);
       const o = { id, number };
       if (x.projectId !== undefined && x.projectId !== null && x.projectId !== '') o.projectId = V().str(x.projectId, 100, 'invoice line of work');
+      if (x.clientId !== undefined && x.clientId !== null && x.clientId !== '') o.clientId = V().str(x.clientId, 100, 'invoice client');
       o.issueDate = reqDate(x.issueDate, 'issue date'); o.dueDate = reqDate(x.dueDate, 'due date');
       if (o.dueDate < o.issueDate) V().fail('due date is before the issue date');
       if (!Array.isArray(x.lines)) V().fail('invoice lines must be a list');

@@ -205,6 +205,8 @@
     if (src.reviewedOn) o.reviewedOn = src.reviewedOn;
     const clean = cleanRenewals([o])[0];
     state.renewals.push(clean);
+    // SEC-118: a site (v1.7.0 Websites) linked to the renewal just completed follows the chain to the new one.
+    for (const s of list(state, 'sites')) { if (s.domainRenewalId === fromId) s.domainRenewalId = clean.id; if (s.hostingRenewalId === fromId) s.hostingRenewalId = clean.id; }
     return clean;
   }
   function stopRenewing(state, id) { const r = find(state, id); r.cadence = 'once'; delete r.everyDays; return r; }

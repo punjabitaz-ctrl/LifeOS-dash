@@ -231,7 +231,7 @@
   function areaOf() {
     if (!L.store.isUnlocked() || view.name === 'lock') return 'lock';
     if (view.name === 'domain') return L.ops.AREAS.indexOf(view.domain) >= 0 ? view.domain : 'app';
-    var a = { dashboard: 'dashboard', review: 'review', memory: 'memory', settings: 'settings', private: 'private', archive: 'archive', business: 'business', print: 'business' }[view.name];
+    var a = { dashboard: 'dashboard', review: 'review', memory: 'memory', settings: 'settings', private: 'private', archive: 'archive', business: 'business', print: 'business', clients: 'business', podcasts: 'business', websites: 'business' }[view.name];
     return a || 'app';
   }
   function show(name, extra) {
@@ -371,6 +371,9 @@
         : view.name === 'private' ? privScreen(s)
         : view.name === 'archive' && L.archiveUI ? L.archiveUI.screen(archCtx())
         : view.name === 'business' ? businessScreen(s)
+        : view.name === 'clients' ? clientsScreen(s)
+        : view.name === 'podcasts' ? podcastsScreen(s)
+        : view.name === 'websites' ? websitesScreen(s)
         : view.name === 'print' ? printScreen(s)
         : dashScreen(s);
     } catch (e) { L.ops.record('RENDER_ERROR'); body = h('p', { text: friendly(e) }); }
@@ -400,7 +403,7 @@
       return h('nav', { class: 'nav bar', 'aria-label': 'Main' }, btns);
     }
     var cur = view.name === 'domain' ? (view.domain === 'money' || view.domain === 'assets' || view.domain === 'work' || view.domain === 'health' ? view.domain : 'dashboard') : view.name;
-    return h('nav', { class: 'nav', 'aria-label': 'Main' }, [['dashboard', 'Home'], ['money', 'Money'], ['assets', 'Assets'], ['work', 'Work'], ['health', 'Health'], ['business', 'Business'], ['review', 'Review'], ['memory', 'Memory'], ['settings', 'Settings']].map(function (n) {
+    return h('nav', { class: 'nav', 'aria-label': 'Main' }, [['dashboard', 'Home'], ['money', 'Money'], ['assets', 'Assets'], ['work', 'Work'], ['health', 'Health'], ['business', 'Business'], ['clients', 'AYiN and clients'], ['review', 'Review'], ['memory', 'Memory'], ['settings', 'Settings']].map(function (n) {
       return h('button', { type: 'button', text: n[1], 'aria-current': n[0] === cur ? 'page' : null, onclick: function () { if (n[0] === 'money' || n[0] === 'assets' || n[0] === 'work' || n[0] === 'health') go('domain', { domain: n[0] }); else go(n[0]); } });
     }));
   }
@@ -445,6 +448,7 @@
     var colls = null;
     if (view.name === 'domain') { if (view.domain === 'wellbeing') return null; colls = view.jobs ? ['pipeline', 'people', 'contacts'] : DOMAIN_COLLS[view.domain]; }
     else if (view.name === 'dashboard' || view.name === 'settings' || view.name === 'memory' || view.name === 'private' || view.name === 'business' || view.name === 'print') return null;
+    else if (view.name === 'clients' || view.name === 'podcasts' || view.name === 'websites') return null; // these screens place their own lock markers
     var m = lockMark(colls === undefined ? null : colls);
     return m ? h('p', { class: 'small mut lockrow' }, m, ' Some private items are hidden.') : null;
   }
@@ -1663,6 +1667,8 @@
       h('h2', { text: '8. Revenue' }),
       reviewRevenueCard(s, wk, t),
       reviewJobsCard(s, wk, t),
+      reviewClientsCard(s, t),
+      reviewMediaCard(s, wk, t),
       reviewWellbeingStep(t),
       h('h2', { text: (L.priv.isOpen() ? '10' : '9') + '. Your three priorities' }),
       h('form', {
@@ -3375,7 +3381,7 @@
     var g = L.activities.glance(s, t), now = g.today.concat(g.week), srcs = {};
     now.concat(g.later).forEach(function (x) { srcs[x.source] = true; });
     var many = Object.keys(srcs).length > 1;
-    var kids = [h('h2', null, 'At a glance ', lockMark(['activities', 'people', 'entries', 'pipeline'])),
+    var kids = [h('h2', null, 'At a glance ', lockMark(['activities', 'people', 'entries', 'pipeline', 'clients', 'invoices', 'renewals', 'contacts'])),
       h('p', { class: 'mut small', id: id + '-sum', text: g.count ? g.count + (g.count === 1 ? ' item' : ' items') + ' in the next 30 days.' : 'Nothing planned in the next 30 days.' })];
     if (g.today.length) kids.push(h('h3', { text: 'Today' }), g.today.map(function (x) { return glanceItem(s, x, many); }));
     if (g.week.length) kids.push(h('h3', { text: 'This week' }), g.week.map(function (x) { return glanceItem(s, x, many); }));
@@ -3708,6 +3714,14 @@
       onYes: function () { var del = box.checked; return commit(function (x) { L.social.deletePerson(x, p.id, { deleteLog: del }); }, 'person delete').then(function () { view.person = null; setNotice('ok', del ? 'Person and their log deleted.' : 'Person deleted. Their log is kept.'); render(); }); }
     });
   }
+  // v1.7.0: the episodes a person is a guest on (from Podcasts), newest first. Read only.
+  function guestEpisodesCard(s, p) {
+    var eps = L.media ? L.media.episodesOfGuest(s, p.id) : [];
+    if (!eps.length) return null;
+    return h('div', { class: 'card', id: 'soc-episodes' }, h('h2', { text: 'Episodes (' + eps.length + ')' }), eps.map(function (e) {
+      return h('div', { class: 'item soc-ep', 'data-title': e.title }, h('div', null, h('span', { class: 'entry-t', text: e.title }), h('span', { class: 'mut small', text: ' ' + mxName(s.shows, e.showId) + (e.recordedOn ? ', recorded ' + e.recordedOn : '') })));
+    }));
+  }
   function personScreen(s, p) {
     var A = L.social, t = today(), r = A.roster(s, t, { ignoreSnooze: true }).filter(function (x) { return x.id === p.id; })[0];
     if (!r) { var last = A.lastContacts(s, t).get(p.id); r = { id: p.id, name: p.name, cadence: A.cadenceOf(s, p), last: last ? last.date : null, source: last ? last.source : null, never: !last, state: 'archived', daysSince: last ? L.home.dates.daysBetween(t, last.date) : null }; }
@@ -3784,7 +3798,7 @@
       projs.map(function (x) { return h('div', { class: 'item soc-proj', 'data-title': x.name }, h('div', null, h('span', { class: 'entry-t', text: x.name })), btn('Unlink', function () { actDo({ run: function (y) { A.unlinkProject(y, p.id, x.id); }, audit: 'person unlink' }, 'Unlinked. Nothing was deleted.'); }, 'sm soc-unlink-proj', { 'aria-label': 'Unlink ' + x.name })); }),
       linkPicker((s.projects || []).filter(function (x) { return !x.archived; }), p.projectIds, 'project', A.linkProject, function (x) { return x.name; }));
     return h('div', null, btn('Back to Social', function () { view.person = null; render(); }, 'sm back', { id: 'soc-back' }), h('h1', { text: p.name }), h('div', { class: 'card', id: 'soc-person' }, head, h('div', { class: 'row' }, top)),
-      editCard, logCard, datesCard, factsCard, workCard);
+      editCard, logCard, datesCard, factsCard, workCard, guestEpisodesCard(s, p));
   }
   function socialScreen(s) {
     var A = L.social;
@@ -3913,7 +3927,7 @@
   var PRIV_LABEL = { entries: 'Entries', accounts: 'Accounts', recurring: 'Recurring items', budgets: 'Budgets', projects: 'Projects', pipeline: 'Pipeline', goals: 'Goals',
     maintenance: 'Maintenance', vehicles: 'Vehicles', properties: 'Properties', renewals: 'Renewals', documents: 'Documents', taxItems: 'Tax items', learningItems: 'Learning items',
     studySessions: 'Study sessions', takeaways: 'Takeaways', activities: 'Activities', people: 'People', groups: 'Groups', contacts: 'Logged contacts', habits: 'Daily checks',
-    habitLog: 'Daily check ticks', cycle: 'Training cycle', invoices: 'Invoices', trips: 'Mileage trips', payees: 'Payees', taxPayments: 'Tax payments' };
+    habitLog: 'Daily check ticks', cycle: 'Training cycle', invoices: 'Invoices', trips: 'Mileage trips', payees: 'Payees', taxPayments: 'Tax payments', clients: 'Clients', shows: 'Shows', episodes: 'Episodes', platformStats: 'Platform numbers', sites: 'Sites', siteTraffic: 'Site traffic' };
   function privKey(c, r) { return c === 'cycle' ? 'cycle' : c === 'budgets' ? r.category : c === 'habitLog' ? r.habitId + '|' + r.date : r.id; }
   function privList(s, c) { return c === 'cycle' ? (s.cycle ? [s.cycle] : []) : (s[c] || []); }
   function privText(c, r, s) {
@@ -3928,6 +3942,10 @@
       case 'cycle': return 'Training cycle from ' + r.startDate;
       case 'invoices': return 'Invoice ' + r.number;
       case 'trips': return 'Trip ' + r.date + ', ' + r.miles + ' mi';
+      case 'sites': return r.hostname;
+      case 'platformStats': return 'Number ' + r.date + ' ' + r.measure;
+      case 'siteTraffic': return 'Traffic ' + r.month;
+      case 'episodes': return r.title;
       case 'taxPayments': return 'Tax payment ' + r.year + ' ' + r.jurisdiction + ' quarter ' + r.quarter;
       default: return r.title || r.name || r.id;
     }
@@ -4031,6 +4049,7 @@
       body: [h('p', { class: 'mut', text: dir === 'in' ? 'It disappears from every screen, total and export while the vault is closed.' : 'It becomes an ordinary item again, visible with the app unlocked.' }),
         pair ? h('p', { class: 'small', id: 'priv-pair', text: 'An activity and its Money expense, or an invoice and its income entry, always move together.' }) : null,
         c === 'habits' ? h('p', { class: 'small', text: 'Its ticks move with it.' }) : null,
+        c === 'shows' || c === 'episodes' || c === 'sites' ? h('p', { class: 'small', id: 'priv-together', text: c === 'shows' ? 'Its episodes and typed numbers always move with it.' : c === 'episodes' ? 'The numbers typed for it always move with it.' : 'Its traffic months always move with it.' }) : null,
         kids.length ? h('label', { class: 'row small' }, chk, h('span', { text: 'Also move ' + kids.length + ' linked ' + (kids.length === 1 ? 'item' : 'items') + ' (default)' })) : null],
       onYes: function () {
         return (dir === 'in' ? L.priv.moveIn : L.priv.moveOut)(c, key, { children: kids.length ? !!chk.checked : false }).then(function () { setNotice('ok', dir === 'in' ? 'Moved to the private vault.' : 'Moved out of the private vault.'); render(); });
@@ -4755,7 +4774,7 @@
     return h('div', { id: 'business' },
       btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'),
       h('div', { class: 'row sp' }, h('h1', { text: 'Business' }), lockMark(['entries', 'projects', 'invoices', 'trips', 'payees', 'taxPayments'])),
-      bzScopeBanner(s), tabs, fn(s));
+      mediaLinks(), bzScopeBanner(s), tabs, fn(s));
   }
   // The migration to schema 12 leaves every entry as it is; the owner confirms the business and personal counts once.
   function bzScopeBanner(s) {
@@ -5195,7 +5214,343 @@
   }
 
   // ---------- boot ----------
+  // ---------- AYiN and clients, Podcasts and Websites (v1.7.0) ----------
+  // Manual entry first. Every write goes through commit/actDo (so private routing applies), every text goes in with textContent, and every
+  // figure that is not known reads "no data". Numbers of different measures are never added together on any screen here.
+  var CL_STATUS = { active: 'Active', paused: 'Paused', past: 'Past' };
+  var EP_STATUS_LABEL = { idea: 'Idea', booked: 'Booked', recorded: 'Recorded', edited: 'Edited', published: 'Published' };
+  var MEASURE_LABEL = { views: 'Views', downloads: 'Downloads', listens: 'Listens', reads: 'Reads', subscribers: 'Subscribers', followers: 'Followers' };
+  var FORMAT_LABEL = { video: 'Video', audio: 'Audio', text: 'Text' };
+  var PURPOSE_LABEL = { business: 'Business', show: 'Show', personal: 'Personal', other: 'Other' };
+  function mxInp(id, v, max, type, extra) {
+    return h('input', Object.assign({ type: type || 'text', id: id, maxlength: max ? String(max) : null, value: v === undefined || v === null ? '' : String(v), autocomplete: 'off' }, extra || {}));
+  }
+  function mxNum(n) { return n === null || n === undefined ? 'no data' : String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+  function mxMoney(s, c) { return c === null || c === undefined ? 'no data' : fmtC(s, c); }
+  // SEC-119: the line already chosen stays in the list even when archived, so saving the form never drops it unasked.
+  function mxLineOpts(s, cur) { return [{ v: '', t: '(none)' }].concat((s.projects || []).filter(function (p) { return !p.archived || p.id === cur; }).map(function (p) { return { v: p.id, t: p.name + (p.archived ? ' (archived)' : '') }; })); }
+  function mxName(list, id, key) { var x = (list || []).filter(function (r) { return r.id === id; })[0]; return x ? x[key || 'name'] : ''; }
+  function mxTa(id, v, max) { var t = h('textarea', { id: id, maxlength: String(max || 2000) }); t.value = v || ''; return t; }
+  function mxAct(run, audit, ok, extra) { actDo({ run: run, audit: audit, from: extra }, ok); }
+
+  // ---- AYiN and clients ----
+  function clientFields(s, c, idp) {
+    var name = mxInp(idp + 'name', c && c.name, 200), status = sel(idp + 'status', Object.keys(CL_STATUS).map(function (k) { return { v: k, t: CL_STATUS[k] }; }), c ? c.status : 'active');
+    var line = sel(idp + 'line', mxLineOpts(s, c && c.projectId), (c && c.projectId) || ''), budget = mxInp(idp + 'budget', c && typeof c.budgetCents === 'number' ? dollarsText(c.budgetCents) : '', 20), notes = mxTa(idp + 'notes', c && c.notes);
+    return { nodes: [field('Name', name), field('Status', status), field('Line of work (optional)', line), field('Budget in dollars (optional)', budget), field('Notes (optional)', notes, 'Do not enter ID numbers, account numbers or passwords.')],
+      read: function () { return { name: name.value, status: status.value, projectId: line.value, budget: budget.value.trim(), notes: notes.value }; } };
+  }
+  function clientEditDialog(s, c) {
+    var f = clientFields(s, c, 'ce-');
+    openDialog({ title: 'Edit client', yes: 'Save', body: [h('div', { class: 'form' }, f.nodes), movePrivBtn('clients', c)],
+      onYes: function () { var input = f.read(); return commit(function (x) { L.clients.updateClient(x, c.id, input); }, 'client edit').then(function () { setNotice('ok', 'Client saved.'); render(); }); } });
+  }
+  function clientPeople(s, c, t) {
+    var kids = [], linked = {};
+    (c.personIds || []).forEach(function (pid) {
+      var p = (s.people || []).filter(function (x) { return x.id === pid; })[0];
+      if (!p) return;
+      linked[pid] = true;
+      kids.push(h('div', { class: 'row cl-person', 'data-person': p.name }, chipEl(p.name, 'cl-person-name'),
+        btn('Log contact', function () { mxAct(function (y) { L.clients.logContact(y, c.id, pid, t); }, 'client contact', 'Contact logged.'); }, 'sm pri cl-log', { 'aria-label': 'Log contact with ' + p.name }),
+        btn('Unlink', function () { mxAct(function (y) { L.clients.unlinkPerson(y, c.id, pid); }, 'client person unlink', 'Unlinked. Nothing was deleted.'); }, 'sm cl-unlink', { 'aria-label': 'Unlink ' + p.name + ' from ' + c.name })));
+    });
+    var avail = (s.people || []).filter(function (p) { return !p.archived && !linked[p.id]; });
+    if (avail.length) {
+      var pick = sel(null, avail.map(function (p) { return { v: p.id, t: p.name }; }), avail[0].id);
+      pick.setAttribute('aria-label', 'Person to link to ' + c.name);
+      kids.push(h('div', { class: 'row' }, pick, btn('Link person', function () { mxAct(function (y) { L.clients.linkPerson(y, c.id, pick.value); }, 'client person link', 'Linked.'); }, 'sm cl-link', { 'aria-label': 'Link the chosen person to ' + c.name })));
+    }
+    return h('div', { class: 'cl-people' }, kids);
+  }
+  function clientInvoices(s, c) {
+    var mine = (s.invoices || []).filter(function (i) { return i.clientId === c.id; }), free = (s.invoices || []).filter(function (i) { return !i.clientId && i.status !== 'void'; }), kids = [];
+    mine.forEach(function (i) {
+      kids.push(h('div', { class: 'row small cl-inv', 'data-number': i.number }, h('span', { text: 'Invoice ' + i.number + ', ' + i.status + ', ' + fmtC(s, L.business.invoiceTotal(i)) }),
+        btn('Unlink', function () { mxAct(function (y) { L.clients.setInvoiceClient(y, i.id, ''); }, 'client invoice unlink', 'Unlinked. The invoice is unchanged.'); }, 'sm cl-inv-unlink', { 'aria-label': 'Unlink invoice ' + i.number + ' from ' + c.name })));
+    });
+    if (free.length) {
+      var pick = sel(null, free.map(function (i) { return { v: i.id, t: 'Invoice ' + i.number + ' (' + i.status + ')' }; }), free[0].id);
+      pick.setAttribute('aria-label', 'Invoice to link to ' + c.name);
+      kids.push(h('div', { class: 'row' }, pick, btn('Link invoice', function () { mxAct(function (y) { L.clients.setInvoiceClient(y, pick.value, c.id); }, 'client invoice link', 'Invoice linked.'); }, 'sm cl-inv-link', { 'aria-label': 'Link the chosen invoice to ' + c.name })));
+    }
+    return h('div', { class: 'cl-invoices' }, kids);
+  }
+  function clientCard(s, c, t) {
+    var C = L.clients, st = C.clientStats(s, c, t), fl = C.flags(s, c, t, st), line = mxName(s.projects, c.projectId);
+    var rev = st.revenueCents === null ? 'no data' : fmtC(s, st.revenueCents) + (st.basis === 'line' ? ' (income on its line of work)' : ' (paid invoices)');
+    var bud = st.budget ? 'Budget ' + fmtC(s, st.budget.budgetCents) + ', spent ' + mxMoney(s, st.budget.actualCents) + (st.budget.remainingCents === null ? ' (choose a line of work to count spending)' : ', remaining ' + fmtC(s, st.budget.remainingCents)) : 'No budget set';
+    return h('div', ROW({ class: 'card cl-card', 'data-client': c.name, 'data-status': c.status }, 'clients', c),
+      h('div', { class: 'row sp' }, h('h3', { class: 'entry-t', text: c.name }), h('span', { class: 'row' }, chipEl(CL_STATUS[c.status], 'cl-status'), line ? chipEl(line, 'cl-line') : null,
+        fl.overdueInvoice ? chipEl('Overdue invoice', 'bad cl-flag-inv') : null, fl.noContact ? chipEl('No recent contact', 'bad cl-flag-contact') : null)),
+      h('div', { class: 'stats' }, stat('Revenue to date', rev, null), stat('Open invoices', st.openCount + ' (' + fmtC(s, st.openCents) + ')', null), stat('Overdue invoices', st.overdueCount + ' (' + fmtC(s, st.overdueCents) + ')', null, st.overdueCount ? 'bad-t' : ''),
+        stat('Last contact', st.lastContact ? st.lastContact + ' (' + st.daysSinceContact + (st.daysSinceContact === 1 ? ' day ago)' : ' days ago)') : 'no contact yet', null)),
+      h('p', { class: 'small cl-budget', text: bud }), st.partial ? h('p', { class: 'mut small', text: 'Some of this covers archived years only in part.' }) : null,
+      c.notes ? h('p', { class: 'small mut', text: c.notes }) : null,
+      clientPeople(s, c, t), clientInvoices(s, c),
+      h('div', { class: 'row' }, btn('Edit', function () { clientEditDialog(s, c); }, 'sm cl-edit', { 'aria-label': 'Edit ' + c.name }),
+        btn('Delete', function () {
+          openDialog({ title: 'Delete this client?', yes: 'Delete', danger: true, body: [h('p', { class: 'mut', text: c.name }), h('p', { class: 'small', text: 'Its invoices, people and line of work are kept; only the links to this client are removed.' })],
+            onYes: function () { return commit(function (x) { L.clients.deleteClient(x, c.id); }, 'client delete').then(function () { render(); }); } });
+        }, 'sm bad cl-del', { 'aria-label': 'Delete ' + c.name })));
+  }
+  function clientsRollupCard(s, t) {
+    var C = L.clients, r = C.rollup(s, t), y = Number(t.slice(0, 4)), tx = L.tax.compute(s, y);
+    var tbody = r.lines.map(function (l) { return { cat: l.name, cells: [l.name, fmtC(s, l.month.revenueCents), fmtC(s, l.quarter.revenueCents), fmtC(s, l.year.revenueCents)] }; });
+    var taxBlock = tx.blocked ? lockedTax() : !tx.hasProfile ? h('p', { class: 'mut small', id: 'cl-tax-none', text: 'No ' + y + ' tax profile yet. Open Business to start one.' })
+      : h('div', null, h('div', { class: 'stats' }, stat('Tax set-aside to date', tx.setAsideCents === null ? 'set your rate' : fmtC(s, tx.setAsideCents), 'cl-setaside')), taxNotice());
+    return h('div', { class: 'card', id: 'cl-rollup' }, h('h2', null, 'AYiN Advisors ', lockMark(['entries', 'projects', 'invoices'])),
+      h('p', { class: 'mut small', text: 'The business lines of work you already track. Revenue is counted income; nothing is re-entered here.' }),
+      h('div', { class: 'stats' }, stat('Revenue this month', fmtC(s, r.totals.month.revenueCents), 'cl-rev-month'), stat('Revenue this quarter', fmtC(s, r.totals.quarter.revenueCents), 'cl-rev-quarter'), stat('Revenue this year', fmtC(s, r.totals.year.revenueCents), 'cl-rev-year')),
+      h('div', { class: 'stats' }, stat('Invoices open', r.invoices.openCount + ' (' + fmtC(s, r.invoices.openCents) + ')', 'cl-inv-open'), stat('Invoices overdue', r.invoices.overdueCount + ' (' + fmtC(s, r.invoices.overdueCents) + ')', 'cl-inv-overdue', r.invoices.overdueCount ? 'bad-t' : '')),
+      r.partial ? h('p', { class: 'mut small', id: 'cl-partial', text: 'Some totals cover archived years only in part.' }) : null,
+      r.lines.length ? tbl('cl-lines', ['Line of work', 'Month', 'Quarter', 'Year'], tbody) : h('p', { class: 'mut', id: 'cl-nolines', text: 'No business lines of work yet. Add one under Work, then open Revenue.' }),
+      r.budgets.length ? [h('h3', { text: 'Budget against spending' }), tbl('cl-budgets', ['Line of work', 'Budget', 'Spent', 'Remaining'], r.budgets.map(function (b) { return { cat: b.name, cells: [b.name, fmtC(s, b.budgetCents), fmtC(s, b.actualCents), fmtC(s, b.remainingCents)] }; }))] : null,
+      h('h3', { text: 'Tax set-aside' }), taxBlock,
+      h('div', { class: 'row' }, btn('Open Revenue', function () { go('domain', { domain: 'work', revenue: true }); }, 'sm', { id: 'cl-open-revenue' }), btn('Open Business', function () { go('business'); }, 'sm', { id: 'cl-open-business' })));
+  }
+  // Entry points on desktop (the phone reaches the same screens from the More sheet).
+  function mediaLinks() {
+    return h('div', { class: 'row media-links' }, btn('AYiN and clients', function () { go('clients'); }, 'sm', { id: 'go-clients' }), btn('Podcasts', function () { go('podcasts'); }, 'sm', { id: 'go-podcasts' }), btn('Websites', function () { go('websites'); }, 'sm', { id: 'go-websites' }));
+  }
+  function clientsScreen(s) {
+    var C = L.clients, t = today(), clients = (s.clients || []).slice().sort(function (a, b) { return (a.status === 'active' ? 0 : 1) - (b.status === 'active' ? 0 : 1) || a.name.localeCompare(b.name); }), n = C.counts(s, t);
+    var days = mxInp('cl-days', C.contactDaysOf(s), 4, 'text', { inputmode: 'numeric' });
+    var daysForm = h('form', { class: 'row', onsubmit: function (e) { e.preventDefault(); actDo({ run: function (x) { C.setContactDays(x, days.value); }, audit: 'client reminder days' }, 'Saved.'); } },
+      field('Days without contact before an active client is flagged', days), h('button', { type: 'submit', class: 'btn', id: 'cl-days-save', text: 'Save days' }));
+    var f2 = clientFields(s, null, 'ca-');
+    var form = h('form', { onsubmit: function (e) { e.preventDefault(); act(function () { var input = f2.read(); return commit(function (x) { C.addClient(x, input, t); }, 'client add').then(function () { setNotice('ok', 'Client added.'); render(); }); }); } },
+      f2.nodes, h('button', { type: 'submit', class: 'btn pri', id: 'ca-add', text: 'Add client' }));
+    return h('div', { id: 'clients' }, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('div', { class: 'row sp' }, h('h1', { text: 'AYiN and clients' }), lockMark(['clients', 'people', 'contacts', 'invoices'])),
+      mediaLinks(), h('p', { class: 'mut small', text: 'Numbers come from your existing records. Client names, notes and money stay in this vault.' }),
+      clientsRollupCard(s, t),
+      h('div', { class: 'card', id: 'cl-flags' }, h('h2', null, 'Needs attention ', lockMark(['clients', 'invoices', 'people', 'contacts'])), h('div', { class: 'stats' }, stat('Clients with an overdue invoice', String(n.overdueInvoices), 'cl-n-overdue', n.overdueInvoices ? 'bad-t' : ''), stat('Clients with no recent contact', String(n.noContact), 'cl-n-contact', n.noContact ? 'bad-t' : '')), daysForm),
+      h('div', { class: 'card', id: 'cl-list' }, h('h2', null, 'Clients (' + clients.length + ') ', lockMark(['clients', 'invoices', 'entries', 'projects', 'people', 'contacts'])), clients.length ? clients.map(function (c) { return clientCard(s, c, t); }) : h('p', { class: 'mut', id: 'cl-none', text: 'No clients yet. Add one below.' })),
+      details('cl-new', 'Add a client', form, !clients.length));
+  }
+  // Weekly review: counts only, never a name or an amount. Shown once any client exists.
+  function reviewClientsCard(s, t) {
+    var C = L.clients;
+    if (!C.hasData(s)) return null;
+    var n = C.counts(s, t);
+    return h('div', { id: 'rv-clients' }, h('h2', null, 'Clients ', lockMark(['clients', 'invoices', 'people', 'contacts'])),
+      h('div', { class: 'card' }, h('p', { class: 'small', id: 'rv-cl-stats', text: 'Clients with an overdue invoice: ' + n.overdueInvoices + '. Clients with no recent contact: ' + n.noContact + '.' }),
+        btn('Open AYiN and clients', function () { go('clients'); }, 'sm', { id: 'rv-cl-open' })));
+  }
+  // ---- Podcasts ----
+  function guestPicker(s, chosen, idp) {
+    // SEC-120: the chosen guests are always listed (so saving keeps them), then up to 200 others.
+    var isIn = function (p) { return (chosen || []).indexOf(p.id) >= 0; };
+    var boxes = [], people = (s.people || []).filter(isIn).concat((s.people || []).filter(function (p) { return !p.archived && !isIn(p); }).slice(0, 200));
+    people.forEach(function (p, i) {
+      var cb = h('input', { type: 'checkbox', id: idp + 'g' + i, checked: (chosen || []).indexOf(p.id) >= 0, 'data-id': p.id });
+      boxes.push(h('label', { class: 'row small' }, cb, h('span', { text: p.name })));
+    });
+    return { node: boxes.length ? h('div', { class: 'guest-pick', role: 'group', 'aria-label': 'Guests' }, boxes) : h('p', { class: 'mut small', text: 'No people in Social yet.' }),
+      read: function () { return boxes.map(function (b) { return b.querySelector('input'); }).filter(function (i) { return i.checked; }).map(function (i) { return i.getAttribute('data-id'); }); } };
+  }
+  function showFields(s, sh, idp) {
+    var name = mxInp(idp + 'name', sh && sh.name, 200), site = sel(idp + 'site', [{ v: '', t: '(none)' }].concat((s.sites || []).map(function (x) { return { v: x.id, t: x.hostname }; })), (sh && sh.siteId) || '');
+    var line = sel(idp + 'line', mxLineOpts(s, sh && sh.projectId), (sh && sh.projectId) || ''), notes = mxTa(idp + 'notes', sh && sh.notes);
+    return { nodes: [field('Show name', name), field('Website (a site from Websites, optional)', site), field('Line of work for costs and revenue (optional)', line), field('Notes (optional)', notes)],
+      read: function () { return { name: name.value, siteId: site.value, projectId: line.value, notes: notes.value }; } };
+  }
+  function showEditDialog(s, sh) {
+    var f = showFields(s, sh, 'se-');
+    openDialog({ title: 'Edit show', yes: 'Save', body: [h('div', { class: 'form' }, f.nodes), movePrivBtn('shows', sh)],
+      onYes: function () { var input = f.read(); return commit(function (x) { L.media.updateShow(x, sh.id, input); }, 'show edit').then(function () { setNotice('ok', 'Show saved.'); render(); }); } });
+  }
+  function episodeFields(s, e, show, idp) {
+    var title = mxInp(idp + 'title', e && e.title, 200), num = mxInp(idp + 'num', e && e.number !== undefined ? e.number : '', 6, 'text', { inputmode: 'numeric' });
+    var status = sel(idp + 'status', L.media.EP_STATUS.map(function (k) { return { v: k, t: EP_STATUS_LABEL[k] }; }), e ? e.status : 'idea'), rec = mxInp(idp + 'rec', e && e.recordedOn, 0, 'date'), notes = mxTa(idp + 'notes', e && e.notes);
+    var gp = guestPicker(s, e ? e.guestIds : [], idp);
+    return { nodes: [field('Title', title), field('Episode number (optional)', num), field('Status', status), field('Record date (optional)', rec), field('Guests (from Social)', gp.node), field('Notes (optional)', notes)],
+      read: function () { return { showId: show.id, title: title.value, number: num.value.trim(), status: status.value, recordedOn: rec.value, guestIds: gp.read(), notes: notes.value }; } };
+  }
+  function episodeEditDialog(s, e, show) {
+    var f = episodeFields(s, e, show, 'ee-');
+    openDialog({ title: 'Edit episode', yes: 'Save', body: [h('div', { class: 'form' }, f.nodes), movePrivBtn('episodes', e)],
+      onYes: function () { var input = f.read(); return commit(function (x) { L.media.updateEpisode(x, e.id, input); }, 'episode edit').then(function () { setNotice('ok', 'Episode saved.'); render(); }); } });
+  }
+  function episodeCard(s, e, show) {
+    var M = L.media, guests = (e.guestIds || []).map(function (id) { return mxName(s.people, id); }).filter(Boolean), nums = M.episodeStats(s, e.id);
+    var pf = function (id) { return mxName(show.platforms, id); };
+    var rel = e.pubs.slice().sort(function (a, b) { return a.date.localeCompare(b.date); });
+    var fmt = sel(null, M.FORMATS.map(function (k) { return { v: k, t: FORMAT_LABEL[k] }; }), 'audio'), plat = sel(null, show.platforms.map(function (p) { return { v: p.id, t: p.name }; }), show.platforms.length ? show.platforms[0].id : '');
+    var dt = mxInp(null, '', 0, 'date');
+    fmt.setAttribute('aria-label', 'Format for ' + e.title); plat.setAttribute('aria-label', 'Platform for ' + e.title); dt.setAttribute('aria-label', 'Publish date for ' + e.title);
+    return h('div', ROW({ class: 'item pc-episode', 'data-title': e.title, 'data-status': e.status }, 'episodes', e),
+      h('div', null, h('span', { class: 'entry-t', text: (e.number !== undefined ? '#' + e.number + ' ' : '') + e.title }), chipEl(EP_STATUS_LABEL[e.status], 'pc-ep-status'), e.recordedOn ? h('span', { class: 'mut small', text: ' recorded ' + e.recordedOn }) : null),
+      guests.length ? h('div', { class: 'small', text: 'Guests: ' + guests.join(', ') }) : null,
+      e.notes ? h('div', { class: 'small mut', text: e.notes }) : null,
+      rel.length ? h('div', { class: 'chips pc-releases' }, rel.map(function (p) {
+        return h('span', { class: 'chip', 'data-format': p.format }, FORMAT_LABEL[p.format] + ' on ' + pf(p.platformId) + ' ' + p.date, h('button', { type: 'button', class: 'x', text: 'x', 'aria-label': 'Remove the ' + FORMAT_LABEL[p.format] + ' release on ' + pf(p.platformId) + ' for ' + e.title,
+          onclick: function () { mxAct(function (x) { M.setRelease(x, e.id, p.format, p.platformId, ''); }, 'episode release remove', 'Release date removed.'); } }));
+      })) : null,
+      nums.length ? h('div', { class: 'small pc-ep-numbers', text: 'Latest numbers: ' + nums.map(function (n) { return n.platform + ' ' + MEASURE_LABEL[n.measure].toLowerCase() + ' ' + mxNum(n.value); }).join('; ') }) : null,
+      show.platforms.length ? h('div', { class: 'row' }, fmt, plat, dt, btn('Set release date', function () { mxAct(function (x) { M.setRelease(x, e.id, fmt.value, plat.value, dt.value); }, 'episode release', 'Release date saved.'); }, 'sm pc-rel-set', { 'aria-label': 'Set the release date for ' + e.title })) : null,
+      h('div', { class: 'row' }, btn('Edit', function () { episodeEditDialog(s, e, show); }, 'sm pc-ep-edit', { 'aria-label': 'Edit ' + e.title }),
+        btn('Delete', function () {
+          openDialog({ title: 'Delete this episode?', yes: 'Delete', danger: true, body: [h('p', { class: 'mut', text: e.title }), h('p', { class: 'small', text: 'The numbers typed for this episode are deleted with it.' })],
+            onYes: function () { return commit(function (x) { M.deleteEpisode(x, e.id); }, 'episode delete').then(function () { render(); }); } });
+        }, 'sm bad pc-ep-del', { 'aria-label': 'Delete ' + e.title })));
+  }
+  function platformTables(s, sh, t) {
+    var M = L.media, sum = M.platformSummary(s, sh.id, t.slice(0, 7), 6), out = [];
+    sum.forEach(function (p, i) {
+      if (!p.rows.length) { out.push(h('p', { class: 'mut small pc-nonum', 'data-platform': p.name, text: p.name + ': no numbers typed yet.' })); return; }
+      var heads = ['Measure', 'Latest'].concat(p.rows[0].months.map(function (m) { return monthLabel(m.month); }));
+      out.push(h('h4', { text: p.name }), tbl('pn-' + sh.id.slice(0, 8) + '-' + i, heads, p.rows.map(function (r) {
+        return { cat: r.measure, cells: [MEASURE_LABEL[r.measure], mxNum(r.latest.value) + ' (' + r.latest.date + ')'].concat(r.months.map(function (m) { return mxNum(m.value); })) };
+      })));
+    });
+    return out;
+  }
+  function statForm(s, sh, t) {
+    var M = L.media, k = sh.id.slice(0, 8);
+    if (!sh.platforms.length) return h('p', { class: 'mut small', text: 'Add a platform to type numbers.' });
+    var plat = sel('sn-plat-' + k, sh.platforms.map(function (p) { return { v: p.id, t: p.name }; }), sh.platforms[0].id), me = sel('sn-measure-' + k, M.MEASURES.map(function (m) { return { v: m, t: MEASURE_LABEL[m] }; }), 'views');
+    var val = mxInp('sn-value-' + k, '', 14, 'text', { inputmode: 'numeric' }), dt = mxInp('sn-date-' + k, t, 0, 'date');
+    var eps = sel('sn-ep-' + k, [{ v: '', t: '(whole platform)' }].concat((s.episodes || []).filter(function (e) { return e.showId === sh.id; }).map(function (e) { return { v: e.id, t: e.title }; })), '');
+    return h('form', { class: 'sn-form', id: 'sn-form-' + k, onsubmit: function (e) { e.preventDefault(); act(function () {
+      var input = { showId: sh.id, platformId: plat.value, measure: me.value, value: val.value, date: dt.value, episodeId: eps.value };
+      return commit(function (x) { M.addStat(x, input, t); }, 'platform number add').then(function () { setNotice('ok', 'Number saved.'); render(); }); }); } },
+      field('Platform', plat), field('Measure', me), field('Number', val, 'Whole numbers, as shown by the platform. Typing the same date, measure and episode again replaces it.'), field('Date', dt), field('Episode (optional)', eps),
+      h('button', { type: 'submit', class: 'btn pri sn-add', text: 'Add number' }));
+  }
+  function recentStats(s, sh) {
+    var xs = (s.platformStats || []).filter(function (x) { return x.showId === sh.id; }).sort(function (a, b) { return b.date.localeCompare(a.date) || b.id.localeCompare(a.id); }).slice(0, 8);
+    if (!xs.length) return null;
+    return details('sn-recent-' + sh.id.slice(0, 8), 'Numbers you typed (newest ' + xs.length + ')', xs.map(function (x) {
+      return h('div', ROW({ class: 'item sn-row', 'data-measure': x.measure }, 'platformStats', x), h('div', null, h('span', { class: 'entry-t', text: mxName(sh.platforms, x.platformId) + ' ' + MEASURE_LABEL[x.measure].toLowerCase() + ' ' + mxNum(x.value) }), h('span', { class: 'mut small', text: ' ' + x.date })),
+        btn('Delete', function () { mxAct(function (y) { L.media.deleteStat(y, x.id); }, 'platform number delete', 'Number deleted.'); }, 'sm bad sn-del', { 'aria-label': 'Delete the number for ' + MEASURE_LABEL[x.measure].toLowerCase() + ' on ' + x.date }));
+    }), false);
+  }
+  function showCard(s, sh, t) {
+    var M = L.media, cad = M.cadence(s, sh.id, t, 6), money = M.showMoney(s, sh, t), eps = (s.episodes || []).filter(function (e) { return e.showId === sh.id; }).sort(function (a, b) { return (b.number || 0) - (a.number || 0) || b.title.localeCompare(a.title); });
+    var site = mxName(s.sites, sh.siteId, 'hostname'), line = mxName(s.projects, sh.projectId), np = mxInp('pl-new-' + sh.id.slice(0, 8), '', 60);
+    var plats = h('div', { class: 'chips pc-platforms' }, sh.platforms.map(function (p) {
+      return h('span', { class: 'chip pc-platform', 'data-platform': p.name }, p.name,
+        h('button', { type: 'button', class: 'x pc-pl-rename', text: 'r', 'aria-label': 'Rename platform ' + p.name, onclick: function () {
+          var nm = mxInp('pl-rename', p.name, 60);
+          openDialog({ title: 'Rename platform', yes: 'Save', body: field('Platform name', nm), onYes: function () { return commit(function (x) { M.renamePlatform(x, sh.id, p.id, nm.value); }, 'platform rename').then(function () { render(); }); } });
+        } }),
+        h('button', { type: 'button', class: 'x pc-pl-remove', text: 'x', 'aria-label': 'Remove platform ' + p.name, onclick: function () {
+          openDialog({ title: 'Remove this platform?', yes: 'Remove', danger: true, body: [h('p', { class: 'mut', text: p.name }), h('p', { class: 'small', text: 'The release dates and numbers typed for it are removed too.' })],
+            onYes: function () { return commit(function (x) { M.removePlatform(x, sh.id, p.id); }, 'platform remove').then(function () { render(); }); } });
+        } }));
+    }));
+    var ef = episodeFields(s, null, sh, 'ea-' + sh.id.slice(0, 8) + '-');
+    var epForm = h('form', { onsubmit: function (e) { e.preventDefault(); act(function () { var input = ef.read(); return commit(function (x) { M.addEpisode(x, input); }, 'episode add').then(function () { setNotice('ok', 'Episode added.'); render(); }); }); } },
+      ef.nodes, h('button', { type: 'submit', class: 'btn pri pc-ep-add', text: 'Add episode' }));
+    return h('div', ROW({ class: 'card pc-show', 'data-show': sh.name }, 'shows', sh),
+      h('div', { class: 'row sp' }, h('h2', { class: 'entry-t', text: sh.name }), h('span', { class: 'row' }, site ? chipEl(site, 'pc-site') : null, line ? chipEl(line, 'pc-line') : null,
+        btn('Edit', function () { showEditDialog(s, sh); }, 'sm pc-edit', { 'aria-label': 'Edit ' + sh.name }),
+        btn('Delete', function () {
+          openDialog({ title: 'Delete this show?', yes: 'Delete', danger: true, body: [h('p', { class: 'mut', text: sh.name }), h('p', { class: 'small', text: 'Its episodes and typed numbers are deleted. Its website and line of work are kept.' })],
+            onYes: function () { return commit(function (x) { M.deleteShow(x, sh.id); }, 'show delete').then(function () { render(); }); } });
+        }, 'sm bad pc-del', { 'aria-label': 'Delete ' + sh.name }))),
+      sh.notes ? h('p', { class: 'small mut', text: sh.notes }) : null,
+      h('div', { class: 'stats' }, stat('Episodes published', String(cad.published), null), stat('Days since the last episode', cad.gapDays === null ? 'no data' : String(cad.gapDays), 'pc-gap-' + sh.id.slice(0, 8))),
+      cad.published ? tbl('pc-cad-' + sh.id.slice(0, 8), ['Month', 'Episodes published'], cad.perMonth.map(function (m) { return { cat: m.month, cells: [monthLabel(m.month), m.count === null ? 'no data' : String(m.count)] }; })) : h('p', { class: 'mut small', text: 'No published episodes with a release date yet.' }),
+      h('h3', null, 'Platforms ', lockMark(['shows', 'platformStats'])), plats,
+      h('form', { class: 'row', onsubmit: function (e) { e.preventDefault(); actDo({ run: function (x) { M.addPlatform(x, sh.id, np.value); }, audit: 'platform add' }, 'Platform added.'); } }, field('Add a platform', np), h('button', { type: 'submit', class: 'btn', text: 'Add platform' })),
+      h('h3', null, 'Platform numbers ', lockMark(['platformStats', 'episodes'])), h('p', { class: 'mut small', text: 'Typed by you. A measure is never added to another measure; a month with nothing typed reads no data. Views, downloads, listens and reads add up within a month; subscribers and followers show the latest of the month.' }),
+      platformTables(s, sh, t), statForm(s, sh, t), recentStats(s, sh),
+      h('h3', null, 'Costs and revenue ', lockMark(['entries', 'projects'])),
+      money ? [h('div', { class: 'stats' }, stat('Revenue this year', fmtC(s, money.ytd.revenueCents), null), stat('Costs this year', fmtC(s, money.ytd.expenseCents), null), stat('Net this year', fmtC(s, money.ytd.netCents), null)),
+        h('div', { class: 'stats' }, stat('Revenue to date', fmtC(s, money.all.revenueCents), null), stat('Costs to date', fmtC(s, money.all.expenseCents), null), stat('Net to date', fmtC(s, money.all.netCents), null)),
+        h('p', { class: 'mut small', text: 'From the line of work ' + line + '. Costs count once paid.' }), money.partial ? h('p', { class: 'mut small', text: 'Some of this covers archived years only in part.' }) : null]
+        : h('p', { class: 'mut small', text: 'Choose a line of work for this show to see its costs and revenue.' }),
+      h('h3', { text: 'Episodes (' + eps.length + ')' }), eps.length ? eps.map(function (e) { return episodeCard(s, e, sh); }) : h('p', { class: 'mut', text: 'No episodes yet.' }),
+      details('pc-newep-' + sh.id.slice(0, 8), 'Add an episode', epForm, !eps.length));
+  }
+  function podcastsScreen(s) {
+    var M = L.media, t = today(), shows = (s.shows || []).slice().sort(function (a, b) { return a.name.localeCompare(b.name); }), f = showFields(s, null, 'sa-');
+    var form = h('form', { onsubmit: function (e) { e.preventDefault(); act(function () { var input = f.read(); return commit(function (x) { M.addShow(x, input); }, 'show add').then(function () { setNotice('ok', 'Show added with the default platforms.'); render(); }); }); } },
+      f.nodes, h('p', { class: 'mut small', text: 'A new show starts with these platforms, which you can rename, remove or add to: ' + M.DEFAULT_PLATFORMS.join(', ') + '.' }), h('button', { type: 'submit', class: 'btn pri', id: 'sa-add', text: 'Add show' }));
+    return h('div', { id: 'podcasts' }, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('div', { class: 'row sp' }, h('h1', { text: 'Podcasts' }), lockMark(['shows', 'episodes', 'platformStats', 'people'])),
+      mediaLinks(), h('p', { class: 'mut small', text: 'Shows, episodes and the numbers you type per platform. Titles, platform names and numbers stay in this vault.' }),
+      shows.length ? shows.map(function (sh) { return showCard(s, sh, t); }) : h('p', { class: 'mut', id: 'pc-none', text: 'No shows yet. Add one below.' }),
+      details('pc-new', 'Add a show', form, !shows.length));
+  }
+  // Weekly review: numbers only.
+  function reviewMediaCard(s, wk, t) {
+    var M = L.media;
+    if (!M.hasShows(s) && !M.hasSites(s)) return null;
+    var d = M.digest(s, wk);
+    return h('div', { id: 'rv-media' }, h('h2', null, 'Shows and sites ', lockMark(['shows', 'episodes', 'sites', 'renewals'])),
+      h('div', { class: 'card' }, h('p', { class: 'small', id: 'rv-media-stats', text: 'Episodes published this month: ' + d.episodesThisMonth + '. Sites with a renewal in the next 30 days: ' + d.sitesRenewing + '.' }),
+        h('div', { class: 'row' }, M.hasShows(s) ? btn('Open Podcasts', function () { go('podcasts'); }, 'sm', { id: 'rv-media-pod' }) : null, M.hasSites(s) ? btn('Open Websites', function () { go('websites'); }, 'sm', { id: 'rv-media-web' }) : null)));
+  }
+  // ---- Websites ----
+  function siteFields(s, x, idp) {
+    var dom = mxInp(idp + 'domain', x && x.hostname, 253), purpose = sel(idp + 'purpose', L.media.PURPOSES.map(function (k) { return { v: k, t: PURPOSE_LABEL[k] }; }), x ? x.kind : 'business');
+    var line = sel(idp + 'line', mxLineOpts(s, x && x.projectId), (x && x.projectId) || ''), show = sel(idp + 'show', [{ v: '', t: '(none)' }].concat((s.shows || []).map(function (p) { return { v: p.id, t: p.name }; })), (x && x.showId) || '');
+    var host = mxInp(idp + 'host', x && x.host, 200), notes = mxTa(idp + 'notes', x && x.notes);
+    var ren = function (which) { var r = x ? L.media.renewalsOf(s, x).filter(function (q) { return q.which === which; })[0] : null; return r || { date: '', amountCents: null }; };
+    var d = ren('domain'), hs = ren('hosting');
+    var dDate = mxInp(idp + 'ddate', d.date, 0, 'date'), dCost = mxInp(idp + 'dcost', typeof d.amountCents === 'number' ? dollarsText(d.amountCents) : '', 20), hDate = mxInp(idp + 'hdate', hs.date, 0, 'date'), hCost = mxInp(idp + 'hcost', typeof hs.amountCents === 'number' ? dollarsText(hs.amountCents) : '', 20);
+    return { nodes: [field('Domain', dom), field('Purpose', purpose), field('Line of work (optional)', line), field('Show (optional)', show), field('Hosting provider', host),
+      field('Domain renewal date (optional)', dDate, 'Creates a renewal in Admin, so it reaches at a glance and the calendar file.'), field('Domain renewal cost in dollars (optional)', dCost), field('Hosting renewal date (optional)', hDate), field('Hosting renewal cost in dollars (optional)', hCost), field('Notes (optional)', notes, 'Do not enter ID numbers, account numbers or passwords.')],
+    read: function () { return { domain: dom.value, purpose: purpose.value, projectId: line.value, showId: show.value, host: host.value, notes: notes.value, domainRenewOn: dDate.value, domainCost: dCost.value.trim(), hostRenewOn: hDate.value, hostCost: hCost.value.trim() }; } };
+  }
+  function siteEditDialog(s, x, t) {
+    var f = siteFields(s, x, 'we-');
+    openDialog({ title: 'Edit site', yes: 'Save', body: [h('div', { class: 'form' }, f.nodes), movePrivBtn('sites', x)],
+      onYes: function () { var input = f.read(); return commit(function (y) { L.media.updateSite(y, x.id, input, t); }, 'site edit').then(function () { setNotice('ok', 'Site saved.'); render(); }); } });
+  }
+  function siteRenewLinks(s, x) {
+    var M = L.media, rows = [];
+    [['domain', 'Domain'], ['hosting', 'Hosting']].forEach(function (w) {
+      var cur = x[w[0] === 'domain' ? 'domainRenewalId' : 'hostingRenewalId'], opts = [{ v: '', t: '(none)' }].concat((s.renewals || []).map(function (r) { return { v: r.id, t: r.title + ' (' + r.dueDate + ')' }; }));
+      var pick = sel(null, opts, cur || '');
+      pick.setAttribute('aria-label', w[1] + ' renewal for ' + x.hostname);
+      rows.push(h('div', { class: 'row small' }, h('span', { text: w[1] + ' renewal: ' }), pick, btn('Save link', function () { mxAct(function (y) { M.linkRenewal(y, x.id, w[0], pick.value); }, 'site renewal link', 'Renewal link saved. Neither record was deleted.'); }, 'sm ws-link-' + w[0], { 'aria-label': 'Save the ' + w[0] + ' renewal link for ' + x.hostname })));
+    });
+    return rows;
+  }
+  function trafficBlock(s, x, t) {
+    var M = L.media, k = x.id.slice(0, 8), months = M.trafficMonths(s, x.id, t.slice(0, 7), 12);
+    var mo = mxInp('wt-month-' + k, t.slice(0, 7), 7, 'month'), vis = mxInp('wt-visits-' + k, '', 14, 'text', { inputmode: 'numeric' }), vr = mxInp('wt-visitors-' + k, '', 14, 'text', { inputmode: 'numeric' });
+    var form = h('form', { class: 'wt-form', id: 'wt-form-' + k, onsubmit: function (e) { e.preventDefault(); act(function () {
+      var input = { siteId: x.id, month: mo.value, visits: vis.value, visitors: vr.value };
+      return commit(function (y) { M.addTraffic(y, input); }, 'site traffic add').then(function () { setNotice('ok', 'Traffic saved.'); render(); }); }); } },
+      field('Month', mo), field('Visits', vis), field('Visitors (optional)', vr), h('button', { type: 'submit', class: 'btn pri wt-add', text: 'Add traffic' }));
+    var rows = months.map(function (m) { return { cat: m.month, cells: [monthLabel(m.month), mxNum(m.visits), mxNum(m.visitors)] }; });
+    var saved = (s.siteTraffic || []).filter(function (r) { return r.siteId === x.id; }).sort(function (a, b) { return b.month.localeCompare(a.month); }).slice(0, 6);
+    return [h('h4', { text: 'Monthly traffic' }), tbl('wt-' + k, ['Month', 'Visits', 'Visitors'], rows), form,
+      saved.length ? details('wt-saved-' + k, 'Months you typed (newest ' + saved.length + ')', saved.map(function (r) {
+        return h('div', ROW({ class: 'item wt-row', 'data-month': r.month }, 'siteTraffic', r), h('div', null, h('span', { class: 'entry-t', text: monthLabel(r.month) + ': ' + mxNum(r.visits) + ' visits' })),
+          btn('Delete', function () { mxAct(function (y) { M.deleteTraffic(y, r.id); }, 'site traffic delete', 'Traffic month deleted.'); }, 'sm bad wt-del', { 'aria-label': 'Delete the traffic for ' + monthLabel(r.month) }));
+      }), false) : null];
+  }
+  function siteCard(s, x, t) {
+    var M = L.media, ren = M.renewalsOf(s, x), line = mxName(s.projects, x.projectId), show = mxName(s.shows, x.showId);
+    return h('div', ROW({ class: 'card ws-site', 'data-site': x.hostname }, 'sites', x),
+      h('div', { class: 'row sp' }, h('h2', { class: 'entry-t', text: x.hostname }), h('span', { class: 'row' }, chipEl(PURPOSE_LABEL[x.kind], 'ws-purpose'), line ? chipEl(line, 'ws-line') : null, show ? chipEl(show, 'ws-show') : null,
+        btn('Edit', function () { siteEditDialog(s, x, t); }, 'sm ws-edit', { 'aria-label': 'Edit ' + x.hostname }),
+        btn('Delete', function () {
+          openDialog({ title: 'Delete this site?', yes: 'Delete', danger: true, body: [h('p', { class: 'mut', text: x.hostname }), h('p', { class: 'small', text: 'Its typed traffic is deleted. Its renewals stay in Admin.' })],
+            onYes: function () { return commit(function (y) { M.deleteSite(y, x.id); }, 'site delete').then(function () { render(); }); } });
+        }, 'sm bad ws-del', { 'aria-label': 'Delete ' + x.hostname }))),
+      x.host ? h('p', { class: 'small', text: 'Hosting: ' + x.host }) : null, x.notes ? h('p', { class: 'small mut', text: x.notes }) : null,
+      ren.length ? h('div', { class: 'ws-renewals' }, ren.map(function (r) { return h('p', { class: 'small ws-renewal', 'data-which': r.which, text: (r.which === 'domain' ? 'Domain' : 'Hosting') + ' renews ' + r.date + (r.amountCents !== null ? ', ' + fmtC(s, r.amountCents) : '') + (r.state === 'open' ? '' : ' (' + r.state + ')') }); }),
+        btn('Open Admin', function () { go('domain', { domain: 'admin' }); }, 'sm', { 'aria-label': 'Open Admin renewals' })) : h('p', { class: 'mut small', text: 'No renewal dates yet.' }),
+      siteRenewLinks(s, x), trafficBlock(s, x, t));
+  }
+  function websitesScreen(s) {
+    var M = L.media, t = today(), sites = (s.sites || []).slice().sort(function (a, b) { return a.hostname.localeCompare(b.hostname); }), f = siteFields(s, null, 'wa-');
+    var form = h('form', { onsubmit: function (e) { e.preventDefault(); act(function () { var input = f.read(); return commit(function (x) { M.addSite(x, input, t); }, 'site add').then(function () { setNotice('ok', 'Site added.'); render(); }); }); } },
+      f.nodes, h('button', { type: 'submit', class: 'btn pri', id: 'wa-add', text: 'Add site' }));
+    return h('div', { id: 'websites' }, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('div', { class: 'row sp' }, h('h1', { text: 'Websites' }), lockMark(['sites', 'siteTraffic', 'renewals', 'shows'])),
+      mediaLinks(), h('p', { class: 'mut small', text: 'Your sites, their renewals and the monthly traffic you type in. Domains, hosts and notes stay in this vault. A renewal made here is an Admin renewal with a generic title.' }),
+      sites.length ? sites.map(function (x) { return siteCard(s, x, t); }) : h('p', { class: 'mut', id: 'ws-none', text: 'No sites yet. Add one below.' }),
+      details('ws-new', 'Add a site', form, !sites.length));
+  }
+
   function boot() {
+    if (L.clients) L.clients.registerGlance();
     // CR-9: frame-ancestors only exists in the HTTP header (Cloudflare); on any other host or file:// the page must refuse to run framed.
     var framed = true;
     try { framed = window.top !== window.self; } catch (e) { framed = true; }

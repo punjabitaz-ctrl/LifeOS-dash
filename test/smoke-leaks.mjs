@@ -455,6 +455,17 @@ async function run(label, viewport) {
       if (st.includes('LEAK') || /87654321|246810|111222/.test(st)) throw new Error('audit or digest holds job text or compensation');
       if (!st.includes('job add') || !st.includes('job import')) throw new Error('job writes are not in the audit log: ' + st.slice(0, 120));
     });
+    await step('AYiN and clients, Podcasts and Websites (v1.7.0 audit, SEC-126): marked text and markup in every new record render as text only', async () => {
+      for (const id of ['clients', 'podcasts', 'websites']) {
+        await nav('AYiN and clients'); await page.waitForSelector('#clients', T);
+        if (id !== 'clients') { await page.click('#go-' + id); await page.waitForSelector('#' + id, T); }
+        await page.evaluate(() => { for (const d of document.querySelectorAll('details')) d.open = true; });
+        const body = await page.textContent('#' + id);
+        if (!body.includes(ADV_MARK) || !body.includes('<img src=x onerror=alert(1)>')) throw new Error(id + ': the marked records are not shown as text, so the check proves nothing');
+        if (await page.locator('#' + id + ' img, #' + id + ' script').count()) throw new Error(id + ': record text became markup');
+        await grab(id);
+      }
+    });
     await step('lock, unlock and reload', async () => {
       await page.click('.top .lockbtn'); await page.waitForSelector('#pass', T);
       if ((await page.textContent('body')).includes(ADV_MARK)) throw new Error('locked page shows data');
@@ -560,6 +571,16 @@ async function runPriv(label, viewport) {
     if (closed) {
       const dg = await page.evaluate(() => JSON.stringify(globalThis.LifeOS.metrics.weeklyDigest(globalThis.LifeOS.store.getState(), '2026-11-09').business || null));
       if (/"tax"|profitCents/.test(dg)) throw new Error('closed digest carries tax fields: ' + dg);
+    }
+    // v1.7.0 audit (SEC-126): the three new screens; closed, each shows the lock marker and no marker text
+    for (const id of ['clients', 'podcasts', 'websites']) {
+      await nav('AYiN and clients'); await page.waitForSelector('#clients', T);
+      if (id !== 'clients') { await page.click('#go-' + id); await page.waitForSelector('#' + id, T); }
+      await page.evaluate(() => { for (const d of document.querySelectorAll('details')) d.open = true; });
+      if (closed && !(await page.$('#' + id + ' .lockmark'))) throw new Error(id + ' shows no lock marker while closed');
+      const d = await dom();
+      if (!closed && !d.includes(ADV_MARK)) throw new Error(id + ': private records not shown while open, so the check proves nothing');
+      bucket.push(d);
     }
     await page.click('#nav-private'); await page.waitForSelector('h1:has-text("Private vault")', T); bucket.push(await dom());
   };

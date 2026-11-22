@@ -547,16 +547,16 @@ function asSchema(n, st) {
 test('MIGRATION: schemas 1 to 13 become 14 with an empty archive index, no summaries and the default size setting; no text is lost', () => {
   const { state } = buildAdversarial(L);
   const full = S.validateState(clone(Object.assign(clone(state), { settings: Object.assign(clone(state.settings), { provider: { kind: 'none', baseUrl: '', model: '', apiKey: '' } }) })));
-  assert.equal(S.defaultState().schema, 18);
+  assert.equal(S.defaultState().schema, 19);
   for (let n = 1; n <= 13; n++) {
     const old = asSchema(n, full), oldText = JSON.stringify(old), got = S.validateState(clone(old));
-    assert.equal(got.schema, 18); assert.equal(got.sourceSchema, n);
+    assert.equal(got.schema, 19); assert.equal(got.sourceSchema, n);
     assert.deepEqual(got.archives, []); assert.deepEqual(got.summaries, {}); assert.equal(got.settings.archiveSuggestMB, 40);
     const gotText = JSON.stringify(got);
     for (const m of new Set(oldText.match(/LEAK mark \d+/g) || [])) assert.ok(gotText.includes(m), 'schema ' + n + ' lost ' + m);
   }
   // an old file with archive keys is refused (older formats carry none), and schema 15 is unknown
-  assert.throws(() => S.validateState(Object.assign(clone(full), { schema: 19 })), /schema/);
+  assert.throws(() => S.validateState(Object.assign(clone(full), { schema: 20 })), /schema/);
   assert.deepEqual(S.validateState(Object.assign(asSchema(13, full), { archives: [{ year: 2021 }] })).archives, [], 'an older format ignores the new keys');
 });
 
@@ -567,16 +567,16 @@ test('a 1.2.0-a backup (schema 13) imports cleanly into an empty vault, and a st
   const salt = V.newSalt(), key = await V.deriveKey(PASS, salt);
   const text = JSON.stringify(await V.makeEnvelope(key, salt, st13));
   const imp = await V.importBackup(PASS, text);
-  assert.equal(imp.schema, 18); assert.equal(imp.sourceSchema, 13); assert.deepEqual(imp.archives, []);
+  assert.equal(imp.schema, 19); assert.equal(imp.sourceSchema, 13); assert.deepEqual(imp.archives, []);
   await S.replaceState(imp);
-  assert.equal(S.getState().schema, 18); assert.equal(S.getState().entries.length, st13.entries.length);
+  assert.equal(S.getState().schema, 19); assert.equal(S.getState().entries.length, st13.entries.length);
   assert.equal(S.getState().settings.archiveSuggestMB, 40);
   // a stored schema 13 vault
   const ad = memAdapter(); S._setAdapter(ad); S.lock();
   const salt2 = V.newSalt(), key2 = await V.deriveKey(PASS, salt2);
   await ad.set('envelope', Object.assign(await V.makeEnvelope(key2, salt2, Object.assign(clone(st13), { _meta: { rev: 1, updatedAt: '2026-11-01T00:00:00.000Z', deviceId: 'd' } })), { rev: 1, updatedAt: '2026-11-01T00:00:00.000Z', deviceId: 'd' }));
   const st = await S.unlock(PASS);
-  assert.equal(st.schema, 18); assert.deepEqual(st.archives, []); assert.equal(st.entries.length, st13.entries.length);
+  assert.equal(st.schema, 19); assert.deepEqual(st.archives, []); assert.equal(st.entries.length, st13.entries.length);
   // and it can be archived straight away
   await run({ year: 2021 });
   assert.equal(S.getState().archives.length, 1);
@@ -585,7 +585,7 @@ test('a 1.2.0-a backup (schema 13) imports cleanly into an empty vault, and a st
 
 test('an older app refuses a schema 15 vault (the accepted list ends at 14 there), so it can never strip archives', () => {
   const store = src('src/core/store.js');
-  assert.ok(/SCHEMA = 18,/.test(store) && /\[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, SCHEMA\]/.test(store));
+  assert.ok(/SCHEMA = 19,/.test(store) && /\[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, SCHEMA\]/.test(store));
 });
 
 // ---- spell check ----
@@ -606,10 +606,10 @@ test('SPELL CHECK: every input and textarea (other than passphrase fields) gets 
   for (const f of ['src/ui/app.js', 'src/ui/sync-ui.js', 'src/ui/archive-ui.js']) for (const m of src(f).matchAll(/type: 'password'[^}]*id: '([^']+)'|id: '([^']+)'[^}]*type: 'password'/g)) assert.match(m[1] || m[2], /pass|pp|priv|key/i, 'password-typed field ' + (m[1] || m[2]));
 });
 
-test('the new files are in the build after sync.js, and the version is 1.6.0', () => {
+test('the new files are in the build after sync.js, and the version is 1.7.0', () => {
   const b = src('build.mjs');
   assert.ok(b.indexOf("'src/core/archive.js'") > b.indexOf("'src/core/sync.js'") && b.indexOf("'src/core/archive.js'") < b.indexOf("'src/ui/app.js'"));
-  assert.equal(JSON.parse(src('package.json')).version, '1.6.0');
+  assert.equal(JSON.parse(src('package.json')).version, '1.7.0');
   assert.ok(src('src/ui/app.js').includes("text: 'LifeOS v' + L.VERSION"));
   assert.ok(src('src/core/archive.js').startsWith('(function () {'));
 });

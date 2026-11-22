@@ -24,7 +24,15 @@
     groups: {}, contacts: { refs: [['personId', 'people']] },
     habits: {}, habitLog: { key: (r) => r.habitId + '|' + r.date },
     // v1.1.0: business records. An invoice and its income entry move together (one-to-one money link, like an activity and its expense).
-    invoices: { refs: [['projectId', 'projects'], ['incomeId', 'entries']] }, trips: { refs: [['projectId', 'projects']] }, payees: {}, taxPayments: {},
+    invoices: { refs: [['projectId', 'projects'], ['incomeId', 'entries'], ['clientId', 'clients']] }, trips: { refs: [['projectId', 'projects']] }, payees: {}, taxPayments: {},
+    // v1.7.0: clients, shows, episodes, platform numbers, sites and site traffic. A show moves with its episodes and numbers, an episode with
+    // the numbers tied to it, a site with its traffic (see closure), so no public record is left pointing at a private parent.
+    clients: { refs: [['projectId', 'projects'], ['personIds', 'people', true]] },
+    shows: { refs: [['siteId', 'sites'], ['projectId', 'projects']] },
+    episodes: { refs: [['showId', 'shows'], ['guestIds', 'people', true]] },
+    platformStats: { refs: [['showId', 'shows'], ['episodeId', 'episodes']] },
+    sites: { refs: [['projectId', 'projects'], ['showId', 'shows'], ['domainRenewalId', 'renewals'], ['hostingRenewalId', 'renewals']] },
+    siteTraffic: { refs: [['siteId', 'sites']] },
     cycle: { single: true, key: () => 'cycle' },
   };
   const COLLECTIONS = Object.keys(COLL);
@@ -585,7 +593,8 @@
   const CHILDREN = {
     people: [['contacts', 'personId']],
     learningItems: [['studySessions', 'itemId'], ['takeaways', 'itemId']],
-    projects: [['entries', 'projectId'], ['recurring', 'projectId'], ['projects', 'parentId'], ['invoices', 'projectId'], ['trips', 'projectId']],
+    projects: [['entries', 'projectId'], ['recurring', 'projectId'], ['projects', 'parentId'], ['invoices', 'projectId'], ['trips', 'projectId'], ['clients', 'projectId'], ['shows', 'projectId'], ['sites', 'projectId']],
+    clients: [['invoices', 'clientId']],
     payees: [['entries', 'payeeId']],
     accounts: [['entries', 'accountId']],
     properties: [['maintenance', 'propertyId']],
@@ -613,6 +622,9 @@
       if (cc === 'activities' && r0.expenseId) q.push(['entries', r0.expenseId]);
       if (cc === 'invoices' && r0.incomeId) q.push(['entries', r0.incomeId]);
       if (cc === 'entries') { for (const a of refs('activities', 'expenseId', k)) q.push(['activities', a.id]); for (const a of refs('invoices', 'incomeId', k)) q.push(['invoices', a.id]); }
+      if (cc === 'shows') { for (const a of refs('episodes', 'showId', k)) q.push(['episodes', a.id]); for (const a of refs('platformStats', 'showId', k)) q.push(['platformStats', a.id]); }
+      if (cc === 'episodes') for (const a of refs('platformStats', 'episodeId', k)) q.push(['platformStats', a.id]);
+      if (cc === 'sites') for (const a of refs('siteTraffic', 'siteId', k)) q.push(['siteTraffic', a.id]);
       if (cc === 'habits') for (const t of refs('habitLog', 'habitId', k)) q.push(['habitLog', keyOf('habitLog', t)]);
       if (children) for (const [ch, f] of CHILDREN[cc] || []) for (const r of refs(ch, f, k)) if (ch !== 'entries' || (cc === 'accounts' ? r.type === 'balance' : (r.type === 'outcome' || r.type === 'income' || r.type === 'expense'))) q.push([ch, keyOf(ch, r)]);
     }
@@ -634,6 +646,17 @@
       return want ? !priv : priv;
     });
     if (!list.length) return 0;
+    // SEC-121: an episode or a platform number cannot leave while its show stays private, nor a traffic month while its site does (the
+    // public record would point at a private parent). Refused before anything is written, with a plain message.
+    if (!want) {
+      const going = new Set(list.map(([cc, k]) => cc + '\u0000' + k));
+      for (const [cc, k] of list) {
+        const need = cc === 'episodes' || cc === 'platformStats' ? ['shows', 'showId', 'show'] : cc === 'siteTraffic' ? ['sites', 'siteId', 'site'] : null;
+        if (!need) continue;
+        const r = listOf(st, cc).find((x) => keyOf(cc, x) === k), pid = r && r[need[1]];
+        if (typeof pid === 'string' && inPriv(need[0], pid) && !inBase(need[0], pid) && !going.has(need[0] + '\u0000' + pid)) throw new Error('Its ' + need[2] + ' is in the private vault. Move the ' + need[2] + ' out instead; it takes this with it.');
+      }
+    }
     for (const [cc, k] of list) {
       if (want && inPriv(cc, k)) throw new Error('A private item with the same name already exists.');
       if (want && cc === 'cycle' && inner.records.cycle && inner.records.cycle.length) throw new Error('A training cycle is already in the private vault.');

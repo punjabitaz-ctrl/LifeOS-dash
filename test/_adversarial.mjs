@@ -5,7 +5,16 @@ export const ADV_MARK = 'LEAK mark ';
 // The job fields schema 18 added. An older-format copy cannot hold them (validateState drops them below 18), so tests that emulate an
 // older schema remove them, as they remove every other field a later schema added.
 export const JOB_FIELDS = ['role', 'locationType', 'targetOteCents', 'targetBaseCents', 'offerOteCents', 'offerBaseCents', 'appliedOn', 'resume', 'followUp', 'followedUpOn', 'lostReason', 'importKey'];
-export function stripJobFields(o) { for (const p of o.pipeline || []) for (const k of JOB_FIELDS) delete p[k]; return o; }
+// The v1.7.0 additions (schema 19): clients, shows, episodes, platform numbers, sites, site traffic, the client link on invoices and the contact
+// reminder setting. The same helper removes them, so an older-format emulation holds none of them (called only below schema 18 and so below 19).
+export const MEDIA_COLLECTIONS = ['clients', 'shows', 'episodes', 'platformStats', 'sites', 'siteTraffic'];
+export function stripJobFields(o) {
+  for (const p of o.pipeline || []) for (const k of JOB_FIELDS) delete p[k];
+  for (const c of MEDIA_COLLECTIONS) delete o[c];
+  for (const i of o.invoices || []) delete i.clientId;
+  if (o.settings) delete o.settings.clients;
+  return o;
+}
 export function buildAdversarial(L) {
   const MARK = 'LEAK mark ';
   let k = 0;
@@ -62,6 +71,15 @@ export function buildAdversarial(L) {
   s.taxPayments.push({ id: 'tp1', year: 2026, jurisdiction: 'federal', quarter: 3, amountCents: 50000, paidOn: t, confirmation: m('confirmation').slice(0, 90) });
   s.projects[0].budgetCents = 100000; s.projects[0].budgetPeriod = 'month';
   s.settings.business = Object.assign({}, s.settings.business, { name: m('business name').slice(0, 100), address: m('business address').slice(0, 280), paymentTerms: m('payment terms').slice(0, 280) });
+  // v1.7.0: a client, a show with platforms and an episode, platform numbers, a site with traffic: a marker (with spaces and quotes) in every free-text field and a distinctive
+  // number for the money and counts. None may reach any prompt, digest, insight, audit entry, error, diagnostic, calendar file, URL or storage outside the vault.
+  s.clients.push({ id: 'cl1', name: m('client name "quoted"'), status: 'active', projectId: 'p1', budgetCents: 9876543210, personIds: ['sp1'], notes: m("client note 'quoted'"), createdOn: '2026-09-01' });
+  s.invoices[0].clientId = 'cl1';
+  s.sites.push({ id: 'st1', hostname: m('domain "x"').slice(0, 200), kind: 'show', projectId: 'p1', showId: 'sh1', host: m('host').slice(0, 190), domainRenewalId: 'rn1', notes: m("site note 'x'") });
+  s.shows.push({ id: 'sh1', name: m('show name "x"').slice(0, 190), siteId: 'st1', projectId: 'p1', platforms: [{ id: 'pf1', name: m('platform').slice(0, 60) }, { id: 'pf2', name: m('platform two').slice(0, 60) }], notes: m("show note 'x'") });
+  s.episodes.push({ id: 'ep1', showId: 'sh1', title: m('episode title "x"').slice(0, 190), number: 7, status: 'published', recordedOn: t, guestIds: ['sp1'], pubs: [{ format: 'audio', platformId: 'pf1', date: t }], notes: m("episode note 'x'") });
+  s.platformStats.push({ id: 'ps1', showId: 'sh1', platformId: 'pf1', date: t, measure: 'downloads', value: 7654321987, episodeId: 'ep1' });
+  s.siteTraffic.push({ id: 'tf1', siteId: 'st1', month: '2026-11', visits: 8765432198, visitors: 6543219876 });
   s.settings.provider = { kind: 'manual', baseUrl: '', model: '', apiKey: 'sk-ant-LEAK key 0123456789' };
   return { state: L.store.validateState(JSON.parse(JSON.stringify(s))), count: k };
 }

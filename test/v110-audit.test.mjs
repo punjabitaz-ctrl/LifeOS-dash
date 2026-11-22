@@ -335,7 +335,7 @@ describe('deviation (c): the scope migration counts once, loses nothing and stay
     s11.projects.push(proj('c', 'Client'), proj('h', 'Hobby', { kind: 'personal' }));
     s11.entries.push(E({ id: 'a', domain: 'money', type: 'income', date: '2026-01-01', title: 'a', value: 1, projectId: 'c' }), E({ id: 'b', domain: 'money', type: 'expense', date: '2026-01-02', title: 'b', value: 2, projectId: 'h' }), E({ id: 'd', domain: 'money', type: 'expense', date: '2026-01-03', title: 'd', value: 3 }));
     const m = S.validateState(clone(s11));
-    assert.equal(m.schema, 18); assert.equal(m.settings.business.scopeConfirmed, false);
+    assert.equal(m.schema, 19); assert.equal(m.settings.business.scopeConfirmed, false);
     assert.ok(m.entries.every((e) => e.scope === undefined), 'nothing rewritten');
     assert.deepEqual(B.scopeCounts(m), { business: 1, personal: 2 });
     const again = S.validateState(clone(m));

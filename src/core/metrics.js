@@ -651,7 +651,7 @@
     const we = addDays(ws, 6), wm = sumMoney(byDomain(state, 'money'), ws, we), nw = netWorthDetail(state, we);
     const mv = monthView(state, monthOf(we));
     const money = { income: dollars(wm.incC), spend: dollars(wm.expC), budgetUsedPct: mv.budgetCents > 0 ? r1(mv.budgetedSpentCents * 100 / mv.budgetCents) : 0, netWorth: nw.total, liabilities: nw.liabilities };
-    return { week: ws, domains, money, work: workDigest(state, ws), jobs: L.jobs ? L.jobs.digest(state, ws) : undefined, health: healthDigest(state, ws), activities: L.activities.digest(state, ws), goals: L.goals.digestCounts(state, ws), home: L.home.digest(state, ws), admin: L.admin.digest(state, ws), learning: L.learning.digest(state, ws), social: L.social.digest(state, ws), revenue: L.revenue.digest(state, ws), business: L.business.digest(state, ws) };
+    return { week: ws, domains, money, work: workDigest(state, ws), jobs: L.jobs ? L.jobs.digest(state, ws) : undefined, media: L.clients && L.media ? { clientsOverdue: L.clients.digest(state, ws), episodesThisMonth: L.media.digest(state, ws).episodesThisMonth, sitesRenewing: L.media.digest(state, ws).sitesRenewing } : undefined, health: healthDigest(state, ws), activities: L.activities.digest(state, ws), goals: L.goals.digestCounts(state, ws), home: L.home.digest(state, ws), admin: L.admin.digest(state, ws), learning: L.learning.digest(state, ws), social: L.social.digest(state, ws), revenue: L.revenue.digest(state, ws), business: L.business.digest(state, ws) };
   }
   function series(state, domainId, n, today) {
     if (!DOMAINS.some((d) => d.id === domainId)) throw new Error('Unknown domain');

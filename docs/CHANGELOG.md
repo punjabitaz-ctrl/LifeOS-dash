@@ -2,6 +2,13 @@
 
 Newest first. One line per change. Versions come from package.json (see docs/RUNBOOK.md); fixes by number are described in docs/SECURITY.md.
 
+## 1.7.0 (schema 19): AYiN and clients, Podcasts, Websites
+- AYiN and clients tab (beside Business): a roll-up of the business lines (revenue this month, quarter and year, open and overdue invoices, budget against spending), and clients with status, line of work, budget, people from Social, invoices linked to a client, a one-tap contact log, and two flags (an overdue invoice, no contact for N days, default 30, set in Settings).
+- Podcasts tab: shows with their own platform list (YouTube, Spotify, Apple Podcasts, YouTube Podcasts and Website offered), episodes in video, audio and text with a release date per format and platform, guests from Social (an Episodes card on the person), numbers typed per platform, monthly platform tables (a month with nothing typed shows "no data"; measures are never added together), release cadence, and the show's money from its line of work.
+- Websites tab: sites with domain, host, purpose, linked show and line of work, domain and hosting renewals created in Admin with generic titles, and monthly traffic typed by hand.
+- Private vault: clients, shows, episodes, platform numbers, sites and traffic can be private; a show moves with its episodes and numbers, a site with its traffic. Search, at a glance, the weekly review and the calendar file carry generic labels and counts only. The digest gains three numbers (clients with an overdue invoice, episodes this month, sites renewing).
+- Schema 19 with migrations from 1 to 18 and downgrade guards. Decisions recorded in SPEC.md "Amendment (v1.7.0 build)". Tests: test/v170.test.mjs and test/smoke-media.mjs.
+
 ## 1.6.0 (schema 18): Job search and search across everything
 - Job search tab (Work, or More): applications are the Work pipeline items of kind job, with role, company, location type, compensation target and offer (OTE and base, integer cents), source, applied date, resume version label, follow-up date and an outcome reason when lost. Board on desktop, stage list on phones, one-tap stage moves, funnel counts and rates ("no data" at a zero denominator), a weekly view, people from Social linked to an application with a one-tap contact log, follow-ups in the weekly review, at a glance and the calendar file (generic title by default), and a tracker CSV import (map, preview, no duplicates, unknown values offered).
 - The digest gains four numbers (applications this week, follow-ups due, interviews, offers). Company names, roles, people, notes and compensation never leave the vault.

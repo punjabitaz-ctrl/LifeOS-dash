@@ -4,7 +4,7 @@ import { join, dirname } from 'node:path';
 import { ICONS, drawIcon, manifestFor, appleIconDataUrl } from './src/icons.mjs';
 import { fileURLToPath } from 'node:url';
 
-const CORE = ['vault', 'ops', 'nav', 'setup', 'store', 'priv', 'wellbeing', 'csv', 'metrics', 'home', 'admin', 'learning', 'activities', 'social', 'revenue', 'tax', 'business', 'layout', 'goals', 'memory', 'ai', 'calendar', 'jobs', 'search'].map((n) => `src/core/${n}.js`);
+const CORE = ['vault', 'ops', 'nav', 'setup', 'store', 'priv', 'wellbeing', 'csv', 'metrics', 'home', 'admin', 'learning', 'activities', 'social', 'revenue', 'tax', 'business', 'clients', 'media', 'layout', 'goals', 'memory', 'ai', 'calendar', 'jobs', 'search'].map((n) => `src/core/${n}.js`);
 
 function read(root, rel) {
   try { return readFileSync(join(root, rel), 'utf8'); }
