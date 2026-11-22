@@ -558,3 +558,29 @@ The builder's amendment is kept, with these corrections and definitions (docs/SE
 - Client revenue from paid invoices (SEC-124): once any year is archived, archived paid invoices are no longer live, so the figure carries the "archived years only in part" note.
 - Moves out (SEC-121): an episode or a platform number cannot move out alone while its show stays private, nor a traffic month while its site does; the app says "Move the show out instead" (or the site), and moving the parent out takes them with it. The move dialog for a show, an episode or a site says what always moves with it.
 - Forms keep what is already chosen (SEC-119, SEC-120): a line of work stays in the form's list even when archived (marked "(archived)"), and an episode's chosen guests are always listed in the guest picker (up to 200 other people are offered), so saving a form never drops a link unasked.
+
+## v1.8.0 addendum: Passphrase recovery (owner decisions, 21 Nov 2026)
+Source: docs/review/product-ops.md B21. Owner decisions: both a printable recovery guide and an optional recovery key; one recovery key opens the main vault and a separate recovery key opens the private vault; each key can be replaced in Settings. This changes the encryption layout, so it gets a dedicated crypto audit (docs/review/crypto.md is the baseline). WebCrypto only, no new dependencies.
+
+### Key layout (envelope v2)
+- Each vault (main and private) gets a random 256-bit AES-GCM data key, non-extractable once unwrapped. The data key encrypts the state exactly as today (fresh 12-byte IV per write). It is stored only wrapped (AES-KW or AES-GCM wrap, fresh salt and IV per wrap) under one or two key-encryption keys: one from the passphrase (PBKDF2-HMAC-SHA256, 600,000 iterations, 16-byte salt, as today) and, when the owner turns it on, one from the recovery key (same KDF and parameters, its own salt).
+- Envelope v2 holds the ciphertext and a list of wraps, each with its kind (passphrase or recovery), KDF parameters and wrapped key; strict parsing (unknown fields refused, at most one wrap per kind, sizes checked). v1 envelopes still open with the passphrase and are rewritten as v2 on the next save. An older app shown a v2 envelope refuses it with a clear "made by a newer LifeOS" message, never a crash or a silent overwrite.
+- Everything sealed today under the passphrase key carries the same wraps: the stored vault, backup files, Drive copies, archive files and the private vault's archive boxes, so a recovery key opens every copy made while it was in force. Drive sync conflict rules keep their meaning (a passphrase or key change on one device is still detected as a local change).
+
+### Recovery key
+- Off by default; offered in Settings and on the setup checklist, separately for the main vault and (while it exists) the private vault. Turning one on asks for that vault's passphrase.
+- The key is 256 random bits shown once as grouped base32 text with a short checksum so typos are caught before any decryption; the owner must retype it (or its last two groups) before it is enabled. It is never stored, logged, synced, put in diagnostics, history, the URL, the clipboard automatically, or anywhere the AI can reach.
+- Forgot passphrase: the lock screen (and the private vault unlock) offers "Use recovery key". After a successful unlock the owner must set a new passphrase, and the app rotates the data key and issues a new recovery key for that vault (the used one stops working), because a used key may have been seen.
+- Replace key (Settings, asks for the passphrase): rotates the data key, re-encrypts, and wraps it under the passphrase and a new recovery key; the old key stops working for the current vault. Turn off: asks for the passphrase and removes the recovery wrap.
+- Passphrase change: rotates the data key; the owner either types the current recovery key to keep it or gets a new one. With no recovery key on, behaviour is as today.
+- The app says plainly, at enable, replace and turn off: backup files, Drive copies and archive files made earlier still open with the key or passphrase that was in force when they were made; export a fresh backup and delete old ones if a key was exposed.
+- Wrong recovery keys count toward the same unlock attempt delays as wrong passphrases.
+
+### Printable recovery guide
+- docs/RECOVERY.md and an in-app print view (Settings, "Recovery sheet") explaining what each key opens, how to store it (paper, offline, never a photo or cloud note), what to do if a key or the passphrase is lost or exposed, and that losing both the passphrase and the recovery key means the data cannot be recovered by anyone.
+- The sheet prints without the key by default, with boxes to write it by hand; including the key on the printout is an explicit choice with a warning that printers and print queues may keep copies.
+
+### Rules
+- Schema 20 only if state changes (for example a recovery-on flag or date per vault), with tested migrations from 1 to 19 and downgrade guards; the envelope version is separate from the schema.
+- Tests prove: each kind of copy opens with the passphrase and, when on, with the recovery key; replaced or turned-off keys no longer open the current vault; the private recovery key never opens the main vault and the main key never opens the private vault; v1 to v2 upgrade on save; older-app refusal; tampered wraps and envelopes fail closed; no key material in any output, error or diagnostic; attempt delays apply.
+- Spell check rules (recovery key fields like passphrase fields), no advice wording, no em dashes, 390 px layout.
