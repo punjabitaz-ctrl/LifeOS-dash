@@ -85,6 +85,8 @@
     var m = e && e.message ? String(e.message) : '';
     if (m === 'BAD_PASSPHRASE_OR_DATA') return 'That passphrase did not work, or the data is damaged.';
     if (m === 'BAD_PRIVATE_PASSPHRASE') return 'That private passphrase did not work.';
+    if (m === 'BAD_RECOVERY_KEY') return 'That recovery key did not work.';
+    if (m === 'RECOVERY_KEY_FORMAT') return 'That recovery key has a typo or is the wrong length. Check it and try again.';
     if (m === 'LOCKED') return 'LifeOS locked before that finished. Nothing was saved. Unlock and try again.';
     if (!m) return 'Something went wrong.';
     return m.slice(0, 300);
@@ -174,6 +176,10 @@
   // Every write goes through the private vault's single routing helper: a record is saved where it lives (main state or private
   // vault); with the vault closed it is a plain commit. New records are public unless "New items are private" is ticked.
   var privNew = false, privFail = { n: 0, until: 0 }, privTimer = null, privPick = { coll: 'accounts', q: '' };
+  // v1.8.0: the main lock screen counts wrong passphrases and wrong recovery keys together, with the same delays as the private vault (1 s doubling to 30 s).
+  var mainFail = { n: 0, until: 0 }, lockRecover = false;
+  function leftOf(f) { return Math.max(0, Math.ceil((f.until - Date.now()) / 1000)); }
+  function bumpOf(f) { f.n++; f.until = Date.now() + Math.min(30000, 1000 * Math.pow(2, f.n - 1)); }
   // from: [[collection, key]] the records a new record is made from (SEC-62): if any of them is private, so is the new one.
   // UI-5: the toggle applies only to the add forms and add dialogs that show its note (markAddForms); one-tap actions (a daily check
   // tick, a confirmed recurring item, carry-over, imports) follow their source record instead (SEC-62).
@@ -271,7 +277,7 @@
     }, o.danger ? 'bad' : 'pri');
     var box = h('div', { class: 'dialog' + (o.adds ? ' adds' : '') + (o.sheet ? ' sheet' : ''), role: 'dialog', 'aria-modal': 'true', 'aria-label': o.title },
       h('h2', { text: o.title }), o.body || null, o.sheet ? null : err,
-      h('div', { class: 'row' }, yes, btn(o.sheet ? 'Close' : 'Cancel', function () { closeDialog(); })));
+      h('div', { class: 'row' }, yes, btn(o.sheet ? 'Close' : (o.no || 'Cancel'), function () { closeDialog(); })));
     dlgEl = h('div', { class: 'overlay' + (o.sheet ? ' sheetov' : '') }, box);
     dlgEl.addEventListener('keydown', function (e) {
       if (e.key === 'Escape') { closeDialog(); return; }
@@ -321,6 +327,7 @@
     var remind = unsynced().catch(function () { return false; });
     locking = Promise.all([p, remind]).then(function (r) {
       L.store.lock();
+      if (L.recoveryUI) L.recoveryUI.clear(); lockRecover = false;
       privNew = false; goalMemo = new Map(); searchQ = '';
       closeDialog();
       csvPending = null; ledger = null; actImp = null; jobImp = null; jobImpDone = null; actImpDone = null; dashEdit = false; ai = null; notice = r[1] ? { kind: 'ok', text: SYNC_NOTE } : null; lastActive = 0;
@@ -358,6 +365,8 @@
     var root = document.getElementById('app');
     clearTimeout(privTimer);
     L.ops.setArea(areaOf());
+    // SEC-131: a key included on the recovery sheet lives only while the sheet is on screen.
+    if (L.recoveryUI && (view.name !== 'print' || view.kind !== 'recovery')) L.recoveryUI.dropSheet();
     root.replaceChildren();
     noticeEl = h('div', { class: 'notice' + (notice ? ' ' + notice.kind : ''), role: 'status', 'aria-live': 'polite', text: notice ? notice.text : '' });
     if (!L.store.isUnlocked() || view.name === 'lock') { root.appendChild(lockScreen()); return; }
@@ -471,6 +480,7 @@
     var inner;
     if (create && lockPath === 'restore') inner = restorePath();
     else if (create && lockPath === 'drive') inner = drivePath();
+    else if (!create && lockRecover && L.recoveryUI) inner = L.recoveryUI.lockPath(recCtx());
     else inner = unlockForm(create);
     var intro = h('p', { class: 'mut', text: create ? (lockPath === 'create' ? 'Your private life dashboard. Everything stays on this device, encrypted.' : 'Bring an existing vault to this device.') : 'Unlock your vault.' });
     var paths = create && lockPath === 'create' ? h('div', { class: 'card lockpaths', id: 'lock-paths' }, h('h2', { text: 'Already have a vault?' }),
@@ -493,14 +503,17 @@
             return L.store.init(a).then(function () { vaultExists = true; return commit(null, 'create'); }).then(afterUnlock);
           }
           if (!a) throw new Error('Enter your passphrase.');
-          return L.store.unlock(a).then(function () { return commit(null, 'unlock'); }).then(afterUnlock);
+          var wait = leftOf(mainFail);
+          if (wait > 0) throw new Error('Wrong passphrase. Wait ' + wait + ' s before trying again.');
+          return L.store.unlock(a).then(function (st) { mainFail = { n: 0, until: 0 }; return st; }, function (e) { if (e && e.message === 'BAD_PASSPHRASE_OR_DATA') bumpOf(mainFail); throw e; }).then(function () { return commit(null, 'unlock'); }).then(afterUnlock);
         }).then(function () { p1.value = ''; if (p2) p2.value = ''; });
       }
     },
       field(create ? 'Choose a passphrase (12 characters or more)' : 'Passphrase', p1),
       p2 ? field('Confirm passphrase', p2) : null,
       create ? passNote() : null,
-      h('button', { type: 'submit', class: 'btn pri', text: create ? 'Create vault' : 'Unlock' }));
+      h('button', { type: 'submit', class: 'btn pri', text: create ? 'Create vault' : 'Unlock' }),
+      !create && L.recoveryUI ? L.recoveryUI.lockLink(recCtx()) : null);
   }
   function backLink() { return btn('Back', function () { lockPath = 'create'; restorePick = null; driveCopy = null; notice = null; render(); }, '', { id: 'path-back' }); }
   // After a vault is made from a backup or a Drive copy: record it, then open it like any unlock. A failed audit write never undoes the vault.
@@ -510,7 +523,10 @@
   }
   function restorePath() {
     var file = h('input', { type: 'file', id: 'rs-file', accept: '.json,application/json' }), pass = passOnly('rs-pass', 'off'), out = h('div', { id: 'rs-out', role: 'status' });
-    function showPreview(r, text, pv) {
+    // SEC-128: a backup made while a main recovery key was on also opens with that key; the restored vault then gets a new passphrase.
+    var useKey = h('input', { type: 'checkbox', id: 'rs-use-key' });
+    function showPreview(r, text, secret) {
+      var byKey = typeof secret === 'object', n1 = byKey ? passOnly('rs-new-pass', 'new-password') : null, n2 = byKey ? passOnly('rs-new-pass2', 'new-password') : null;
       var rows = r.rows.map(function (x) { return h('li', { text: x.label + ': ' + x.backup }); });
       out.replaceChildren(h('div', { id: 'rs-ok' },
         h('p', { class: 'small', text: 'This file passed the same checks as a restore inside the app. Nothing is saved until you confirm.' }),
@@ -519,10 +535,13 @@
           h('li', { id: 'rs-date', text: 'Made on: ' + (r.madeOn || 'not recorded in this file') }),
           h('li', { id: 'rs-priv', text: 'Private vault in the file: ' + (r.priv ? 'yes' : 'no') })),
         rows.length ? h('ul', { id: 'rs-rows', class: 'small' }, rows) : h('p', { class: 'mut small', text: 'The file holds no records.' }),
-        h('p', { class: 'mut small', text: 'The backup passphrase becomes this device\'s vault passphrase. You can change it later in Settings.' }),
+        byKey ? h('p', { class: 'mut small', text: 'The backup opened with the recovery key. Choose a new passphrase for this device\'s vault (12 characters or more). The restored vault starts with no recovery key.' }) : h('p', { class: 'mut small', text: 'The backup passphrase becomes this device\'s vault passphrase. You can change it later in Settings.' }),
+        byKey ? field('New passphrase', n1) : null, byKey ? field('Confirm new passphrase', n2) : null,
         h('div', { class: 'row' }, btn('Use this backup as my vault', function () {
           act(function () {
-            return L.vault.importBackup(pv, text).then(function (state) { return L.store.createFromBackup(pv, state); }).then(function () { return enterNew('restore from backup'); });
+            var np = secret;
+            if (byKey) { checkPass(n1.value); if (n1.value !== n2.value) throw new Error('The two passphrases do not match.'); np = n1.value; }
+            return L.vault.importBackup(secret, text).then(function (state) { return L.store.createFromBackup(np, state); }).then(function () { secret = null; if (n1) { n1.value = ''; n2.value = ''; } return enterNew('restore from backup'); });
           }).then(function () { restorePick = null; });
         }, 'pri', { id: 'rs-use' }), btn('Cancel', function () { restorePick = null; out.replaceChildren(); }, '', { id: 'rs-cancel' }))));
       setNotice('ok', 'Backup file verified.');
@@ -533,19 +552,22 @@
           e.preventDefault();
           var f = file.files && file.files[0];
           if (!f) { setNotice('err', 'Choose a backup file first.'); return; }
-          if (!pass.value) { setNotice('err', 'Enter the backup passphrase.'); return; }
-          var pv = pass.value; pass.value = '';
+          if (!pass.value) { setNotice('err', useKey.checked ? 'Enter the recovery key.' : 'Enter the backup passphrase.'); return; }
+          var secret = useKey.checked ? { recovery: pass.value } : pass.value; pass.value = '';
           act(function () {
             return readFile(f, L.vault.MAX_BACKUP).then(function (text) {
-              return L.ops.verifyBackup(pv, text, { schema: L.store.SCHEMA }).then(function (r) {
+              var wait = useKey.checked ? leftOf(mainFail) : 0;
+              if (wait > 0) throw new Error('Wrong key or passphrase. Wait ' + wait + ' s before trying again.');
+              return L.ops.verifyBackup(secret, text, { schema: L.store.SCHEMA }).then(function (r) {
                 out.replaceChildren();
-                if (!r.ok) { setNotice('err', r.message); return; }
-                showPreview(r, text, pv);
+                if (!r.ok) { if (r.reason === 'BAD_RECOVERY_KEY') bumpOf(mainFail); setNotice('err', r.message); return; }
+                showPreview(r, text, secret);
               });
             });
           });
         }
-      }, field('Backup file (64 MB max)', file), field('Backup passphrase', pass),
+      }, field('Backup file (64 MB max)', file), field('Backup passphrase, or the recovery key when the box below is ticked', pass),
+        h('label', { class: 'row small' }, useKey, h('span', { text: 'Open with the main recovery key the backup carries' })),
         h('button', { type: 'submit', class: 'btn pri', id: 'rs-check', text: 'Check backup file' })),
       out, h('div', { class: 'row' }, backLink()));
   }
@@ -592,11 +614,20 @@
   function archCtx() {
     return { h: h, field: field, btn: btn, openDialog: openDialog, commit: commit, download: download, setNotice: setNotice, render: render, go: go, readFile: readFile, today: today, friendly: friendly };
   }
+  // v1.8.0: the recovery screens. main and priv are the wrong-attempt delay counters shared with the unlock forms.
+  function recCtx() {
+    return { h: h, field: field, btn: btn, openDialog: openDialog, closeDialog: closeDialog, commit: commit, setNotice: setNotice, render: render, go: go, friendly: friendly, act: act,
+      passField: function (id) { return passOnly(id, 'off'); },
+      lockMode: function (on) { lockRecover = !!on; notice = null; render(); },
+      enter: function (action) { return enterNew(action); },
+      main: { left: function () { return leftOf(mainFail); }, bad: function () { bumpOf(mainFail); }, ok: function () { mainFail = { n: 0, until: 0 }; } },
+      priv: { left: function () { return leftOf(privFail); }, bad: function () { bumpOf(privFail); }, ok: function () { privFail = { n: 0, until: 0 }; } } };
+  }
   function syncCtx() {
     return { h: h, field: field, btn: btn, openDialog: openDialog, commit: commit, download: download, setNotice: setNotice, render: render };
   }
   function afterUnlock() {
-    notice = null; csvPending = null; ai = null;
+    notice = null; csvPending = null; ai = null; lockRecover = false;
     resetIdle(true);
     view = { name: 'dashboard' };
     hist.start();
@@ -614,22 +645,26 @@
     return iso + (n <= 0 ? ' (today)' : n === 1 ? ' (1 day ago)' : ' (' + n + ' days ago)');
   }
   // One tap from the banner opens this dialog (the backup passphrase is typed each time); nothing is exported until the owner confirms.
-  function runExport(p1, p2) {
+  // v1.8.0: with a main recovery key on, the file carries it too, so the owner types it here (checked against the vault's own wrap, never stored).
+  function runExport(p1, p2, rkText) {
     checkPass(p1);
     if (p1 !== p2) throw new Error('The backup passphrases do not match.');
     var copy = JSON.parse(JSON.stringify(mainState()));
     L.ops.markBackup(copy, today(), L.store.getMeta().rev);
-    return L.vault.exportBackup(p1, copy).then(function (text) {
+    var recOn = L.store.hasRecovery();
+    if (recOn && !rkText) throw new Error('Type your recovery key so the backup file carries it.');
+    var pre = recOn ? L.recoveryUI.attempt(recCtx().main, function () { return L.store.recoveryMatches(rkText).then(function (ok) { if (!ok) throw new Error('BAD_RECOVERY_KEY'); }); }) : Promise.resolve();
+    return pre.then(function () { return L.vault.exportBackup(p1, copy, recOn ? rkText : undefined); }).then(function (text) {
       download('lifeos-backup-' + today() + '.json', text, 'application/json');
       return L.store.commit(function (x) { L.ops.markBackup(x, today(), L.store.getMeta().rev); addAudit(x, 'export'); });
     }, function (e) { L.ops.record('BACKUP_EXPORT_FAIL', 'backup'); throw e; });
   }
   function exportDialog() {
-    var a = passOnly('rem-pass', 'new-password'), b = passOnly('rem-pass2', 'new-password');
+    var a = passOnly('rem-pass', 'new-password'), b = passOnly('rem-pass2', 'new-password'), rk = L.store.hasRecovery() ? passOnly('rem-key', 'off') : null;
     openDialog({
       title: 'Export an encrypted backup', yes: 'Export backup',
-      body: [field('Backup passphrase (12 characters or more)', a), field('Confirm backup passphrase', b), passNote()],
-      onYes: function () { return runExport(a.value, b.value).then(function () { a.value = ''; b.value = ''; setNotice('ok', 'Backup downloaded.'); render(); }); }
+      body: [field('Backup passphrase (12 characters or more)', a), field('Confirm backup passphrase', b), rk ? field('Recovery key (the backup file carries it)', rk) : null, passNote()],
+      onYes: function () { return runExport(a.value, b.value, rk ? rk.value : '').then(function () { a.value = ''; b.value = ''; if (rk) rk.value = ''; setNotice('ok', 'Backup downloaded.'); render(); }); }
     });
   }
   // Never automatic: the banner only offers. Hidden for a day after "Snooze one day".
@@ -825,6 +860,8 @@
           h('span', { class: 'chip' + (x.done ? ' ok' : ''), text: x.done ? 'Done' : 'To do' }), h('span', { text: ' ' + x.label + ' ' }),
           x.done ? null : btn('Open', function () { goKey(x.where); }, 'sm', { 'aria-label': 'Open: ' + x.label }));
       })),
+      L.recoveryUI ? L.recoveryUI.setupPrompt(recCtx()) : null,
+      L.guideUI ? btn('Getting started', function () { L.guideUI.open(recCtx()); }, 'sm', { id: 'setup-guide' }) : null,
       btn('Dismiss checklist', function () { act(function () { return commit(function (x) { x.settings.setup.dismissed = true; }, 'setup dismissed').then(function () { render(); }); }); }, 'sm', { id: 'setup-dismiss' }));
   }
 
@@ -4008,7 +4045,7 @@
         var a = p1.value;
         checkPass(a);
         if (a !== p2.value) throw new Error('The two passphrases do not match.');
-        return L.priv.setUp(a).then(function () { setNotice('ok', 'Private vault set up and open.'); render(); });
+        return L.priv.setUp(a).then(function () { setNotice('ok', 'Private vault set up and open.'); render(); if (L.recoveryUI) L.recoveryUI.privSetupPrompt(recCtx(), a); });
       }).then(function () { p1.value = ''; p2.value = ''; });
     } }, h('h2', { text: 'Set up the private vault' }),
       field('Private passphrase (12 characters or more, different from your main passphrase)', p1), field('Confirm private passphrase', p2),
@@ -4016,6 +4053,7 @@
       h('button', { type: 'submit', class: 'btn pri', id: 'priv-setup-btn', text: 'Set up private vault' }));
   }
   function privOpenForm() {
+    if (L.recoveryUI && L.recoveryUI.privActive()) return L.recoveryUI.privPath(recCtx());
     var p = h('input', { type: 'password', id: 'priv-pass', autocomplete: 'off', required: true });
     var b = h('button', { type: 'submit', class: 'btn pri', id: 'priv-open', text: 'Open private vault' });
     var msg = h('p', { class: 'small', id: 'priv-wait', role: 'status', text: '' });
@@ -4036,7 +4074,7 @@
           throw err;
         });
       }).then(tick);
-    } }, field('Private passphrase', p), b, msg);
+    } }, field('Private passphrase', p), b, msg, L.recoveryUI && L.priv.hasRecovery(mainState()) ? L.recoveryUI.privLink(recCtx()) : null);
     tick();
     return f;
   }
@@ -4093,6 +4131,7 @@
       } }, field('Close the private vault after this many idle seconds (15 to 1800)', secs), h('button', { type: 'submit', class: 'btn sm', id: 'priv-secs-save', text: 'Save' }))));
     if (L.priv.isOpen()) out.push(privMoveCard(s));
     var o = passOnly('priv-old', 'off'), n1 = passOnly('priv-new1', 'new-password'), n2 = passOnly('priv-new2', 'new-password'), typed = h('input', { type: 'text', id: 'priv-destroy-confirm', autocomplete: 'off' });
+    var rcp = L.recoveryUI.changeFields(recCtx(), 'priv', L.priv.hasRecovery(b));
     var chBtn = h('button', { type: 'submit', class: 'btn sm', id: 'priv-change', text: 'Change private passphrase' }), chMsg = h('p', { class: 'small', id: 'priv-change-wait', role: 'status', text: '' });
     function chTick() {
       var left = Math.ceil((privFail.until - Date.now()) / 1000);
@@ -4100,6 +4139,7 @@
       else { chBtn.disabled = false; chMsg.textContent = ''; }
     }
     chTick();
+    out.push(L.recoveryUI.privCard(recCtx(), b));
     out.push(h('div', { class: 'card', id: 'priv-manage' }, h('h2', { text: 'Passphrase and removal' }),
       h('form', { onsubmit: function (e) {
         e.preventDefault();
@@ -4109,12 +4149,17 @@
           if (n1.value !== n2.value) throw new Error('The two new passphrases do not match.');
           var a = o.value, c = n1.value;
           // UI-6: a wrong current passphrase here counts toward the same wrong-passphrase delay as the open form.
+          // v1.8.0: with a private recovery key on, the change also keeps or replaces it (a wrong key counts toward the same delay).
+          if (rcp.on) return L.recoveryUI.attempt(recCtx().priv, function () { return L.priv.matches(L.store.getState().priv, a).then(function (ok) { if (!ok) throw new Error('BAD_PRIVATE_PASSPHRASE'); }); }).then(function () { return rcp.opts(); }).then(function (ro) { return L.priv.changePassphrase(a, c, ro); }).then(function () { privFail = { n: 0, until: 0 }; setNotice('ok', 'Private passphrase changed. The vault is closed.'); render(); }, function (err) {
+            if (err && (err.message === 'BAD_PRIVATE_PASSPHRASE' || err.message === 'BAD_RECOVERY_KEY')) { privFail.n++; privFail.until = Date.now() + Math.min(30000, 1000 * Math.pow(2, privFail.n - 1)); }
+            throw err;
+          });
           return L.priv.changePassphrase(a, c).then(function () { privFail = { n: 0, until: 0 }; setNotice('ok', 'Private passphrase changed. The vault is closed.'); render(); }, function (err) {
             if (err && err.message === 'BAD_PRIVATE_PASSPHRASE') { privFail.n++; privFail.until = Date.now() + Math.min(30000, 1000 * Math.pow(2, privFail.n - 1)); }
             throw err;
           });
         }).then(function () { o.value = ''; n1.value = ''; n2.value = ''; chTick(); });
-      } }, field('Current private passphrase', o), field('New private passphrase (12 characters or more)', n1), field('Confirm new private passphrase', n2),
+      } }, field('Current private passphrase', o), field('New private passphrase (12 characters or more)', n1), field('Confirm new private passphrase', n2), rcp.nodes,
         chBtn, chMsg),
       h('hr'),
       btn('Destroy the private vault', function () {
@@ -4376,6 +4421,7 @@
 
     // passphrase
     var o = passOnly('pp-old', 'current-password'), n1 = passOnly('pp-new', 'new-password'), n2 = passOnly('pp-new2', 'new-password');
+    var rcf = L.recoveryUI.changeFields(recCtx(), 'main', L.store.hasRecovery());
     out.push(h('form', {
       class: 'card',
       onsubmit: function (e) {
@@ -4383,18 +4429,23 @@
         act(function () {
           checkPass(n1.value);
           if (n1.value !== n2.value) throw new Error('The new passphrases do not match.');
-          return L.store.changePassphrase(o.value, n1.value).then(function () { return commit(null, 'passphrase change'); }).then(function () { setNotice('ok', 'Passphrase changed.'); });
+          // SEC-130: the current passphrase is checked before a new recovery key is shown, so a key is never written down for a change that fails.
+          return (rcf.on ? L.recoveryUI.attempt(recCtx().main, function () { return L.store.matchesMain(o.value).then(function (ok) { if (!ok) throw new Error('BAD_PASSPHRASE_OR_DATA'); }); }) : Promise.resolve()).then(function () { return rcf.opts(); }).then(function (ro) {
+            return L.recoveryUI.attempt(recCtx().main, function () { return L.store.changePassphrase(o.value, n1.value, ro); });
+          }).then(function () { return commit(null, 'passphrase change'); }).then(function () { setNotice('ok', 'Passphrase changed.'); render(); });
         }).then(function () { o.value = ''; n1.value = ''; n2.value = ''; });
       }
-    }, h('h2', { text: 'Change passphrase' }), field('Current passphrase', o), field('New passphrase (12 characters or more)', n1), field('Confirm new passphrase', n2), passNote(),
+    }, h('h2', { text: 'Change passphrase' }), field('Current passphrase', o), field('New passphrase (12 characters or more)', n1), field('Confirm new passphrase', n2), rcf.nodes, passNote(),
       h('button', { type: 'submit', class: 'btn', text: 'Change passphrase' })));
+    out.push(L.recoveryUI.mainCard(recCtx()));
+    if (L.guideUI) out.push(h('div', { class: 'card', id: 'guide-card' }, h('h2', { text: 'Getting started' }), h('p', { class: 'mut small', text: 'The first-time steps in order.' }), btn('Open Getting started', function () { L.guideUI.open(recCtx()); }, 'sm', { id: 'settings-guide' })));
 
     // storage, reminders, verify and diagnostics (v1.3.0)
     out.push(safetySettings(mainState()));
     out.push(calendarCard());
 
     // backup
-    var bp = passOnly('bk-pass', 'new-password'), bp2 = passOnly('bk-pass2', 'new-password');
+    var bp = passOnly('bk-pass', 'new-password'), bp2 = passOnly('bk-pass2', 'new-password'), bpk = L.store.hasRecovery() ? passOnly('bk-key', 'off') : null;
     var bf = h('input', { type: 'file', id: 'bk-file', accept: '.json,application/json' });
     var ip = passOnly('bk-ipass', 'current-password');
     out.push(h('div', { class: 'card' }, h('h2', { text: 'Encrypted backup' }),
@@ -4402,10 +4453,10 @@
         onsubmit: function (e) {
           e.preventDefault();
           act(function () {
-            return Promise.resolve().then(function () { return runExport(bp.value, bp2.value); }).then(function () { setNotice('ok', 'Backup downloaded.'); });
-          }).then(function () { bp.value = ''; bp2.value = ''; });
+            return Promise.resolve().then(function () { return runExport(bp.value, bp2.value, bpk ? bpk.value : ''); }).then(function () { setNotice('ok', 'Backup downloaded.'); });
+          }).then(function () { bp.value = ''; bp2.value = ''; if (bpk) bpk.value = ''; });
         }
-      }, field('Backup passphrase (12 characters or more)', bp), field('Confirm backup passphrase', bp2), passNote(),
+      }, field('Backup passphrase (12 characters or more)', bp), field('Confirm backup passphrase', bp2), bpk ? field('Recovery key (the backup file carries it)', bpk) : null, passNote(),
         h('button', { type: 'submit', class: 'btn', text: 'Export backup' })),
       h('hr'),
       h('form', {
@@ -5151,6 +5202,8 @@
 
   // ---- print views (no network; the browser prints to PDF) ----
   function printScreen(s) {
+    if (view.kind === 'recovery' && L.recoveryUI) return L.recoveryUI.sheet(recCtx(), view);
+    if (view.kind === 'guide' && L.guideUI) return L.guideUI.view(recCtx());
     var back = btn('Back', function () { if (view.kind === 'invoice') bzGo('invoices', { invoiceId: view.id }); else bzGo('export', { year: view.year }); }, 'sm back noprint', { id: 'pv-back' });
     var pbtn = btn('Print', function () { window.print(); }, 'pri noprint', { id: 'pv-print' });
     if (view.kind === 'invoice') {

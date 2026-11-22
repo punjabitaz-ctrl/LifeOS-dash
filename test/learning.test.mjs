@@ -80,7 +80,7 @@ test('migration is persisted on unlock of stored schema 1 to 6 vaults', async ()
     const st = await S.unlock(PASS);
     assert.equal(st.schema, 19); assert.equal(st.learningItems.length, 3); assert.equal(st.studySessions.length, 2);
     await S.commit((x) => { Ln.addTakeaway(x, { text: 'Persisted takeaway text' }, TODAY); });
-    const raw = await V.decrypt(key, ad._m.get('envelope'));
+    const raw = await (await V.openEnvelope(ad._m.get('envelope'), PASS)).raw;
     assert.equal(raw.schema, 19); assert.equal(raw.learningItems.length, 3); assert.equal(raw.takeaways.length, 1);
     assert.equal(raw.entries.filter((e) => e.domain === 'learning').length, 4, 'only the four that do not fit stay entries');
     S.lock();

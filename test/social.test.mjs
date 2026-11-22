@@ -74,7 +74,7 @@ test('migration is persisted on unlock of a stored schema 8 vault', async () => 
   const st = await S.unlock(PASS);
   assert.equal(st.schema, 19); assert.equal(st.people.length, 3);
   await S.commit(() => {});
-  const raw = await V.decrypt(key, ad._m.get('envelope'));
+  const raw = await (await V.openEnvelope(ad._m.get('envelope'), PASS)).raw;
   assert.equal(raw.schema, 19); assert.equal(raw.people.length, 3); assert.ok(raw.contacts.length >= 6);
 });
 test('a v0.9.0 (schema 8) backup imports cleanly; a schema 9 backup round trips every new field', async () => {
@@ -611,9 +611,9 @@ test('sync round trip with schema 9 Social data: ciphertext only, restores on an
 });
 
 // ---- version ----
-test('the version is 1.7.0 everywhere and the two-digit minor is shown whole', () => {
+test('the version is 1.8.0 everywhere and the two-digit minor is shown whole', () => {
   const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
-  assert.equal(pkg.version, '1.7.0');
+  assert.equal(pkg.version, '1.8.0');
   const ui = readFileSync(new URL('../src/ui/app.js', import.meta.url), 'utf8');
   assert.ok(ui.includes("text: 'LifeOS v' + L.VERSION")); assert.ok(!/LifeOS v0\.(9|1[0-2])\b/.test(ui));
   assert.ok(/v0\.10\.0/.test('LifeOS v0.10.0') && !/v0\.1\b/.test('LifeOS v0.10.0'));

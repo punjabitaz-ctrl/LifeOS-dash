@@ -1,6 +1,6 @@
 # LifeOS
 
-Version <!--version-->1.7.0<!--/version--> (set by package.json; `node build.mjs` writes it here).
+Version <!--version-->1.8.0<!--/version--> (set by package.json; `node build.mjs` writes it here).
 
 LifeOS (Living Independent and Free Everyday Operating System) is a single-file, offline, local-first life dashboard. It tracks eleven areas (money, assets, work, health and more) plus business records and tax estimates, keeps a private vault with its own passphrase (Wellbeing lives there), builds weekly reviews, and keeps a memory of insights you approve. Vanilla JS, no dependencies.
 
@@ -72,6 +72,13 @@ Build, then open `dist/lifeos.html` in a browser (double-click works, it needs n
 - Important dates (label and name only) appear in the dashboard "At a glance" card; Feb 29 shows on Feb 28 in other years. Pipeline items and projects show linked people and their last contact; unlinking never deletes either side.
 - The weekly review gains a Social step (offers only); Goals gain people overdue and contacts per week. The AI and digest see counts only, with groups numbered by position.
 - Vault schema 9, migrated from schema 1 to 8 with no data loss: each distinct name in old contact entries becomes a person with those entries as the log; an entry that cannot map stays a visible entry. Contact entries added later (for example by CSV import) are offered for conversion, once. `node test/smoke-social.mjs` runs the flow. Audited: names, group names, labels, facts, channels and notes never leave the vault. See the v0.10.0 audit in docs/SECURITY.md.
+
+## v1.8.0: Passphrase recovery
+- Optional recovery key for the main vault and a separate one for the private vault (256 random bits, shown once, never stored). Turn on, replace or turn off in Settings and on the private vault screen; "Use recovery key" on each lock screen sets a new passphrase and a new key. See docs/RECOVERY.md.
+- Each vault has a random data key wrapped under the passphrase and, when on, the recovery key. Every sealed copy (stored vault, backups, Drive copies, archive files, private boxes) carries the wraps. An older app refuses the new file with its newer-version message.
+- Printable recovery sheet (no key unless you tick the box after turning a key on).
+- A backup that carries the main recovery key restores on the lock screen with that key (tick the box, then set a new passphrase); the archive Open and Restore dialogs take the main recovery key a file carries.
+- The setup checklist prompts for the main key ("Turn on now" or "Later"), creating the private vault prompts for its key, and a Getting started view (checklist and Settings) lists the first-time steps in order. See docs/GETTING-STARTED.md.
 
 ## v1.7.0: AYiN and clients, Podcasts, Websites
 

@@ -30,7 +30,7 @@ const REAL_DERIVE = (p, salt) => { realKeys(); try { return V.deriveKey(p, salt)
 // ---------------------------------------------------------------- schema 18
 test('schema 18: the schema is 18 and package.json is the version source', () => {
   assert.equal(S.SCHEMA, 19); assert.equal(S.defaultState().schema, 19);
-  assert.equal(JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version, '1.7.0');
+  assert.equal(JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version, '1.8.0');
 });
 const OLDFIELDS = { role: 'Account Executive', locationType: 'remote', targetOteCents: 20000000, appliedOn: '2026-11-01', resume: 'v3', followUp: '2026-11-20' };
 test('migrations 1 to 17 into 18: the pipeline survives with every old text, and no job field is invented or trusted from an older format', () => {
@@ -89,7 +89,7 @@ test('a v1.5.0 backup (schema 17) imports cleanly into an empty vault and a stor
   const un = await S.unlock(PASS);
   assert.equal(un.schema, 19); assert.equal(un.pipeline.length, 1);
   await S.commit(() => {});
-  assert.equal((await V.decrypt(key2, await ad.get('envelope'))).schema, 19);
+  assert.equal((await (await V.openEnvelope(await ad.get('envelope'), PASS)).raw).schema, 19);
 });
 test('downgrade guards: an older-format copy names the job details it would drop; a newer schema is refused', async () => {
   const cur = withJobs([job(Object.assign({ id: 'a', stage: 'applied' }, OLDFIELDS))]);

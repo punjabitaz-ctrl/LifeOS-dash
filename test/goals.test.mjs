@@ -1,7 +1,7 @@
 // v0.6.0 Goals: schema 5, linked metrics, progress and pace, cascade, explicit lifecycle, privacy, guards, sync, and the three v0.5.0 leftovers.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { L, memAdapter, PASS, E } from './_load.mjs';
+import { L, memAdapter, PASS, E, resealLike } from './_load.mjs';
 // store.test.mjs asserts that no storage adapter exists yet, and v020.test.mjs replaces L.store and friends with the built bundle.
 // Register after them (the build import is slow) and resolve modules on every use, like health.test.mjs does.
 await import('../build.mjs');
@@ -84,7 +84,7 @@ test('migration is persisted on unlock of stored schema 1 to 4 vaults', async ()
     const st = await S.unlock(PASS);
     assert.equal(st.schema, 19); assert.equal(st.goals.length, 3);
     await S.commit((x) => { G.addGoal(x, { title: 'New one', horizon: 'monthly', targetValue: 3 }, TODAY); });
-    const raw = await V.decrypt(key, ad._m.get('envelope'));
+    const raw = await (await V.openEnvelope(ad._m.get('envelope'), PASS)).raw;
     assert.equal(raw.schema, 19); assert.equal(raw.goals.length, 4); assert.equal(raw.entries.filter((e) => e.type === 'goal').length, 0);
     S.lock();
   }
@@ -126,7 +126,7 @@ async function putRemote(d, content, bump) {
   const salt = V.parseEnvelope(env1).salt, key = await V.deriveKey(PASS, salt);
   const raw = await V.decrypt(key, env1);
   const m = { rev: env1.rev + bump, updatedAt: '2026-11-12T00:00:00.000Z', deviceId: 'other-device' };
-  d.put(JSON.stringify(Object.assign(await V.makeEnvelope(key, salt, Object.assign(content, { settings: raw.settings, _meta: m })), m)));
+  d.put(JSON.stringify(await resealLike(env1, Object.assign(content, { settings: raw.settings, _meta: m }), m)));
 }
 const addGoals = (x) => { G.addGoal(x, { title: 'Alpha plan', horizon: 'annual', targetValue: 10 }, TODAY); G.addGoal(x, { title: 'Beta plan', horizon: 'monthly', targetValue: 5 }, TODAY); };
 

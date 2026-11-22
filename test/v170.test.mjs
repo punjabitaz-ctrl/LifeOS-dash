@@ -30,7 +30,7 @@ const stripMedia = (o) => { for (const c of MEDIA_COLLECTIONS) delete o[c]; for 
 // ---------------------------------------------------------------- schema 19
 test('schema 19: the schema, the version and the build order', () => {
   assert.equal(S.SCHEMA, 19); assert.equal(S.defaultState().schema, 19);
-  assert.equal(JSON.parse(src('package.json')).version, '1.7.0');
+  assert.equal(JSON.parse(src('package.json')).version, '1.8.0');
   assert.match(src('build.mjs'), /'business', 'clients', 'media', 'layout'/);
   assert.deepEqual(MEDIA_COLLECTIONS.filter((c) => !Array.isArray(S.defaultState()[c])), []);
   assert.deepEqual(S.defaultState().settings.clients, { contactDays: 30 });
@@ -83,7 +83,7 @@ test('a v1.6.0 backup (schema 18) imports cleanly and a stored schema 18 vault m
   const un = await S.unlock(PASS);
   assert.equal(un.schema, 19); assert.equal(un.pipeline.length, 1); assert.deepEqual(un.shows, []);
   await S.commit(() => {});
-  assert.equal((await V.decrypt(key2, await ad.get('envelope'))).schema, 19);
+  assert.equal((await (await V.openEnvelope(await ad.get('envelope'), PASS)).raw).schema, 19);
 });
 test('downgrade guards: an older-format copy names every new detail it would drop; a newer schema is refused', async () => {
   const { state } = buildAdversarial(L);

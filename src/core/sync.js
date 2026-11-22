@@ -358,7 +358,7 @@
     if (wantsRemote) {
       const afp = await fingerprint(ctx.info.state);
       await S.adoptEnvelope(ctx.info);
-      await bookkeeping(ctx.clientId, ctx.info.meta.rev, ctx.file.id, 'sync: downloaded from Drive', afp, b64(ctx.info.salt));
+      await bookkeeping(ctx.clientId, ctx.info.meta.rev, ctx.file.id, 'sync: downloaded from Drive', afp, S.saltId());
       return { kind: 'downloaded', rev: ctx.info.meta.rev };
     }
     const ex = await exportSnap(ctx.info.meta.rev + 1);
@@ -390,7 +390,7 @@
       throw err('REMOTE_INVALID', 'The Drive file is not a valid LifeOS vault.');
     }
     const id = typeof clientId === 'string' && clientId ? validateClientId(clientId) : '';
-    if (id) await bookkeeping(id, info.meta.rev, ctx.file.id, 'sync: downloaded from Drive', await fingerprint(info.state), b64(info.salt));
+    if (id) await bookkeeping(id, info.meta.rev, ctx.file.id, 'sync: downloaded from Drive', await fingerprint(info.state), L.store.saltId());
     return { kind: 'downloaded', rev: info.meta.rev };
   }
 

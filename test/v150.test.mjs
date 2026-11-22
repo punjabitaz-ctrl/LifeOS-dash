@@ -524,7 +524,7 @@ test('B17 the calendar file touches no network, builds from the state it is give
 
 // ---------------------------------------------------------------- wiring
 test('v1.5.0 wiring: version, schema, build order, new UI ids, and the insight card keeps its approve-only-on-tap rule', () => {
-  assert.equal(JSON.parse(src('package.json')).version, '1.7.0'); assert.equal(S.SCHEMA, 19); assert.equal(fresh().schema, 19);
+  assert.equal(JSON.parse(src('package.json')).version, '1.8.0'); assert.equal(S.SCHEMA, 19); assert.equal(fresh().schema, 19);
   assert.match(src('build.mjs'), /'memory', 'ai', 'calendar', 'jobs', 'search'\]/);
   const app = src('src/ui/app.js');
   for (const id of ['review-due', 'review-due-start', 'rv-streak', 'dash-streak', 'offer-merge-', 'reject-category', 'approve-apply', 'apply-change', 'muted-none']) assert.ok(app.includes(id), id);

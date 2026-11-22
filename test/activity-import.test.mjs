@@ -102,7 +102,7 @@ test('a v1.1.0 backup (schema 12) imports cleanly into an empty vault and a stor
   const st = await S.unlock(PASS);
   assert.equal(st.schema, 19); assert.equal(st.activities.length, 3);
   await S.commit(() => {});
-  assert.equal((await V.decrypt(key2, await ad.get('envelope'))).schema, 19);
+  assert.equal((await (await V.openEnvelope(await ad.get('envelope'), PASS)).raw).schema, 19);
   // and the downgrade guard still refuses a newer copy
   const salt3 = V.newSalt(), key3 = await REAL_DERIVE(PASS, salt3);
   await assert.rejects(V.importBackup(PASS, JSON.stringify(await V.makeEnvelope(key3, salt3, Object.assign(clone(S.getState()), { schema: 20 })))), /schema/);

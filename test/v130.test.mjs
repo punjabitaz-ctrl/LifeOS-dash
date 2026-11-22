@@ -23,7 +23,7 @@ const fresh = () => S.validateState(S.defaultState());
 // ---------- B6: one version source ----------
 test('B6 version: package.json is the only source; the app, README, HANDOFF and the built file all agree, and a mismatch is caught', () => {
   const v = JSON.parse(src('package.json')).version;
-  assert.equal(v, '1.7.0'); assert.equal(versionOf(ROOT), v);
+  assert.equal(v, '1.8.0'); assert.equal(versionOf(ROOT), v);
   const app = src('src/ui/app.js');
   assert.ok(!/LifeOS v\d/.test(app), 'no literal version in app.js');
   assert.ok(app.includes("text: 'LifeOS v' + L.VERSION"));
@@ -78,7 +78,7 @@ test('B6 runbook: the backfill runs name the real commits of v1.0.0, v1.1.0 and 
 test('B6 docs: CHANGELOG runs newest first from 1.3.0 to 0.1.0; no em dashes and no advice wording in the new docs and the UI copy', () => {
   const c = src('docs/CHANGELOG.md');
   const heads = [...c.matchAll(/^## (\d+\.\d+\.\d+)/gm)].map((m) => m[1]);
-  assert.equal(heads[0], '1.7.0'); assert.equal(heads[heads.length - 1], '0.1.0'); assert.equal(heads.length, 19);
+  assert.equal(heads[0], '1.8.0'); assert.equal(heads[heads.length - 1], '0.1.0'); assert.equal(heads.length, 20);
   const num = (v) => v.split('.').map(Number).reduce((a, n) => a * 1000 + n, 0);
   assert.deepEqual(heads.slice().sort((a, b) => num(b) - num(a)), heads);
   for (const f of ['docs/CHANGELOG.md', 'docs/RUNBOOK.md', 'docs/FIRST-RUN.md', 'docs/SYNC-SETUP.md', 'src/core/ops.js', 'src/ui/app.js', 'scripts/check-live.mjs']) assert.ok(!src(f).includes('—'), f + ' has an em dash');

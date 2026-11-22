@@ -349,7 +349,7 @@
 
   // ---- the file ----
   const recMap = (recs) => { const o = {}; for (const d of DEFS) if (recs[d.name] && recs[d.name].length) o[d.name] = sorted(d, recs[d.name]); return o; };
-  async function build(pl, passphrase, wbCheckins) {
+  async function build(pl, passphrase, wbCheckins, recoveryKey) {
     const pub = recMap(pl.recs), privRecs = recMap(pl.priv);
     const hasPriv = Object.keys(privRecs).length > 0 || (wbCheckins && wbCheckins.length > 0);
     const inner = { kind: 'lifeos-archive', v: 1, year: pl.year, createdAt: new Date().toISOString(), counts: countsOf(pub), records: pub };
@@ -361,8 +361,9 @@
       inner.priv = await L.priv.sealBox(privPlain);
     }
     inner.sha256 = await sha256(canon({ records: pub }));
-    const salt = V().newSalt(), key = await V().deriveKey(passphrase, salt);
-    const env = Object.assign(await V().makeEnvelope(key, salt, inner), { arch: 1, year: pl.year });
+    // v1.8.0: a new data key for the file, wrapped under the passphrase and, when the vault has a recovery key on, under that key too (typed by
+    // the owner and checked by the caller), each wrap with its own fresh salt.
+    const env = await V().sealEnvelope(await V().newKeyset(passphrase, recoveryKey || null), inner, null, { arch: 1, year: pl.year });
     const text = JSON.stringify(env);
     if (text.length > MAX_FILE) throw bad('The archive for ' + pl.year + ' would be larger than 64 MB, so nothing was archived.');
     return { text, inner, privPlain, name: fileName(pl.year) };
@@ -373,12 +374,11 @@
     let env;
     try { env = JSON.parse(text); } catch (e) { throw NOT_FILE(year); }
     if (!isObj(env) || env.arch !== 1 || !Number.isInteger(env.year) || env.year < 1900 || env.year > 2200) throw NOT_FILE(year);
-    for (const k of Object.keys(env)) if (!['v', 'kdf', 'iv', 'ct', 'arch', 'year'].includes(k)) throw NOT_FILE(year);
+    if (env.fmt === undefined) for (const k of Object.keys(env)) if (!['v', 'kdf', 'iv', 'ct', 'arch', 'year'].includes(k)) throw NOT_FILE(year);
     if (year !== undefined && env.year !== year) throw NOT_FILE(year);
-    let salt;
-    try { salt = V().parseEnvelope(env).salt; } catch (e) { throw NOT_FILE(year); }
+    try { V().parseEnvelope(env); } catch (e) { throw NOT_FILE(year); } // v2 files are parsed strictly: unknown fields refused
     let inner;
-    try { inner = await V().decrypt(await V().deriveKey(passphrase, salt), env); } catch (e) { throw bad('That passphrase did not work, or the archive file is damaged.'); }
+    try { inner = (await V().openEnvelope(env, passphrase)).raw; } catch (e) { throw bad('That passphrase did not work, or the archive file is damaged.'); }
     if (!isObj(inner) || inner.kind !== 'lifeos-archive' || inner.v !== 1 || inner.year !== env.year || !isObj(inner.records) || !isObj(inner.counts)) throw NOT_FILE(year);
     if (typeof inner.sha256 !== 'string' || !/^[0-9a-f]{64}$/.test(inner.sha256) || typeof inner.createdAt !== 'string' || inner.createdAt.length > 40) throw NOT_FILE(year);
     const budget = { n: 6e6 };
@@ -390,7 +390,7 @@
     for (const r of inner.records.entries || []) if (typeof r.date !== 'string' || yr(r.date) !== env.year) throw NOT_FILE(year);
     for (const r of inner.records.habitLog || []) if (typeof r.date !== 'string' || yr(r.date) !== env.year) throw NOT_FILE(year);
     if (!sameCounts(inner.counts, countsOf(inner.records))) throw NOT_FILE(year);
-    if (inner.priv !== undefined && !(isObj(inner.priv) && isObj(inner.priv.kdf) && typeof inner.priv.iv === 'string' && typeof inner.priv.ct === 'string')) throw NOT_FILE(year);
+    if (inner.priv !== undefined && !(isObj(inner.priv) && (isObj(inner.priv.kdf) || Array.isArray(inner.priv.wraps)) && typeof inner.priv.iv === 'string' && typeof inner.priv.ct === 'string')) throw NOT_FILE(year);
     if (await sha256(canon({ records: recMap(inner.records) })) !== inner.sha256) throw bad('The archive file does not match its checksum.');
     return { year: env.year, inner, size: text.length };
   }
@@ -445,12 +445,22 @@
   }
 
   const planKey = async (pl, wb) => sha256(canon({ y: pl.year, ids: NAMES.map((n) => [n, sorted(DEF[n], pl.recs[n].concat(pl.priv[n])).map(DEF[n].key)]), wb: (wb || []).map((c) => c.id) }));
-  // opts: { year, passphrase, today, drive: bool, download: bool, io: { put(name,text), get(name), save(name,text), confirmSaved() } }
+  // With a recovery key on, the file must carry it, so the owner types it; it is checked against the vault's own wrap and never stored.
+  async function recoveryFor(text) {
+    if (!S().hasRecovery()) return null;
+    if (typeof text !== 'string' || !text) throw bad('Type your recovery key so the archive file carries it.');
+    let ok = false;
+    try { ok = await S().recoveryMatches(text); } catch (e) { throw bad('That recovery key has a typo. Check it and try again.'); }
+    if (!ok) throw bad('That is not your current recovery key.');
+    return text;
+  }
+  // opts: { year, passphrase, recoveryKey (needed when a recovery key is on), today, drive: bool, download: bool, io: { put(name,text), get(name), save(name,text), confirmSaved() } }
   // Returns { year, counts, copies }. Throws (leaving the vault untouched) when any step fails or no copy is verified.
   async function archiveYear(opts) {
     const st0 = S().getState(), year = opts.year, today = opts.today || M().todayISO();
     if (isArchivedYear(st0, year)) throw bad(year + ' is already archived. Restore it first to archive it again.');
     if (!(await S().matchesMain(opts.passphrase))) throw bad('That is not your main passphrase.');
+    const rk = await recoveryFor(opts.recoveryKey);
     privateGate(st0);
     const openP = L.priv && L.priv.isOpen();
     const view = openP ? L.priv.view(st0) : st0;
@@ -471,7 +481,7 @@
       if (d) { delete d.v; if (Object.keys(d).length) privSummary = Object.assign({ v: 1 }, d); }
     }
     const key0 = await planKey(pl, wb);
-    const built = await build(pl, opts.passphrase, wb);
+    const built = await build(pl, opts.passphrase, wb, rk);
     await verify(built.text, opts.passphrase, pl, built);
     const copies = [], io = opts.io || {};
     const at = () => new Date().toISOString();
@@ -561,11 +571,13 @@
   }
   // Restore: records go back into the live vault, deduplicated by id, never overwriting a live record. Needs the main passphrase and
   // (when the file has a private part) the open private vault. The archive's index entry and summary are removed in the same write.
-  async function restoreYear(text, passphrase, year, privPass) {
-    if (!(await S().matchesMain(passphrase))) throw bad('That is not your main passphrase.');
+  // SEC-128: fileSecret ({ recovery }, optional) opens a file sealed under an earlier main passphrase with the recovery key it carries;
+  // the current main passphrase is still required.
+  async function restoreYear(text, passphrase, year, privPass, fileSecret) {
+    if (typeof passphrase !== 'string' || !(await S().matchesMain(passphrase))) throw bad('That is not your main passphrase.');
     // SEC-89: with private records hidden, a restored record's link to one of them could not be kept; open the vault first.
     privateGate(S().getState());
-    const parsed = await parse(text, passphrase, year);
+    const parsed = await parse(text, fileSecret && typeof fileSecret === 'object' ? { recovery: fileSecret.recovery } : passphrase, year);
     let p = null;
     if (parsed.inner.priv) {
       if (!L.priv || !L.priv.isOpen()) throw bad('Open the private vault first: this archive holds private records.');

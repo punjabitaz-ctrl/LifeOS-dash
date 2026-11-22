@@ -111,6 +111,7 @@ async function run(label, viewport) {
       await page.fill('#priv-set1', PRIV); await page.fill('#priv-set2', PRIV + 'x'); await page.click('#priv-setup-btn');
       await page.waitForSelector('.notice.err:has-text("do not match")', T);
       await page.fill('#priv-set1', PRIV); await page.fill('#priv-set2', PRIV); await page.click('#priv-setup-btn');
+      await page.waitForSelector('#priv-rk-prompt', { timeout: 30000 }); await page.click('.dialog button:has-text("Later")');   // v1.8.0: the private recovery key prompt
       await page.waitForSelector('#priv-bar', T);
       await page.fill('#priv-secs', '15'); await page.click('#priv-secs-save');
       await page.waitForSelector('.notice:has-text("Saved.")', T);

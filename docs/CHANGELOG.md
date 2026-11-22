@@ -2,6 +2,14 @@
 
 Newest first. One line per change. Versions come from package.json (see docs/RUNBOOK.md); fixes by number are described in docs/SECURITY.md.
 
+## 1.8.0 (schema 19): Passphrase recovery
+- Envelope v2: each vault (main and private) has a random 256-bit data key, kept only wrapped under the passphrase and, when turned on, a recovery key. v1 files still open and are rewritten as v2 on the next save. An older app opens a v2 file with the passphrase, reads a stub that says "schema 20" and refuses it with its newer-version message.
+- Optional recovery keys, separate for the main and the private vault: 256 random bits as grouped base32 with a checksum, shown once, retyped to confirm, never stored. Turn on, replace, turn off and a passphrase change replace the data key. "Use recovery key" on the lock screen and the private unlock sets a new passphrase and a new key. Wrong keys share the unlock attempt delays.
+- Backups and archive files carry the recovery wrap when a key is on (the key is typed at export and checked, never stored). Drive copies carry the wraps as stored.
+- Recovery sheet (in-app print view, no key by default) and docs/RECOVERY.md.
+- First run: the setup checklist prompts for the main recovery key (Turn on now, Later; it stays on the checklist until done or dismissed), creating the private vault prompts for its key, and a "Getting started" view (setup checklist and Settings) with docs/GETTING-STARTED.md lists the first-time steps in order.
+- No schema change. Decisions in SPEC.md "Amendment (v1.8.0 build)". Tests: test/v180.test.mjs and test/smoke-recovery.mjs.
+
 ## 1.7.0 (schema 19): AYiN and clients, Podcasts, Websites
 - AYiN and clients tab (beside Business): a roll-up of the business lines (revenue this month, quarter and year, open and overdue invoices, budget against spending), and clients with status, line of work, budget, people from Social, invoices linked to a client, a one-tap contact log, and two flags (an overdue invoice, no contact for N days, default 30, set in Settings).
 - Podcasts tab: shows with their own platform list (YouTube, Spotify, Apple Podcasts, YouTube Podcasts and Website offered), episodes in video, audio and text with a release date per format and platform, guests from Social (an Episodes card on the person), numbers typed per platform, monthly platform tables (a month with nothing typed shows "no data"; measures are never added together), release cadence, and the show's money from its line of work.

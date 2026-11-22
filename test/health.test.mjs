@@ -1,7 +1,7 @@
 // v0.5.0 Health: schema 4, body metrics, workouts, training cycle, sleep, daily checks, project delete, guards, privacy.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { L, memAdapter, PASS, E } from './_load.mjs';
+import { L, memAdapter, PASS, E, resealLike } from './_load.mjs';
 // store.test.mjs asserts that no storage adapter exists yet. These tests install one, so register them after it
 // (test/index.js loads files concurrently; a slow import here, like money.test.mjs has, keeps that order).
 await import('../build.mjs');
@@ -69,7 +69,7 @@ test('migration is persisted on unlock of stored schema 1, 2 and 3 vaults', asyn
     const st = await S.unlock(PASS);
     assert.equal(st.schema, 19); assert.equal(st.entries.length, 4);
     await S.commit((x) => { M.addHabit(x, 'Mobility'); });
-    const raw = await V.decrypt(key, ad._m.get('envelope'));
+    const raw = await (await V.openEnvelope(ad._m.get('envelope'), PASS)).raw;
     assert.equal(raw.schema, 19); assert.equal(raw.habits.length, 1); assert.equal(raw.entries.length, 4);
     S.lock();
   }
@@ -115,7 +115,7 @@ async function putRemote(d, content, bump) {
   const salt = V.parseEnvelope(env1).salt, key = await V.deriveKey(PASS, salt);
   const raw = await V.decrypt(key, env1);
   const m = { rev: env1.rev + bump, updatedAt: '2026-11-12T00:00:00.000Z', deviceId: 'other-device' };
-  d.put(JSON.stringify(Object.assign(await V.makeEnvelope(key, salt, Object.assign(content, { settings: raw.settings, _meta: m })), m)));
+  d.put(JSON.stringify(await resealLike(env1, Object.assign(content, { settings: raw.settings, _meta: m }), m)));
 }
 const CYCLE = { startDate: '2026-01-05', sprintDays: 14, sprintsPerCycle: 2, restDays: 7, alternateHeavyLight: true, firstWeek: 'heavy' };
 const CASES = {

@@ -238,6 +238,7 @@ async function run(label, viewport) {
       const id = await page.evaluate(() => globalThis.LifeOS.store.getState().projects.find((p) => p.name === 'Client Co').id);
       await page.click('#nav-private'); await page.waitForSelector('#priv-setup', T);
       await page.fill('#priv-set1', PRIV); await page.fill('#priv-set2', PRIV); await page.click('#priv-setup-btn');
+      await page.waitForSelector('#priv-rk-prompt', { timeout: 30000 }); await page.click('.dialog button:has-text("Later")');   // v1.8.0: the private recovery key prompt
       await page.waitForSelector('#priv-bar', T);
       await page.selectOption('#priv-coll', 'projects');
       await page.waitForSelector('.priv-row[data-key="' + id + '"]', T);

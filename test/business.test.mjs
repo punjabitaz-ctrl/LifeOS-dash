@@ -121,7 +121,7 @@ describe('migration, backups and downgrade guards', () => {
     const st = await S.unlock(PASS);
     assert.equal(st.schema, 19); assert.equal(st.settings.business.scopeConfirmed, false);
     await S.commit(() => {});
-    assert.equal((await V.decrypt(key2, await ad.get('envelope'))).schema, 19);
+    assert.equal((await (await V.openEnvelope(await ad.get('envelope'), PASS)).raw).schema, 19);
   });
   test('downgrade guards: an older copy cannot silently strip invoices, trips, payees, tax payments, tax years, home office, the tax map, budgets or scopes', async () => {
     const cur = build((s) => {

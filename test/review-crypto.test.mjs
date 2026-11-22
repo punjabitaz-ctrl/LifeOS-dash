@@ -1,7 +1,7 @@
 // Crypto/storage/sync review proof tests (docs/review/crypto.md). Each test asserts the correct behaviour; a failure demonstrates the finding.
 import test, { beforeEach, afterEach, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { L, memAdapter, PASS, E } from './_load.mjs';
+import { L, memAdapter, PASS, E, resealLike } from './_load.mjs';
 
 const live = (k) => new Proxy({}, { get: (_, p) => L[k][p], set: (_, p, v) => { L[k][p] = v; return true; } });
 const S = live('store'), P = live('priv'), V = live('vault'), M = live('metrics');
@@ -53,7 +53,7 @@ async function otherDeviceWrites(d, mutate) {
   mutate(raw);
   const m = { rev: env.rev + 1, updatedAt: '2026-11-14T00:00:00.000Z', deviceId: 'other-device' };
   raw._meta = m;
-  d.put(JSON.stringify(Object.assign(await V.makeEnvelope(key, salt, raw), m)));
+  d.put(JSON.stringify(await resealLike(env, raw, m)));
 }
 const entryDuringUpload = () => S.commit((s) => { s.entries.push(E({ id: 'typed-during-upload', domain: 'money', type: 'expense', value: 2 })); });
 

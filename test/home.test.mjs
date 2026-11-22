@@ -58,7 +58,7 @@ test('migration is persisted on unlock of stored schema 1 to 5 vaults', async ()
     const st = await S.unlock(PASS);
     assert.equal(st.schema, 19); assert.equal(st.renewals.length, 3);
     await S.commit((x) => { Hm.addProperty(x, { name: 'Main', kind: 'house' }); });
-    const raw = await V.decrypt(key, ad._m.get('envelope'));
+    const raw = await (await V.openEnvelope(ad._m.get('envelope'), PASS)).raw;
     assert.equal(raw.schema, 19); assert.equal(raw.renewals.length, 3); assert.equal(raw.properties.length, 1);
     assert.equal(raw.entries.filter((e) => e.domain === 'home').length, 1, 'only the over-long one stays an entry');
     S.lock();

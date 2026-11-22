@@ -3,7 +3,7 @@
 import test, { describe, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync, readdirSync } from 'node:fs';
-import { L, memAdapter, PASS, E } from './_load.mjs';
+import { L, memAdapter, PASS, E, resealLike } from './_load.mjs';
 import { drive, TOKEN, clone, asSchema } from './_v070.mjs';
 
 const live = (k) => new Proxy({}, { get: (_, p) => L[k][p] });
@@ -34,7 +34,7 @@ describe('v1.0.0 final review regressions', () => {
     const env = JSON.parse(d.file.text), salt = V.parseEnvelope(env).salt, key = await V.deriveKey(PASS, salt), raw = await V.decrypt(key, env);
     raw.entries.push(E({ id: 'remote-1', domain: 'money', type: 'expense', value: 4 }));
     const m = { rev: env.rev + 1, updatedAt: '2026-11-14T00:00:00.000Z', deviceId: 'other' }; raw._meta = m;
-    d.put(JSON.stringify(Object.assign(await V.makeEnvelope(key, salt, raw), m)));
+    d.put(JSON.stringify(await resealLike(env, raw, m)));
     const dec = await L.sync.run();
     assert.equal(dec.kind, 'download-offer');
     // The adopt is queued behind an edit that lands first: the edit is lost by the adopt (the offer said "no changes"), but any edit
@@ -82,7 +82,7 @@ describe('v1.0.0 final review regressions', () => {
     const env = JSON.parse(d.file.text), salt = V.parseEnvelope(env).salt, key = await V.deriveKey(PASS, salt), raw = await V.decrypt(key, env);
     raw.entries.push(E({ domain: 'money', type: 'expense', value: 4 }));
     const m = { rev: env.rev + 1, updatedAt: '2026-11-14T00:00:00.000Z', deviceId: 'other' }; raw._meta = m;
-    d.put(JSON.stringify(Object.assign(await V.makeEnvelope(key, salt, raw), m)));
+    d.put(JSON.stringify(await resealLike(env, raw, m)));
     const dec = await L.sync.run();
     assert.equal(dec.kind, 'download-offer');
     await S.changePassphrase(PASS, NEWPASS);
@@ -271,7 +271,7 @@ describe('v1.0.0 final review regressions', () => {
   });
 
   test('version 1.0.0: shown in the app, and nothing compares app version strings (schema and rev decide in sync, backup and migration)', () => {
-    assert.equal(JSON.parse(src('package.json')).version, '1.7.0');
+    assert.equal(JSON.parse(src('package.json')).version, '1.8.0');
     assert.ok(ui.includes("text: 'LifeOS v' + L.VERSION"));
     for (const f of ['src/core/store.js', 'src/core/sync.js', 'src/core/vault.js', 'src/core/priv.js']) assert.ok(!/['"]v?(1\.0\.0|0\.12\.0)['"]|appVersion/.test(src(f)), f);
     // The envelope and the backup carry the schema number and revision only, never an app version.

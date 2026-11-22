@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-d7eTW5dECbkJ84OerGKxqSZI4oWmlPolc/PPpy4qBTY='; style-src 'sha256-v1GAFAhlop0i+C2xbqSAthJ9ycRxtM/3w6OyGdTe+3s='; connect-src https://api.anthropic.com https://www.googleapis.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'; manifest-src 'self'; worker-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-fJLjaIuY63uYlo3+sVfficGrSAN/7Xb4KOeyBQg5gt8='; style-src 'sha256-dkGw1nhveikRf03GT4p42Bmd2r0LI4q5rZNRWShN/zk='; connect-src https://api.anthropic.com https://www.googleapis.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'; manifest-src 'self'; worker-src 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#2255d4">
-<meta name="lifeos-shell" content="1.7.0">
-<link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAA9zQYyAAAAEnRFWHRsaWZlb3Mtc2hlbGwAMS43LjC+zkpzAAADOklEQVR42u3dvU0DMRiA4czCGowRsQNFNkhLnQ0omAGxAiUVTZoUKaBJQ0FDc+hDuigCKfzkfPg+P5ZeiQqF4+FkfLEzO7t47KQszVwEAS0BLQEtAS2gJaAloCWgJaAFtAS0BLQEtAS0gJaAloCWgJaAFtAS0BLQEtAS0AJaAloCWgJaAlpAS0BLQEtAS0ALaAloCWgJaAHtQghoCWgJ6NNbrLbd3f1L97R7604d8X2ubp6788s1QECPXwAsMeKPY77cQAT09DEfonanBnqU4u45xri+3YEEdPkC2lgDJKAnP90AGmigBTTQAhpooIGuH3QsEfYPiR7Wr18e+MQ/wq2vjQM9AdAB+TerNrE+Hk8zgQa6OtAB04MfoFOAHupniGkK0ED/K+ihX38rqIGuEPQp04xjo4XpB9CVgQ50pUasjAAN9KigPy/HDT2yL+sBXRHoknfnVu7SQFcEutTcuaW5NNAVgR7rNWde8QC6ItBjjbg2QAMNNNBAAw000EADDbSNvUBb5QAaaOvQQAPtSSHQbb6Xo/R5It7LAXSad9tlXt0AuuL3Q8c/bUOPVrZjAd3IjpVWdoMDXfGewiHm03FntqcQ6CpA99OPvx7UHisadn0DXRXow7v1T2EH5FYPnAF6IqAP79iBO36+/mM2+q/jwYyTk4CeFGgBDTTQQAMNNNACGmgBDbSABhpooIEGGmgBDbSABlpAAw000EADDbSABlpAAy2ggQYaaKCBBlpAAy2ggRbQQAMNNNBAAy2ggRbQQAMNNNBAAw000EALaKAFNNBAA518xEHocYY00ECnGpk/EQtoqIEGOseIj7YAGuhUc2qggU41gAYaaKCBBhpooIEGGmiggQYaaKCBBhpooIEGGmiggQYaaKCBBhpooIEGGmiggQbaABpooIEGGmigixbbi4zjw46VCTVfboj9ZmQ80iAtaNOO4yN2fTvGAOo0mJ3LMeEWq+0H7PhFtjziGjg5SQJaAloCWgJaQEtAS0BLQEtAC2gJaAloCWgB7SIIaAloCWgJaAEtAS0BLQEtAS2gJaAloCWgJaAFtAS0BLQEtAS0gJaAloCWgJaAFtAS0BLQEtDSvncTEEXALVKZAwAAAABJRU5ErkJggg==">
+<meta name="lifeos-shell" content="1.8.0">
+<link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAA9zQYyAAAAEnRFWHRsaWZlb3Mtc2hlbGwAMS44LjC1kg1OAAADOklEQVR42u3dvU0DMRiA4czCGowRsQNFNkhLnQ0omAGxAiUVTZoUKaBJQ0FDc+hDuigCKfzkfPg+P5ZeiQqF4+FkfLEzO7t47KQszVwEAS0BLQEtAS2gJaAloCWgJaAFtAS0BLQEtAS0gJaAloCWgJaAFtAS0BLQEtAS0AJaAloCWgJaAlpAS0BLQEtAS0ALaAloCWgJaAHtQghoCWgJ6NNbrLbd3f1L97R7604d8X2ubp6788s1QECPXwAsMeKPY77cQAT09DEfonanBnqU4u45xri+3YEEdPkC2lgDJKAnP90AGmigBTTQAhpooIGuH3QsEfYPiR7Wr18e+MQ/wq2vjQM9AdAB+TerNrE+Hk8zgQa6OtAB04MfoFOAHupniGkK0ED/K+ihX38rqIGuEPQp04xjo4XpB9CVgQ50pUasjAAN9KigPy/HDT2yL+sBXRHoknfnVu7SQFcEutTcuaW5NNAVgR7rNWde8QC6ItBjjbg2QAMNNNBAAw000EADDbSNvUBb5QAaaOvQQAPtSSHQbb6Xo/R5It7LAXSad9tlXt0AuuL3Q8c/bUOPVrZjAd3IjpVWdoMDXfGewiHm03FntqcQ6CpA99OPvx7UHisadn0DXRXow7v1T2EH5FYPnAF6IqAP79iBO36+/mM2+q/jwYyTk4CeFGgBDTTQQAMNNNACGmgBDbSABhpooIEGGmgBDbSABlpAAw000EADDbSABlpAAy2ggQYaaKCBBlpAAy2ggRbQQAMNNNBAAy2ggRbQQAMNNNBAAw000EALaKAFNNBAA518xEHocYY00ECnGpk/EQtoqIEGOseIj7YAGuhUc2qggU41gAYaaKCBBhpooIEGGmiggQYaaKCBBhpooIEGGmiggQYaaKCBBhpooIEGGmiggQbaABpooIEGGmigixbbi4zjw46VCTVfboj9ZmQ80iAtaNOO4yN2fTvGAOo0mJ3LMeEWq+0H7PhFtjziGjg5SQJaAloCWgJaQEtAS0BLQEtAC2gJaAloCWgB7SIIaAloCWgJaAEtAS0BLQEtAS2gJaAloCWgJaAFtAS0BLQEtAS0gJaAloCWgJaAFtAS0BLQEtDSvncTEEXALVKZAwAAAABJRU5ErkJggg==">
 <title>LifeOS</title>
 <style>:root{color-scheme:light dark;--bg:#f4f5f7;--card:#fff;--fg:#14171c;--mut:#5b6573;--line:#dde1e7;--acc:#2255d4;--acc-fg:#fff;--ok:#1c7a46;--warn:#9a5b00;--bad:#b42318;--r:14px;--sh:0 1px 2px rgba(0,0,0,.06);--font:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
 @media (prefers-color-scheme:dark){:root{--bg:#0f1216;--card:#181c22;--fg:#e8ebf0;--mut:#9aa4b2;--line:#2a313a;--acc:#6b93ff;--acc-fg:#0b1020;--ok:#4ac283;--warn:#e2a03f;--bad:#f2766b;--sh:none}}
@@ -225,12 +225,17 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
 .cl-card .stats, .pc-show .stats { margin: 6px 0; }
 .pc-show h4 { margin: 10px 0 4px; }
 .pc-platforms .x { min-width: 28px; min-height: 28px; }
+/* v1.8.0: recovery key and sheet */
+.recovery-key { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 1.05rem; letter-spacing: 0.04em; word-break: break-all; padding: 10px; border: 2px solid var(--line, #888); border-radius: 6px; user-select: all; }
+.rk-boxes { display: flex; flex-wrap: wrap; gap: 6px; }
+.rk-box { display: inline-block; min-width: 3.6em; min-height: 2em; border: 1px solid #000; padding: 2px 6px; text-align: center; font-family: ui-monospace, Menlo, Consolas, monospace; }
+.rk-part { margin: 12px 0; }
 </style>
 </head>
 <body>
 <div id="app"></div>
 <script>globalThis.LifeOS = globalThis.LifeOS || {};
-globalThis.LifeOS.VERSION = "1.7.0";
+globalThis.LifeOS.VERSION = "1.8.0";
 ;
 (function () {
   'use strict';
@@ -260,20 +265,28 @@ globalThis.LifeOS.VERSION = "1.7.0";
   }
   function newSalt() { return C.getRandomValues(new Uint8Array(16)); }
 
+  // The usages let a real passphrase key also wrap and unwrap a data key (envelope v2). Callers that replace deriveKey with a key
+  // that has only encrypt and decrypt usages still work: wrapping then falls back to encrypt and decrypt of the same bytes.
   async function deriveKey(passphrase, salt) {
     if (typeof passphrase !== 'string' || !salt || salt.length !== 16) throw bad();
     const s = sub();
     const base = await s.importKey('raw', enc.encode(passphrase), 'PBKDF2', false, ['deriveKey']);
     return s.deriveKey({ name: 'PBKDF2', hash: 'SHA-256', salt, iterations: ITER }, base,
-      { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+      { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt', 'wrapKey', 'unwrapKey']);
   }
   async function encrypt(key, obj) {
     const iv = C.getRandomValues(new Uint8Array(12));
     const ct = await sub().encrypt({ name: 'AES-GCM', iv }, key, enc.encode(JSON.stringify(obj)));
     return { iv: b64(iv), ct: b64(new Uint8Array(ct)) };
   }
+  // A v2 envelope opened with its passphrase key (the same key a v1 file used): the data key is unwrapped from the passphrase wrap, then the data is
+  // decrypted. Nothing here lowers the bar: the passphrase key is still the only way in. Plain boxes decrypt as before.
   async function decrypt(key, box) {
     try {
+      if (box && typeof box === 'object' && box.fmt === 2) {
+        const p = parseEnvelope(box);
+        return await decrypt(await unwrapData(p.wraps.find((w) => w.kind === 'passphrase'), key), p.data);
+      }
       const iv = unb64(box && box.iv);
       if (iv.length !== 12) throw bad();
       const pt = await sub().decrypt({ name: 'AES-GCM', iv }, key, unb64(box.ct));
@@ -284,38 +297,241 @@ globalThis.LifeOS.VERSION = "1.7.0";
     const { iv, ct } = await encrypt(key, obj);
     return { v: 1, kdf: { name: 'PBKDF2', hash: 'SHA-256', iter: ITER, salt: b64(salt) }, iv, ct };
   }
+
+  // ---------------------------------------------------------------- envelope v2 (v1.8.0): a random data key, wrapped
+  // Layout: { v:1, kdf, iv, ct,  fmt:2, wraps:[{kind,kdf,iv,wk}], data:{iv,ct}, [rev,updatedAt,deviceId], [arch,year] }.
+  // The first four fields are the v1 shape, sealed under the passphrase key around a tiny stub that holds no data, so an older app
+  // that opens the file with the passphrase reads "schema 20" and refuses it with its newer-version message instead of crashing or
+  // overwriting. The real data is data.ct under the random data key; the wraps hold that key under the passphrase and, when the owner
+  // turned it on, under the recovery key. One wrap per kind. The data key is only ever a non-extractable CryptoKey after unwrap.
+  const KINDS = ['passphrase', 'recovery'];
+  const STUB_SCHEMA = 20;
+  const WRAP_KEYS = ['kind', 'kdf', 'iv', 'wk'], KDF_KEYS = ['name', 'hash', 'iter', 'salt'];
+  const ENV2_KEYS = ['v', 'kdf', 'iv', 'ct', 'fmt', 'wraps', 'data', 'rev', 'updatedAt', 'deviceId', 'arch', 'year'];
+  const DATA_CT_MAX = 3e8;
+  const aad = (kind) => enc.encode('lifeos-wrap-v2:' + kind);
+  const onlyKeys = (o, allowed) => { for (const k of Object.keys(o)) if (!allowed.includes(k)) throw bad(); };
+  const isObj = (x) => !!x && typeof x === 'object' && !Array.isArray(x);
+  const b64Len = (s, n) => { const u = unb64(s); if (u.length !== n) throw bad(); return s; };
+  function cleanKdf(k) {
+    if (!isObj(k)) throw bad();
+    onlyKeys(k, KDF_KEYS);
+    if (k.name !== 'PBKDF2' || k.hash !== 'SHA-256' || k.iter !== ITER) throw bad();
+    b64Len(k.salt, 16);
+    return { name: 'PBKDF2', hash: 'SHA-256', iter: ITER, salt: k.salt };
+  }
+  function cleanWraps(list) {
+    if (!Array.isArray(list) || list.length < 1 || list.length > 2) throw bad();
+    const out = [], seen = new Set();
+    for (const w of list) {
+      if (!isObj(w)) throw bad();
+      onlyKeys(w, WRAP_KEYS);
+      if (!KINDS.includes(w.kind) || seen.has(w.kind)) throw bad();
+      seen.add(w.kind);
+      out.push({ kind: w.kind, kdf: cleanKdf(w.kdf), iv: b64Len(w.iv, 12), wk: b64Len(w.wk, 48) });
+    }
+    if (!seen.has('passphrase')) throw bad();
+    out.sort((a, b) => KINDS.indexOf(a.kind) - KINDS.indexOf(b.kind));
+    return out;
+  }
+  function cleanBox(x, minCt) {
+    if (!isObj(x)) throw bad();
+    onlyKeys(x, ['iv', 'ct']);
+    b64Len(x.iv, 12);
+    if (typeof x.ct !== 'string' || x.ct.length < minCt || x.ct.length > DATA_CT_MAX) throw bad();
+    unb64(x.ct);
+    return { iv: x.iv, ct: x.ct };
+  }
+  // Returns { fmt:1, salt, iv, ct } for a v1 envelope (as before) or { fmt:2, salt (of the passphrase wrap), wraps, iv, ct, data, clean } for v2.
+  // v2 is strict: unknown fields are refused, one wrap per kind, sizes and the shell checked. Any doubt throws the one generic error.
   function parseEnvelope(env) {
     if (!env || typeof env !== 'object' || env.v !== 1 || !env.kdf || typeof env.kdf !== 'object') throw bad();
-    const k = env.kdf;
-    if (k.name !== 'PBKDF2' || k.hash !== 'SHA-256' || k.iter !== ITER) throw bad();
-    const salt = unb64(k.salt);
-    if (salt.length !== 16) throw bad();
-    if (typeof env.iv !== 'string' || typeof env.ct !== 'string') throw bad();
-    return { salt, iv: env.iv, ct: env.ct };
+    if (env.fmt === undefined) {
+      const k = env.kdf;
+      if (k.name !== 'PBKDF2' || k.hash !== 'SHA-256' || k.iter !== ITER) throw bad();
+      const salt = unb64(k.salt);
+      if (salt.length !== 16) throw bad();
+      if (typeof env.iv !== 'string' || typeof env.ct !== 'string') throw bad();
+      return { fmt: 1, salt, iv: env.iv, ct: env.ct };
+    }
+    if (env.fmt !== 2 || Array.isArray(env)) throw bad();
+    onlyKeys(env, ENV2_KEYS);
+    const shell = cleanKdf(env.kdf), wraps = cleanWraps(env.wraps);
+    const pw = wraps.find((w) => w.kind === 'passphrase');
+    if (shell.salt !== pw.kdf.salt) throw bad();
+    b64Len(env.iv, 12);
+    if (typeof env.ct !== 'string' || env.ct.length < 24 || env.ct.length > 2048) throw bad();
+    unb64(env.ct);
+    const data = cleanBox(env.data, 24);
+    const clean = { v: 1, kdf: shell, iv: env.iv, ct: env.ct, fmt: 2, wraps, data };
+    for (const k of ['rev', 'updatedAt', 'deviceId', 'arch', 'year']) if (env[k] !== undefined) clean[k] = env[k];
+    return { fmt: 2, salt: unb64(shell.salt), wraps, iv: data.iv, ct: data.ct, data, clean };
   }
-  async function exportBackup(passphrase, state) {
+  // The same canonical copy parseEnvelope validates, for persisting or sending: only known fields, whatever else a remote file carried is dropped.
+  function cleanEnvelope(env) {
+    const p = parseEnvelope(env);
+    if (p.fmt === 2) return JSON.parse(JSON.stringify(p.clean));
+    const out = { v: 1, kdf: { name: env.kdf.name, hash: env.kdf.hash, iter: env.kdf.iter, salt: env.kdf.salt }, iv: env.iv, ct: env.ct };
+    for (const k of ['rev', 'updatedAt', 'deviceId']) if (env[k] !== undefined) out[k] = env[k];
+    return out;
+  }
+  // Public identifier of the passphrase key generation: the passphrase wrap's salt (a v1 envelope: its salt). Not secret.
+  const passSaltOf = (parsed) => b64(parsed.salt);
+
+  // ---- recovery key: 256 random bits as base32 (RFC 4648 letters, no padding) plus a 4-letter checksum, in groups of four ----
+  const B32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+  function toB32(bytes) {
+    let bits = 0, val = 0, out = '';
+    for (const b of bytes) { val = (val << 8) | b; bits += 8; while (bits >= 5) { out += B32[(val >>> (bits - 5)) & 31]; bits -= 5; } }
+    if (bits > 0) out += B32[(val << (5 - bits)) & 31];
+    return out;
+  }
+  function fromB32(s) {
+    let bits = 0, val = 0; const out = [];
+    for (const ch of s) { const i = B32.indexOf(ch); if (i < 0) return null; val = (val << 5) | i; bits += 5; if (bits >= 8) { out.push((val >>> (bits - 8)) & 255); bits -= 8; } }
+    return new Uint8Array(out);
+  }
+  async function checksum(body) {
+    const d = new Uint8Array(await sub().digest('SHA-256', enc.encode('lifeos-recovery-check:' + body)));
+    return toB32(d.subarray(0, 3)).slice(0, 4);
+  }
+  const group = (s) => s.match(/.{1,4}/g).join('-');
+  const RK_ERR = () => { const e = new Error('RECOVERY_KEY_FORMAT'); e.code = 'RECOVERY_KEY_FORMAT'; return e; };
+  // Canonical form of typed text: letters upper-cased, spaces and hyphens removed. Returns the 52 key letters, or throws RECOVERY_KEY_FORMAT
+  // (a typo caught by the checksum, a wrong length or a letter outside the alphabet). The error never carries any of the text.
+  async function parseRecoveryKey(text) {
+    if (typeof text !== 'string' || text.length > 200) throw RK_ERR();
+    const t = text.toUpperCase().replace(/[\s-]/g, '');
+    if (t.length !== 56 || !/^[A-Z2-7]+$/.test(t)) throw RK_ERR();
+    const body = t.slice(0, 52), chk = t.slice(52), bytes = fromB32(body);
+    if (!bytes || bytes.length !== 32 || toB32(bytes) !== body || (await checksum(body)) !== chk) throw RK_ERR();
+    return body;
+  }
+  // The retype check: the whole key, or its last two groups (8 letters, the last four being the checksum). Case, spaces and hyphens ignored.
+  function retypeMatches(keyText, typed) {
+    if (typeof keyText !== 'string' || typeof typed !== 'string' || typed.length > 200) return false;
+    const a = keyText.toUpperCase().replace(/[\s-]/g, ''), b = typed.toUpperCase().replace(/[\s-]/g, '');
+    const eq = (x, y) => { if (x.length !== y.length) return false; let d = 0; for (let i = 0; i < x.length; i++) d |= x.charCodeAt(i) ^ y.charCodeAt(i); return d === 0; };
+    return a.length === 56 && (eq(a, b) || eq(a.slice(-8), b));
+  }
+  async function newRecoveryKey() {
+    const raw = C.getRandomValues(new Uint8Array(32)), body = toB32(raw);
+    raw.fill(0);
+    return group(body + (await checksum(body)));
+  }
+  // The key-encryption key for a recovery wrap: the same KDF and parameters as the passphrase, over the 52 key letters.
+  const DK = (p, s) => L.vault.deriveKey(p, s); // through the exported name, so a caller may substitute it (tests use a cheaper key)
+  const recoveryKek = async (canon, salt, real) => (real ? deriveKey : DK)(canon, salt);
+
+  // ---- wrap and unwrap the data key ----
+  const canWrap = (kek) => !!kek && Array.isArray(kek.usages) && kek.usages.includes('wrapKey') && kek.usages.includes('unwrapKey');
+  async function wrapNew(dataKey, kek, kind, salt) {
+    const iv = C.getRandomValues(new Uint8Array(12)), params = { name: 'AES-GCM', iv, additionalData: aad(kind) };
+    let wk;
+    if (canWrap(kek)) wk = new Uint8Array(await sub().wrapKey('raw', dataKey, kek, params));
+    else { // a key without wrap usages: the same bytes through encrypt (identical result), the raw copy is cleared at once
+      const raw = new Uint8Array(await sub().exportKey('raw', dataKey));
+      try { wk = new Uint8Array(await sub().encrypt(params, kek, raw)); } finally { raw.fill(0); }
+    }
+    return { kind, kdf: { name: 'PBKDF2', hash: 'SHA-256', iter: ITER, salt: b64(salt) }, iv: b64(iv), wk: b64(wk) };
+  }
+  // The non-extractable data key from one wrap and its key-encryption key. Any failure is the one generic error.
+  async function unwrapData(wrap, kek) {
+    try {
+      const iv = unb64(wrap.iv), wk = unb64(wrap.wk), params = { name: 'AES-GCM', iv, additionalData: aad(wrap.kind) };
+      if (canWrap(kek)) return await sub().unwrapKey('raw', wk, kek, params, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']);
+      const raw = new Uint8Array(await sub().decrypt(params, kek, wk));
+      try { return await sub().importKey('raw', raw, { name: 'AES-GCM' }, false, ['encrypt', 'decrypt']); } finally { raw.fill(0); }
+    } catch (e) { throw bad(); }
+  }
+  // A new random data key for one vault, wrapped under the passphrase and (recoveryText, optional) the recovery key, each with its own fresh salt.
+  // Returns { key, kek, wraps }: key is the non-extractable data key, kek the passphrase key-encryption key (held while unlocked, it seals the stub).
+  // real: use this module's own derivation (backup files do, as before v1.8.0) instead of the exported one.
+  async function newKeyset(passphrase, recoveryText, real) {
+    checkPassphrase(passphrase);
+    const canon = recoveryText ? await parseRecoveryKey(recoveryText) : null;
+    const gen = await sub().generateKey({ name: 'AES-GCM', length: 256 }, true, ['encrypt', 'decrypt']);
+    const ps = newSalt(), kek = await (real ? deriveKey : DK)(passphrase, ps);
+    const wraps = [await wrapNew(gen, kek, 'passphrase', ps)];
+    if (canon) { const rs = newSalt(); wraps.push(await wrapNew(gen, await recoveryKek(canon, rs, real), 'recovery', rs)); }
+    const key = await unwrapData(wraps[0], kek);
+    return { key, kek, wraps };
+  }
+  // Open the data key from a parsed v2 envelope's (or private blob's) wraps with a secret: a passphrase string, or { recovery: text }.
+  // Returns { key, kek (passphrase only), kind }. A wrong secret is BAD_PASSPHRASE_OR_DATA, or BAD_RECOVERY_KEY for a recovery secret.
+  async function unwrapWith(wraps, secret, real) {
+    if (isObj(secret) && secret.recovery !== undefined) {
+      const canon = await parseRecoveryKey(secret.recovery);
+      const w = wraps.find((x) => x.kind === 'recovery');
+      const fail = () => { const e = new Error('BAD_RECOVERY_KEY'); e.code = 'BAD_RECOVERY_KEY'; return e; };
+      if (!w) throw fail();
+      try { return { key: await unwrapData(w, await recoveryKek(canon, unb64(w.kdf.salt), real)), kek: null, kind: 'recovery' }; } catch (e) { throw fail(); }
+    }
+    if (typeof secret !== 'string' || !secret) throw bad();
+    const w = wraps.find((x) => x.kind === 'passphrase');
+    const kek = await (real ? deriveKey : DK)(secret, unb64(w.kdf.salt));
+    return { key: await unwrapData(w, kek), kek, kind: 'passphrase' };
+  }
+  // The older-app stub must open under the passphrase key and say what it should, so a changed shell is refused when the passphrase opens the
+  // file. (The revision binding is checked on the real data by the store.) A recovery-key open has no passphrase key and cannot check the stub;
+  // the data itself is still authenticated.
+  async function checkShell(env, kek) {
+    const stub = await decrypt(kek, { iv: env.iv, ct: env.ct });
+    if (!isObj(stub) || stub.schema !== STUB_SCHEMA || stub.newerFormat !== true) throw bad();
+  }
+  // Seal an object as a v2 envelope. meta: optional { rev, updatedAt, deviceId } written outside and mirrored in the stub; extra: arch and year for archive files.
+  async function sealEnvelope(ks, obj, meta, extra) {
+    const data = await encrypt(ks.key, obj);
+    const stub = { schema: STUB_SCHEMA, newerFormat: true };
+    if (meta) stub._meta = { rev: meta.rev, updatedAt: meta.updatedAt, deviceId: meta.deviceId };
+    const shell = await encrypt(ks.kek, stub), pw = ks.wraps.find((w) => w.kind === 'passphrase');
+    return Object.assign({ v: 1, kdf: JSON.parse(JSON.stringify(pw.kdf)), iv: shell.iv, ct: shell.ct, fmt: 2, wraps: JSON.parse(JSON.stringify(ks.wraps)), data }, meta || {}, extra || {});
+  }
+  // Open any envelope (v1 or v2) with a secret. Returns { raw, fmt, key, kek, wraps, kind, parsed }; for a v1 file key is the v1 key, kek and wraps are null.
+  // real: open with this module's own derivation (backup files), as before v1.8.0; the other callers go through the exported one.
+  async function openEnvelope(env, secret, real) {
+    const parsed = parseEnvelope(env);
+    if (parsed.fmt === 1) {
+      if (isObj(secret)) throw bad();
+      const key = await (real ? deriveKey : DK)(secret, parsed.salt);
+      return { raw: await L.vault.decrypt(key, env), fmt: 1, key, kek: null, wraps: null, kind: 'passphrase', parsed };
+    }
+    const o = await unwrapWith(parsed.wraps, secret, real);
+    if (o.kek) await checkShell(parsed.clean, o.kek);
+    return { raw: await L.vault.decrypt(o.key, parsed.data), fmt: 2, key: o.key, kek: o.kek, wraps: parsed.wraps, kind: o.kind, parsed };
+  }
+  // True when the secret opens the file (a v2 file: only the wrap is opened, the data is not decrypted).
+  async function verifySecret(env, secret) {
+    try {
+      const parsed = parseEnvelope(env);
+      if (parsed.fmt === 1) { if (isObj(secret)) return false; await decrypt(await DK(secret, parsed.salt), env); return true; }
+      const o = await unwrapWith(parsed.wraps, secret);
+      if (o.kek) await checkShell(parsed.clean, o.kek);
+      return true;
+    } catch (e) { return false; }
+  }
+  // A backup file: a new data key under the backup passphrase, and (when recoveryText is given and valid) under that recovery key too.
+  async function exportBackup(passphrase, state, recoveryText) {
     checkPassphrase(passphrase);
     const clean = L.store.validateState(L.priv ? L.priv.mainOnly(state) : state);
-    const salt = newSalt();
-    const key = await deriveKey(passphrase, salt);
-    const out = JSON.stringify(await makeEnvelope(key, salt, clean));
+    const ks = await newKeyset(passphrase, recoveryText || null, true);
+    const out = JSON.stringify(await sealEnvelope(ks, clean));
     if (out.length > MAX_BACKUP) throw new Error('The backup would be larger than 64 MB, so no file was made. Your data on this device is unchanged. Delete old entries, study sessions, takeaways, activities, logged contacts, facts or long notes, then try again.');
     return out;
   }
   // Decrypts a backup file and returns the raw plaintext object, unvalidated (importBackup validates it; verifying a file reads it only).
-  async function readBackupRaw(passphrase, text) {
+  async function readBackupRaw(secret, text) {
     if (typeof text !== 'string' || text.length > MAX_BACKUP) throw new Error('Not a LifeOS backup');
     let env;
     try { env = JSON.parse(text); } catch (e) { throw new Error('Not a LifeOS backup'); }
-    const { salt } = parseEnvelope(env);
-    const key = await deriveKey(passphrase, salt);
-    return decrypt(key, env);
+    return (await openEnvelope(env, secret, true)).raw;
   }
-  async function importBackup(passphrase, text) {
-    return L.store.validateState(await readBackupRaw(passphrase, text));
+  async function importBackup(secret, text) {
+    return L.store.validateState(await readBackupRaw(secret, text));
   }
 
-  L.vault = { MAX_BACKUP, newSalt, deriveKey, encrypt, decrypt, exportBackup, importBackup, readBackupRaw, checkPassphrase, makeEnvelope, parseEnvelope };
+  L.vault = { MAX_BACKUP, ITER, STUB_SCHEMA, newSalt, deriveKey, encrypt, decrypt, exportBackup, importBackup, readBackupRaw, checkPassphrase, makeEnvelope, parseEnvelope, cleanEnvelope, passSaltOf,
+    newRecoveryKey, parseRecoveryKey, retypeMatches, newKeyset, unwrapWith, checkShell, wrapNew, unwrapData, cleanWraps, sealEnvelope, openEnvelope, verifySecret, recoveryKek, b64, unb64 };
 })();
 
 ;
@@ -529,10 +745,16 @@ globalThis.LifeOS.VERSION = "1.7.0";
     if (typeof text !== 'string' || !text || text.length > L.vault.MAX_BACKUP) return bad('NOT_BACKUP', 'That is not a LifeOS backup file.');
     let env;
     try { env = JSON.parse(text); L.vault.parseEnvelope(env); } catch (e) { return bad('NOT_BACKUP', 'That is not a LifeOS backup file.'); }
-    if (typeof passphrase !== 'string' || !passphrase) return bad('NO_PASSPHRASE', 'Enter the backup passphrase.');
+    // SEC-128: the secret is the backup passphrase, or { recovery } for the main recovery key the file carries (v1.8.0).
+    const rec = !!passphrase && typeof passphrase === 'object' && typeof passphrase.recovery === 'string';
+    if (!rec && (typeof passphrase !== 'string' || !passphrase)) return bad('NO_PASSPHRASE', 'Enter the backup passphrase.');
     let raw;
-    try { raw = await L.vault.readBackupRaw(passphrase, text); }
-    catch (e) { return bad('BAD_PASSPHRASE_OR_DATA', 'That passphrase did not work, or the file was changed or damaged.'); }
+    try { raw = await L.vault.readBackupRaw(rec ? { recovery: passphrase.recovery } : passphrase, text); }
+    catch (e) {
+      if (rec && e && e.code === 'RECOVERY_KEY_FORMAT') return bad('RECOVERY_KEY_FORMAT', 'That recovery key has a typo or is the wrong length. Check it and try again.');
+      if (rec) return bad('BAD_RECOVERY_KEY', 'That recovery key did not work, or the file was changed or damaged.');
+      return bad('BAD_PASSPHRASE_OR_DATA', 'That passphrase did not work, or the file was changed or damaged.');
+    }
     const sch = isObj(raw) ? raw.schema : undefined, mine = live && Number.isInteger(live.schema) ? live.schema : L.store.SCHEMA;
     if (Number.isInteger(sch) && sch > mine) return bad('NEWER_SCHEMA', 'This backup was made by a newer version of LifeOS (schema ' + sch + '). This version reads up to schema ' + mine + '. Nothing was read further.', { schema: sch });
     let state;
@@ -672,7 +894,8 @@ globalThis.LifeOS.VERSION = "1.7.0";
   // Same rule as ai.isLocalUrl (ai.js loads after this file, so call it lazily).
   const BIDI = /[\u061C\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF]/g;
   const strip = (v) => (typeof v === 'string' ? v.replace(BIDI, '') : v);
-  let adapter = null, key = null, salt = null, state = null, queue = Promise.resolve();
+  // ks: the live key set { key (non-extractable data key), kek (passphrase key-encryption key, seals the older-app stub), wraps } (envelope v2).
+  let adapter = null, ks = null, state = null, queue = Promise.resolve(), pendingRecovery = null;
   // Sync metadata (rev etc.) travels outside AND inside the ciphertext; a mismatch means tampering. Missing = rev 0.
   let meta = { rev: 0, updatedAt: '', deviceId: '' }, deviceId = '';
 
@@ -1624,11 +1847,12 @@ globalThis.LifeOS.VERSION = "1.7.0";
       typeof env.deviceId !== 'string' || env.deviceId.length > 64) throw tamper();
     return { rev: env.rev, updatedAt: env.updatedAt, deviceId: env.deviceId };
   }
-  async function seal(k, sl, clean, rev) {
+  // Every write is an envelope v2 (a v1 file read earlier is rewritten here, the first time it is saved).
+  async function seal(k, clean, rev) {
     if (!deviceId) deviceId = newId();
     const m = { rev, updatedAt: new Date().toISOString(), deviceId };
-    const env = await V().makeEnvelope(k, sl, Object.assign({}, clean, { _meta: m }));
-    return { env: Object.assign(env, m), m };
+    const env = await V().sealEnvelope(k, Object.assign({}, clean, { _meta: m }), m);
+    return { env, m };
   }
 
   // ---- lifecycle ----
@@ -1638,14 +1862,14 @@ globalThis.LifeOS.VERSION = "1.7.0";
     Object.assign(target, src);
   };
   const serial = (fn) => { const run = queue.then(fn); queue = run.catch(() => {}); return run; };
-  const requireUnlocked = () => { if (!state || !key) throw new Error('LOCKED'); };
+  const requireUnlocked = () => { if (!state || !ks) throw new Error('LOCKED'); };
 
   // True when `p` is the main passphrase: tried against the stored envelope, never compared with anything stored.
   async function matchesMain(p) {
     requireUnlocked();
     const env = await getAdapter().get(KEY);
     if (!env) return false;
-    try { const { salt: sl } = V().parseEnvelope(env); await V().decrypt(await V().deriveKey(p, sl), env); return true; } catch (e) { return false; }
+    return V().verifySecret(env, p);
   }
   const dropPriv = () => { if (L.priv) L.priv.close('system'); };
   async function exists() { return !!(await getAdapter().get(KEY)); }
@@ -1653,24 +1877,32 @@ globalThis.LifeOS.VERSION = "1.7.0";
     V().checkPassphrase(passphrase);
     const a = getAdapter();
     if (await a.get(KEY)) throw new Error('VAULT_EXISTS');
-    const sl = V().newSalt();
-    const k = await V().deriveKey(passphrase, sl);
+    const k = await V().newKeyset(passphrase, null);
     const st = defaultState();
-    const sealed = await seal(k, sl, st, 0);
+    const sealed = await seal(k, st, 0);
     await a.set(KEY, sealed.env);
-    key = k; salt = sl; state = st; meta = sealed.m;
+    ks = k; state = st; meta = sealed.m;
     if (L.search) L.search.build();
     return st;
+  }
+  // SEC-127: a v1 file upgraded to v2 under the same passphrase is the same key as far as sync is concerned. The sync record names the
+  // v1 salt; it is carried to the new passphrase wrap salt (in memory now, stored with the next write), so the upgrade alone is never
+  // taken for a passphrase change on this device (which would turn another device's ordinary upload into a conflict).
+  function carryKeySalt(st, parsed, k) {
+    const sy = st && st.settings && st.settings.sync;
+    if (sy && sy.keySalt && sy.keySalt === V().passSaltOf(parsed)) sy.keySalt = saltOf(k);
   }
   async function unlock(passphrase) {
     const env = await getAdapter().get(KEY);
     if (!env) throw new Error('NO_VAULT');
-    const { salt: sl } = V().parseEnvelope(env);
-    const k = await V().deriveKey(passphrase, sl);
-    const raw = await V().decrypt(k, env);
-    const st = validateState(raw);
-    meta = readMeta(env, raw); deviceId = meta.deviceId || deviceId;
-    key = k; salt = sl; state = st;
+    const o = await V().openEnvelope(env, passphrase);
+    const st = validateState(o.raw);
+    const m = readMeta(env, o.raw);
+    // A v1 file opens with the passphrase; its v2 key set (a new random data key wrapped under the passphrase) is made now and written on the next save.
+    const k = o.fmt === 2 ? { key: o.key, kek: o.kek, wraps: o.wraps } : await V().newKeyset(passphrase, null);
+    if (o.fmt === 1) carryKeySalt(st, o.parsed, k);
+    meta = m; deviceId = meta.deviceId || deviceId;
+    ks = k; state = st;
     if (L.search) L.search.build(); // v1.6.0: built on unlock, in memory only
     return st;
   }
@@ -1680,15 +1912,15 @@ globalThis.LifeOS.VERSION = "1.7.0";
     if (L.search) L.search.drop(); // v1.6.0: the search index lives only while unlocked
     // Empty the live state object too, so any reference still held elsewhere no longer reaches plaintext.
     if (state) { try { replaceContents(state, {}); } catch (e) { /* ignore */ } }
-    key = null; salt = null; state = null; meta = { rev: 0, updatedAt: '', deviceId: '' };
+    ks = null; state = null; pendingRecovery = null; meta = { rev: 0, updatedAt: '', deviceId: '' };
   }
-  const isUnlocked = () => !!(state && key);
+  const isUnlocked = () => !!(state && ks);
   function getState() { requireUnlocked(); return state; }
 
   function commit(fn, opts) {
     return serial(async () => {
       requireUnlocked();
-      const st = state, k = key, sl = salt;
+      const st = state, k = ks;
       const snapshot = JSON.parse(JSON.stringify(st));
       let taken = [];
       try {
@@ -1696,8 +1928,8 @@ globalThis.LifeOS.VERSION = "1.7.0";
         // v1.3.0: the queued diagnostic codes join the encrypted ring in the same write.
         taken = L.ops.flush(st);
         const clean = validateState(st);
-        const sealed = await seal(k, sl, clean, opts && opts.quiet ? meta.rev : meta.rev + 1);
-        if (key !== k) throw new Error('LOCKED');
+        const sealed = await seal(k, clean, opts && opts.quiet ? meta.rev : meta.rev + 1);
+        if (ks !== k) throw new Error('LOCKED');
         await getAdapter().set(KEY, sealed.env);
         if (state !== st) throw new Error('LOCKED');
         meta = sealed.m;
@@ -1710,7 +1942,21 @@ globalThis.LifeOS.VERSION = "1.7.0";
       }
     });
   }
-  function changePassphrase(oldP, newP) {
+  const wrongPass = () => new Error('BAD_PASSPHRASE_OR_DATA');
+  // A new data key, new wraps (fresh salts) and the state sealed under it, in one write. Runs inside the serial queue.
+  async function rotateKeys(pass, recoveryText) {
+    const st = state;
+    const nk = await V().newKeyset(pass, recoveryText || null);
+    const sealed = await seal(nk, validateState(st), meta.rev + 1);
+    if (state !== st) throw new Error('LOCKED');
+    await getAdapter().set(KEY, sealed.env);
+    if (state !== st) throw new Error('LOCKED');
+    ks = nk; meta = sealed.m;
+  }
+  const storedWraps = async () => { const p = V().parseEnvelope(await getAdapter().get(KEY)); return p.fmt === 2 ? p.wraps : null; };
+  // Passphrase change rotates the data key. With a recovery key on, opts.keepRecovery (the current key, typed) keeps it, or
+  // opts.newRecoveryKey (a new key from vault.newRecoveryKey, already shown to and retyped by the owner) replaces it; with neither the change is refused.
+  function changePassphrase(oldP, newP, opts) {
     return serial(async () => {
       requireUnlocked();
       const st = state;
@@ -1718,17 +1964,99 @@ globalThis.LifeOS.VERSION = "1.7.0";
       if (st.priv && L.priv && (await L.priv.matches(st.priv, newP))) throw new Error('The main passphrase must be different from the private vault passphrase.');
       const a = getAdapter();
       const env = await a.get(KEY);
-      const { salt: sl } = V().parseEnvelope(env);
-      await V().decrypt(await V().deriveKey(oldP, sl), env);
-      const nsl = V().newSalt();
-      const nk = await V().deriveKey(newP, nsl);
-      const sealed = await seal(nk, nsl, validateState(st), meta.rev + 1);
-      if (state !== st) throw new Error('LOCKED');
-      await a.set(KEY, sealed.env);
-      if (state !== st) throw new Error('LOCKED');
-      key = nk; salt = nsl; meta = sealed.m;
+      await V().openEnvelope(env, oldP);
+      const wraps = await storedWraps();
+      let rec = null;
+      if (wraps && wraps.some((w) => w.kind === 'recovery')) {
+        if (opts && typeof opts.keepRecovery === 'string' && opts.keepRecovery) {
+          await V().unwrapWith(wraps, { recovery: opts.keepRecovery }); // a wrong key is BAD_RECOVERY_KEY, a typo RECOVERY_KEY_FORMAT
+          rec = opts.keepRecovery;
+        } else if (opts && typeof opts.newRecoveryKey === 'string' && opts.newRecoveryKey) { await V().parseRecoveryKey(opts.newRecoveryKey); rec = opts.newRecoveryKey; }
+        else { const e = new Error('Type your current recovery key to keep it, or choose a new one.'); e.code = 'RECOVERY_CHOICE'; throw e; }
+      }
+      await rotateKeys(newP, rec);
       dropPriv();
     });
+  }
+  // ---- recovery key (v1.8.0) ----
+  const retyped = (keyText, typed) => V().retypeMatches(keyText, typed);
+  const hasRecovery = () => { requireUnlocked(); return ks.wraps.some((w) => w.kind === 'recovery'); };
+  // True when `text` is the current recovery key (a typo is RECOVERY_KEY_FORMAT). Opens nothing.
+  async function recoveryMatches(text) {
+    requireUnlocked();
+    try { await V().unwrapWith(ks.wraps, { recovery: text }); return true; }
+    catch (e) { if (e && e.code === 'BAD_RECOVERY_KEY') return false; throw e; }
+  }
+  // Start turning a recovery key on, or replacing the one in force. Asks for the main passphrase. Resolves to { key, finish(typed), cancel() }:
+  // key is the new key text (shown once by the caller); nothing changes until finish(typed) gets the key retyped (all of it, or its last two groups).
+  async function beginRecovery(passphrase) {
+    requireUnlocked();
+    if (!(await matchesMain(passphrase))) throw wrongPass();
+    const text = await V().newRecoveryKey(), st0 = state;
+    let live = true;
+    const handle = {
+      key: text,
+      cancel() { live = false; },
+      finish: (typed) => serial(async () => {
+        requireUnlocked();
+        if (!live || state !== st0) throw new Error('That recovery key is no longer valid. Start again.');
+        if (!retyped(text, typed)) { const e = new Error('That is not the recovery key shown. Check it against the key on screen and try again.'); e.code = 'RECOVERY_RETYPE'; throw e; }
+        if (!(await matchesMain(passphrase))) throw wrongPass();
+        await rotateKeys(passphrase, text);
+        live = false;
+      }),
+    };
+    return handle;
+  }
+  // Turn the recovery key off (asks for the main passphrase): the data key rotates and the recovery wrap is gone.
+  function turnOffRecovery(passphrase) {
+    return serial(async () => {
+      requireUnlocked();
+      if (!(await matchesMain(passphrase))) throw wrongPass();
+      await rotateKeys(passphrase, null);
+    });
+  }
+  const RECOVERY_HOLD_MS = 5 * 60 * 1000;
+  // Forgot the passphrase: open the vault with the recovery key (nothing is written yet) and resolve to { prepare(newPass), cancel() }.
+  // prepare(newPass) resolves to { key, finish(typed) }: a new data key, the new passphrase and a new recovery key; the key used stops working.
+  async function openWithRecovery(recoveryText) {
+    if (state || ks) throw new Error('VAULT_OPEN');
+    const a = getAdapter(), env = await a.get(KEY);
+    if (!env) throw new Error('NO_VAULT');
+    const o = await V().openEnvelope(env, { recovery: recoveryText });
+    const st = validateState(o.raw), m = readMeta(env, o.raw), before = JSON.stringify(env);
+    // SEC-129: the decrypted copy waits on the lock screen for a new passphrase only for a limited time; cancel or the limit empties it.
+    let live = true;
+    const until = Date.now() + RECOVERY_HOLD_MS;
+    const drop = () => { live = false; try { replaceContents(st, {}); } catch (e) { /* ignore */ } };
+    const timer = setTimeout(drop, RECOVERY_HOLD_MS);
+    if (timer && typeof timer.unref === 'function') timer.unref();
+    const gone = () => { if (live && Date.now() > until) drop(); if (!live) throw new Error('That recovery key is no longer valid. Start again.'); };
+    return {
+      cancel() { clearTimeout(timer); if (live) drop(); }, // after a finished recovery st is the live state: never emptied here
+      prepare: async (newPass) => {
+        gone();
+        V().checkPassphrase(newPass);
+        if (st.priv && L.priv && (await L.priv.matches(st.priv, newPass))) throw new Error('The main passphrase must be different from the private vault passphrase.');
+        const text = await V().newRecoveryKey();
+        return {
+          key: text,
+          finish: (typed) => serial(async () => {
+            gone();
+            if (state || ks) throw new Error('That recovery key is no longer valid. Start again.');
+            if (!retyped(text, typed)) { const e = new Error('That is not the recovery key shown. Check it against the key on screen and try again.'); e.code = 'RECOVERY_RETYPE'; throw e; }
+            if (JSON.stringify(await a.get(KEY)) !== before) throw new Error('The vault changed while you were recovering it. Nothing was written. Start again.');
+            deviceId = m.deviceId || deviceId;
+            const nk = await V().newKeyset(newPass, text);
+            const sealed = await seal(nk, st, m.rev + 1);
+            await a.set(KEY, sealed.env);
+            ks = nk; state = st; meta = sealed.m; live = false; clearTimeout(timer);
+            if (L.search) L.search.build();
+            return st;
+          }),
+        };
+      },
+    };
   }
   // v1.3.0: dates, counters, the storage result and diagnostics describe this device, so a restored or downloaded copy never replaces them;
   // the reminder settings come from the copy only when it is new enough to carry them.
@@ -1756,7 +2084,7 @@ globalThis.LifeOS.VERSION = "1.7.0";
       // check, and a different OAuth client ID would be swapped in without the user seeing it.
       clean.settings.sync = Object.assign({}, st.settings.sync);
       keepLocalOps(clean, st, src);
-      const sealed = await seal(key, salt, clean, meta.rev + 1);
+      const sealed = await seal(ks, clean, meta.rev + 1);
       if (state !== st) throw new Error('LOCKED');
       await getAdapter().set(KEY, sealed.env);
       if (state !== st) throw new Error('LOCKED');
@@ -1767,47 +2095,52 @@ globalThis.LifeOS.VERSION = "1.7.0";
   }
   // ---- sync support (additive) ----
   const getMeta = () => { requireUnlocked(); return Object.assign({}, meta); };
-  // Public identifier of the live key: its salt in base64 (the salt is not secret; it is in every envelope).
-  const saltId = () => { requireUnlocked(); return btoa(String.fromCharCode.apply(null, salt)); };
+  // Public identifier of the live key generation: the passphrase wrap's salt in base64 (not secret; it is in every envelope). Every change of
+  // passphrase or recovery key makes new wraps with fresh salts, so a change on one device is still seen as a local change.
+  const saltOf = (k) => k.wraps.find((w) => w.kind === 'passphrase').kdf.salt;
+  const saltId = () => { requireUnlocked(); return saltOf(ks); };
   // Current stored envelope, re-sealed first if it has no rev yet or must reach at least minRev.
   // opts.snapshot(state): an async function run on the live state inside the same serial step, so its result describes exactly the
   // exported content (CR-1); the call then resolves to { env, snap, saltId }.
   function exportEnvelope(minRev, opts) {
     return serial(async () => {
       requireUnlocked();
-      const a = getAdapter(), st = state, k = key, sl = salt;
+      const a = getAdapter(), st = state, k = ks;
       let env = await a.get(KEY);
       const want = Math.max(meta.rev, Number.isInteger(minRev) ? minRev : 0);
       if (!env) throw new Error('NO_VAULT');
-      if (env.rev === undefined || env.rev < want) {
-        const sealed = await seal(k, sl, validateState(st), want);
-        if (state !== st || key !== k) throw new Error('LOCKED');
+      // A v1 file is rewritten as v2 here, so every copy that leaves this device carries the wraps.
+      if (env.rev === undefined || env.rev < want || env.fmt !== 2) {
+        const sealed = await seal(k, validateState(st), want);
+        if (state !== st || ks !== k) throw new Error('LOCKED');
         await a.set(KEY, sealed.env);
         meta = sealed.m; env = sealed.env;
       }
       if (opts && typeof opts.snapshot === 'function') {
         const snap = await opts.snapshot(st);
-        if (state !== st || key !== k) throw new Error('LOCKED');
-        return { env, snap, saltId: btoa(String.fromCharCode.apply(null, sl)) };
+        if (state !== st || ks !== k) throw new Error('LOCKED');
+        return { env, snap, saltId: saltOf(k) };
       }
       return env;
     });
   }
-  // Open an untrusted remote envelope. Uses the live key when the salt matches, else needs the passphrase.
+  // Open an untrusted remote envelope. Uses the live key when its wraps are exactly ours, else needs the passphrase.
   async function inspectEnvelope(env, passphrase) {
     requireUnlocked();
-    const { salt: sl } = V().parseEnvelope(env);
-    let k;
-    if (sl.length === salt.length && sl.every((b, i) => b === salt[i])) k = key;
-    else {
-      if (typeof passphrase !== 'string' || !passphrase) { const e = new Error('Enter the passphrase of the Drive copy.'); e.code = 'NEED_PASSPHRASE'; throw e; }
-      k = await V().deriveKey(passphrase, sl);
-    }
+    const p = V().parseEnvelope(env);
+    const same = p.fmt === 2 && JSON.stringify(p.wraps) === JSON.stringify(ks.wraps);
+    let o;
+    if (same) o = { key: ks.key, kek: ks.kek, wraps: ks.wraps, fmt: 2 };
+    else if (typeof passphrase !== 'string' || !passphrase) { const e = new Error('Enter the passphrase of the Drive copy.'); e.code = 'NEED_PASSPHRASE'; throw e; }
     let raw;
-    try { raw = await V().decrypt(k, env); }
-    catch (e) { const x = new Error('The Drive copy uses a different passphrase.'); x.code = 'WRONG_PASSPHRASE'; throw x; }
+    try {
+      if (same) { await V().checkShell(p.clean, ks.kek); raw = await V().decrypt(ks.key, p.data); }
+      else { o = await V().openEnvelope(env, passphrase); raw = o.raw; }
+    } catch (e) { const x = new Error('The Drive copy uses a different passphrase.'); x.code = 'WRONG_PASSPHRASE'; throw x; }
     const m = readMeta(env, raw);
-    return { meta: m, state: validateState(raw), sourceSchema: raw && raw.schema, key: k, salt: sl, env, sameKey: k === key };
+    // A v1 copy opens with the passphrase; its v2 key set is made now and the stored copy is rewritten on the next save.
+    const k = o.fmt === 2 ? { key: o.key, kek: o.kek, wraps: o.wraps } : await V().newKeyset(passphrase, null);
+    return { meta: m, state: validateState(raw), sourceSchema: raw && raw.schema, ks: k, salt: p.salt, env, sameKey: same };
   }
   // Replace the local vault with an inspected remote one (same passphrase).
   function adoptEnvelope(info) {
@@ -1816,11 +2149,9 @@ globalThis.LifeOS.VERSION = "1.7.0";
       const st = state, e = info.env;
       dropPriv();
       // Persist only the known envelope fields, never whatever else the remote JSON carried.
-      const env = { v: e.v, kdf: { name: e.kdf.name, hash: e.kdf.hash, iter: e.kdf.iter, salt: e.kdf.salt }, iv: e.iv, ct: e.ct };
-      if (e.rev !== undefined) Object.assign(env, { rev: e.rev, updatedAt: e.updatedAt, deviceId: e.deviceId });
-      await getAdapter().set(KEY, env);
+      await getAdapter().set(KEY, V().cleanEnvelope(e));
       if (state !== st) throw new Error('LOCKED');
-      key = info.key; salt = info.salt; meta = Object.assign({}, info.meta);
+      ks = info.ks; meta = Object.assign({}, info.meta);
       // SEC-94: like a restore, a downloaded copy never replaces this device's ops (diagnostics, storage result, dates, snooze).
       // The sync bookkeeping write that follows every adopt seals this into the stored envelope.
       const next = JSON.parse(JSON.stringify(info.state));
@@ -1835,19 +2166,18 @@ globalThis.LifeOS.VERSION = "1.7.0";
   // validateState, as inspectEnvelope) does, and only then make one write. Any failure before that write leaves nothing stored.
   async function startFrom(passphrase, clean, rev, deviceFrom) {
     const a = getAdapter();
-    const sl = V().newSalt();
-    const k = await V().deriveKey(passphrase, sl);
-    const sealed = await seal(k, sl, clean, rev);
+    const k = await V().newKeyset(passphrase, null);
+    const sealed = await seal(k, clean, rev);
     if (await a.get(KEY)) throw new Error('VAULT_EXISTS');
     await a.set(KEY, sealed.env);
-    key = k; salt = sl; state = clean; meta = sealed.m;
+    ks = k; state = clean; meta = sealed.m;
     if (L.search) L.search.build();
     return clean;
   }
   // Restore a verified backup (the state importBackup returned) as this device's new vault under `passphrase`.
   function createFromBackup(passphrase, backupState) {
     return serial(async () => {
-      if (state || key) throw new Error('VAULT_EXISTS');
+      if (state || ks) throw new Error('VAULT_EXISTS');
       V().checkPassphrase(passphrase);
       const clean = validateState(backupState);
       const src = backupState && typeof backupState.sourceSchema === 'number' ? backupState.sourceSchema : clean.sourceSchema;
@@ -1864,25 +2194,24 @@ globalThis.LifeOS.VERSION = "1.7.0";
   // Use a Drive copy (an envelope) as this device's new vault under the same passphrase. Same checks as sync.inspect and adoptEnvelope.
   function installEnvelope(env, passphrase) {
     return serial(async () => {
-      if (state || key) throw new Error('VAULT_EXISTS');
+      if (state || ks) throw new Error('VAULT_EXISTS');
       if (typeof passphrase !== 'string' || !passphrase) { const e = new Error('Enter the passphrase of the Drive copy.'); e.code = 'NEED_PASSPHRASE'; throw e; }
-      const { salt: sl } = V().parseEnvelope(env);
-      const k = await V().deriveKey(passphrase, sl);
-      let raw;
-      try { raw = await V().decrypt(k, env); }
+      const parsed = V().parseEnvelope(env);
+      let o, raw;
+      try { o = await V().openEnvelope(env, passphrase); raw = o.raw; }
       catch (e) { const x = new Error('The Drive copy uses a different passphrase.'); x.code = 'WRONG_PASSPHRASE'; throw x; }
       const m = readMeta(env, raw), st = validateState(raw), a = getAdapter();
       if (await a.get(KEY)) throw new Error('VAULT_EXISTS');
-      // Persist only the known envelope fields, never whatever else the remote JSON carried.
-      const out = { v: env.v, kdf: { name: env.kdf.name, hash: env.kdf.hash, iter: env.kdf.iter, salt: env.kdf.salt }, iv: env.iv, ct: env.ct };
-      if (env.rev !== undefined) Object.assign(out, { rev: env.rev, updatedAt: env.updatedAt, deviceId: env.deviceId });
-      await a.set(KEY, out);
-      key = k; salt = sl; meta = Object.assign({}, m); deviceId = m.deviceId || deviceId;
+      // Persist only the known envelope fields, never whatever else the remote JSON carried. A v1 copy is stored as it came and rewritten as v2 on the next save.
+      await a.set(KEY, V().cleanEnvelope(env));
+      ks = o.fmt === 2 ? { key: o.key, kek: o.kek, wraps: o.wraps } : await V().newKeyset(passphrase, null);
+      if (o.fmt === 1) carryKeySalt(st, parsed, ks);
+      meta = Object.assign({}, m); deviceId = m.deviceId || deviceId;
       const fresh = defaultState();
       st.ops = fresh.ops; // the device's own dates and diagnostics start empty, as after a restore
       state = st;
       if (L.search) L.search.build();
-      return { meta: Object.assign({}, m), state: st, sourceSchema: raw && raw.schema, salt: sl };
+      return { meta: Object.assign({}, m), state: st, sourceSchema: raw && raw.schema, salt: parsed.salt };
     });
   }
   async function wipe() {
@@ -1892,7 +2221,7 @@ globalThis.LifeOS.VERSION = "1.7.0";
 
   // Validation helpers shared with home.js and admin.js (same rules and messages as the rest of validateState).
   L.validate = { fail, isObj, str, num, date, oneOf, bool, arr, strip, ts, newId };
-  L.store = { SCHEMA, _rawEnvelope: () => getAdapter().get(KEY), matchesMain, _setAdapter, exists, init, unlock, lock, isUnlocked, getState, commit, changePassphrase, replaceState, wipe, validateState, newId, defaultState, getMeta, saltId, exportEnvelope, inspectEnvelope, adoptEnvelope, createFromBackup, installEnvelope, dropsWork, droppedData, nameList, lossText, lossWhy, LOCATION_TYPES, LOST_REASONS, COMP_FIELDS, validateGoals: (list, privOk) => cleanGoals(list, privOk === true) };
+  L.store = { SCHEMA, RECOVERY_HOLD_MS, _rawEnvelope: () => getAdapter().get(KEY), matchesMain, hasRecovery, recoveryMatches, beginRecovery, turnOffRecovery, openWithRecovery, _setAdapter, exists, init, unlock, lock, isUnlocked, getState, commit, changePassphrase, replaceState, wipe, validateState, newId, defaultState, getMeta, saltId, exportEnvelope, inspectEnvelope, adoptEnvelope, createFromBackup, installEnvelope, dropsWork, droppedData, nameList, lossText, lossWhy, LOCATION_TYPES, LOST_REASONS, COMP_FIELDS, validateGoals: (list, privOk) => cleanGoals(list, privOk === true) };
 })();
 
 ;
@@ -1952,7 +2281,7 @@ globalThis.LifeOS.VERSION = "1.7.0";
   const bad = (m) => { const e = new Error(m); e.code = 'PRIVATE_INVALID'; return e; };
 
   // ---- module state: only while open ----
-  let key = null, saltB64 = '', inner = null, deadline = 0, timer = null, hooked = false, queue = Promise.resolve(), gen = 0;
+  let key = null, wraps = null, inner = null, deadline = 0, timer = null, hooked = false, queue = Promise.resolve(), gen = 0;
   const closers = [], viewBase = new WeakMap(), privRecs = new WeakSet();
 
   // ---- structural validation of the outer blob (needs no key) ----
@@ -1962,14 +2291,24 @@ globalThis.LifeOS.VERSION = "1.7.0";
     if (s.length < min || s.length > max) throw bad('private vault ' + name + ' has a bad size');
     return s;
   }
+  // v1 (before v1.8.0): { v:1, kdf, iv, ct, rev, marks }, the key derived from the passphrase. v2: { v:2, wraps, iv, ct, rev, marks }, a random
+  // data key wrapped under the passphrase and, when turned on, a recovery key (strict: unknown fields refused, one wrap per kind).
   function cleanBlob(x) {
     if (!isObj(x)) throw bad('private vault must be an object');
-    for (const k of Object.keys(x)) if (!['v', 'kdf', 'iv', 'ct', 'rev', 'marks'].includes(k)) throw bad('private vault has an unknown field');
-    if (x.v !== 1) throw bad('private vault version');
-    const k = x.kdf;
-    if (!isObj(k) || k.name !== 'PBKDF2' || k.hash !== 'SHA-256' || k.iter !== ITER) throw bad('private vault key settings');
-    for (const f of Object.keys(k)) if (!['name', 'hash', 'iter', 'salt'].includes(f)) throw bad('private vault has an unknown field');
-    b64len(k.salt, 'salt', 24, 24);
+    const two = x.v === 2;
+    if (x.v !== 1 && !two) throw bad('private vault version');
+    const allowed = two ? ['v', 'wraps', 'iv', 'ct', 'rev', 'marks'] : ['v', 'kdf', 'iv', 'ct', 'rev', 'marks'];
+    for (const k of Object.keys(x)) if (!allowed.includes(k)) throw bad('private vault has an unknown field');
+    let kdf = null, wr = null;
+    if (two) {
+      try { wr = V().cleanWraps(x.wraps); } catch (e) { throw bad('private vault key settings'); }
+    } else {
+      const k = x.kdf;
+      if (!isObj(k) || k.name !== 'PBKDF2' || k.hash !== 'SHA-256' || k.iter !== ITER) throw bad('private vault key settings');
+      for (const f of Object.keys(k)) if (!['name', 'hash', 'iter', 'salt'].includes(f)) throw bad('private vault has an unknown field');
+      b64len(k.salt, 'salt', 24, 24);
+      kdf = { name: 'PBKDF2', hash: 'SHA-256', iter: ITER, salt: k.salt };
+    }
     b64len(x.iv, 'iv', 16, 16);
     b64len(x.ct, 'data', 24, CT_MAX);
     if (!Number.isInteger(x.rev) || x.rev < 0 || x.rev > 1e9) throw bad('private vault revision');
@@ -1979,7 +2318,8 @@ globalThis.LifeOS.VERSION = "1.7.0";
       if (typeof m !== 'string' || !isMarkName(m) || BLOCKED.has(m) || seen.has(m)) throw bad('private vault marks');
       seen.add(m);
     }
-    return { v: 1, kdf: { name: 'PBKDF2', hash: 'SHA-256', iter: ITER, salt: k.salt }, iv: x.iv, ct: x.ct, rev: x.rev, marks: MARK_NAMES.filter((m) => seen.has(m)).concat(Array.from(seen).filter((m) => !MARK_NAMES.includes(m)).sort()) };
+    const marks = MARK_NAMES.filter((m) => seen.has(m)).concat(Array.from(seen).filter((m) => !MARK_NAMES.includes(m)).sort());
+    return two ? { v: 2, wraps: wr, iv: x.iv, ct: x.ct, rev: x.rev, marks } : { v: 1, kdf, iv: x.iv, ct: x.ct, rev: x.rev, marks };
   }
 
   // ---- inner plaintext ----
@@ -2232,7 +2572,7 @@ globalThis.LifeOS.VERSION = "1.7.0";
     clearTimeout(timer); timer = null; deadline = 0;
     const was = isOpen();
     const p = inner;
-    key = null; saltB64 = ''; inner = null;
+    key = null; wraps = null; inner = null;
     scrub(p);
     if (!was) return false;
     if (why === undefined) auditQuiet('private vault closed');
@@ -2259,25 +2599,38 @@ globalThis.LifeOS.VERSION = "1.7.0";
   }
   const onClose = (f) => { if (typeof f === 'function') closers.push(f); };
 
-  async function sealPlain(p, k, salt, pub) {
+  async function sealPlain(p, k, wr, pub) {
     const { iv, ct } = await V().encrypt(k, p);
     if (ct.length > CT_MAX) throw new Error('The private vault would be too large. Move some items out or delete old ones.');
-    return { v: 1, kdf: { name: 'PBKDF2', hash: 'SHA-256', iter: ITER, salt }, iv, ct, rev: p.rev, marks: marksOf(p, pub) };
+    return { v: 2, wraps: clone(wr), iv, ct, rev: p.rev, marks: marksOf(p, pub) };
   }
-  const bkey = async (pass, blob) => {
-    const salt = Uint8Array.from(atob(blob.kdf.salt), (ch) => ch.charCodeAt(0));
-    return V().deriveKey(pass, salt);
-  };
-  async function decryptBlob(blob, pass) {
-    const k = await bkey(pass, blob);
-    let p;
-    try { p = await V().decrypt(k, blob); } catch (e) { throw new Error('BAD_PRIVATE_PASSPHRASE'); }
+  const v1key = async (pass, blob) => V().deriveKey(pass, Uint8Array.from(atob(blob.kdf.salt), (ch) => ch.charCodeAt(0)));
+  const badPass = (secret) => { const e = new Error(secret && typeof secret === 'object' ? 'BAD_RECOVERY_KEY' : 'BAD_PRIVATE_PASSPHRASE'); if (secret && typeof secret === 'object') e.code = 'BAD_RECOVERY_KEY'; return e; };
+  // Open a private blob with a secret (a passphrase, or { recovery }). Returns { k: the data key to write with, wr: the wraps that go with it, p }.
+  // A v1 blob opens with the passphrase and gets its v2 key set now (a new data key under the same passphrase); the next write stores it.
+  async function decryptBlob(blob, secret) {
+    let k, wr, p;
+    if (blob.v === 2) {
+      try {
+        const o = await V().unwrapWith(blob.wraps, secret);
+        p = await V().decrypt(o.key, blob); k = o.key; wr = blob.wraps;
+      } catch (e) { if (e && e.code === 'RECOVERY_KEY_FORMAT') throw e; throw badPass(secret); }
+    } else {
+      if (typeof secret !== 'string') throw badPass(secret);
+      try { p = await V().decrypt(await v1key(secret, blob), blob); } catch (e) { throw badPass(secret); }
+      const nk = await V().newKeyset(secret, null);
+      k = nk.key; wr = nk.wraps;
+    }
     checkInner(p, blob.rev);
-    return { k, p };
+    return { k, wr, p };
   }
   // True when `pass` opens the private blob (used to keep the main passphrase different without ever storing either).
   async function matches(blob, pass) {
-    try { const k = await bkey(pass, blob); await V().decrypt(k, blob); return true; } catch (e) { return false; }
+    try {
+      if (blob.v === 2) await V().unwrapWith(blob.wraps, pass);
+      else await V().decrypt(await v1key(pass, blob), blob);
+      return true;
+    } catch (e) { return false; }
   }
   const needBase = () => { const st = S().getState(); return st; };
   const isSetUp = (st) => !!(st && st.priv);
@@ -2289,12 +2642,8 @@ globalThis.LifeOS.VERSION = "1.7.0";
       if (st.priv) throw new Error('The private vault is already set up.');
       V().checkPassphrase(pass);
       if (await S().matchesMain(pass)) throw new Error('The private passphrase must be different from your main passphrase.');
-      const salt = V().newSalt();
-      const k = await V().deriveKey(pass, salt);
-      let sb = '';
-      for (const b of salt) sb += String.fromCharCode(b);
-      sb = btoa(sb);
-      const p = emptyInner(0), blob = await sealPlain(p, k, sb);
+      const nk = await V().newKeyset(pass, null), k = nk.key;
+      const p = emptyInner(0), blob = await sealPlain(p, k, nk.wraps);
       await S().commit((x) => {
         if (x.priv) throw new Error('The private vault is already set up.');
         x.priv = blob;
@@ -2304,7 +2653,7 @@ globalThis.LifeOS.VERSION = "1.7.0";
       });
       // A close trigger (tab hidden, app lock, AI call) during set-up leaves the new vault closed.
       if (gen !== g0 || hidden()) { close('system'); return; }
-      close('system'); key = k; saltB64 = sb; inner = p; hook(); touch(); markRecs(p);
+      close('system'); key = k; wraps = nk.wraps; inner = p; hook(); touch(); markRecs(p);
     });
   }
   function markRecs(p) { for (const c of Object.keys(p.records)) for (const r of p.records[c]) privRecs.add(r); }
@@ -2314,43 +2663,43 @@ globalThis.LifeOS.VERSION = "1.7.0";
       if (!st.priv) throw new Error('No private vault is set up.');
       if (isOpen()) return true;
       const g0 = gen;
-      const { k, p } = await decryptBlob(st.priv, pass);
+      const { k, wr, p } = await decryptBlob(st.priv, pass);
       if (!S().isUnlocked() || S().getState() !== st) { scrub(p); throw new Error('LOCKED'); }
       // A close trigger fired while the key was being derived (tab hidden, app lock, AI call, Close): stay closed.
       if (gen !== g0 || hidden()) { scrub(p); throw new Error('The private vault closed while it was opening. Open it again.'); }
       const m = merge(st, p);
       try { const w = clone(m.out); overlay(w, p.links, false); S().validateState(w, PRIVATE_OK); } catch (e) { scrub(p); const x = bad('The private vault data is not valid: ' + String(e.message || '').slice(0, 120)); throw x; }
-      key = k; saltB64 = st.priv.kdf.salt; inner = p; hook(); touch(); markRecs(p);
+      key = k; wraps = wr; inner = p; hook(); touch(); markRecs(p);
       auditQuiet('private vault opened');
       return true;
     });
   }
   // CR-3: the private data re-encrypted is the private data stored when the change commits. If a restore or sync adoption replaced the
   // private vault while the keys were being derived, the newer copy is decrypted (with the current passphrase) and used instead.
-  async function changePassphrase(oldP, newP) {
+  // One rotation: a new data key and new wraps (fresh salts) for the private vault, the inner data re-sealed under it, in one write.
+  // secret opens the current blob (a passphrase, or { recovery } when the passphrase was forgotten); newP is the passphrase to wrap under;
+  // recText is the recovery key to wrap under, or null for none. The vault ends closed.
+  async function rotate(secret, newP, recText, action) {
     return pserial(async () => {
       if (!needBase().priv) throw new Error('No private vault is set up.');
       V().checkPassphrase(newP);
       if (await S().matchesMain(newP)) throw new Error('The private passphrase must be different from your main passphrase.');
-      const salt = V().newSalt(), k = await V().deriveKey(newP, salt);
-      let sb = '';
-      for (const b of salt) sb += String.fromCharCode(b);
-      sb = btoa(sb);
+      const nk = await V().newKeyset(newP, recText || null);
       const STALE = {};
       for (let attempt = 0; attempt < 4; attempt++) {
         const blob0 = needBase().priv;
         if (!blob0) throw new Error('No private vault is set up.');
-        const { p } = await decryptBlob(blob0, oldP);
+        const { p } = await decryptBlob(blob0, secret);
         const next = clone(p); next.rev = p.rev + 1;
         let blob;
-        try { blob = await sealPlain(next, k, sb, needBase()); } catch (e) { scrub(next); scrub(p); throw e; }
+        try { blob = await sealPlain(next, nk.key, nk.wraps, needBase()); } catch (e) { scrub(next); scrub(p); throw e; }
         close('system');
         try {
           await S().commit((x) => {
             if (!x.priv || x.priv.rev !== blob0.rev || x.priv.ct !== blob0.ct || x.priv.iv !== blob0.iv) throw STALE;
             x.priv = blob;
             if (!Array.isArray(x.audit)) x.audit = [];
-            x.audit.push({ ts: new Date().toISOString(), action: 'private vault passphrase changed' });
+            x.audit.push({ ts: new Date().toISOString(), action });
             while (x.audit.length > 200) x.audit.shift();
           });
         } catch (e) { scrub(next); scrub(p); if (e === STALE) continue; throw e; }
@@ -2359,6 +2708,74 @@ globalThis.LifeOS.VERSION = "1.7.0";
       }
       throw new Error('The private vault changed while the passphrase was being changed. Nothing was changed. Try again.');
     });
+  }
+  const hasRecovery = (st) => !!(st && st.priv && st.priv.v === 2 && st.priv.wraps.some((w) => w.kind === 'recovery'));
+  const wrongRecovery = () => { const e = new Error('BAD_RECOVERY_KEY'); e.code = 'BAD_RECOVERY_KEY'; return e; };
+  // CR-3: the private data re-encrypted is the private data stored when the change commits (see rotate). With a recovery key on, opts.keepRecovery
+  // (the current key, typed) keeps it, or opts.newRecoveryKey (a new key already shown and retyped) replaces it; with neither the change is refused.
+  async function changePassphrase(oldP, newP, opts) {
+    const st = needBase();
+    if (!st.priv) throw new Error('No private vault is set up.');
+    let rec = null;
+    if (hasRecovery(st)) {
+      if (opts && typeof opts.keepRecovery === 'string' && opts.keepRecovery) {
+        try { await V().unwrapWith(st.priv.wraps, { recovery: opts.keepRecovery }); } catch (e) { if (e && e.code === 'RECOVERY_KEY_FORMAT') throw e; throw wrongRecovery(); }
+        rec = opts.keepRecovery;
+      } else if (opts && typeof opts.newRecoveryKey === 'string' && opts.newRecoveryKey) { await V().parseRecoveryKey(opts.newRecoveryKey); rec = opts.newRecoveryKey; }
+      else { const e = new Error('Type your current recovery key to keep it, or choose a new one.'); e.code = 'RECOVERY_CHOICE'; throw e; }
+    }
+    await rotate(oldP, newP, rec, 'private vault passphrase changed');
+  }
+  // Recovery key for the private vault. beginRecovery(pass) resolves to { key, finish(typed), cancel() }: key is shown once by the caller and
+  // nothing changes until finish gets it retyped (all of it, or its last two groups). Works for turning on and for replacing.
+  async function beginRecovery(pass) {
+    const st = needBase();
+    if (!st.priv) throw new Error('No private vault is set up.');
+    if (!(await matches(st.priv, pass))) throw new Error('BAD_PRIVATE_PASSPHRASE');
+    const text = await V().newRecoveryKey(), blob0 = st.priv;
+    let live = true;
+    return {
+      key: text,
+      cancel() { live = false; },
+      finish: async (typed) => {
+        if (!live || needBase().priv !== blob0) throw new Error('That recovery key is no longer valid. Start again.');
+        if (!V().retypeMatches(text, typed)) { const e = new Error('That is not the recovery key shown. Check it against the key on screen and try again.'); e.code = 'RECOVERY_RETYPE'; throw e; }
+        await rotate(pass, pass, text, hasRecovery(needBase()) ? 'private vault recovery key replaced' : 'private vault recovery key on');
+        live = false;
+      },
+    };
+  }
+  async function turnOffRecovery(pass) {
+    if (!needBase().priv) throw new Error('No private vault is set up.');
+    await rotate(pass, pass, null, 'private vault recovery key off');
+  }
+  // Forgot the private passphrase: check the recovery key (nothing is written), then prepare(newPass) resolves to { key, finish(typed) }:
+  // a new data key, the new passphrase and a new recovery key (the key used stops working). The vault is open afterwards.
+  async function openWithRecovery(recText) {
+    const st = needBase();
+    if (!st.priv) throw new Error('No private vault is set up.');
+    if (st.priv.v !== 2 || !hasRecovery(st)) throw wrongRecovery();
+    const chk = await decryptBlob(st.priv, { recovery: recText }); scrub(chk.p);
+    const blob0 = st.priv;
+    let live = true;
+    return {
+      cancel() { live = false; },
+      prepare: async (newPass) => {
+        V().checkPassphrase(newPass);
+        if (await S().matchesMain(newPass)) throw new Error('The private passphrase must be different from your main passphrase.');
+        const text = await V().newRecoveryKey();
+        return {
+          key: text,
+          finish: async (typed) => {
+            if (!live || needBase().priv !== blob0) throw new Error('That recovery key is no longer valid. Start again.');
+            if (!V().retypeMatches(text, typed)) { const e = new Error('That is not the recovery key shown. Check it against the key on screen and try again.'); e.code = 'RECOVERY_RETYPE'; throw e; }
+            await rotate({ recovery: recText }, newPass, text, 'private vault recovered with recovery key');
+            live = false;
+            await open(newPass);
+          },
+        };
+      },
+    };
   }
   async function destroy() {
     return pserial(async () => {
@@ -2413,7 +2830,7 @@ globalThis.LifeOS.VERSION = "1.7.0";
   function writeRaw(fn, o) {
     return (async () => {
       if (!isOpen()) throw new Error('The private vault is closed.');
-      const k = key, before = inner, sb = saltB64;
+      const k = key, before = inner, wr = wraps;
       let next = null, next_wb = null, work = null, wb = null;
       try {
       await S().commit(async (st) => {
@@ -2442,7 +2859,7 @@ globalThis.LifeOS.VERSION = "1.7.0";
         if (o.summaries) { for (const y of Object.keys(o.summaries.set || {})) sums[y] = clone(o.summaries.set[y]); for (const y of o.summaries.del || []) delete sums[y]; }
         if (Object.keys(sums).length) next.summaries = L.archive ? L.archive.cleanPrivSummaries(sums) : sums;
         if (key !== k) throw new Error('The private vault is closed.');
-        const blob = await sealPlain(next, k, sb, sp.pub);
+        const blob = await sealPlain(next, k, wr, sp.pub);
         if (key !== k) throw new Error('The private vault is closed.');
         for (const f of Object.keys(st)) delete st[f];
         Object.assign(st, sp.pub, { priv: blob });
@@ -2461,7 +2878,7 @@ globalThis.LifeOS.VERSION = "1.7.0";
     if (!isOpen()) return Promise.reject(new Error('The private vault is closed.'));
     return pserial(async () => {
       if (!isOpen()) throw new Error('The private vault is closed.');
-      const k = key, before = inner, sb = saltB64;
+      const k = key, before = inner, wr = wraps;
       const next = clone(before);
       let w = null;
       try {
@@ -2474,7 +2891,7 @@ globalThis.LifeOS.VERSION = "1.7.0";
           const m = merge(st, next); w = clone(m.out); overlay(w, next.links, false);
           S().validateState(w, PRIVATE_OK);
           if (key !== k) throw new Error('The private vault is closed.');
-          const blob = await sealPlain(next, k, sb, st);
+          const blob = await sealPlain(next, k, wr, st);
           if (key !== k) throw new Error('The private vault is closed.');
           st.priv = blob;
         });
@@ -2572,26 +2989,34 @@ globalThis.LifeOS.VERSION = "1.7.0";
   const moveOut = (c, id, opts) => pserial(() => move('out', c, id, opts));
   // Which collection keys are private right now (open only): for UI badges and routing checks.
   function isPrivate(c, id) { return isPrivateKey(c, id); }
-  // v1.2.0 part B: archive files keep a year's private records in a box under the private key (own fresh IV, the vault's salt named so the
-  // right passphrase can be asked for later). The key itself never leaves this module.
+  // v1.2.0 part B: archive files keep a year's private records in a box under the private key (own fresh IV). Since v1.8.0 the box carries the
+  // private vault's wraps (so the private passphrase or recovery key in force then opens it); a v1 box names the vault's salt instead and still opens.
+  // The key itself never leaves this module.
   async function sealBox(obj) {
     if (!isOpen()) throw new Error('The private vault is closed.');
-    const k = key, sb = saltB64;
+    const k = key, wr = wraps;
     const { iv, ct } = await V().encrypt(k, obj);
     if (key !== k) throw new Error('The private vault is closed.');
-    return { kdf: { salt: sb }, iv, ct };
+    return { wraps: clone(wr), iv, ct };
   }
   async function openBox(box, pass) {
-    if (!box || typeof box !== 'object' || !box.kdf || typeof box.kdf.salt !== 'string' || !/^[A-Za-z0-9+/]{22}==$/.test(box.kdf.salt)) throw new Error('BAD_PRIVATE_PASSPHRASE');
+    const v2 = !!box && typeof box === 'object' && Array.isArray(box.wraps);
+    let wr = null;
+    if (v2) { try { wr = V().cleanWraps(box.wraps); } catch (e) { throw new Error('BAD_PRIVATE_PASSPHRASE'); } }
+    else if (!box || typeof box !== 'object' || !box.kdf || typeof box.kdf.salt !== 'string' || !/^[A-Za-z0-9+/]{22}==$/.test(box.kdf.salt)) throw new Error('BAD_PRIVATE_PASSPHRASE');
+    const same = v2 && isOpen() && JSON.stringify(wr) === JSON.stringify(wraps);
     let k = null;
-    if (isOpen() && box.kdf.salt === saltB64) k = key;
-    else if (typeof pass === 'string' && pass) k = await bkey(pass, { kdf: { salt: box.kdf.salt } });
+    if (same) k = key;
+    else if (typeof pass === 'string' && pass || (pass && typeof pass === 'object' && pass.recovery)) {
+      try { k = v2 ? (await V().unwrapWith(wr, pass)).key : await v1key(pass, { kdf: { salt: box.kdf.salt } }); }
+      catch (e) { if (e && e.code === 'RECOVERY_KEY_FORMAT') throw e; throw badPass(pass); }
+    }
     else { const e = new Error(isOpen() ? 'This archive was sealed with an earlier private passphrase. Enter it to continue.' : 'The private vault is closed.'); e.code = isOpen() ? 'NEED_PRIVATE_PASSPHRASE' : 'PRIVATE_CLOSED'; throw e; }
     try { return await V().decrypt(k, box); } catch (e) { throw new Error('BAD_PRIVATE_PASSPHRASE'); }
   }
 
   L.priv = {
-    COLLECTIONS, MARK_NAMES, isSetUp, setUp, open, close, isOpen, view, commit, write, moveIn, moveOut, childrenOf, changePassphrase, destroy, marks,
+    COLLECTIONS, MARK_NAMES, isSetUp, setUp, open, close, isOpen, view, commit, write, moveIn, moveOut, childrenOf, changePassphrase, hasRecovery, beginRecovery, turnOffRecovery, openWithRecovery, destroy, marks,
     touch, checkExpiry, onClose, sealBox, openBox, isView, mainOnly, isPrivateRecord, isPrivate, cleanBlob, matches, getWellbeing, secsLeft: () => (isOpen() ? Math.max(0, Math.ceil((deadline - Date.now()) / 1000)) : 0),
   };
 })();
@@ -10387,7 +10812,7 @@ globalThis.LifeOS.VERSION = "1.7.0";
     if (wantsRemote) {
       const afp = await fingerprint(ctx.info.state);
       await S.adoptEnvelope(ctx.info);
-      await bookkeeping(ctx.clientId, ctx.info.meta.rev, ctx.file.id, 'sync: downloaded from Drive', afp, b64(ctx.info.salt));
+      await bookkeeping(ctx.clientId, ctx.info.meta.rev, ctx.file.id, 'sync: downloaded from Drive', afp, S.saltId());
       return { kind: 'downloaded', rev: ctx.info.meta.rev };
     }
     const ex = await exportSnap(ctx.info.meta.rev + 1);
@@ -10419,7 +10844,7 @@ globalThis.LifeOS.VERSION = "1.7.0";
       throw err('REMOTE_INVALID', 'The Drive file is not a valid LifeOS vault.');
     }
     const id = typeof clientId === 'string' && clientId ? validateClientId(clientId) : '';
-    if (id) await bookkeeping(id, info.meta.rev, ctx.file.id, 'sync: downloaded from Drive', await fingerprint(info.state), b64(info.salt));
+    if (id) await bookkeeping(id, info.meta.rev, ctx.file.id, 'sync: downloaded from Drive', await fingerprint(info.state), L.store.saltId());
     return { kind: 'downloaded', rev: info.meta.rev };
   }
 
@@ -10782,7 +11207,7 @@ globalThis.LifeOS.VERSION = "1.7.0";
 
   // ---- the file ----
   const recMap = (recs) => { const o = {}; for (const d of DEFS) if (recs[d.name] && recs[d.name].length) o[d.name] = sorted(d, recs[d.name]); return o; };
-  async function build(pl, passphrase, wbCheckins) {
+  async function build(pl, passphrase, wbCheckins, recoveryKey) {
     const pub = recMap(pl.recs), privRecs = recMap(pl.priv);
     const hasPriv = Object.keys(privRecs).length > 0 || (wbCheckins && wbCheckins.length > 0);
     const inner = { kind: 'lifeos-archive', v: 1, year: pl.year, createdAt: new Date().toISOString(), counts: countsOf(pub), records: pub };
@@ -10794,8 +11219,9 @@ globalThis.LifeOS.VERSION = "1.7.0";
       inner.priv = await L.priv.sealBox(privPlain);
     }
     inner.sha256 = await sha256(canon({ records: pub }));
-    const salt = V().newSalt(), key = await V().deriveKey(passphrase, salt);
-    const env = Object.assign(await V().makeEnvelope(key, salt, inner), { arch: 1, year: pl.year });
+    // v1.8.0: a new data key for the file, wrapped under the passphrase and, when the vault has a recovery key on, under that key too (typed by
+    // the owner and checked by the caller), each wrap with its own fresh salt.
+    const env = await V().sealEnvelope(await V().newKeyset(passphrase, recoveryKey || null), inner, null, { arch: 1, year: pl.year });
     const text = JSON.stringify(env);
     if (text.length > MAX_FILE) throw bad('The archive for ' + pl.year + ' would be larger than 64 MB, so nothing was archived.');
     return { text, inner, privPlain, name: fileName(pl.year) };
@@ -10806,12 +11232,11 @@ globalThis.LifeOS.VERSION = "1.7.0";
     let env;
     try { env = JSON.parse(text); } catch (e) { throw NOT_FILE(year); }
     if (!isObj(env) || env.arch !== 1 || !Number.isInteger(env.year) || env.year < 1900 || env.year > 2200) throw NOT_FILE(year);
-    for (const k of Object.keys(env)) if (!['v', 'kdf', 'iv', 'ct', 'arch', 'year'].includes(k)) throw NOT_FILE(year);
+    if (env.fmt === undefined) for (const k of Object.keys(env)) if (!['v', 'kdf', 'iv', 'ct', 'arch', 'year'].includes(k)) throw NOT_FILE(year);
     if (year !== undefined && env.year !== year) throw NOT_FILE(year);
-    let salt;
-    try { salt = V().parseEnvelope(env).salt; } catch (e) { throw NOT_FILE(year); }
+    try { V().parseEnvelope(env); } catch (e) { throw NOT_FILE(year); } // v2 files are parsed strictly: unknown fields refused
     let inner;
-    try { inner = await V().decrypt(await V().deriveKey(passphrase, salt), env); } catch (e) { throw bad('That passphrase did not work, or the archive file is damaged.'); }
+    try { inner = (await V().openEnvelope(env, passphrase)).raw; } catch (e) { throw bad('That passphrase did not work, or the archive file is damaged.'); }
     if (!isObj(inner) || inner.kind !== 'lifeos-archive' || inner.v !== 1 || inner.year !== env.year || !isObj(inner.records) || !isObj(inner.counts)) throw NOT_FILE(year);
     if (typeof inner.sha256 !== 'string' || !/^[0-9a-f]{64}$/.test(inner.sha256) || typeof inner.createdAt !== 'string' || inner.createdAt.length > 40) throw NOT_FILE(year);
     const budget = { n: 6e6 };
@@ -10823,7 +11248,7 @@ globalThis.LifeOS.VERSION = "1.7.0";
     for (const r of inner.records.entries || []) if (typeof r.date !== 'string' || yr(r.date) !== env.year) throw NOT_FILE(year);
     for (const r of inner.records.habitLog || []) if (typeof r.date !== 'string' || yr(r.date) !== env.year) throw NOT_FILE(year);
     if (!sameCounts(inner.counts, countsOf(inner.records))) throw NOT_FILE(year);
-    if (inner.priv !== undefined && !(isObj(inner.priv) && isObj(inner.priv.kdf) && typeof inner.priv.iv === 'string' && typeof inner.priv.ct === 'string')) throw NOT_FILE(year);
+    if (inner.priv !== undefined && !(isObj(inner.priv) && (isObj(inner.priv.kdf) || Array.isArray(inner.priv.wraps)) && typeof inner.priv.iv === 'string' && typeof inner.priv.ct === 'string')) throw NOT_FILE(year);
     if (await sha256(canon({ records: recMap(inner.records) })) !== inner.sha256) throw bad('The archive file does not match its checksum.');
     return { year: env.year, inner, size: text.length };
   }
@@ -10878,12 +11303,22 @@ globalThis.LifeOS.VERSION = "1.7.0";
   }
 
   const planKey = async (pl, wb) => sha256(canon({ y: pl.year, ids: NAMES.map((n) => [n, sorted(DEF[n], pl.recs[n].concat(pl.priv[n])).map(DEF[n].key)]), wb: (wb || []).map((c) => c.id) }));
-  // opts: { year, passphrase, today, drive: bool, download: bool, io: { put(name,text), get(name), save(name,text), confirmSaved() } }
+  // With a recovery key on, the file must carry it, so the owner types it; it is checked against the vault's own wrap and never stored.
+  async function recoveryFor(text) {
+    if (!S().hasRecovery()) return null;
+    if (typeof text !== 'string' || !text) throw bad('Type your recovery key so the archive file carries it.');
+    let ok = false;
+    try { ok = await S().recoveryMatches(text); } catch (e) { throw bad('That recovery key has a typo. Check it and try again.'); }
+    if (!ok) throw bad('That is not your current recovery key.');
+    return text;
+  }
+  // opts: { year, passphrase, recoveryKey (needed when a recovery key is on), today, drive: bool, download: bool, io: { put(name,text), get(name), save(name,text), confirmSaved() } }
   // Returns { year, counts, copies }. Throws (leaving the vault untouched) when any step fails or no copy is verified.
   async function archiveYear(opts) {
     const st0 = S().getState(), year = opts.year, today = opts.today || M().todayISO();
     if (isArchivedYear(st0, year)) throw bad(year + ' is already archived. Restore it first to archive it again.');
     if (!(await S().matchesMain(opts.passphrase))) throw bad('That is not your main passphrase.');
+    const rk = await recoveryFor(opts.recoveryKey);
     privateGate(st0);
     const openP = L.priv && L.priv.isOpen();
     const view = openP ? L.priv.view(st0) : st0;
@@ -10904,7 +11339,7 @@ globalThis.LifeOS.VERSION = "1.7.0";
       if (d) { delete d.v; if (Object.keys(d).length) privSummary = Object.assign({ v: 1 }, d); }
     }
     const key0 = await planKey(pl, wb);
-    const built = await build(pl, opts.passphrase, wb);
+    const built = await build(pl, opts.passphrase, wb, rk);
     await verify(built.text, opts.passphrase, pl, built);
     const copies = [], io = opts.io || {};
     const at = () => new Date().toISOString();
@@ -10994,11 +11429,13 @@ globalThis.LifeOS.VERSION = "1.7.0";
   }
   // Restore: records go back into the live vault, deduplicated by id, never overwriting a live record. Needs the main passphrase and
   // (when the file has a private part) the open private vault. The archive's index entry and summary are removed in the same write.
-  async function restoreYear(text, passphrase, year, privPass) {
-    if (!(await S().matchesMain(passphrase))) throw bad('That is not your main passphrase.');
+  // SEC-128: fileSecret ({ recovery }, optional) opens a file sealed under an earlier main passphrase with the recovery key it carries;
+  // the current main passphrase is still required.
+  async function restoreYear(text, passphrase, year, privPass, fileSecret) {
+    if (typeof passphrase !== 'string' || !(await S().matchesMain(passphrase))) throw bad('That is not your main passphrase.');
     // SEC-89: with private records hidden, a restored record's link to one of them could not be kept; open the vault first.
     privateGate(S().getState());
-    const parsed = await parse(text, passphrase, year);
+    const parsed = await parse(text, fileSecret && typeof fileSecret === 'object' ? { recovery: fileSecret.recovery } : passphrase, year);
     let p = null;
     if (parsed.inner.priv) {
       if (!L.priv || !L.priv.isOpen()) throw bad('Open the private vault first: this archive holds private records.');
@@ -11151,6 +11588,8 @@ globalThis.LifeOS.VERSION = "1.7.0";
     var m = e && e.message ? String(e.message) : '';
     if (m === 'BAD_PASSPHRASE_OR_DATA') return 'That passphrase did not work, or the data is damaged.';
     if (m === 'BAD_PRIVATE_PASSPHRASE') return 'That private passphrase did not work.';
+    if (m === 'BAD_RECOVERY_KEY') return 'That recovery key did not work.';
+    if (m === 'RECOVERY_KEY_FORMAT') return 'That recovery key has a typo or is the wrong length. Check it and try again.';
     if (m === 'LOCKED') return 'LifeOS locked before that finished. Nothing was saved. Unlock and try again.';
     if (!m) return 'Something went wrong.';
     return m.slice(0, 300);
@@ -11240,6 +11679,10 @@ globalThis.LifeOS.VERSION = "1.7.0";
   // Every write goes through the private vault's single routing helper: a record is saved where it lives (main state or private
   // vault); with the vault closed it is a plain commit. New records are public unless "New items are private" is ticked.
   var privNew = false, privFail = { n: 0, until: 0 }, privTimer = null, privPick = { coll: 'accounts', q: '' };
+  // v1.8.0: the main lock screen counts wrong passphrases and wrong recovery keys together, with the same delays as the private vault (1 s doubling to 30 s).
+  var mainFail = { n: 0, until: 0 }, lockRecover = false;
+  function leftOf(f) { return Math.max(0, Math.ceil((f.until - Date.now()) / 1000)); }
+  function bumpOf(f) { f.n++; f.until = Date.now() + Math.min(30000, 1000 * Math.pow(2, f.n - 1)); }
   // from: [[collection, key]] the records a new record is made from (SEC-62): if any of them is private, so is the new one.
   // UI-5: the toggle applies only to the add forms and add dialogs that show its note (markAddForms); one-tap actions (a daily check
   // tick, a confirmed recurring item, carry-over, imports) follow their source record instead (SEC-62).
@@ -11337,7 +11780,7 @@ globalThis.LifeOS.VERSION = "1.7.0";
     }, o.danger ? 'bad' : 'pri');
     var box = h('div', { class: 'dialog' + (o.adds ? ' adds' : '') + (o.sheet ? ' sheet' : ''), role: 'dialog', 'aria-modal': 'true', 'aria-label': o.title },
       h('h2', { text: o.title }), o.body || null, o.sheet ? null : err,
-      h('div', { class: 'row' }, yes, btn(o.sheet ? 'Close' : 'Cancel', function () { closeDialog(); })));
+      h('div', { class: 'row' }, yes, btn(o.sheet ? 'Close' : (o.no || 'Cancel'), function () { closeDialog(); })));
     dlgEl = h('div', { class: 'overlay' + (o.sheet ? ' sheetov' : '') }, box);
     dlgEl.addEventListener('keydown', function (e) {
       if (e.key === 'Escape') { closeDialog(); return; }
@@ -11387,6 +11830,7 @@ globalThis.LifeOS.VERSION = "1.7.0";
     var remind = unsynced().catch(function () { return false; });
     locking = Promise.all([p, remind]).then(function (r) {
       L.store.lock();
+      if (L.recoveryUI) L.recoveryUI.clear(); lockRecover = false;
       privNew = false; goalMemo = new Map(); searchQ = '';
       closeDialog();
       csvPending = null; ledger = null; actImp = null; jobImp = null; jobImpDone = null; actImpDone = null; dashEdit = false; ai = null; notice = r[1] ? { kind: 'ok', text: SYNC_NOTE } : null; lastActive = 0;
@@ -11424,6 +11868,8 @@ globalThis.LifeOS.VERSION = "1.7.0";
     var root = document.getElementById('app');
     clearTimeout(privTimer);
     L.ops.setArea(areaOf());
+    // SEC-131: a key included on the recovery sheet lives only while the sheet is on screen.
+    if (L.recoveryUI && (view.name !== 'print' || view.kind !== 'recovery')) L.recoveryUI.dropSheet();
     root.replaceChildren();
     noticeEl = h('div', { class: 'notice' + (notice ? ' ' + notice.kind : ''), role: 'status', 'aria-live': 'polite', text: notice ? notice.text : '' });
     if (!L.store.isUnlocked() || view.name === 'lock') { root.appendChild(lockScreen()); return; }
@@ -11537,6 +11983,7 @@ globalThis.LifeOS.VERSION = "1.7.0";
     var inner;
     if (create && lockPath === 'restore') inner = restorePath();
     else if (create && lockPath === 'drive') inner = drivePath();
+    else if (!create && lockRecover && L.recoveryUI) inner = L.recoveryUI.lockPath(recCtx());
     else inner = unlockForm(create);
     var intro = h('p', { class: 'mut', text: create ? (lockPath === 'create' ? 'Your private life dashboard. Everything stays on this device, encrypted.' : 'Bring an existing vault to this device.') : 'Unlock your vault.' });
     var paths = create && lockPath === 'create' ? h('div', { class: 'card lockpaths', id: 'lock-paths' }, h('h2', { text: 'Already have a vault?' }),
@@ -11559,14 +12006,17 @@ globalThis.LifeOS.VERSION = "1.7.0";
             return L.store.init(a).then(function () { vaultExists = true; return commit(null, 'create'); }).then(afterUnlock);
           }
           if (!a) throw new Error('Enter your passphrase.');
-          return L.store.unlock(a).then(function () { return commit(null, 'unlock'); }).then(afterUnlock);
+          var wait = leftOf(mainFail);
+          if (wait > 0) throw new Error('Wrong passphrase. Wait ' + wait + ' s before trying again.');
+          return L.store.unlock(a).then(function (st) { mainFail = { n: 0, until: 0 }; return st; }, function (e) { if (e && e.message === 'BAD_PASSPHRASE_OR_DATA') bumpOf(mainFail); throw e; }).then(function () { return commit(null, 'unlock'); }).then(afterUnlock);
         }).then(function () { p1.value = ''; if (p2) p2.value = ''; });
       }
     },
       field(create ? 'Choose a passphrase (12 characters or more)' : 'Passphrase', p1),
       p2 ? field('Confirm passphrase', p2) : null,
       create ? passNote() : null,
-      h('button', { type: 'submit', class: 'btn pri', text: create ? 'Create vault' : 'Unlock' }));
+      h('button', { type: 'submit', class: 'btn pri', text: create ? 'Create vault' : 'Unlock' }),
+      !create && L.recoveryUI ? L.recoveryUI.lockLink(recCtx()) : null);
   }
   function backLink() { return btn('Back', function () { lockPath = 'create'; restorePick = null; driveCopy = null; notice = null; render(); }, '', { id: 'path-back' }); }
   // After a vault is made from a backup or a Drive copy: record it, then open it like any unlock. A failed audit write never undoes the vault.
@@ -11576,7 +12026,10 @@ globalThis.LifeOS.VERSION = "1.7.0";
   }
   function restorePath() {
     var file = h('input', { type: 'file', id: 'rs-file', accept: '.json,application/json' }), pass = passOnly('rs-pass', 'off'), out = h('div', { id: 'rs-out', role: 'status' });
-    function showPreview(r, text, pv) {
+    // SEC-128: a backup made while a main recovery key was on also opens with that key; the restored vault then gets a new passphrase.
+    var useKey = h('input', { type: 'checkbox', id: 'rs-use-key' });
+    function showPreview(r, text, secret) {
+      var byKey = typeof secret === 'object', n1 = byKey ? passOnly('rs-new-pass', 'new-password') : null, n2 = byKey ? passOnly('rs-new-pass2', 'new-password') : null;
       var rows = r.rows.map(function (x) { return h('li', { text: x.label + ': ' + x.backup }); });
       out.replaceChildren(h('div', { id: 'rs-ok' },
         h('p', { class: 'small', text: 'This file passed the same checks as a restore inside the app. Nothing is saved until you confirm.' }),
@@ -11585,10 +12038,13 @@ globalThis.LifeOS.VERSION = "1.7.0";
           h('li', { id: 'rs-date', text: 'Made on: ' + (r.madeOn || 'not recorded in this file') }),
           h('li', { id: 'rs-priv', text: 'Private vault in the file: ' + (r.priv ? 'yes' : 'no') })),
         rows.length ? h('ul', { id: 'rs-rows', class: 'small' }, rows) : h('p', { class: 'mut small', text: 'The file holds no records.' }),
-        h('p', { class: 'mut small', text: 'The backup passphrase becomes this device\'s vault passphrase. You can change it later in Settings.' }),
+        byKey ? h('p', { class: 'mut small', text: 'The backup opened with the recovery key. Choose a new passphrase for this device\'s vault (12 characters or more). The restored vault starts with no recovery key.' }) : h('p', { class: 'mut small', text: 'The backup passphrase becomes this device\'s vault passphrase. You can change it later in Settings.' }),
+        byKey ? field('New passphrase', n1) : null, byKey ? field('Confirm new passphrase', n2) : null,
         h('div', { class: 'row' }, btn('Use this backup as my vault', function () {
           act(function () {
-            return L.vault.importBackup(pv, text).then(function (state) { return L.store.createFromBackup(pv, state); }).then(function () { return enterNew('restore from backup'); });
+            var np = secret;
+            if (byKey) { checkPass(n1.value); if (n1.value !== n2.value) throw new Error('The two passphrases do not match.'); np = n1.value; }
+            return L.vault.importBackup(secret, text).then(function (state) { return L.store.createFromBackup(np, state); }).then(function () { secret = null; if (n1) { n1.value = ''; n2.value = ''; } return enterNew('restore from backup'); });
           }).then(function () { restorePick = null; });
         }, 'pri', { id: 'rs-use' }), btn('Cancel', function () { restorePick = null; out.replaceChildren(); }, '', { id: 'rs-cancel' }))));
       setNotice('ok', 'Backup file verified.');
@@ -11599,19 +12055,22 @@ globalThis.LifeOS.VERSION = "1.7.0";
           e.preventDefault();
           var f = file.files && file.files[0];
           if (!f) { setNotice('err', 'Choose a backup file first.'); return; }
-          if (!pass.value) { setNotice('err', 'Enter the backup passphrase.'); return; }
-          var pv = pass.value; pass.value = '';
+          if (!pass.value) { setNotice('err', useKey.checked ? 'Enter the recovery key.' : 'Enter the backup passphrase.'); return; }
+          var secret = useKey.checked ? { recovery: pass.value } : pass.value; pass.value = '';
           act(function () {
             return readFile(f, L.vault.MAX_BACKUP).then(function (text) {
-              return L.ops.verifyBackup(pv, text, { schema: L.store.SCHEMA }).then(function (r) {
+              var wait = useKey.checked ? leftOf(mainFail) : 0;
+              if (wait > 0) throw new Error('Wrong key or passphrase. Wait ' + wait + ' s before trying again.');
+              return L.ops.verifyBackup(secret, text, { schema: L.store.SCHEMA }).then(function (r) {
                 out.replaceChildren();
-                if (!r.ok) { setNotice('err', r.message); return; }
-                showPreview(r, text, pv);
+                if (!r.ok) { if (r.reason === 'BAD_RECOVERY_KEY') bumpOf(mainFail); setNotice('err', r.message); return; }
+                showPreview(r, text, secret);
               });
             });
           });
         }
-      }, field('Backup file (64 MB max)', file), field('Backup passphrase', pass),
+      }, field('Backup file (64 MB max)', file), field('Backup passphrase, or the recovery key when the box below is ticked', pass),
+        h('label', { class: 'row small' }, useKey, h('span', { text: 'Open with the main recovery key the backup carries' })),
         h('button', { type: 'submit', class: 'btn pri', id: 'rs-check', text: 'Check backup file' })),
       out, h('div', { class: 'row' }, backLink()));
   }
@@ -11658,11 +12117,20 @@ globalThis.LifeOS.VERSION = "1.7.0";
   function archCtx() {
     return { h: h, field: field, btn: btn, openDialog: openDialog, commit: commit, download: download, setNotice: setNotice, render: render, go: go, readFile: readFile, today: today, friendly: friendly };
   }
+  // v1.8.0: the recovery screens. main and priv are the wrong-attempt delay counters shared with the unlock forms.
+  function recCtx() {
+    return { h: h, field: field, btn: btn, openDialog: openDialog, closeDialog: closeDialog, commit: commit, setNotice: setNotice, render: render, go: go, friendly: friendly, act: act,
+      passField: function (id) { return passOnly(id, 'off'); },
+      lockMode: function (on) { lockRecover = !!on; notice = null; render(); },
+      enter: function (action) { return enterNew(action); },
+      main: { left: function () { return leftOf(mainFail); }, bad: function () { bumpOf(mainFail); }, ok: function () { mainFail = { n: 0, until: 0 }; } },
+      priv: { left: function () { return leftOf(privFail); }, bad: function () { bumpOf(privFail); }, ok: function () { privFail = { n: 0, until: 0 }; } } };
+  }
   function syncCtx() {
     return { h: h, field: field, btn: btn, openDialog: openDialog, commit: commit, download: download, setNotice: setNotice, render: render };
   }
   function afterUnlock() {
-    notice = null; csvPending = null; ai = null;
+    notice = null; csvPending = null; ai = null; lockRecover = false;
     resetIdle(true);
     view = { name: 'dashboard' };
     hist.start();
@@ -11680,22 +12148,26 @@ globalThis.LifeOS.VERSION = "1.7.0";
     return iso + (n <= 0 ? ' (today)' : n === 1 ? ' (1 day ago)' : ' (' + n + ' days ago)');
   }
   // One tap from the banner opens this dialog (the backup passphrase is typed each time); nothing is exported until the owner confirms.
-  function runExport(p1, p2) {
+  // v1.8.0: with a main recovery key on, the file carries it too, so the owner types it here (checked against the vault's own wrap, never stored).
+  function runExport(p1, p2, rkText) {
     checkPass(p1);
     if (p1 !== p2) throw new Error('The backup passphrases do not match.');
     var copy = JSON.parse(JSON.stringify(mainState()));
     L.ops.markBackup(copy, today(), L.store.getMeta().rev);
-    return L.vault.exportBackup(p1, copy).then(function (text) {
+    var recOn = L.store.hasRecovery();
+    if (recOn && !rkText) throw new Error('Type your recovery key so the backup file carries it.');
+    var pre = recOn ? L.recoveryUI.attempt(recCtx().main, function () { return L.store.recoveryMatches(rkText).then(function (ok) { if (!ok) throw new Error('BAD_RECOVERY_KEY'); }); }) : Promise.resolve();
+    return pre.then(function () { return L.vault.exportBackup(p1, copy, recOn ? rkText : undefined); }).then(function (text) {
       download('lifeos-backup-' + today() + '.json', text, 'application/json');
       return L.store.commit(function (x) { L.ops.markBackup(x, today(), L.store.getMeta().rev); addAudit(x, 'export'); });
     }, function (e) { L.ops.record('BACKUP_EXPORT_FAIL', 'backup'); throw e; });
   }
   function exportDialog() {
-    var a = passOnly('rem-pass', 'new-password'), b = passOnly('rem-pass2', 'new-password');
+    var a = passOnly('rem-pass', 'new-password'), b = passOnly('rem-pass2', 'new-password'), rk = L.store.hasRecovery() ? passOnly('rem-key', 'off') : null;
     openDialog({
       title: 'Export an encrypted backup', yes: 'Export backup',
-      body: [field('Backup passphrase (12 characters or more)', a), field('Confirm backup passphrase', b), passNote()],
-      onYes: function () { return runExport(a.value, b.value).then(function () { a.value = ''; b.value = ''; setNotice('ok', 'Backup downloaded.'); render(); }); }
+      body: [field('Backup passphrase (12 characters or more)', a), field('Confirm backup passphrase', b), rk ? field('Recovery key (the backup file carries it)', rk) : null, passNote()],
+      onYes: function () { return runExport(a.value, b.value, rk ? rk.value : '').then(function () { a.value = ''; b.value = ''; if (rk) rk.value = ''; setNotice('ok', 'Backup downloaded.'); render(); }); }
     });
   }
   // Never automatic: the banner only offers. Hidden for a day after "Snooze one day".
@@ -11891,6 +12363,8 @@ globalThis.LifeOS.VERSION = "1.7.0";
           h('span', { class: 'chip' + (x.done ? ' ok' : ''), text: x.done ? 'Done' : 'To do' }), h('span', { text: ' ' + x.label + ' ' }),
           x.done ? null : btn('Open', function () { goKey(x.where); }, 'sm', { 'aria-label': 'Open: ' + x.label }));
       })),
+      L.recoveryUI ? L.recoveryUI.setupPrompt(recCtx()) : null,
+      L.guideUI ? btn('Getting started', function () { L.guideUI.open(recCtx()); }, 'sm', { id: 'setup-guide' }) : null,
       btn('Dismiss checklist', function () { act(function () { return commit(function (x) { x.settings.setup.dismissed = true; }, 'setup dismissed').then(function () { render(); }); }); }, 'sm', { id: 'setup-dismiss' }));
   }
 
@@ -15074,7 +15548,7 @@ globalThis.LifeOS.VERSION = "1.7.0";
         var a = p1.value;
         checkPass(a);
         if (a !== p2.value) throw new Error('The two passphrases do not match.');
-        return L.priv.setUp(a).then(function () { setNotice('ok', 'Private vault set up and open.'); render(); });
+        return L.priv.setUp(a).then(function () { setNotice('ok', 'Private vault set up and open.'); render(); if (L.recoveryUI) L.recoveryUI.privSetupPrompt(recCtx(), a); });
       }).then(function () { p1.value = ''; p2.value = ''; });
     } }, h('h2', { text: 'Set up the private vault' }),
       field('Private passphrase (12 characters or more, different from your main passphrase)', p1), field('Confirm private passphrase', p2),
@@ -15082,6 +15556,7 @@ globalThis.LifeOS.VERSION = "1.7.0";
       h('button', { type: 'submit', class: 'btn pri', id: 'priv-setup-btn', text: 'Set up private vault' }));
   }
   function privOpenForm() {
+    if (L.recoveryUI && L.recoveryUI.privActive()) return L.recoveryUI.privPath(recCtx());
     var p = h('input', { type: 'password', id: 'priv-pass', autocomplete: 'off', required: true });
     var b = h('button', { type: 'submit', class: 'btn pri', id: 'priv-open', text: 'Open private vault' });
     var msg = h('p', { class: 'small', id: 'priv-wait', role: 'status', text: '' });
@@ -15102,7 +15577,7 @@ globalThis.LifeOS.VERSION = "1.7.0";
           throw err;
         });
       }).then(tick);
-    } }, field('Private passphrase', p), b, msg);
+    } }, field('Private passphrase', p), b, msg, L.recoveryUI && L.priv.hasRecovery(mainState()) ? L.recoveryUI.privLink(recCtx()) : null);
     tick();
     return f;
   }
@@ -15159,6 +15634,7 @@ globalThis.LifeOS.VERSION = "1.7.0";
       } }, field('Close the private vault after this many idle seconds (15 to 1800)', secs), h('button', { type: 'submit', class: 'btn sm', id: 'priv-secs-save', text: 'Save' }))));
     if (L.priv.isOpen()) out.push(privMoveCard(s));
     var o = passOnly('priv-old', 'off'), n1 = passOnly('priv-new1', 'new-password'), n2 = passOnly('priv-new2', 'new-password'), typed = h('input', { type: 'text', id: 'priv-destroy-confirm', autocomplete: 'off' });
+    var rcp = L.recoveryUI.changeFields(recCtx(), 'priv', L.priv.hasRecovery(b));
     var chBtn = h('button', { type: 'submit', class: 'btn sm', id: 'priv-change', text: 'Change private passphrase' }), chMsg = h('p', { class: 'small', id: 'priv-change-wait', role: 'status', text: '' });
     function chTick() {
       var left = Math.ceil((privFail.until - Date.now()) / 1000);
@@ -15166,6 +15642,7 @@ globalThis.LifeOS.VERSION = "1.7.0";
       else { chBtn.disabled = false; chMsg.textContent = ''; }
     }
     chTick();
+    out.push(L.recoveryUI.privCard(recCtx(), b));
     out.push(h('div', { class: 'card', id: 'priv-manage' }, h('h2', { text: 'Passphrase and removal' }),
       h('form', { onsubmit: function (e) {
         e.preventDefault();
@@ -15175,12 +15652,17 @@ globalThis.LifeOS.VERSION = "1.7.0";
           if (n1.value !== n2.value) throw new Error('The two new passphrases do not match.');
           var a = o.value, c = n1.value;
           // UI-6: a wrong current passphrase here counts toward the same wrong-passphrase delay as the open form.
+          // v1.8.0: with a private recovery key on, the change also keeps or replaces it (a wrong key counts toward the same delay).
+          if (rcp.on) return L.recoveryUI.attempt(recCtx().priv, function () { return L.priv.matches(L.store.getState().priv, a).then(function (ok) { if (!ok) throw new Error('BAD_PRIVATE_PASSPHRASE'); }); }).then(function () { return rcp.opts(); }).then(function (ro) { return L.priv.changePassphrase(a, c, ro); }).then(function () { privFail = { n: 0, until: 0 }; setNotice('ok', 'Private passphrase changed. The vault is closed.'); render(); }, function (err) {
+            if (err && (err.message === 'BAD_PRIVATE_PASSPHRASE' || err.message === 'BAD_RECOVERY_KEY')) { privFail.n++; privFail.until = Date.now() + Math.min(30000, 1000 * Math.pow(2, privFail.n - 1)); }
+            throw err;
+          });
           return L.priv.changePassphrase(a, c).then(function () { privFail = { n: 0, until: 0 }; setNotice('ok', 'Private passphrase changed. The vault is closed.'); render(); }, function (err) {
             if (err && err.message === 'BAD_PRIVATE_PASSPHRASE') { privFail.n++; privFail.until = Date.now() + Math.min(30000, 1000 * Math.pow(2, privFail.n - 1)); }
             throw err;
           });
         }).then(function () { o.value = ''; n1.value = ''; n2.value = ''; chTick(); });
-      } }, field('Current private passphrase', o), field('New private passphrase (12 characters or more)', n1), field('Confirm new private passphrase', n2),
+      } }, field('Current private passphrase', o), field('New private passphrase (12 characters or more)', n1), field('Confirm new private passphrase', n2), rcp.nodes,
         chBtn, chMsg),
       h('hr'),
       btn('Destroy the private vault', function () {
@@ -15442,6 +15924,7 @@ globalThis.LifeOS.VERSION = "1.7.0";
 
     // passphrase
     var o = passOnly('pp-old', 'current-password'), n1 = passOnly('pp-new', 'new-password'), n2 = passOnly('pp-new2', 'new-password');
+    var rcf = L.recoveryUI.changeFields(recCtx(), 'main', L.store.hasRecovery());
     out.push(h('form', {
       class: 'card',
       onsubmit: function (e) {
@@ -15449,18 +15932,23 @@ globalThis.LifeOS.VERSION = "1.7.0";
         act(function () {
           checkPass(n1.value);
           if (n1.value !== n2.value) throw new Error('The new passphrases do not match.');
-          return L.store.changePassphrase(o.value, n1.value).then(function () { return commit(null, 'passphrase change'); }).then(function () { setNotice('ok', 'Passphrase changed.'); });
+          // SEC-130: the current passphrase is checked before a new recovery key is shown, so a key is never written down for a change that fails.
+          return (rcf.on ? L.recoveryUI.attempt(recCtx().main, function () { return L.store.matchesMain(o.value).then(function (ok) { if (!ok) throw new Error('BAD_PASSPHRASE_OR_DATA'); }); }) : Promise.resolve()).then(function () { return rcf.opts(); }).then(function (ro) {
+            return L.recoveryUI.attempt(recCtx().main, function () { return L.store.changePassphrase(o.value, n1.value, ro); });
+          }).then(function () { return commit(null, 'passphrase change'); }).then(function () { setNotice('ok', 'Passphrase changed.'); render(); });
         }).then(function () { o.value = ''; n1.value = ''; n2.value = ''; });
       }
-    }, h('h2', { text: 'Change passphrase' }), field('Current passphrase', o), field('New passphrase (12 characters or more)', n1), field('Confirm new passphrase', n2), passNote(),
+    }, h('h2', { text: 'Change passphrase' }), field('Current passphrase', o), field('New passphrase (12 characters or more)', n1), field('Confirm new passphrase', n2), rcf.nodes, passNote(),
       h('button', { type: 'submit', class: 'btn', text: 'Change passphrase' })));
+    out.push(L.recoveryUI.mainCard(recCtx()));
+    if (L.guideUI) out.push(h('div', { class: 'card', id: 'guide-card' }, h('h2', { text: 'Getting started' }), h('p', { class: 'mut small', text: 'The first-time steps in order.' }), btn('Open Getting started', function () { L.guideUI.open(recCtx()); }, 'sm', { id: 'settings-guide' })));
 
     // storage, reminders, verify and diagnostics (v1.3.0)
     out.push(safetySettings(mainState()));
     out.push(calendarCard());
 
     // backup
-    var bp = passOnly('bk-pass', 'new-password'), bp2 = passOnly('bk-pass2', 'new-password');
+    var bp = passOnly('bk-pass', 'new-password'), bp2 = passOnly('bk-pass2', 'new-password'), bpk = L.store.hasRecovery() ? passOnly('bk-key', 'off') : null;
     var bf = h('input', { type: 'file', id: 'bk-file', accept: '.json,application/json' });
     var ip = passOnly('bk-ipass', 'current-password');
     out.push(h('div', { class: 'card' }, h('h2', { text: 'Encrypted backup' }),
@@ -15468,10 +15956,10 @@ globalThis.LifeOS.VERSION = "1.7.0";
         onsubmit: function (e) {
           e.preventDefault();
           act(function () {
-            return Promise.resolve().then(function () { return runExport(bp.value, bp2.value); }).then(function () { setNotice('ok', 'Backup downloaded.'); });
-          }).then(function () { bp.value = ''; bp2.value = ''; });
+            return Promise.resolve().then(function () { return runExport(bp.value, bp2.value, bpk ? bpk.value : ''); }).then(function () { setNotice('ok', 'Backup downloaded.'); });
+          }).then(function () { bp.value = ''; bp2.value = ''; if (bpk) bpk.value = ''; });
         }
-      }, field('Backup passphrase (12 characters or more)', bp), field('Confirm backup passphrase', bp2), passNote(),
+      }, field('Backup passphrase (12 characters or more)', bp), field('Confirm backup passphrase', bp2), bpk ? field('Recovery key (the backup file carries it)', bpk) : null, passNote(),
         h('button', { type: 'submit', class: 'btn', text: 'Export backup' })),
       h('hr'),
       h('form', {
@@ -16217,6 +16705,8 @@ globalThis.LifeOS.VERSION = "1.7.0";
 
   // ---- print views (no network; the browser prints to PDF) ----
   function printScreen(s) {
+    if (view.kind === 'recovery' && L.recoveryUI) return L.recoveryUI.sheet(recCtx(), view);
+    if (view.kind === 'guide' && L.guideUI) return L.guideUI.view(recCtx());
     var back = btn('Back', function () { if (view.kind === 'invoice') bzGo('invoices', { invoiceId: view.id }); else bzGo('export', { year: view.year }); }, 'sm back noprint', { id: 'pv-back' });
     var pbtn = btn('Print', function () { window.print(); }, 'pri noprint', { id: 'pv-print' });
     if (view.kind === 'invoice') {
@@ -16883,7 +17373,7 @@ globalThis.LifeOS.VERSION = "1.7.0";
     var counts = {};
     L.archive.NAMES.forEach(function (n) { var k = pl.recs[n].length + pl.priv[n].length; if (k) counts[n] = k; });
     var connected = L.sync && L.sync.isConnected && L.sync.isConnected() && L.sync.isAvailable(window.location);
-    var pass = h('input', { type: 'password', id: 'arch-pass', autocomplete: 'current-password' });
+    var pass = h('input', { type: 'password', id: 'arch-pass', autocomplete: 'current-password' }), rk = L.store.hasRecovery() ? h('input', { type: 'password', id: 'arch-key', autocomplete: 'off' }) : null;
     var dr = h('input', { type: 'checkbox', id: 'arch-drive', checked: connected, disabled: !connected });
     var dl = h('input', { type: 'checkbox', id: 'arch-dl', checked: true });
     var status = h('p', { class: 'small', id: 'arch-status', role: 'status', text: '' });
@@ -16897,6 +17387,7 @@ globalThis.LifeOS.VERSION = "1.7.0";
         h('p', { class: 'small', id: 'arch-counts', text: 'Would move: ' + countText(counts) + '. About ' + mb(Math.round(JSON.stringify(pl.recs).length * 4 / 3)) + ' of the vault.' }),
         gate ? h('p', { class: 'warn small', id: 'arch-gate', text: gate }) : null,
         c.field('Main passphrase', pass, 'The archive file is encrypted with it.'),
+        rk ? c.field('Recovery key', rk, 'The archive file carries it, so it opens with the key as well. It is checked and never stored.') : null,
         h('label', { class: 'row small' }, dr, h('span', { text: connected ? 'Keep a copy on Google Drive (checked by downloading it again)' : 'Google Drive is not connected (connect it in Settings to keep a Drive copy too)' })),
         h('label', { class: 'row small' }, dl, h('span', { text: 'Download a copy. Save it on your NAS: the browser cannot write there itself, so you save it and then confirm.' })),
         status, saved],
@@ -16920,8 +17411,8 @@ globalThis.LifeOS.VERSION = "1.7.0";
             });
           }
         };
-        return L.archive.archiveYear({ year: year, passphrase: p, today: c.today(), drive: dr.checked && connected, download: dl.checked, io: io }).then(function (r) {
-          running = false; pass.value = '';
+        return L.archive.archiveYear({ year: year, passphrase: p, recoveryKey: rk ? rk.value : undefined, today: c.today(), drive: dr.checked && connected, download: dl.checked, io: io }).then(function (r) {
+          running = false; pass.value = ''; if (rk) rk.value = '';
           c.setNotice('ok', 'Archived ' + year + ': ' + countText(r.counts) + '. Copies: ' + r.copies.map(function (x) { return x.where; }).join(' and ') + '.');
           c.render();
         }, function (e) { running = false; status.textContent = ''; throw e; });
@@ -16934,6 +17425,8 @@ globalThis.LifeOS.VERSION = "1.7.0";
     var h = c.h, pass = h('input', { type: 'password', id: 'arch-open-pass', autocomplete: 'current-password' });
     var file = h('input', { type: 'file', id: 'arch-file', accept: '.json,application/json' });
     var pp = h('input', { type: 'password', id: 'arch-open-priv', autocomplete: 'off' });
+    // SEC-128: a file made under an earlier main passphrase opens with the main recovery key it carries (typed here, never stored).
+    var rk = h('input', { type: 'password', id: 'arch-open-key', autocomplete: 'off' });
     var connected = L.sync && L.sync.isConnected && L.sync.isConnected();
     var src = h('select', { id: 'arch-src' }, [h('option', { value: 'file', text: 'A file I saved' })].concat(year ? [h('option', { value: 'drive', text: 'Google Drive', disabled: !connected })] : []));
     if (year && connected) src.value = 'drive';
@@ -16944,15 +17437,17 @@ globalThis.LifeOS.VERSION = "1.7.0";
       body: [
         h('p', { class: 'mut', text: restore ? 'Puts the records of that year back into the live vault. Records already there are never overwritten. The year is then no longer archived here.' : 'Opens the archive read-only. It is decrypted in memory only and dropped when you close it or lock the app.' }),
         c.field('Read from', src), c.field('Archive file', file), c.field('Main passphrase', pass),
+        c.field('Main recovery key the file carries (only if the main passphrase changed since the file was made)', rk),
         L.priv.isOpen() ? c.field('Private passphrase used when the file was made (only if you changed it since)', pp) : null,
         tick ? h('label', { class: 'row small' }, tick, h('span', { text: 'I understand. Restore these records into the live vault.' })) : null],
       onYes: function () {
         if (restore && !tick.checked) throw new Error('Tick the box to confirm the restore.');
-        var p = pass.value, pv = pp.value;
+        var p = pass.value, pv = pp.value, fk = rk.value ? { recovery: rk.value } : undefined;
+        rk.value = '';
         var get = src.value === 'drive' && year ? L.sync.getNamed(L.archive.fileName(year)) : c.readFile(file.files && file.files[0], L.archive.MAX_FILE);
         return get.then(function (text) {
-          if (restore) return L.archive.restoreYear(text, p, year, pv || undefined).then(function (r) { pass.value = ''; c.setNotice('ok', 'Restored ' + r.year + ': ' + r.added + ' records added, ' + r.skipped + ' already in the vault.'); c.render(); });
-          return L.archive.openArchive(text, p, year || undefined, pv || undefined).then(function () { pass.value = ''; c.go('archive'); });
+          if (restore) return L.archive.restoreYear(text, p, year, pv || undefined, fk).then(function (r) { pass.value = ''; c.setNotice('ok', 'Restored ' + r.year + ': ' + r.added + ' records added, ' + r.skipped + ' already in the vault.'); c.render(); });
+          return L.archive.openArchive(text, fk || p, year || undefined, pv || undefined).then(function () { pass.value = ''; c.go('archive'); });
         });
       }
     });
@@ -17056,6 +17551,336 @@ globalThis.LifeOS.VERSION = "1.7.0";
   }
 
   L.archiveUI = { section: section, screen: screen, proposal: proposal, startDialog: startDialog };
+})();
+
+;
+(function () {
+  'use strict';
+  // v1.8.0: passphrase recovery screens. Settings card for the main vault, a card for the private vault, the "Use recovery key" paths on the lock
+  // screen and the private unlock, the shown-once key dialog (retype to confirm) and the printable recovery sheet. app.js passes a context:
+  // { h, field, btn, openDialog, closeDialog, commit, setNotice, render, go, friendly, passField, act, enter, main, priv, store }.
+  // main and priv are { left(), bad(), ok() }: the same wrong-attempt delay counters the unlock forms use, so a wrong key counts like a wrong passphrase.
+  // A recovery key is shown once, never stored, never put on the clipboard by this code, and only in the sheet when the owner chooses it.
+  var L = globalThis.LifeOS;
+  var KEEP = 'Backup files, Drive copies and archive files made earlier still open with the key or passphrase that was in force when they were made. Export a fresh backup and delete old ones if a key was exposed.';
+  var sheetKeys = { main: '', priv: '' };
+  var lk = { step: 'key', open: null };
+  var pk = { step: 'key', open: null };
+
+  function wrong(e) { var m = e && e.message; return m === 'BAD_PASSPHRASE_OR_DATA' || m === 'BAD_PRIVATE_PASSPHRASE' || m === 'BAD_RECOVERY_KEY'; }
+  // One attempt with a secret: refused during the wait, counted when wrong, reset when right.
+  function attempt(f, run) {
+    var left = f.left();
+    if (left > 0) return Promise.reject(new Error('Wrong key or passphrase. Wait ' + left + ' s before trying again.'));
+    return run().then(function (r) { f.ok(); return r; }, function (e) { if (wrong(e)) f.bad(); throw e; });
+  }
+  function dropSheet() { sheetKeys = { main: '', priv: '' }; }
+  // SEC-129: leaving a recovery path also empties what the opened handle holds.
+  function clear() { dropSheet(); if (lk.open) lk.open.cancel(); if (pk.open) pk.open.cancel(); lk = { step: 'key', open: null }; pk = { step: 'key', open: null }; }
+
+  // ---- the key, shown once ----
+  // handle: { key, finish(typed) }. After the owner retypes the key (all of it, or its last two groups) finish runs and onDone follows.
+  // opts: { onDone(), noAfter: true skips the sheet offer (the key is not live yet) }.
+  function showKey(c, handle, scope, title, opts) {
+    opts = opts || {};
+    var h = c.h, typed = c.passField('rk-key-retype');
+    c.openDialog({
+      title: title, yes: 'I have written it down',
+      body: [
+        h('p', { class: 'warn small', id: 'rk-once', text: 'This key is shown once. LifeOS does not store it, so it cannot be shown again. Write it down by hand and keep the paper offline.' }),
+        h('p', { class: 'recovery-key', id: 'rk-shown', text: handle.key }),
+        h('p', { class: 'mut small', text: 'It opens only the ' + (scope === 'priv' ? 'private' : 'main') + ' vault. The recovery key is not saved on this device, in Drive, in a backup or anywhere LifeOS can read it.' }),
+        c.field('Type the key again to confirm (all of it, or its last two groups)', typed),
+        h('p', { class: 'mut small', text: KEEP })],
+      onYes: function () {
+        return handle.finish(typed.value).then(function () {
+          typed.value = '';
+          sheetKeys[scope] = '';
+          if (!opts.noAfter) afterOn(c, handle.key, scope);
+          handle.key = '';
+          if (opts.onDone) opts.onDone();
+        });
+      }
+    });
+  }
+  // After the key is on: a dialog that offers the printable sheet. The key is on the sheet only when this box is ticked.
+  function afterOn(c, key, scope) {
+    var h = c.h, inc = h('input', { type: 'checkbox', id: 'rk-include' });
+    setTimeout(function () {
+      c.openDialog({
+        title: 'Recovery key is on', yes: 'Open the sheet',
+        body: [h('p', { class: 'mut', text: 'The recovery sheet explains what each key opens and how to keep it. It prints without the key and has boxes to write it by hand.' }),
+          h('label', { class: 'row small' }, inc, h('span', { text: 'Include this key on the printed sheet' })),
+          h('p', { class: 'warn small', text: 'Printers and print queues may keep a copy of what they print. Leave this unticked to write the key by hand.' })],
+        onYes: function () { sheetKeys[scope] = inc.checked ? key : ''; c.go('print', { kind: 'recovery', from: 'settings' }); }
+      });
+    }, 0);
+    c.setNotice('ok', 'Recovery key is on.');
+  }
+
+  // ---- Settings: main vault ----
+  function mainCard(c) {
+    var h = c.h, on = L.store.hasRecovery(), pass = c.passField('rk-main-pass');
+    function begin() {
+      return c.act(function () {
+        return attempt(c.main, function () { return L.store.beginRecovery(pass.value); }).then(function (handle) {
+          pass.value = '';
+          showKey(c, handle, 'main', on ? 'Replace the recovery key' : 'Your recovery key', { onDone: function () { c.render(); } });
+        });
+      });
+    }
+    function off() {
+      c.openDialog({
+        title: 'Turn off the recovery key?', yes: 'Turn it off', danger: true,
+        body: [h('p', { class: 'mut', text: 'The recovery wrap is removed and the data key is replaced. The old key stops opening this vault. ' + KEEP })],
+        onYes: function () {
+          return attempt(c.main, function () { return L.store.turnOffRecovery(pass.value); }).then(function () { pass.value = ''; return c.commit(null, 'recovery key off'); }).then(function () { c.setNotice('ok', 'Recovery key is off.'); c.render(); });
+        }
+      });
+    }
+    return h('div', { class: 'card', id: 'rk-main-card' }, h('h2', { text: 'Recovery key (main vault)' }),
+      h('p', { class: 'small', id: 'rk-main-status', text: on ? 'On. A recovery key can open the main vault if the passphrase is forgotten.' : 'Off. If you forget the passphrase, the data cannot be recovered.' }),
+      h('p', { class: 'mut small', text: 'A recovery key is 256 random bits you write down. It opens only the main vault. Turning it on, replacing it or turning it off asks for your passphrase and replaces the data key. ' + KEEP }),
+      c.field('Passphrase', pass),
+      h('div', { class: 'row' }, c.btn(on ? 'Replace recovery key' : 'Turn on recovery key', begin, 'sm', { id: 'rk-main-on' }),
+        on ? c.btn('Turn off recovery key', off, 'sm', { id: 'rk-main-off' }) : null,
+        c.btn('Recovery sheet', function () { dropSheet(); c.go('print', { kind: 'recovery', from: 'settings' }); }, 'sm', { id: 'rk-sheet' })));
+  }
+
+  // ---- private vault card ----
+  function privCard(c, s) {
+    var h = c.h, on = L.priv.hasRecovery(s), pass = c.passField('rk-priv-pass');
+    function begin() {
+      return c.act(function () {
+        return attempt(c.priv, function () { return L.priv.beginRecovery(pass.value); }).then(function (handle) {
+          pass.value = '';
+          showKey(c, handle, 'priv', on ? 'Replace the private recovery key' : 'Your private recovery key', { onDone: function () { c.render(); } });
+        });
+      });
+    }
+    function off() {
+      c.openDialog({
+        title: 'Turn off the private recovery key?', yes: 'Turn it off', danger: true,
+        body: [h('p', { class: 'mut', text: 'The recovery wrap is removed and the private data key is replaced. The vault closes. ' + KEEP })],
+        onYes: function () {
+          return attempt(c.priv, function () { return L.priv.turnOffRecovery(pass.value); }).then(function () { pass.value = ''; c.setNotice('ok', 'Private recovery key is off. The vault is closed.'); c.render(); });
+        }
+      });
+    }
+    return h('div', { class: 'card', id: 'rk-priv-card' }, h('h2', { text: 'Recovery key (private vault)' }),
+      h('p', { class: 'small', id: 'rk-priv-status', text: on ? 'On. A separate recovery key can open the private vault if its passphrase is forgotten.' : 'Off. If you forget the private passphrase, the private items cannot be recovered.' }),
+      h('p', { class: 'mut small', text: 'This key is separate from the main one: it opens only the private vault, and the main key does not open it. ' + KEEP }),
+      c.field('Private passphrase', pass),
+      h('div', { class: 'row' }, c.btn(on ? 'Replace private recovery key' : 'Turn on private recovery key', begin, 'sm', { id: 'rk-priv-on' }),
+        on ? c.btn('Turn off private recovery key', off, 'sm', { id: 'rk-priv-off' }) : null));
+  }
+
+  // ---- passphrase change: what to do with a key that is on ----
+  // Returns { nodes, opts() }: opts() resolves to the options for changePassphrase (the typed key to keep, or a new key already shown and retyped).
+  function changeFields(c, scope, on) {
+    var h = c.h;
+    if (!on) return { on: false, nodes: [], opts: function () { return Promise.resolve(null); } };
+    var keep = c.passField('rk-keep-key'), fresh = h('input', { type: 'checkbox', id: 'rk-new-key' });
+    return {
+      on: true,
+      nodes: [h('p', { class: 'small', text: 'A recovery key is on. Type the current key to keep it, or tick the box to get a new one. The data key is replaced either way.' }),
+        c.field('Current recovery key (to keep it)', keep),
+        h('label', { class: 'row small' }, fresh, h('span', { text: 'Make a new recovery key instead' }))],
+      opts: function () {
+        if (!fresh.checked) { var k = keep.value; keep.value = ''; return Promise.resolve({ keepRecovery: k }); }
+        return L.vault.newRecoveryKey().then(function (text) {
+          return new Promise(function (res, rej) {
+            var chk = null;
+            var handle = { key: text, finish: function (typed) { if (!L.vault.retypeMatches(text, typed)) { var e = new Error('That is not the recovery key shown. Check it against the key on screen and try again.'); e.code = 'RECOVERY_RETYPE'; return Promise.reject(e); } clearInterval(chk); res({ newRecoveryKey: text }); return Promise.resolve(); } };
+            showKey(c, handle, scope, 'Your new recovery key', { noAfter: true });
+            // closing the dialog without confirming cancels the change
+            chk = setInterval(function () { if (!document.querySelector('.dialog')) { clearInterval(chk); rej(new Error('The change was cancelled. Nothing was changed.')); } }, 300);
+          });
+        });
+      }
+    };
+  }
+
+  // ---- lock screen: Use recovery key (main) ----
+  function lockLink(c) {
+    return c.btn('Use recovery key', function () { lk = { step: 'key', open: null }; c.lockMode(true); }, 'sm', { id: 'use-recovery' });
+  }
+  function lockPath(c) {
+    var h = c.h;
+    function back() { clear(); c.lockMode(false); }
+    if (lk.step === 'key') {
+      var k = c.passField('rk-enter-key');
+      return h('form', { class: 'card', id: 'rk-lock-card', onsubmit: function (e) {
+        e.preventDefault();
+        c.act(function () {
+          return attempt(c.main, function () { return L.store.openWithRecovery(k.value); }).then(function (o) { k.value = ''; lk.open = o; lk.step = 'pass'; c.render(); });
+        });
+      } }, h('h2', { text: 'Use recovery key' }), h('p', { class: 'mut small', text: 'Enter the recovery key of the main vault. Next you set a new passphrase and get a new recovery key; the key you used stops working.' }),
+        c.field('Recovery key', k), h('div', { class: 'row' }, h('button', { type: 'submit', class: 'btn pri', id: 'rk-continue', text: 'Continue' }), c.btn('Back', back, '', { id: 'rk-back' })));
+    }
+    var p1 = c.passField('rk-new-pass'), p2 = c.passField('rk-new-pass2');
+    return h('form', { class: 'card', id: 'rk-lock-card', onsubmit: function (e) {
+      e.preventDefault();
+      c.act(function () {
+        if (p1.value.length < 12) throw new Error('Passphrase must be at least 12 characters.');
+        if (p1.value !== p2.value) throw new Error('The two passphrases do not match.');
+        return lk.open.prepare(p1.value).then(function (prep) {
+          p1.value = ''; p2.value = '';
+          showKey(c, { key: prep.key, finish: function (t) { return prep.finish(t); } }, 'main', 'Your new recovery key', { onDone: function () { clear(); c.lockMode(false); c.enter('unlock with recovery key'); } });
+        });
+      });
+    } }, h('h2', { text: 'Set a new passphrase' }), h('p', { class: 'mut small', text: 'The recovery key worked. Choose a new passphrase (12 characters or more). A new recovery key is shown next.' }),
+      c.field('New passphrase', p1), c.field('Confirm new passphrase', p2), h('div', { class: 'row' }, h('button', { type: 'submit', class: 'btn pri', id: 'rk-setpass', text: 'Continue' }), c.btn('Cancel', function () { if (lk.open) lk.open.cancel(); back(); }, '', { id: 'rk-cancel' })));
+  }
+  // ---- private unlock: Use recovery key ----
+  function privLink(c) {
+    return c.btn('Use private recovery key', function () { pk = { step: 'key', open: null, prep: null, show: true }; c.render(); }, 'sm', { id: 'use-priv-recovery' });
+  }
+  function privPath(c) {
+    var h = c.h;
+    if (pk.step === 'key') {
+      var k = c.passField('rk-priv-enter-key');
+      return h('form', { class: 'card', id: 'rk-priv-lock', onsubmit: function (e) {
+        e.preventDefault();
+        c.act(function () {
+          return attempt(c.priv, function () { return L.priv.openWithRecovery(k.value); }).then(function (o) { k.value = ''; pk.open = o; pk.step = 'pass'; c.render(); });
+        });
+      } }, h('h3', { text: 'Use private recovery key' }), c.field('Private recovery key', k),
+        h('div', { class: 'row' }, h('button', { type: 'submit', class: 'btn pri', id: 'rk-priv-continue', text: 'Continue' }), c.btn('Back', function () { pk = { step: 'key', open: null }; c.render(); }, '', { id: 'rk-priv-back' })));
+    }
+    var p1 = c.passField('rk-priv-new-pass'), p2 = c.passField('rk-priv-new-pass2');
+    return h('form', { class: 'card', id: 'rk-priv-lock', onsubmit: function (e) {
+      e.preventDefault();
+      c.act(function () {
+        if (p1.value.length < 12) throw new Error('Passphrase must be at least 12 characters.');
+        if (p1.value !== p2.value) throw new Error('The two passphrases do not match.');
+        return pk.open.prepare(p1.value).then(function (prep) {
+          p1.value = ''; p2.value = '';
+          showKey(c, { key: prep.key, finish: function (t) { return prep.finish(t); } }, 'priv', 'Your new private recovery key', { onDone: function () { pk = { step: 'key', open: null }; c.setNotice('ok', 'Private vault open with its new passphrase.'); c.render(); } });
+        });
+      });
+    } }, h('h3', { text: 'Set a new private passphrase' }), c.field('New private passphrase', p1), c.field('Confirm new private passphrase', p2),
+      h('div', { class: 'row' }, h('button', { type: 'submit', class: 'btn pri', id: 'rk-priv-setpass', text: 'Continue' }), c.btn('Cancel', function () { if (pk.open) pk.open.cancel(); pk = { step: 'key', open: null }; c.render(); }, '', { id: 'rk-priv-cancel' })));
+  }
+  function privActive() { return !!pk.show; }
+
+  // ---- the printable sheet ----
+  function sheet(c, view) {
+    var h = c.h, s = L.store.getState(), hasPriv = L.priv.isSetUp(s);
+    function boxes(key) {
+      var groups = key ? key.split('-') : [];
+      var out = [];
+      for (var i = 0; i < 14; i++) out.push(h('span', { class: 'rk-box', text: groups[i] || '' }));
+      return h('p', { class: 'rk-boxes' }, out);
+    }
+    function part(scope, title, on) {
+      return h('div', { class: 'rk-part', id: 'rk-sheet-' + scope },
+        h('h2', { text: title }),
+        h('p', { text: on ? 'A recovery key is on for this vault.' : 'No recovery key is on for this vault.' }),
+        h('p', { class: 'small', text: 'Write the key here, 14 groups of 4 letters or digits:' }), boxes(sheetKeys[scope]));
+    }
+    var back = c.btn('Back', function () { sheetKeys = { main: '', priv: '' }; c.go('settings'); }, 'sm back noprint', { id: 'pv-back' });
+    var pbtn = c.btn('Print', function () { window.print(); }, 'pri noprint', { id: 'pv-print' });
+    var anyKey = !!(sheetKeys.main || sheetKeys.priv);
+    return h('div', { class: 'printview', id: 'print-recovery' }, h('div', { class: 'row noprint' }, back, pbtn),
+      h('h1', { text: 'LifeOS recovery sheet' }),
+      anyKey ? h('p', { class: 'warn small', id: 'rk-sheet-warn', text: 'This sheet includes a recovery key. Printers and print queues may keep a copy. Store the paper offline.' }) : h('p', { class: 'small noprint', id: 'rk-sheet-nokey', text: 'This sheet has no key on it. Write the key in the boxes by hand.' }),
+      part('main', 'Main vault', L.store.hasRecovery()),
+      hasPriv ? part('priv', 'Private vault', L.priv.hasRecovery(s)) : null,
+      h('h2', { text: 'What each key opens' }),
+      h('p', { text: 'The main recovery key opens the main vault only. The private recovery key opens the private vault only. Neither opens the other, and neither is stored by LifeOS.' }),
+      h('h2', { text: 'How to keep a key' }),
+      h('p', { text: 'On paper, offline. Not as a photo, a scan or a note in the cloud.' }),
+      h('h2', { text: 'If a key or the passphrase is lost' }),
+      h('p', { text: 'Passphrase known, key lost: in Settings, replace the key or turn it off. Passphrase lost, key known: on the lock screen choose "Use recovery key", then set a new passphrase; a new key is shown and the old one stops working.' }),
+      h('h2', { text: 'If a key may have been seen' }),
+      h('p', { text: 'Replace it in Settings. Export a fresh backup and delete old backups, Drive copies and archive files: ' + KEEP }),
+      h('h2', { text: 'If both are lost' }),
+      h('p', { text: 'If the passphrase and the recovery key are both lost, the data cannot be recovered by anyone.' }));
+  }
+
+  // ---- first-run prompts ----
+  var later = false;
+  // The setup checklist row for the main key: "Turn on now" asks for the passphrase and shows the key; "Later" folds it to one line and keeps it on the checklist.
+  function setupPrompt(c) {
+    var h = c.h;
+    if (L.store.hasRecovery()) return h('p', { class: 'small', id: 'setup-recovery', 'data-done': 'true' }, h('span', { class: 'chip ok', text: 'Done' }), h('span', { text: ' Recovery key for the main vault is on.' }));
+    var pass = c.passField('setup-rk-pass');
+    function now() {
+      return c.act(function () {
+        return attempt(c.main, function () { return L.store.beginRecovery(pass.value); }).then(function (handle) {
+          pass.value = '';
+          showKey(c, handle, 'main', 'Your recovery key', { onDone: function () { later = false; c.render(); } });
+        });
+      });
+    }
+    if (later) return h('p', { class: 'small', id: 'setup-recovery', 'data-done': 'false' }, h('span', { class: 'chip', text: 'To do' }), h('span', { text: ' Recovery key for the main vault. ' }), c.btn('Turn on now', function () { later = false; c.render(); }, 'sm', { id: 'setup-recovery-open', 'aria-label': 'Open: turn on a recovery key' }));
+    return h('div', { class: 'card', id: 'setup-recovery', 'data-done': 'false' }, h('h3', { text: 'Recovery key for the main vault' }),
+      h('p', { class: 'mut small', text: 'If the passphrase is forgotten the data cannot be recovered. A recovery key you write down opens the main vault. It is shown once and is not stored.' }),
+      c.field('Passphrase', pass),
+      h('div', { class: 'row' }, c.btn('Turn on now', now, 'sm pri', { id: 'setup-rk-now' }), c.btn('Later', function () { later = true; c.render(); }, 'sm', { id: 'setup-rk-later' })));
+  }
+  // Right after the private vault is created (it is open, and the passphrase just typed is passed in and not kept).
+  function privSetupPrompt(c, passphrase) {
+    var h = c.h, pw = passphrase;
+    setTimeout(function () {
+      c.openDialog({
+        title: 'Recovery key for the private vault?', yes: 'Turn on now', no: 'Later',
+        body: [h('p', { class: 'mut', id: 'priv-rk-prompt', text: 'A private recovery key opens only the private vault if its passphrase is forgotten. It is shown once and is not stored. It can also be turned on later from the private vault screen.' })],
+        onYes: function () {
+          return attempt(c.priv, function () { return L.priv.beginRecovery(pw); }).then(function (handle) {
+            pw = '';
+            c.closeDialog();
+            showKey(c, handle, 'priv', 'Your private recovery key', { onDone: function () { c.render(); } });
+            return false;
+          });
+        }
+      });
+    }, 0);
+  }
+
+  L.recoveryUI = { mainCard: mainCard, privCard: privCard, changeFields: changeFields, lockLink: lockLink, lockPath: lockPath, privLink: privLink, privPath: privPath, privActive: privActive, sheet: sheet, dropSheet: dropSheet, setupPrompt: setupPrompt, privSetupPrompt: privSetupPrompt, clear: clear, attempt: attempt };
+})();
+
+;
+(function () {
+  'use strict';
+  // v1.8.0: the in-app "Getting started" view. It lists the first-time steps in order and opens the matching screen.
+  // It points at the docs by name (docs/FIRST-RUN.md and so on) and does not repeat them. No network, no stored state.
+  var L = (globalThis.LifeOS = globalThis.LifeOS || {});
+
+  function steps() {
+    return [
+      { id: 'passphrase', title: 'Choose a passphrase', text: 'The passphrase locks the vault on this device. It is set when the vault is created and can be changed in Settings. It has 12 or more characters.', doc: 'docs/FIRST-RUN.md', go: ['settings', 'Open Settings'] },
+      { id: 'recovery', title: 'Turn on the recovery key and fill in the recovery sheet', text: 'A recovery key opens the vault if the passphrase is forgotten. It is shown once. The recovery sheet prints without the key and has boxes to write it by hand.', doc: 'docs/RECOVERY.md', go: ['settings', 'Open Settings'], sheet: true },
+      { id: 'backup', title: 'Turn on persistent storage and make the first backup', text: 'Persistent storage asks the browser to keep the vault. A backup is an encrypted file made from Settings, under its own passphrase.', doc: 'docs/FIRST-RUN.md', go: ['settings', 'Open Settings'] },
+      { id: 'install', title: 'Install on phone and PC', text: 'The app installs from the browser menu on each device. Each device keeps its own vault until Drive sync joins them.', doc: 'docs/FIRST-RUN.md' },
+      { id: 'sync', title: 'Set up Drive sync', text: 'Drive sync stores the sealed vault file in your Google Drive. It is set up in Settings with your own Google client ID.', doc: 'docs/SYNC-SETUP.md', go: ['settings', 'Open Settings'] },
+      { id: 'private', title: 'Set up the private vault', text: 'The private vault is a second lock with its own passphrase and its own recovery key. While it is closed, its items are missing everywhere.', doc: 'docs/RECOVERY.md', go: ['private', 'Open the private vault'] },
+      { id: 'ai', title: 'Set up your own AI, or use none', text: 'AI is optional. Settings holds the provider choice. With none chosen, nothing leaves the device for AI.', doc: 'docs/AI-SETUP.md', go: ['settings', 'Open Settings'] },
+      { id: 'records', title: 'Enter the first records in each area', text: 'Enter records by hand first. Where an area has a CSV import, it is on that area\'s screen.', go: ['v:money', 'Open Money'] },
+      { id: 'review', title: 'Do the weekly review', text: 'The weekly review walks through the week and saves a short note.', go: ['review', 'Open the weekly review'] }
+    ];
+  }
+
+  function view(c) {
+    var h = c.h;
+    function open(key) { var v = L.nav.viewOf(key); c.go(v.name, v); }
+    var list = h('ol', { class: 'guide-steps', id: 'guide-steps' }, steps().map(function (s, i) {
+      var row = [h('h2', { text: (i + 1) + '. ' + s.title }), h('p', { text: s.text }), s.doc ? h('p', { class: 'mut small', text: 'More detail: ' + s.doc }) : null];
+      var btns = [];
+      if (s.go) btns.push(c.btn(s.go[1], function () { open(s.go[0]); }, 'sm', { id: 'guide-open-' + s.id }));
+      if (s.sheet) btns.push(c.btn('Recovery sheet', function () { c.go('print', { kind: 'recovery', from: 'guide' }); }, 'sm', { id: 'guide-sheet' }));
+      if (btns.length) row.push(h('div', { class: 'row' }, btns));
+      return h('li', { class: 'card', 'data-step': s.id }, row);
+    }));
+    return h('div', { id: 'guide-view' }, c.btn('Back', function () { c.go('dashboard'); }, 'sm back', { id: 'guide-back' }),
+      h('h1', { text: 'Getting started' }),
+      h('p', { class: 'mut', text: 'The steps for a new vault, in order. Each button opens the screen where the step is done.' }), list);
+  }
+  function open(c) { c.go('print', { kind: 'guide' }); }
+
+  L.guideUI = { view: view, open: open, steps: steps };
 })();
 </script>
 </body>

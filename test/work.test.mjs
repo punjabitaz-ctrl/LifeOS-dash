@@ -1,7 +1,7 @@
 // v0.4.0 Work: schema 3, projects, pipeline, outcomes, carry-over, stale flag, digest privacy, sync.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { L, memAdapter, PASS, E } from './_load.mjs';
+import { L, memAdapter, PASS, E, resealLike } from './_load.mjs';
 
 const S = L.store, M = L.metrics, V = L.vault;
 const TODAY = '2026-11-12';           // a Thursday; its week starts 2026-11-09
@@ -53,7 +53,7 @@ test('migration runs on unlock of stored schema 1 and 2 vaults', async () => {
     const st = await S.unlock(PASS);
     assert.equal(st.schema, 19); assert.equal(st.entries.length, 2);
     await S.commit((x) => { x.projects.push(proj({ name: 'New' })); });
-    const raw = await V.decrypt(key, ad._m.get('envelope'));
+    const raw = await (await V.openEnvelope(ad._m.get('envelope'), PASS)).raw;
     assert.equal(raw.schema, 19); assert.equal(raw.projects.length, 1);
   }
 });
@@ -334,8 +334,8 @@ test('conflict with a schema 2 remote keeps both copies and ends at schema 3', a
   const salt = V.parseEnvelope(env1).salt, key = await V.deriveKey(PASS, salt);
   const s2 = schema2();
   const raw = await V.decrypt(key, env1);
-  const env2 = await V.makeEnvelope(key, salt, Object.assign(s2, { settings: raw.settings, _meta: { rev: env1.rev + 5, updatedAt: '2026-11-12T00:00:00.000Z', deviceId: 'other-device' } }));
-  Object.assign(env2, { rev: env1.rev + 5, updatedAt: '2026-11-12T00:00:00.000Z', deviceId: 'other-device' });
+  const m5 = { rev: env1.rev + 5, updatedAt: '2026-11-12T00:00:00.000Z', deviceId: 'other-device' };
+  const env2 = await resealLike(env1, Object.assign(s2, { settings: raw.settings, _meta: m5 }), m5); // v1.8.0: same data key and wraps (envelope v2)
   d.put(JSON.stringify(env2));
   await mine.commit(addWork);
   const dec = await L.sync.run();

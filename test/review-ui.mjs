@@ -136,6 +136,7 @@ async function p5(browser) {
   await page.click('#nav-private');
   await page.fill('#priv-set1', 'private vault passphrase one'); await page.fill('#priv-set2', 'private vault passphrase one');
   await page.click('#priv-setup-btn');
+  await page.waitForSelector('#priv-rk-prompt', { timeout: 30000 }); await page.click('.dialog button:has-text("Later")');   // v1.8.0: the private recovery key prompt
   await page.waitForSelector('#priv-bar', { timeout: 30000 });
   await page.check('#priv-new');
   await navTo(page, 'Health');

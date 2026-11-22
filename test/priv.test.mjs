@@ -69,18 +69,18 @@ test('inner crypto: own salt, fresh IV per write, PBKDF2 600000, AES-GCM 256, no
   try {
     await vault(null);
     const st = S.getState();
-    assert.equal(st.priv.v, 1); assert.deepEqual(Object.keys(st.priv).sort(), ['ct', 'iv', 'kdf', 'marks', 'rev', 'v']);
-    assert.deepEqual([st.priv.kdf.name, st.priv.kdf.hash, st.priv.kdf.iter], ['PBKDF2', 'SHA-256', 600000]);
+    assert.equal(st.priv.v, 2); assert.deepEqual(Object.keys(st.priv).sort(), ['ct', 'iv', 'marks', 'rev', 'v', 'wraps']); // v1.8.0: envelope v2 blob (was v 1 with a kdf field)
+    assert.deepEqual([st.priv.wraps[0].kdf.name, st.priv.wraps[0].kdf.hash, st.priv.wraps[0].kdf.iter], ['PBKDF2', 'SHA-256', 600000]);
     assert.ok(params.length >= 2 && params.every((p) => p.iterations === 600000 && p.hash === 'SHA-256'));
     assert.ok(seen.every((x) => x.k.extractable === false && x.k.algorithm.name === 'AES-GCM' && x.k.algorithm.length === 256));
-    assert.equal(Buffer.from(st.priv.kdf.salt, 'base64').length, 16); assert.equal(Buffer.from(st.priv.iv, 'base64').length, 12);
+    assert.equal(Buffer.from(st.priv.wraps[0].kdf.salt, 'base64').length, 16); assert.equal(Buffer.from(st.priv.iv, 'base64').length, 12);
     const env = await S.exportEnvelope();
-    assert.notEqual(env.kdf.salt, st.priv.kdf.salt, 'own salt');
+    assert.notEqual(env.kdf.salt, st.priv.wraps[0].kdf.salt, 'own salt');
     const iv0 = st.priv.iv, rev0 = st.priv.rev;
     await P.write((x) => { x.audit.push({ ts: new Date().toISOString(), action: 'x' }); }, {});
     assert.notEqual(S.getState().priv.iv, iv0, 'fresh IV on every write'); assert.equal(S.getState().priv.rev, rev0 + 1);
     // rev bound inside: decrypt the blob directly
-    const key = await realDerive(PRIV, new Uint8Array(Buffer.from(st.priv.kdf.salt, 'base64')));
+    const key = (await V.unwrapWith(st.priv.wraps, PRIV)).key;
     const inner = await V.decrypt(key, S.getState().priv);
     assert.equal(inner.rev, S.getState().priv.rev); assert.equal(inner.schema, 1); assert.deepEqual(inner.wellbeing, {});
     // and outside: a swapped rev is refused on open
@@ -243,7 +243,7 @@ test('moves and references: overlays re-apply when open, nothing dangles or leak
   assert.ok(S.getState().projects.some((p) => p.id === 'p1'));
 });
 async function openInner() {
-  const st = S.getState(); return V.decrypt(await fastDerive(PRIV, new Uint8Array(Buffer.from(st.priv.kdf.salt, 'base64'))), st.priv);
+  const st = S.getState(); return V.decrypt((await V.unwrapWith(st.priv.wraps, PRIV)).key, st.priv);
 }
 
 test('activity and expense move together, in either direction; a habit takes its ticks; parents offer their children', async () => {
@@ -476,17 +476,17 @@ test('crafted priv blobs are rejected by validateState without the key, and neve
   const before = text(S.getState());
   const mut = (f) => { const o = clone(good); f(o.priv, o); return o; };
   const cases = {
-    'wrong iter': mut((p) => { p.kdf.iter = 599999; }),
-    'iter as text': mut((p) => { p.kdf.iter = '600000'; }),
+    'wrong iter': mut((p) => { p.wraps[0].kdf.iter = 599999; }),
+    'iter as text': mut((p) => { p.wraps[0].kdf.iter = '600000'; }),
     'oversized ct': mut((p) => { p.ct = 'A'.repeat(40e6 + 4); }),
     'bad base64 ct': mut((p) => { p.ct = '!!!!not base64!!!!'; }),
     'bad base64 iv': mut((p) => { p.iv = 'AAAA*AAAAAAAAAAA'; }),
     'short iv': mut((p) => { p.iv = 'AAAAAAAA'; }),
-    'bad salt': mut((p) => { p.kdf.salt = 'AAAA'; }),
+    'bad salt': mut((p) => { p.wraps[0].kdf.salt = 'AAAA'; }),
     'unknown field': mut((p) => { p.extra = 1; }),
-    'unknown kdf field': mut((p) => { p.kdf.extra = 1; }),
-    'version': mut((p) => { p.v = 2; }),
-    'hash': mut((p) => { p.kdf.hash = 'SHA-1'; }),
+    'unknown kdf field': mut((p) => { p.wraps[0].kdf.extra = 1; }),
+    'version': mut((p) => { p.v = 3; }),
+    'hash': mut((p) => { p.wraps[0].kdf.hash = 'SHA-1'; }),
     'rev negative': mut((p) => { p.rev = -1; }),
     'rev float': mut((p) => { p.rev = 1.5; }),
     'marks unknown name': mut((p) => { p.marks = ['accounts', 'notacollection']; }),
@@ -648,7 +648,7 @@ test('a stored v0.10.0 vault unlocks, migrates and persists; a v0.10.0 backup im
   const st = await S.unlock(PASS);
   assert.equal(st.schema, 19); assert.equal(st.people.length, 1);
   await S.commit(() => {});
-  assert.equal((await V.decrypt(key, await ad.get('envelope'))).schema, 19);
+  assert.equal((await (await V.openEnvelope(await ad.get('envelope'), PASS)).raw).schema, 19);
   const backup = JSON.stringify(await V.makeEnvelope(await realDerive('backup passphrase 1', salt), salt, nine));
   const imp = await V.importBackup('backup passphrase 1', backup);
   assert.equal(imp.schema, 19); assert.equal(imp.sourceSchema, 9);

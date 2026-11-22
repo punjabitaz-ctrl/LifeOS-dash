@@ -101,6 +101,7 @@ try {
     await page.click('#nav-private');
     await page.fill('#priv-set1', PRIV); await page.fill('#priv-set2', PRIV);
     await page.click('#priv-setup-btn');
+    await page.waitForSelector('#priv-rk-prompt', { timeout: 30000 }); await page.click('.dialog button:has-text("Later")');   // v1.8.0: the private recovery key prompt
     await page.waitForSelector('#priv-bar', T);
     await audit('Private (open)');
     await page.evaluate(() => LifeOS.priv.write((s) => { s.projects.push({ id: 'hid1', name: 'Hidden line', kind: 'client', status: 'active', nextAction: '', archived: false }); }, { newPrivate: true }));

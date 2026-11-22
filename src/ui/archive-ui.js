@@ -47,7 +47,7 @@
     var counts = {};
     L.archive.NAMES.forEach(function (n) { var k = pl.recs[n].length + pl.priv[n].length; if (k) counts[n] = k; });
     var connected = L.sync && L.sync.isConnected && L.sync.isConnected() && L.sync.isAvailable(window.location);
-    var pass = h('input', { type: 'password', id: 'arch-pass', autocomplete: 'current-password' });
+    var pass = h('input', { type: 'password', id: 'arch-pass', autocomplete: 'current-password' }), rk = L.store.hasRecovery() ? h('input', { type: 'password', id: 'arch-key', autocomplete: 'off' }) : null;
     var dr = h('input', { type: 'checkbox', id: 'arch-drive', checked: connected, disabled: !connected });
     var dl = h('input', { type: 'checkbox', id: 'arch-dl', checked: true });
     var status = h('p', { class: 'small', id: 'arch-status', role: 'status', text: '' });
@@ -61,6 +61,7 @@
         h('p', { class: 'small', id: 'arch-counts', text: 'Would move: ' + countText(counts) + '. About ' + mb(Math.round(JSON.stringify(pl.recs).length * 4 / 3)) + ' of the vault.' }),
         gate ? h('p', { class: 'warn small', id: 'arch-gate', text: gate }) : null,
         c.field('Main passphrase', pass, 'The archive file is encrypted with it.'),
+        rk ? c.field('Recovery key', rk, 'The archive file carries it, so it opens with the key as well. It is checked and never stored.') : null,
         h('label', { class: 'row small' }, dr, h('span', { text: connected ? 'Keep a copy on Google Drive (checked by downloading it again)' : 'Google Drive is not connected (connect it in Settings to keep a Drive copy too)' })),
         h('label', { class: 'row small' }, dl, h('span', { text: 'Download a copy. Save it on your NAS: the browser cannot write there itself, so you save it and then confirm.' })),
         status, saved],
@@ -84,8 +85,8 @@
             });
           }
         };
-        return L.archive.archiveYear({ year: year, passphrase: p, today: c.today(), drive: dr.checked && connected, download: dl.checked, io: io }).then(function (r) {
-          running = false; pass.value = '';
+        return L.archive.archiveYear({ year: year, passphrase: p, recoveryKey: rk ? rk.value : undefined, today: c.today(), drive: dr.checked && connected, download: dl.checked, io: io }).then(function (r) {
+          running = false; pass.value = ''; if (rk) rk.value = '';
           c.setNotice('ok', 'Archived ' + year + ': ' + countText(r.counts) + '. Copies: ' + r.copies.map(function (x) { return x.where; }).join(' and ') + '.');
           c.render();
         }, function (e) { running = false; status.textContent = ''; throw e; });
@@ -98,6 +99,8 @@
     var h = c.h, pass = h('input', { type: 'password', id: 'arch-open-pass', autocomplete: 'current-password' });
     var file = h('input', { type: 'file', id: 'arch-file', accept: '.json,application/json' });
     var pp = h('input', { type: 'password', id: 'arch-open-priv', autocomplete: 'off' });
+    // SEC-128: a file made under an earlier main passphrase opens with the main recovery key it carries (typed here, never stored).
+    var rk = h('input', { type: 'password', id: 'arch-open-key', autocomplete: 'off' });
     var connected = L.sync && L.sync.isConnected && L.sync.isConnected();
     var src = h('select', { id: 'arch-src' }, [h('option', { value: 'file', text: 'A file I saved' })].concat(year ? [h('option', { value: 'drive', text: 'Google Drive', disabled: !connected })] : []));
     if (year && connected) src.value = 'drive';
@@ -108,15 +111,17 @@
       body: [
         h('p', { class: 'mut', text: restore ? 'Puts the records of that year back into the live vault. Records already there are never overwritten. The year is then no longer archived here.' : 'Opens the archive read-only. It is decrypted in memory only and dropped when you close it or lock the app.' }),
         c.field('Read from', src), c.field('Archive file', file), c.field('Main passphrase', pass),
+        c.field('Main recovery key the file carries (only if the main passphrase changed since the file was made)', rk),
         L.priv.isOpen() ? c.field('Private passphrase used when the file was made (only if you changed it since)', pp) : null,
         tick ? h('label', { class: 'row small' }, tick, h('span', { text: 'I understand. Restore these records into the live vault.' })) : null],
       onYes: function () {
         if (restore && !tick.checked) throw new Error('Tick the box to confirm the restore.');
-        var p = pass.value, pv = pp.value;
+        var p = pass.value, pv = pp.value, fk = rk.value ? { recovery: rk.value } : undefined;
+        rk.value = '';
         var get = src.value === 'drive' && year ? L.sync.getNamed(L.archive.fileName(year)) : c.readFile(file.files && file.files[0], L.archive.MAX_FILE);
         return get.then(function (text) {
-          if (restore) return L.archive.restoreYear(text, p, year, pv || undefined).then(function (r) { pass.value = ''; c.setNotice('ok', 'Restored ' + r.year + ': ' + r.added + ' records added, ' + r.skipped + ' already in the vault.'); c.render(); });
-          return L.archive.openArchive(text, p, year || undefined, pv || undefined).then(function () { pass.value = ''; c.go('archive'); });
+          if (restore) return L.archive.restoreYear(text, p, year, pv || undefined, fk).then(function (r) { pass.value = ''; c.setNotice('ok', 'Restored ' + r.year + ': ' + r.added + ' records added, ' + r.skipped + ' already in the vault.'); c.render(); });
+          return L.archive.openArchive(text, fk || p, year || undefined, pv || undefined).then(function () { pass.value = ''; c.go('archive'); });
         });
       }
     });

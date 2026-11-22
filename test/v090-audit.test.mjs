@@ -195,7 +195,7 @@ test('leak check: no free text from any domain reaches a prompt, digest, insight
     await S.replaceState(clone(s));
     await S.commit((x) => { Ac.updateActivity(x, 'a2', { notes: m('late') }); });
     const env = ad._m.get('envelope');
-    assert.deepEqual(Object.keys(typeof env === 'string' ? JSON.parse(env) : env).sort(), ['ct', 'deviceId', 'iv', 'kdf', 'rev', 'updatedAt', 'v']);
+    assert.deepEqual(Object.keys(typeof env === 'string' ? JSON.parse(env) : env).sort(), ['ct', 'data', 'deviceId', 'fmt', 'iv', 'kdf', 'rev', 'updatedAt', 'v', 'wraps']);
     out.push(JSON.stringify(env));
     out.push(await V.exportBackup(PASS, S.getState()));
     const sent = [];

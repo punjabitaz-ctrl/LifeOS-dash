@@ -116,7 +116,7 @@ async function run(label, viewport) {
   const unlock = async () => { await page.fill('#pass', PASS); await page.click('button:has-text("Unlock")'); await page.waitForSelector('.tile', T); };
   const idb = () => page.evaluate(() => new Promise((res, rej) => {
     const r = indexedDB.open('lifeos');
-    r.onsuccess = () => { const db = r.result, tx = db.transaction('kv', 'readonly'), g = tx.objectStore('kv').get('envelope'); g.onsuccess = () => { db.close(); res(g.result ? g.result.ct.length : 0); }; g.onerror = rej; };
+    r.onsuccess = () => { const db = r.result, tx = db.transaction('kv', 'readonly'), g = tx.objectStore('kv').get('envelope'); g.onsuccess = () => { db.close(); res(g.result ? (g.result.data || g.result).ct.length : 0); }; g.onerror = rej; };
     r.onerror = rej;
   }));
   const stat = () => page.evaluate(() => { const s = globalThis.LifeOS.store.getState(); return { entries: s.entries.length, ids: new Set(s.entries.map((e) => e.id)).size, archives: s.archives.map((a) => a.year), sessions: s.studySessions.length, contacts: s.contacts.length, priv: s.entries.some((e) => e.id === 'priv-exp') }; });

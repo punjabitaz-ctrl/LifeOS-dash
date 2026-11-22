@@ -102,7 +102,7 @@ test('a v0.11.0 backup (schema 10) imports cleanly and a stored schema 10 vault 
   const st = await S.unlock(PASS);
   assert.equal(st.schema, 19); assert.deepEqual(st.settings.layouts, { narrow: [], wide: [] });
   await S.commit(() => {});
-  assert.equal((await V.decrypt(key2, await ad.get('envelope'))).schema, 19);
+  assert.equal((await (await V.openEnvelope(await ad.get('envelope'), PASS)).raw).schema, 19);
 });
 
 test('downgrade guards: an older-format copy cannot silently strip lines of work, expected income, links or layouts', async () => {

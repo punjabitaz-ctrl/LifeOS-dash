@@ -164,7 +164,7 @@ async function run(label, viewport) {
       await page.click('#diag-copy'); await page.waitForSelector('.notice.ok:has-text("Diagnostics copied")', T);
       const copied = await page.evaluate(async () => { try { return await navigator.clipboard.readText(); } catch (e) { return window.__copied || ''; } });
       const lines = copied.split('\n');
-      if (lines[0] !== 'LifeOS diagnostics' || !/^Version: 1\.7\.0$/.test(lines[1]) || lines[2] !== 'Schema: 19' || lines[3] !== 'Browser: Chrome' || !/^Codes: \d+$/.test(lines[4])) throw new Error('header: ' + lines.slice(0, 5).join(' / '));
+      if (lines[0] !== 'LifeOS diagnostics' || !/^Version: 1\.8\.0$/.test(lines[1]) || lines[2] !== 'Schema: 19' || lines[3] !== 'Browser: Chrome' || !/^Codes: \d+$/.test(lines[4])) throw new Error('header: ' + lines.slice(0, 5).join(' / '));
       if (!lines.slice(5).some((l) => /UNCAUGHT_MONEY money$/.test(l)) || !lines.slice(5).some((l) => /REJECTION_MONEY money$/.test(l)) || !lines.slice(5).some((l) => /SYNC_409 sync$/.test(l))) throw new Error('codes missing: ' + copied);
       if (lines.slice(5).some((l) => !/^\d{4}-\d{2}-\d{2} [A-Z0-9_]+ [a-z]+$/.test(l))) throw new Error('a line is not a code line: ' + copied);
       if (copied.includes(MARK) || /lunch|account|LLC|Mozilla|HeadlessChrome|file:|\d+\.\d+\.\d+\.\d+/.test(copied)) throw new Error('data in the copied text: ' + copied);

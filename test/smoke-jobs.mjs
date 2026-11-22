@@ -137,6 +137,7 @@ async function run(label, viewport) {
     await step('a private application: found with the vault open, never with it closed', async () => {
       await page.click('#nav-private'); await page.waitForSelector('#priv-setup', T);
       await page.fill('#priv-set1', PRIV); await page.fill('#priv-set2', PRIV); await page.click('#priv-setup-btn'); await page.waitForSelector('#priv-bar', T);
+      await page.waitForSelector('#priv-rk-prompt', { timeout: 30000 }); await page.click('.dialog button:has-text("Later")');   // v1.8.0: the private recovery key prompt
       await jobs();
       await page.click(J('Designer at Fox') + ' .jb-edit'); await page.waitForSelector('.priv-move-btn', T); await page.click('.priv-move-btn');
       await page.click('.dialog button:has-text("Move in")'); await page.waitForSelector('.notice:has-text("Moved to the private vault.")', T);

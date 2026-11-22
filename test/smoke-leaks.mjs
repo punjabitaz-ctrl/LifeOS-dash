@@ -486,7 +486,7 @@ async function run(label, viewport) {
       }));
       if (idb.length < 2) throw new Error('IndexedDB read nothing');
       const env = JSON.parse(idb[1]);
-      if (Object.keys(env).sort().join() !== 'ct,deviceId,iv,kdf,rev,updatedAt,v') throw new Error('envelope keys ' + Object.keys(env));
+      if (Object.keys(env).sort().join() !== 'ct,data,deviceId,fmt,iv,kdf,rev,updatedAt,v,wraps') throw new Error('envelope keys ' + Object.keys(env));
       const where = { prompts: prompts.join('\n'), audit, idb: idb.join('\n'), console: consoleText.join('\n'), storage: JSON.stringify(seen), urls: urls.join('\n'), 'archive file': archiveFile, diagnostics: diagArtefacts, 'generic calendar file': calGeneric };
       for (const [k, v] of Object.entries(where)) {
         if (v.includes(ADV_MARK) || v.includes('Ignore previous') || v.includes('LEAK key')) throw new Error(k + ' holds a marker: ' + (v.match(/LEAK[^\n]{0,60}/) || [''])[0]);

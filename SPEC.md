@@ -588,3 +588,30 @@ Source: docs/review/product-ops.md B21. Owner decisions: both a printable recove
 ### Owner decisions (21 Nov 2026, later the same day)
 - The setup checklist prompts for the main vault recovery key at first run (a clear step with "Turn on now" and "Later"; "Later" keeps it on the checklist until done or dismissed), and prompts for the private recovery key when the private vault is first created.
 - A getting started guide for first-time setup: docs/GETTING-STARTED.md plus an in-app "Getting started" view reachable from the setup checklist and Settings. It walks through, in order: choosing a passphrase, turning on the recovery key and filling in the recovery sheet, persistent storage and the first backup, installing on phone and PC, Drive sync setup, the private vault, bring-your-own-AI setup (or none), entering the first records per area (manual entry first, CSV imports where they exist), and the weekly review. Plain steps, no advice wording; it links to the existing docs (FIRST-RUN.md, SYNC-SETUP.md, AI-SETUP.md, RECOVERY.md) rather than repeating them.
+
+## Amendment (v1.8.0 build)
+Where the addendum was ambiguous the safer reading was taken.
+1. Layout: the main file stays `v:1` and adds `fmt:2`, `wraps` and `data`. Its `kdf`/`iv`/`ct` shell holds a stub `{schema:20,newerFormat:true}` sealed under the passphrase key, so a v1.7.0 app opens it and refuses it with its newer-version message. The private blob is `v:2`; v1 blobs still open.
+2. A wrap is AES-GCM wrapKey (raw) of the data key under the key-encryption key, with AAD "lifeos-wrap-v2:" plus the kind. Where a caller-supplied key lacks wrap usages (tests that replace deriveKey) the raw bytes are encrypted and zeroed instead.
+3. Every wrap-set change (turn on, replace, turn off, use, passphrase change, v1 upgrade) makes a new data key and fresh salts.
+4. Backups and archive files get a fresh data key under their own passphrase (the data key cannot be exported). They carry the recovery wrap only when the owner types the current key at export; it is checked against the vault's wrap, never stored, and required while a key is on.
+5. Drive copies are the stored envelope as it is.
+6. A restored backup starts with no main recovery key.
+7. No schema 20: whether a key is on is read from the wraps. Schema stays 19.
+8. The main lock screen gained the same attempt delays as the private one (1 s doubling to 30 s), shared by wrong passphrases and wrong recovery keys.
+9. The stub shell is checked only when a passphrase opens the file.
+10. The recovery sheet includes a key only when the owner ticks a box right after the key is shown.
+11. A passphrase change with a key on needs the current key (kept) or a new one (shown and retyped); otherwise error RECOVERY_CHOICE.
+12. The retype accepts the whole key or its last two groups.
+13. The setup checklist shows the main key as a prompt row ("Turn on now", "Later"), not a counted item. "Later" is not saved; the row returns after a reload until the key is on or the checklist is dismissed.
+14. A Drive copy at the sync prompt opens with the passphrase only.
+15. Changing a private key closes the private vault; the owner opens it again.
+16. The private vault's creation prompt holds the new passphrase in memory only until the dialog closes.
+17. The Getting started view is a print-kind view (`kind: 'guide'`), so navigation names are unchanged. It names the docs by file name and has no links.
+
+## Amendment (v1.8.0 audit)
+1. A v1 file upgraded to v2 under the same passphrase keeps its sync meaning: the sync record's key salt moves to the new passphrase wrap salt, so the upgrade alone is never a local key change (SEC-127).
+2. The recovery key a copy carries can be used in the app: the lock-screen restore has a box to open a backup with the main recovery key (the restored vault gets a new passphrase and no recovery key), and the archive Open and Restore dialogs take the main recovery key a file carries; Restore still needs the current main passphrase. A wrong key on the restore path counts toward the main delays (SEC-128).
+3. After "Use recovery key" on the lock screen, the decrypted copy waits at most 5 minutes for the new passphrase; Back, Cancel and the limit empty it (SEC-129).
+4. A passphrase change with a recovery key on checks the current passphrase before a new key is shown (SEC-130).
+5. A key included on the recovery sheet is dropped as soon as another screen is drawn (SEC-131).

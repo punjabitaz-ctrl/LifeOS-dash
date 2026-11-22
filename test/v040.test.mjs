@@ -1,7 +1,7 @@
 // v0.4.0 audit regression tests (SEC-27 onward). See docs/SECURITY.md.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { L, memAdapter, PASS, E } from './_load.mjs';
+import { L, memAdapter, PASS, E, resealLike } from './_load.mjs';
 
 const S = L.store, M = L.metrics, V = L.vault;
 const WK = '2026-11-09', TODAY = '2026-11-12';
@@ -37,8 +37,8 @@ async function putRemote(d, content, bump) {
   const salt = V.parseEnvelope(env1).salt, key = await V.deriveKey(PASS, salt);
   const raw = await V.decrypt(key, env1);
   const m = { rev: env1.rev + bump, updatedAt: '2026-11-12T00:00:00.000Z', deviceId: 'other-device' };
-  const env2 = await V.makeEnvelope(key, salt, Object.assign(content, { settings: raw.settings, _meta: m }));
-  d.put(JSON.stringify(Object.assign(env2, m)));
+  const env2 = await resealLike(env1, Object.assign(content, { settings: raw.settings, _meta: m }), m);
+  d.put(JSON.stringify(env2));
 }
 const schema2 = () => { const s = S.defaultState(); s.schema = 2; delete s.projects; delete s.pipeline; return s; };
 const addWork = (x) => { x.projects.push(proj({ name: 'KeepMe' })); x.pipeline.push(item({ title: 'KeepRole' })); };

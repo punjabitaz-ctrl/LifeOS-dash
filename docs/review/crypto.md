@@ -36,3 +36,14 @@ Scope: src/core/vault.js, store.js, priv.js, sync.js, src/ui/sync-ui.js, the loc
 - Whether the conflict path's "save losing copy" download (`saveBackup` resolves at once, after several awaits) survives browsers that block a programmatic download once the user gesture has expired (iOS Safari, installed PWAs). If it is blocked, the conflict resolution proceeds without the backup.
 - Cloudflare Pages settings: which directory is published, whether pretty URLs (`/dist/lifeos` without `.html`) skip the `/*.html` Cache-Control rule, and that `_headers` is in the output root.
 - JS cannot zero memory: passphrase strings, the decrypted remote state in a pending sync decision and `getWellbeing()` clones live until GC.
+
+## v1.8.0 key layout (envelope v2, audited 22 Nov 2026)
+
+The v0.12.0 notes above describe the v1 layout (the state sealed directly under the passphrase key). Since v1.8.0:
+
+- Main vault file: `{v:1, kdf, iv, ct, fmt:2, wraps:[{kind, kdf, iv, wk}], data:{iv, ct}, rev, updatedAt, deviceId}`. `data` is the state (with `_meta`) under a random AES-GCM 256 data key. Each wrap is the data key wrapped with AES-GCM (AAD "lifeos-wrap-v2:" plus kind) under a key derived by PBKDF2-SHA256, 600,000 iterations, from the passphrase or the recovery key, with its own 16-byte salt. At most one wrap per kind; the passphrase wrap is required. `kdf`/`iv`/`ct` is a stub `{schema:20, newerFormat:true, _meta}` under the passphrase key-encryption key, so v1.7.0 refuses the file with its newer-version message; it is checked when a passphrase opens the file.
+- Private vault blob: `{v:2, wraps, iv, ct, rev, marks}` with its own data key and wraps (private passphrase, private recovery key). Private archive boxes carry the private wraps in force when sealed.
+- Backups and archive files: a fresh data key under their own passphrase, plus the main recovery wrap when the key is typed at export (required while a key is on). Drive copies are the stored file.
+- Rotation: every change of the wrap set makes a new data key and fresh salts. Data keys are non-extractable after unwrap. Parsing is strict (unknown fields refused, sizes checked). v1 files open and are written as v2 on the next save.
+- Sync compares the passphrase wrap salt as the key identity (`saltId`); a v1 upgrade carries the sync record forward (SEC-127).
+- Findings and proofs: docs/SECURITY.md "v1.8.0 audit" (SEC-127 to SEC-133), test/v180.test.mjs, test/v180-audit.test.mjs.

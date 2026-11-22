@@ -48,7 +48,7 @@ test('migration is persisted on unlock of a stored schema 7 vault', async () => 
   const st = await S.unlock(PASS);
   assert.equal(st.schema, 19); assert.equal(st.activities.length, 3);
   await S.commit(() => {});
-  const raw = await V.decrypt(key, ad._m.get('envelope'));
+  const raw = await (await V.openEnvelope(ad._m.get('envelope'), PASS)).raw;
   assert.equal(raw.schema, 19); assert.equal(raw.activities.length, 3);
 });
 test('a v0.8.0 (schema 7) backup imports cleanly; a schema 8 backup round trips every new field', async () => {

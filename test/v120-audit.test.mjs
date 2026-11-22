@@ -21,8 +21,8 @@ test('SEC-84 proof: a failure at write, verify, Drive upload, Drive re-download 
   const same = async (what) => { assert.equal(snap(), s0, what); assert.equal(S.getMeta().rev, r0, what); assert.equal(await raw(), b0, what); };
   const V = L.vault;
   // 1. write: the envelope cannot be made
-  const mk = V.makeEnvelope; V.makeEnvelope = async () => { throw new Error('WRITE_FAIL'); };
-  try { await assert.rejects(run({ year: 2021 }), /WRITE_FAIL/); } finally { V.makeEnvelope = mk; }
+  const mk = V.sealEnvelope; V.sealEnvelope = async () => { throw new Error('WRITE_FAIL'); }; // v1.8.0: archive files are sealed by sealEnvelope (was makeEnvelope)
+  try { await assert.rejects(run({ year: 2021 }), /WRITE_FAIL/); } finally { V.sealEnvelope = mk; }
   await same('write');
   // 2. verify: the file decrypts to something else (decrypt is swapped for one call after the write)
   const dc = V.decrypt; let n = 0;
@@ -260,7 +260,7 @@ test('a crafted private part is rejected on open and restore, and without the pr
   const reseal = async (o) => JSON.stringify(Object.assign(await V.makeEnvelope(key, salt, o), { arch: 1, year: 2021 }));
   const ct = Buffer.from(inner.priv.ct, 'base64'); ct[5] ^= 1;
   const tampered = await reseal(Object.assign(clone(inner), { priv: Object.assign({}, inner.priv, { ct: ct.toString('base64') }) }));
-  const foreign = await reseal(Object.assign(clone(inner), { priv: Object.assign({}, inner.priv, { kdf: { salt: Buffer.alloc(16, 7).toString('base64') } }) }));
+  const foreign = await reseal(Object.assign(clone(inner), { priv: Object.assign({}, inner.priv, { wraps: (await V.newKeyset('a foreign private pass 7', null)).wraps }) })); // v1.8.0: a box from another key set (was a v1 box naming another salt)
   const data = () => JSON.stringify(Object.assign({}, S.getState(), { audit: 0 }));
   const s0 = data();
   await assert.rejects(A.openArchive(tampered, PASS, 2021), /BAD_PRIVATE_PASSPHRASE/);

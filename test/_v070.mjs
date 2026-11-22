@@ -46,11 +46,12 @@ export async function fresh() {
   return { ad, d };
 }
 export async function putRemote(d, content, bump) {
+  // v1.8.0 (envelope v2): the remote copy shares the live data key and wraps, as a copy written by this same device's key would.
   const env1 = JSON.parse(d.file.text);
-  const salt = V.parseEnvelope(env1).salt, key = await V.deriveKey(PASS, salt);
-  const raw = await V.decrypt(key, env1);
+  const p = V.parseEnvelope(env1), o = await V.unwrapWith(p.wraps, PASS);
+  const raw = await V.decrypt(o.key, p.data);
   const m = { rev: env1.rev + bump, updatedAt: '2026-11-12T00:00:00.000Z', deviceId: 'other-device' };
-  d.put(JSON.stringify(Object.assign(await V.makeEnvelope(key, salt, Object.assign(content, { settings: raw.settings, _meta: m })), m)));
+  d.put(JSON.stringify(await V.sealEnvelope({ key: o.key, kek: o.kek, wraps: p.wraps }, Object.assign(content, { settings: raw.settings, _meta: m }), m)));
 }
 // Record builders (valid by themselves).
 let n = 0;

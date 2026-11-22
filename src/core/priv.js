@@ -54,7 +54,7 @@
   const bad = (m) => { const e = new Error(m); e.code = 'PRIVATE_INVALID'; return e; };
 
   // ---- module state: only while open ----
-  let key = null, saltB64 = '', inner = null, deadline = 0, timer = null, hooked = false, queue = Promise.resolve(), gen = 0;
+  let key = null, wraps = null, inner = null, deadline = 0, timer = null, hooked = false, queue = Promise.resolve(), gen = 0;
   const closers = [], viewBase = new WeakMap(), privRecs = new WeakSet();
 
   // ---- structural validation of the outer blob (needs no key) ----
@@ -64,14 +64,24 @@
     if (s.length < min || s.length > max) throw bad('private vault ' + name + ' has a bad size');
     return s;
   }
+  // v1 (before v1.8.0): { v:1, kdf, iv, ct, rev, marks }, the key derived from the passphrase. v2: { v:2, wraps, iv, ct, rev, marks }, a random
+  // data key wrapped under the passphrase and, when turned on, a recovery key (strict: unknown fields refused, one wrap per kind).
   function cleanBlob(x) {
     if (!isObj(x)) throw bad('private vault must be an object');
-    for (const k of Object.keys(x)) if (!['v', 'kdf', 'iv', 'ct', 'rev', 'marks'].includes(k)) throw bad('private vault has an unknown field');
-    if (x.v !== 1) throw bad('private vault version');
-    const k = x.kdf;
-    if (!isObj(k) || k.name !== 'PBKDF2' || k.hash !== 'SHA-256' || k.iter !== ITER) throw bad('private vault key settings');
-    for (const f of Object.keys(k)) if (!['name', 'hash', 'iter', 'salt'].includes(f)) throw bad('private vault has an unknown field');
-    b64len(k.salt, 'salt', 24, 24);
+    const two = x.v === 2;
+    if (x.v !== 1 && !two) throw bad('private vault version');
+    const allowed = two ? ['v', 'wraps', 'iv', 'ct', 'rev', 'marks'] : ['v', 'kdf', 'iv', 'ct', 'rev', 'marks'];
+    for (const k of Object.keys(x)) if (!allowed.includes(k)) throw bad('private vault has an unknown field');
+    let kdf = null, wr = null;
+    if (two) {
+      try { wr = V().cleanWraps(x.wraps); } catch (e) { throw bad('private vault key settings'); }
+    } else {
+      const k = x.kdf;
+      if (!isObj(k) || k.name !== 'PBKDF2' || k.hash !== 'SHA-256' || k.iter !== ITER) throw bad('private vault key settings');
+      for (const f of Object.keys(k)) if (!['name', 'hash', 'iter', 'salt'].includes(f)) throw bad('private vault has an unknown field');
+      b64len(k.salt, 'salt', 24, 24);
+      kdf = { name: 'PBKDF2', hash: 'SHA-256', iter: ITER, salt: k.salt };
+    }
     b64len(x.iv, 'iv', 16, 16);
     b64len(x.ct, 'data', 24, CT_MAX);
     if (!Number.isInteger(x.rev) || x.rev < 0 || x.rev > 1e9) throw bad('private vault revision');
@@ -81,7 +91,8 @@
       if (typeof m !== 'string' || !isMarkName(m) || BLOCKED.has(m) || seen.has(m)) throw bad('private vault marks');
       seen.add(m);
     }
-    return { v: 1, kdf: { name: 'PBKDF2', hash: 'SHA-256', iter: ITER, salt: k.salt }, iv: x.iv, ct: x.ct, rev: x.rev, marks: MARK_NAMES.filter((m) => seen.has(m)).concat(Array.from(seen).filter((m) => !MARK_NAMES.includes(m)).sort()) };
+    const marks = MARK_NAMES.filter((m) => seen.has(m)).concat(Array.from(seen).filter((m) => !MARK_NAMES.includes(m)).sort());
+    return two ? { v: 2, wraps: wr, iv: x.iv, ct: x.ct, rev: x.rev, marks } : { v: 1, kdf, iv: x.iv, ct: x.ct, rev: x.rev, marks };
   }
 
   // ---- inner plaintext ----
@@ -334,7 +345,7 @@
     clearTimeout(timer); timer = null; deadline = 0;
     const was = isOpen();
     const p = inner;
-    key = null; saltB64 = ''; inner = null;
+    key = null; wraps = null; inner = null;
     scrub(p);
     if (!was) return false;
     if (why === undefined) auditQuiet('private vault closed');
@@ -361,25 +372,38 @@
   }
   const onClose = (f) => { if (typeof f === 'function') closers.push(f); };
 
-  async function sealPlain(p, k, salt, pub) {
+  async function sealPlain(p, k, wr, pub) {
     const { iv, ct } = await V().encrypt(k, p);
     if (ct.length > CT_MAX) throw new Error('The private vault would be too large. Move some items out or delete old ones.');
-    return { v: 1, kdf: { name: 'PBKDF2', hash: 'SHA-256', iter: ITER, salt }, iv, ct, rev: p.rev, marks: marksOf(p, pub) };
+    return { v: 2, wraps: clone(wr), iv, ct, rev: p.rev, marks: marksOf(p, pub) };
   }
-  const bkey = async (pass, blob) => {
-    const salt = Uint8Array.from(atob(blob.kdf.salt), (ch) => ch.charCodeAt(0));
-    return V().deriveKey(pass, salt);
-  };
-  async function decryptBlob(blob, pass) {
-    const k = await bkey(pass, blob);
-    let p;
-    try { p = await V().decrypt(k, blob); } catch (e) { throw new Error('BAD_PRIVATE_PASSPHRASE'); }
+  const v1key = async (pass, blob) => V().deriveKey(pass, Uint8Array.from(atob(blob.kdf.salt), (ch) => ch.charCodeAt(0)));
+  const badPass = (secret) => { const e = new Error(secret && typeof secret === 'object' ? 'BAD_RECOVERY_KEY' : 'BAD_PRIVATE_PASSPHRASE'); if (secret && typeof secret === 'object') e.code = 'BAD_RECOVERY_KEY'; return e; };
+  // Open a private blob with a secret (a passphrase, or { recovery }). Returns { k: the data key to write with, wr: the wraps that go with it, p }.
+  // A v1 blob opens with the passphrase and gets its v2 key set now (a new data key under the same passphrase); the next write stores it.
+  async function decryptBlob(blob, secret) {
+    let k, wr, p;
+    if (blob.v === 2) {
+      try {
+        const o = await V().unwrapWith(blob.wraps, secret);
+        p = await V().decrypt(o.key, blob); k = o.key; wr = blob.wraps;
+      } catch (e) { if (e && e.code === 'RECOVERY_KEY_FORMAT') throw e; throw badPass(secret); }
+    } else {
+      if (typeof secret !== 'string') throw badPass(secret);
+      try { p = await V().decrypt(await v1key(secret, blob), blob); } catch (e) { throw badPass(secret); }
+      const nk = await V().newKeyset(secret, null);
+      k = nk.key; wr = nk.wraps;
+    }
     checkInner(p, blob.rev);
-    return { k, p };
+    return { k, wr, p };
   }
   // True when `pass` opens the private blob (used to keep the main passphrase different without ever storing either).
   async function matches(blob, pass) {
-    try { const k = await bkey(pass, blob); await V().decrypt(k, blob); return true; } catch (e) { return false; }
+    try {
+      if (blob.v === 2) await V().unwrapWith(blob.wraps, pass);
+      else await V().decrypt(await v1key(pass, blob), blob);
+      return true;
+    } catch (e) { return false; }
   }
   const needBase = () => { const st = S().getState(); return st; };
   const isSetUp = (st) => !!(st && st.priv);
@@ -391,12 +415,8 @@
       if (st.priv) throw new Error('The private vault is already set up.');
       V().checkPassphrase(pass);
       if (await S().matchesMain(pass)) throw new Error('The private passphrase must be different from your main passphrase.');
-      const salt = V().newSalt();
-      const k = await V().deriveKey(pass, salt);
-      let sb = '';
-      for (const b of salt) sb += String.fromCharCode(b);
-      sb = btoa(sb);
-      const p = emptyInner(0), blob = await sealPlain(p, k, sb);
+      const nk = await V().newKeyset(pass, null), k = nk.key;
+      const p = emptyInner(0), blob = await sealPlain(p, k, nk.wraps);
       await S().commit((x) => {
         if (x.priv) throw new Error('The private vault is already set up.');
         x.priv = blob;
@@ -406,7 +426,7 @@
       });
       // A close trigger (tab hidden, app lock, AI call) during set-up leaves the new vault closed.
       if (gen !== g0 || hidden()) { close('system'); return; }
-      close('system'); key = k; saltB64 = sb; inner = p; hook(); touch(); markRecs(p);
+      close('system'); key = k; wraps = nk.wraps; inner = p; hook(); touch(); markRecs(p);
     });
   }
   function markRecs(p) { for (const c of Object.keys(p.records)) for (const r of p.records[c]) privRecs.add(r); }
@@ -416,43 +436,43 @@
       if (!st.priv) throw new Error('No private vault is set up.');
       if (isOpen()) return true;
       const g0 = gen;
-      const { k, p } = await decryptBlob(st.priv, pass);
+      const { k, wr, p } = await decryptBlob(st.priv, pass);
       if (!S().isUnlocked() || S().getState() !== st) { scrub(p); throw new Error('LOCKED'); }
       // A close trigger fired while the key was being derived (tab hidden, app lock, AI call, Close): stay closed.
       if (gen !== g0 || hidden()) { scrub(p); throw new Error('The private vault closed while it was opening. Open it again.'); }
       const m = merge(st, p);
       try { const w = clone(m.out); overlay(w, p.links, false); S().validateState(w, PRIVATE_OK); } catch (e) { scrub(p); const x = bad('The private vault data is not valid: ' + String(e.message || '').slice(0, 120)); throw x; }
-      key = k; saltB64 = st.priv.kdf.salt; inner = p; hook(); touch(); markRecs(p);
+      key = k; wraps = wr; inner = p; hook(); touch(); markRecs(p);
       auditQuiet('private vault opened');
       return true;
     });
   }
   // CR-3: the private data re-encrypted is the private data stored when the change commits. If a restore or sync adoption replaced the
   // private vault while the keys were being derived, the newer copy is decrypted (with the current passphrase) and used instead.
-  async function changePassphrase(oldP, newP) {
+  // One rotation: a new data key and new wraps (fresh salts) for the private vault, the inner data re-sealed under it, in one write.
+  // secret opens the current blob (a passphrase, or { recovery } when the passphrase was forgotten); newP is the passphrase to wrap under;
+  // recText is the recovery key to wrap under, or null for none. The vault ends closed.
+  async function rotate(secret, newP, recText, action) {
     return pserial(async () => {
       if (!needBase().priv) throw new Error('No private vault is set up.');
       V().checkPassphrase(newP);
       if (await S().matchesMain(newP)) throw new Error('The private passphrase must be different from your main passphrase.');
-      const salt = V().newSalt(), k = await V().deriveKey(newP, salt);
-      let sb = '';
-      for (const b of salt) sb += String.fromCharCode(b);
-      sb = btoa(sb);
+      const nk = await V().newKeyset(newP, recText || null);
       const STALE = {};
       for (let attempt = 0; attempt < 4; attempt++) {
         const blob0 = needBase().priv;
         if (!blob0) throw new Error('No private vault is set up.');
-        const { p } = await decryptBlob(blob0, oldP);
+        const { p } = await decryptBlob(blob0, secret);
         const next = clone(p); next.rev = p.rev + 1;
         let blob;
-        try { blob = await sealPlain(next, k, sb, needBase()); } catch (e) { scrub(next); scrub(p); throw e; }
+        try { blob = await sealPlain(next, nk.key, nk.wraps, needBase()); } catch (e) { scrub(next); scrub(p); throw e; }
         close('system');
         try {
           await S().commit((x) => {
             if (!x.priv || x.priv.rev !== blob0.rev || x.priv.ct !== blob0.ct || x.priv.iv !== blob0.iv) throw STALE;
             x.priv = blob;
             if (!Array.isArray(x.audit)) x.audit = [];
-            x.audit.push({ ts: new Date().toISOString(), action: 'private vault passphrase changed' });
+            x.audit.push({ ts: new Date().toISOString(), action });
             while (x.audit.length > 200) x.audit.shift();
           });
         } catch (e) { scrub(next); scrub(p); if (e === STALE) continue; throw e; }
@@ -461,6 +481,74 @@
       }
       throw new Error('The private vault changed while the passphrase was being changed. Nothing was changed. Try again.');
     });
+  }
+  const hasRecovery = (st) => !!(st && st.priv && st.priv.v === 2 && st.priv.wraps.some((w) => w.kind === 'recovery'));
+  const wrongRecovery = () => { const e = new Error('BAD_RECOVERY_KEY'); e.code = 'BAD_RECOVERY_KEY'; return e; };
+  // CR-3: the private data re-encrypted is the private data stored when the change commits (see rotate). With a recovery key on, opts.keepRecovery
+  // (the current key, typed) keeps it, or opts.newRecoveryKey (a new key already shown and retyped) replaces it; with neither the change is refused.
+  async function changePassphrase(oldP, newP, opts) {
+    const st = needBase();
+    if (!st.priv) throw new Error('No private vault is set up.');
+    let rec = null;
+    if (hasRecovery(st)) {
+      if (opts && typeof opts.keepRecovery === 'string' && opts.keepRecovery) {
+        try { await V().unwrapWith(st.priv.wraps, { recovery: opts.keepRecovery }); } catch (e) { if (e && e.code === 'RECOVERY_KEY_FORMAT') throw e; throw wrongRecovery(); }
+        rec = opts.keepRecovery;
+      } else if (opts && typeof opts.newRecoveryKey === 'string' && opts.newRecoveryKey) { await V().parseRecoveryKey(opts.newRecoveryKey); rec = opts.newRecoveryKey; }
+      else { const e = new Error('Type your current recovery key to keep it, or choose a new one.'); e.code = 'RECOVERY_CHOICE'; throw e; }
+    }
+    await rotate(oldP, newP, rec, 'private vault passphrase changed');
+  }
+  // Recovery key for the private vault. beginRecovery(pass) resolves to { key, finish(typed), cancel() }: key is shown once by the caller and
+  // nothing changes until finish gets it retyped (all of it, or its last two groups). Works for turning on and for replacing.
+  async function beginRecovery(pass) {
+    const st = needBase();
+    if (!st.priv) throw new Error('No private vault is set up.');
+    if (!(await matches(st.priv, pass))) throw new Error('BAD_PRIVATE_PASSPHRASE');
+    const text = await V().newRecoveryKey(), blob0 = st.priv;
+    let live = true;
+    return {
+      key: text,
+      cancel() { live = false; },
+      finish: async (typed) => {
+        if (!live || needBase().priv !== blob0) throw new Error('That recovery key is no longer valid. Start again.');
+        if (!V().retypeMatches(text, typed)) { const e = new Error('That is not the recovery key shown. Check it against the key on screen and try again.'); e.code = 'RECOVERY_RETYPE'; throw e; }
+        await rotate(pass, pass, text, hasRecovery(needBase()) ? 'private vault recovery key replaced' : 'private vault recovery key on');
+        live = false;
+      },
+    };
+  }
+  async function turnOffRecovery(pass) {
+    if (!needBase().priv) throw new Error('No private vault is set up.');
+    await rotate(pass, pass, null, 'private vault recovery key off');
+  }
+  // Forgot the private passphrase: check the recovery key (nothing is written), then prepare(newPass) resolves to { key, finish(typed) }:
+  // a new data key, the new passphrase and a new recovery key (the key used stops working). The vault is open afterwards.
+  async function openWithRecovery(recText) {
+    const st = needBase();
+    if (!st.priv) throw new Error('No private vault is set up.');
+    if (st.priv.v !== 2 || !hasRecovery(st)) throw wrongRecovery();
+    const chk = await decryptBlob(st.priv, { recovery: recText }); scrub(chk.p);
+    const blob0 = st.priv;
+    let live = true;
+    return {
+      cancel() { live = false; },
+      prepare: async (newPass) => {
+        V().checkPassphrase(newPass);
+        if (await S().matchesMain(newPass)) throw new Error('The private passphrase must be different from your main passphrase.');
+        const text = await V().newRecoveryKey();
+        return {
+          key: text,
+          finish: async (typed) => {
+            if (!live || needBase().priv !== blob0) throw new Error('That recovery key is no longer valid. Start again.');
+            if (!V().retypeMatches(text, typed)) { const e = new Error('That is not the recovery key shown. Check it against the key on screen and try again.'); e.code = 'RECOVERY_RETYPE'; throw e; }
+            await rotate({ recovery: recText }, newPass, text, 'private vault recovered with recovery key');
+            live = false;
+            await open(newPass);
+          },
+        };
+      },
+    };
   }
   async function destroy() {
     return pserial(async () => {
@@ -515,7 +603,7 @@
   function writeRaw(fn, o) {
     return (async () => {
       if (!isOpen()) throw new Error('The private vault is closed.');
-      const k = key, before = inner, sb = saltB64;
+      const k = key, before = inner, wr = wraps;
       let next = null, next_wb = null, work = null, wb = null;
       try {
       await S().commit(async (st) => {
@@ -544,7 +632,7 @@
         if (o.summaries) { for (const y of Object.keys(o.summaries.set || {})) sums[y] = clone(o.summaries.set[y]); for (const y of o.summaries.del || []) delete sums[y]; }
         if (Object.keys(sums).length) next.summaries = L.archive ? L.archive.cleanPrivSummaries(sums) : sums;
         if (key !== k) throw new Error('The private vault is closed.');
-        const blob = await sealPlain(next, k, sb, sp.pub);
+        const blob = await sealPlain(next, k, wr, sp.pub);
         if (key !== k) throw new Error('The private vault is closed.');
         for (const f of Object.keys(st)) delete st[f];
         Object.assign(st, sp.pub, { priv: blob });
@@ -563,7 +651,7 @@
     if (!isOpen()) return Promise.reject(new Error('The private vault is closed.'));
     return pserial(async () => {
       if (!isOpen()) throw new Error('The private vault is closed.');
-      const k = key, before = inner, sb = saltB64;
+      const k = key, before = inner, wr = wraps;
       const next = clone(before);
       let w = null;
       try {
@@ -576,7 +664,7 @@
           const m = merge(st, next); w = clone(m.out); overlay(w, next.links, false);
           S().validateState(w, PRIVATE_OK);
           if (key !== k) throw new Error('The private vault is closed.');
-          const blob = await sealPlain(next, k, sb, st);
+          const blob = await sealPlain(next, k, wr, st);
           if (key !== k) throw new Error('The private vault is closed.');
           st.priv = blob;
         });
@@ -674,26 +762,34 @@
   const moveOut = (c, id, opts) => pserial(() => move('out', c, id, opts));
   // Which collection keys are private right now (open only): for UI badges and routing checks.
   function isPrivate(c, id) { return isPrivateKey(c, id); }
-  // v1.2.0 part B: archive files keep a year's private records in a box under the private key (own fresh IV, the vault's salt named so the
-  // right passphrase can be asked for later). The key itself never leaves this module.
+  // v1.2.0 part B: archive files keep a year's private records in a box under the private key (own fresh IV). Since v1.8.0 the box carries the
+  // private vault's wraps (so the private passphrase or recovery key in force then opens it); a v1 box names the vault's salt instead and still opens.
+  // The key itself never leaves this module.
   async function sealBox(obj) {
     if (!isOpen()) throw new Error('The private vault is closed.');
-    const k = key, sb = saltB64;
+    const k = key, wr = wraps;
     const { iv, ct } = await V().encrypt(k, obj);
     if (key !== k) throw new Error('The private vault is closed.');
-    return { kdf: { salt: sb }, iv, ct };
+    return { wraps: clone(wr), iv, ct };
   }
   async function openBox(box, pass) {
-    if (!box || typeof box !== 'object' || !box.kdf || typeof box.kdf.salt !== 'string' || !/^[A-Za-z0-9+/]{22}==$/.test(box.kdf.salt)) throw new Error('BAD_PRIVATE_PASSPHRASE');
+    const v2 = !!box && typeof box === 'object' && Array.isArray(box.wraps);
+    let wr = null;
+    if (v2) { try { wr = V().cleanWraps(box.wraps); } catch (e) { throw new Error('BAD_PRIVATE_PASSPHRASE'); } }
+    else if (!box || typeof box !== 'object' || !box.kdf || typeof box.kdf.salt !== 'string' || !/^[A-Za-z0-9+/]{22}==$/.test(box.kdf.salt)) throw new Error('BAD_PRIVATE_PASSPHRASE');
+    const same = v2 && isOpen() && JSON.stringify(wr) === JSON.stringify(wraps);
     let k = null;
-    if (isOpen() && box.kdf.salt === saltB64) k = key;
-    else if (typeof pass === 'string' && pass) k = await bkey(pass, { kdf: { salt: box.kdf.salt } });
+    if (same) k = key;
+    else if (typeof pass === 'string' && pass || (pass && typeof pass === 'object' && pass.recovery)) {
+      try { k = v2 ? (await V().unwrapWith(wr, pass)).key : await v1key(pass, { kdf: { salt: box.kdf.salt } }); }
+      catch (e) { if (e && e.code === 'RECOVERY_KEY_FORMAT') throw e; throw badPass(pass); }
+    }
     else { const e = new Error(isOpen() ? 'This archive was sealed with an earlier private passphrase. Enter it to continue.' : 'The private vault is closed.'); e.code = isOpen() ? 'NEED_PRIVATE_PASSPHRASE' : 'PRIVATE_CLOSED'; throw e; }
     try { return await V().decrypt(k, box); } catch (e) { throw new Error('BAD_PRIVATE_PASSPHRASE'); }
   }
 
   L.priv = {
-    COLLECTIONS, MARK_NAMES, isSetUp, setUp, open, close, isOpen, view, commit, write, moveIn, moveOut, childrenOf, changePassphrase, destroy, marks,
+    COLLECTIONS, MARK_NAMES, isSetUp, setUp, open, close, isOpen, view, commit, write, moveIn, moveOut, childrenOf, changePassphrase, hasRecovery, beginRecovery, turnOffRecovery, openWithRecovery, destroy, marks,
     touch, checkExpiry, onClose, sealBox, openBox, isView, mainOnly, isPrivateRecord, isPrivate, cleanBlob, matches, getWellbeing, secsLeft: () => (isOpen() ? Math.max(0, Math.ceil((deadline - Date.now()) / 1000)) : 0),
   };
 })();

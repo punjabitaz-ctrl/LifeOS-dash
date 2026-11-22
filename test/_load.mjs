@@ -32,6 +32,11 @@ export function memAdapter() {
   return { get: async (k) => m.get(k), set: async (k, v) => { m.set(k, JSON.parse(JSON.stringify(v))); }, del: async (k) => { m.delete(k); }, _m: m };
 }
 export const PASS = 'correct horse battery';
+// v1.8.0 (envelope v2): an envelope sealed under the same data key and wraps as `env` (a copy written by this same key set), with outer fields `meta`.
+export async function resealLike(env, obj, meta) {
+  const V = L.vault, p = V.parseEnvelope(env), o = await V.unwrapWith(p.wraps, PASS);
+  return V.sealEnvelope({ key: o.key, kek: o.kek, wraps: p.wraps }, obj, meta);
+}
 let n = 0;
 export const E = (o) => L.metrics.validateEntry(Object.assign({ date: '2026-11-10', title: 't' + (n++) }, o));
 import '../src/ui/pwa.js';

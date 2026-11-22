@@ -208,10 +208,16 @@
     if (typeof text !== 'string' || !text || text.length > L.vault.MAX_BACKUP) return bad('NOT_BACKUP', 'That is not a LifeOS backup file.');
     let env;
     try { env = JSON.parse(text); L.vault.parseEnvelope(env); } catch (e) { return bad('NOT_BACKUP', 'That is not a LifeOS backup file.'); }
-    if (typeof passphrase !== 'string' || !passphrase) return bad('NO_PASSPHRASE', 'Enter the backup passphrase.');
+    // SEC-128: the secret is the backup passphrase, or { recovery } for the main recovery key the file carries (v1.8.0).
+    const rec = !!passphrase && typeof passphrase === 'object' && typeof passphrase.recovery === 'string';
+    if (!rec && (typeof passphrase !== 'string' || !passphrase)) return bad('NO_PASSPHRASE', 'Enter the backup passphrase.');
     let raw;
-    try { raw = await L.vault.readBackupRaw(passphrase, text); }
-    catch (e) { return bad('BAD_PASSPHRASE_OR_DATA', 'That passphrase did not work, or the file was changed or damaged.'); }
+    try { raw = await L.vault.readBackupRaw(rec ? { recovery: passphrase.recovery } : passphrase, text); }
+    catch (e) {
+      if (rec && e && e.code === 'RECOVERY_KEY_FORMAT') return bad('RECOVERY_KEY_FORMAT', 'That recovery key has a typo or is the wrong length. Check it and try again.');
+      if (rec) return bad('BAD_RECOVERY_KEY', 'That recovery key did not work, or the file was changed or damaged.');
+      return bad('BAD_PASSPHRASE_OR_DATA', 'That passphrase did not work, or the file was changed or damaged.');
+    }
     const sch = isObj(raw) ? raw.schema : undefined, mine = live && Number.isInteger(live.schema) ? live.schema : L.store.SCHEMA;
     if (Number.isInteger(sch) && sch > mine) return bad('NEWER_SCHEMA', 'This backup was made by a newer version of LifeOS (schema ' + sch + '). This version reads up to schema ' + mine + '. Nothing was read further.', { schema: sch });
     let state;

@@ -606,10 +606,10 @@ test('SPELL CHECK: every input and textarea (other than passphrase fields) gets 
   for (const f of ['src/ui/app.js', 'src/ui/sync-ui.js', 'src/ui/archive-ui.js']) for (const m of src(f).matchAll(/type: 'password'[^}]*id: '([^']+)'|id: '([^']+)'[^}]*type: 'password'/g)) assert.match(m[1] || m[2], /pass|pp|priv|key/i, 'password-typed field ' + (m[1] || m[2]));
 });
 
-test('the new files are in the build after sync.js, and the version is 1.7.0', () => {
+test('the new files are in the build after sync.js, and the version is 1.8.0', () => {
   const b = src('build.mjs');
   assert.ok(b.indexOf("'src/core/archive.js'") > b.indexOf("'src/core/sync.js'") && b.indexOf("'src/core/archive.js'") < b.indexOf("'src/ui/app.js'"));
-  assert.equal(JSON.parse(src('package.json')).version, '1.7.0');
+  assert.equal(JSON.parse(src('package.json')).version, '1.8.0');
   assert.ok(src('src/ui/app.js').includes("text: 'LifeOS v' + L.VERSION"));
   assert.ok(src('src/core/archive.js').startsWith('(function () {'));
 });

@@ -10,7 +10,8 @@
   // Same rule as ai.isLocalUrl (ai.js loads after this file, so call it lazily).
   const BIDI = /[\u061C\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF]/g;
   const strip = (v) => (typeof v === 'string' ? v.replace(BIDI, '') : v);
-  let adapter = null, key = null, salt = null, state = null, queue = Promise.resolve();
+  // ks: the live key set { key (non-extractable data key), kek (passphrase key-encryption key, seals the older-app stub), wraps } (envelope v2).
+  let adapter = null, ks = null, state = null, queue = Promise.resolve(), pendingRecovery = null;
   // Sync metadata (rev etc.) travels outside AND inside the ciphertext; a mismatch means tampering. Missing = rev 0.
   let meta = { rev: 0, updatedAt: '', deviceId: '' }, deviceId = '';
 
@@ -962,11 +963,12 @@
       typeof env.deviceId !== 'string' || env.deviceId.length > 64) throw tamper();
     return { rev: env.rev, updatedAt: env.updatedAt, deviceId: env.deviceId };
   }
-  async function seal(k, sl, clean, rev) {
+  // Every write is an envelope v2 (a v1 file read earlier is rewritten here, the first time it is saved).
+  async function seal(k, clean, rev) {
     if (!deviceId) deviceId = newId();
     const m = { rev, updatedAt: new Date().toISOString(), deviceId };
-    const env = await V().makeEnvelope(k, sl, Object.assign({}, clean, { _meta: m }));
-    return { env: Object.assign(env, m), m };
+    const env = await V().sealEnvelope(k, Object.assign({}, clean, { _meta: m }), m);
+    return { env, m };
   }
 
   // ---- lifecycle ----
@@ -976,14 +978,14 @@
     Object.assign(target, src);
   };
   const serial = (fn) => { const run = queue.then(fn); queue = run.catch(() => {}); return run; };
-  const requireUnlocked = () => { if (!state || !key) throw new Error('LOCKED'); };
+  const requireUnlocked = () => { if (!state || !ks) throw new Error('LOCKED'); };
 
   // True when `p` is the main passphrase: tried against the stored envelope, never compared with anything stored.
   async function matchesMain(p) {
     requireUnlocked();
     const env = await getAdapter().get(KEY);
     if (!env) return false;
-    try { const { salt: sl } = V().parseEnvelope(env); await V().decrypt(await V().deriveKey(p, sl), env); return true; } catch (e) { return false; }
+    return V().verifySecret(env, p);
   }
   const dropPriv = () => { if (L.priv) L.priv.close('system'); };
   async function exists() { return !!(await getAdapter().get(KEY)); }
@@ -991,24 +993,32 @@
     V().checkPassphrase(passphrase);
     const a = getAdapter();
     if (await a.get(KEY)) throw new Error('VAULT_EXISTS');
-    const sl = V().newSalt();
-    const k = await V().deriveKey(passphrase, sl);
+    const k = await V().newKeyset(passphrase, null);
     const st = defaultState();
-    const sealed = await seal(k, sl, st, 0);
+    const sealed = await seal(k, st, 0);
     await a.set(KEY, sealed.env);
-    key = k; salt = sl; state = st; meta = sealed.m;
+    ks = k; state = st; meta = sealed.m;
     if (L.search) L.search.build();
     return st;
+  }
+  // SEC-127: a v1 file upgraded to v2 under the same passphrase is the same key as far as sync is concerned. The sync record names the
+  // v1 salt; it is carried to the new passphrase wrap salt (in memory now, stored with the next write), so the upgrade alone is never
+  // taken for a passphrase change on this device (which would turn another device's ordinary upload into a conflict).
+  function carryKeySalt(st, parsed, k) {
+    const sy = st && st.settings && st.settings.sync;
+    if (sy && sy.keySalt && sy.keySalt === V().passSaltOf(parsed)) sy.keySalt = saltOf(k);
   }
   async function unlock(passphrase) {
     const env = await getAdapter().get(KEY);
     if (!env) throw new Error('NO_VAULT');
-    const { salt: sl } = V().parseEnvelope(env);
-    const k = await V().deriveKey(passphrase, sl);
-    const raw = await V().decrypt(k, env);
-    const st = validateState(raw);
-    meta = readMeta(env, raw); deviceId = meta.deviceId || deviceId;
-    key = k; salt = sl; state = st;
+    const o = await V().openEnvelope(env, passphrase);
+    const st = validateState(o.raw);
+    const m = readMeta(env, o.raw);
+    // A v1 file opens with the passphrase; its v2 key set (a new random data key wrapped under the passphrase) is made now and written on the next save.
+    const k = o.fmt === 2 ? { key: o.key, kek: o.kek, wraps: o.wraps } : await V().newKeyset(passphrase, null);
+    if (o.fmt === 1) carryKeySalt(st, o.parsed, k);
+    meta = m; deviceId = meta.deviceId || deviceId;
+    ks = k; state = st;
     if (L.search) L.search.build(); // v1.6.0: built on unlock, in memory only
     return st;
   }
@@ -1018,15 +1028,15 @@
     if (L.search) L.search.drop(); // v1.6.0: the search index lives only while unlocked
     // Empty the live state object too, so any reference still held elsewhere no longer reaches plaintext.
     if (state) { try { replaceContents(state, {}); } catch (e) { /* ignore */ } }
-    key = null; salt = null; state = null; meta = { rev: 0, updatedAt: '', deviceId: '' };
+    ks = null; state = null; pendingRecovery = null; meta = { rev: 0, updatedAt: '', deviceId: '' };
   }
-  const isUnlocked = () => !!(state && key);
+  const isUnlocked = () => !!(state && ks);
   function getState() { requireUnlocked(); return state; }
 
   function commit(fn, opts) {
     return serial(async () => {
       requireUnlocked();
-      const st = state, k = key, sl = salt;
+      const st = state, k = ks;
       const snapshot = JSON.parse(JSON.stringify(st));
       let taken = [];
       try {
@@ -1034,8 +1044,8 @@
         // v1.3.0: the queued diagnostic codes join the encrypted ring in the same write.
         taken = L.ops.flush(st);
         const clean = validateState(st);
-        const sealed = await seal(k, sl, clean, opts && opts.quiet ? meta.rev : meta.rev + 1);
-        if (key !== k) throw new Error('LOCKED');
+        const sealed = await seal(k, clean, opts && opts.quiet ? meta.rev : meta.rev + 1);
+        if (ks !== k) throw new Error('LOCKED');
         await getAdapter().set(KEY, sealed.env);
         if (state !== st) throw new Error('LOCKED');
         meta = sealed.m;
@@ -1048,7 +1058,21 @@
       }
     });
   }
-  function changePassphrase(oldP, newP) {
+  const wrongPass = () => new Error('BAD_PASSPHRASE_OR_DATA');
+  // A new data key, new wraps (fresh salts) and the state sealed under it, in one write. Runs inside the serial queue.
+  async function rotateKeys(pass, recoveryText) {
+    const st = state;
+    const nk = await V().newKeyset(pass, recoveryText || null);
+    const sealed = await seal(nk, validateState(st), meta.rev + 1);
+    if (state !== st) throw new Error('LOCKED');
+    await getAdapter().set(KEY, sealed.env);
+    if (state !== st) throw new Error('LOCKED');
+    ks = nk; meta = sealed.m;
+  }
+  const storedWraps = async () => { const p = V().parseEnvelope(await getAdapter().get(KEY)); return p.fmt === 2 ? p.wraps : null; };
+  // Passphrase change rotates the data key. With a recovery key on, opts.keepRecovery (the current key, typed) keeps it, or
+  // opts.newRecoveryKey (a new key from vault.newRecoveryKey, already shown to and retyped by the owner) replaces it; with neither the change is refused.
+  function changePassphrase(oldP, newP, opts) {
     return serial(async () => {
       requireUnlocked();
       const st = state;
@@ -1056,17 +1080,99 @@
       if (st.priv && L.priv && (await L.priv.matches(st.priv, newP))) throw new Error('The main passphrase must be different from the private vault passphrase.');
       const a = getAdapter();
       const env = await a.get(KEY);
-      const { salt: sl } = V().parseEnvelope(env);
-      await V().decrypt(await V().deriveKey(oldP, sl), env);
-      const nsl = V().newSalt();
-      const nk = await V().deriveKey(newP, nsl);
-      const sealed = await seal(nk, nsl, validateState(st), meta.rev + 1);
-      if (state !== st) throw new Error('LOCKED');
-      await a.set(KEY, sealed.env);
-      if (state !== st) throw new Error('LOCKED');
-      key = nk; salt = nsl; meta = sealed.m;
+      await V().openEnvelope(env, oldP);
+      const wraps = await storedWraps();
+      let rec = null;
+      if (wraps && wraps.some((w) => w.kind === 'recovery')) {
+        if (opts && typeof opts.keepRecovery === 'string' && opts.keepRecovery) {
+          await V().unwrapWith(wraps, { recovery: opts.keepRecovery }); // a wrong key is BAD_RECOVERY_KEY, a typo RECOVERY_KEY_FORMAT
+          rec = opts.keepRecovery;
+        } else if (opts && typeof opts.newRecoveryKey === 'string' && opts.newRecoveryKey) { await V().parseRecoveryKey(opts.newRecoveryKey); rec = opts.newRecoveryKey; }
+        else { const e = new Error('Type your current recovery key to keep it, or choose a new one.'); e.code = 'RECOVERY_CHOICE'; throw e; }
+      }
+      await rotateKeys(newP, rec);
       dropPriv();
     });
+  }
+  // ---- recovery key (v1.8.0) ----
+  const retyped = (keyText, typed) => V().retypeMatches(keyText, typed);
+  const hasRecovery = () => { requireUnlocked(); return ks.wraps.some((w) => w.kind === 'recovery'); };
+  // True when `text` is the current recovery key (a typo is RECOVERY_KEY_FORMAT). Opens nothing.
+  async function recoveryMatches(text) {
+    requireUnlocked();
+    try { await V().unwrapWith(ks.wraps, { recovery: text }); return true; }
+    catch (e) { if (e && e.code === 'BAD_RECOVERY_KEY') return false; throw e; }
+  }
+  // Start turning a recovery key on, or replacing the one in force. Asks for the main passphrase. Resolves to { key, finish(typed), cancel() }:
+  // key is the new key text (shown once by the caller); nothing changes until finish(typed) gets the key retyped (all of it, or its last two groups).
+  async function beginRecovery(passphrase) {
+    requireUnlocked();
+    if (!(await matchesMain(passphrase))) throw wrongPass();
+    const text = await V().newRecoveryKey(), st0 = state;
+    let live = true;
+    const handle = {
+      key: text,
+      cancel() { live = false; },
+      finish: (typed) => serial(async () => {
+        requireUnlocked();
+        if (!live || state !== st0) throw new Error('That recovery key is no longer valid. Start again.');
+        if (!retyped(text, typed)) { const e = new Error('That is not the recovery key shown. Check it against the key on screen and try again.'); e.code = 'RECOVERY_RETYPE'; throw e; }
+        if (!(await matchesMain(passphrase))) throw wrongPass();
+        await rotateKeys(passphrase, text);
+        live = false;
+      }),
+    };
+    return handle;
+  }
+  // Turn the recovery key off (asks for the main passphrase): the data key rotates and the recovery wrap is gone.
+  function turnOffRecovery(passphrase) {
+    return serial(async () => {
+      requireUnlocked();
+      if (!(await matchesMain(passphrase))) throw wrongPass();
+      await rotateKeys(passphrase, null);
+    });
+  }
+  const RECOVERY_HOLD_MS = 5 * 60 * 1000;
+  // Forgot the passphrase: open the vault with the recovery key (nothing is written yet) and resolve to { prepare(newPass), cancel() }.
+  // prepare(newPass) resolves to { key, finish(typed) }: a new data key, the new passphrase and a new recovery key; the key used stops working.
+  async function openWithRecovery(recoveryText) {
+    if (state || ks) throw new Error('VAULT_OPEN');
+    const a = getAdapter(), env = await a.get(KEY);
+    if (!env) throw new Error('NO_VAULT');
+    const o = await V().openEnvelope(env, { recovery: recoveryText });
+    const st = validateState(o.raw), m = readMeta(env, o.raw), before = JSON.stringify(env);
+    // SEC-129: the decrypted copy waits on the lock screen for a new passphrase only for a limited time; cancel or the limit empties it.
+    let live = true;
+    const until = Date.now() + RECOVERY_HOLD_MS;
+    const drop = () => { live = false; try { replaceContents(st, {}); } catch (e) { /* ignore */ } };
+    const timer = setTimeout(drop, RECOVERY_HOLD_MS);
+    if (timer && typeof timer.unref === 'function') timer.unref();
+    const gone = () => { if (live && Date.now() > until) drop(); if (!live) throw new Error('That recovery key is no longer valid. Start again.'); };
+    return {
+      cancel() { clearTimeout(timer); if (live) drop(); }, // after a finished recovery st is the live state: never emptied here
+      prepare: async (newPass) => {
+        gone();
+        V().checkPassphrase(newPass);
+        if (st.priv && L.priv && (await L.priv.matches(st.priv, newPass))) throw new Error('The main passphrase must be different from the private vault passphrase.');
+        const text = await V().newRecoveryKey();
+        return {
+          key: text,
+          finish: (typed) => serial(async () => {
+            gone();
+            if (state || ks) throw new Error('That recovery key is no longer valid. Start again.');
+            if (!retyped(text, typed)) { const e = new Error('That is not the recovery key shown. Check it against the key on screen and try again.'); e.code = 'RECOVERY_RETYPE'; throw e; }
+            if (JSON.stringify(await a.get(KEY)) !== before) throw new Error('The vault changed while you were recovering it. Nothing was written. Start again.');
+            deviceId = m.deviceId || deviceId;
+            const nk = await V().newKeyset(newPass, text);
+            const sealed = await seal(nk, st, m.rev + 1);
+            await a.set(KEY, sealed.env);
+            ks = nk; state = st; meta = sealed.m; live = false; clearTimeout(timer);
+            if (L.search) L.search.build();
+            return st;
+          }),
+        };
+      },
+    };
   }
   // v1.3.0: dates, counters, the storage result and diagnostics describe this device, so a restored or downloaded copy never replaces them;
   // the reminder settings come from the copy only when it is new enough to carry them.
@@ -1094,7 +1200,7 @@
       // check, and a different OAuth client ID would be swapped in without the user seeing it.
       clean.settings.sync = Object.assign({}, st.settings.sync);
       keepLocalOps(clean, st, src);
-      const sealed = await seal(key, salt, clean, meta.rev + 1);
+      const sealed = await seal(ks, clean, meta.rev + 1);
       if (state !== st) throw new Error('LOCKED');
       await getAdapter().set(KEY, sealed.env);
       if (state !== st) throw new Error('LOCKED');
@@ -1105,47 +1211,52 @@
   }
   // ---- sync support (additive) ----
   const getMeta = () => { requireUnlocked(); return Object.assign({}, meta); };
-  // Public identifier of the live key: its salt in base64 (the salt is not secret; it is in every envelope).
-  const saltId = () => { requireUnlocked(); return btoa(String.fromCharCode.apply(null, salt)); };
+  // Public identifier of the live key generation: the passphrase wrap's salt in base64 (not secret; it is in every envelope). Every change of
+  // passphrase or recovery key makes new wraps with fresh salts, so a change on one device is still seen as a local change.
+  const saltOf = (k) => k.wraps.find((w) => w.kind === 'passphrase').kdf.salt;
+  const saltId = () => { requireUnlocked(); return saltOf(ks); };
   // Current stored envelope, re-sealed first if it has no rev yet or must reach at least minRev.
   // opts.snapshot(state): an async function run on the live state inside the same serial step, so its result describes exactly the
   // exported content (CR-1); the call then resolves to { env, snap, saltId }.
   function exportEnvelope(minRev, opts) {
     return serial(async () => {
       requireUnlocked();
-      const a = getAdapter(), st = state, k = key, sl = salt;
+      const a = getAdapter(), st = state, k = ks;
       let env = await a.get(KEY);
       const want = Math.max(meta.rev, Number.isInteger(minRev) ? minRev : 0);
       if (!env) throw new Error('NO_VAULT');
-      if (env.rev === undefined || env.rev < want) {
-        const sealed = await seal(k, sl, validateState(st), want);
-        if (state !== st || key !== k) throw new Error('LOCKED');
+      // A v1 file is rewritten as v2 here, so every copy that leaves this device carries the wraps.
+      if (env.rev === undefined || env.rev < want || env.fmt !== 2) {
+        const sealed = await seal(k, validateState(st), want);
+        if (state !== st || ks !== k) throw new Error('LOCKED');
         await a.set(KEY, sealed.env);
         meta = sealed.m; env = sealed.env;
       }
       if (opts && typeof opts.snapshot === 'function') {
         const snap = await opts.snapshot(st);
-        if (state !== st || key !== k) throw new Error('LOCKED');
-        return { env, snap, saltId: btoa(String.fromCharCode.apply(null, sl)) };
+        if (state !== st || ks !== k) throw new Error('LOCKED');
+        return { env, snap, saltId: saltOf(k) };
       }
       return env;
     });
   }
-  // Open an untrusted remote envelope. Uses the live key when the salt matches, else needs the passphrase.
+  // Open an untrusted remote envelope. Uses the live key when its wraps are exactly ours, else needs the passphrase.
   async function inspectEnvelope(env, passphrase) {
     requireUnlocked();
-    const { salt: sl } = V().parseEnvelope(env);
-    let k;
-    if (sl.length === salt.length && sl.every((b, i) => b === salt[i])) k = key;
-    else {
-      if (typeof passphrase !== 'string' || !passphrase) { const e = new Error('Enter the passphrase of the Drive copy.'); e.code = 'NEED_PASSPHRASE'; throw e; }
-      k = await V().deriveKey(passphrase, sl);
-    }
+    const p = V().parseEnvelope(env);
+    const same = p.fmt === 2 && JSON.stringify(p.wraps) === JSON.stringify(ks.wraps);
+    let o;
+    if (same) o = { key: ks.key, kek: ks.kek, wraps: ks.wraps, fmt: 2 };
+    else if (typeof passphrase !== 'string' || !passphrase) { const e = new Error('Enter the passphrase of the Drive copy.'); e.code = 'NEED_PASSPHRASE'; throw e; }
     let raw;
-    try { raw = await V().decrypt(k, env); }
-    catch (e) { const x = new Error('The Drive copy uses a different passphrase.'); x.code = 'WRONG_PASSPHRASE'; throw x; }
+    try {
+      if (same) { await V().checkShell(p.clean, ks.kek); raw = await V().decrypt(ks.key, p.data); }
+      else { o = await V().openEnvelope(env, passphrase); raw = o.raw; }
+    } catch (e) { const x = new Error('The Drive copy uses a different passphrase.'); x.code = 'WRONG_PASSPHRASE'; throw x; }
     const m = readMeta(env, raw);
-    return { meta: m, state: validateState(raw), sourceSchema: raw && raw.schema, key: k, salt: sl, env, sameKey: k === key };
+    // A v1 copy opens with the passphrase; its v2 key set is made now and the stored copy is rewritten on the next save.
+    const k = o.fmt === 2 ? { key: o.key, kek: o.kek, wraps: o.wraps } : await V().newKeyset(passphrase, null);
+    return { meta: m, state: validateState(raw), sourceSchema: raw && raw.schema, ks: k, salt: p.salt, env, sameKey: same };
   }
   // Replace the local vault with an inspected remote one (same passphrase).
   function adoptEnvelope(info) {
@@ -1154,11 +1265,9 @@
       const st = state, e = info.env;
       dropPriv();
       // Persist only the known envelope fields, never whatever else the remote JSON carried.
-      const env = { v: e.v, kdf: { name: e.kdf.name, hash: e.kdf.hash, iter: e.kdf.iter, salt: e.kdf.salt }, iv: e.iv, ct: e.ct };
-      if (e.rev !== undefined) Object.assign(env, { rev: e.rev, updatedAt: e.updatedAt, deviceId: e.deviceId });
-      await getAdapter().set(KEY, env);
+      await getAdapter().set(KEY, V().cleanEnvelope(e));
       if (state !== st) throw new Error('LOCKED');
-      key = info.key; salt = info.salt; meta = Object.assign({}, info.meta);
+      ks = info.ks; meta = Object.assign({}, info.meta);
       // SEC-94: like a restore, a downloaded copy never replaces this device's ops (diagnostics, storage result, dates, snooze).
       // The sync bookkeeping write that follows every adopt seals this into the stored envelope.
       const next = JSON.parse(JSON.stringify(info.state));
@@ -1173,19 +1282,18 @@
   // validateState, as inspectEnvelope) does, and only then make one write. Any failure before that write leaves nothing stored.
   async function startFrom(passphrase, clean, rev, deviceFrom) {
     const a = getAdapter();
-    const sl = V().newSalt();
-    const k = await V().deriveKey(passphrase, sl);
-    const sealed = await seal(k, sl, clean, rev);
+    const k = await V().newKeyset(passphrase, null);
+    const sealed = await seal(k, clean, rev);
     if (await a.get(KEY)) throw new Error('VAULT_EXISTS');
     await a.set(KEY, sealed.env);
-    key = k; salt = sl; state = clean; meta = sealed.m;
+    ks = k; state = clean; meta = sealed.m;
     if (L.search) L.search.build();
     return clean;
   }
   // Restore a verified backup (the state importBackup returned) as this device's new vault under `passphrase`.
   function createFromBackup(passphrase, backupState) {
     return serial(async () => {
-      if (state || key) throw new Error('VAULT_EXISTS');
+      if (state || ks) throw new Error('VAULT_EXISTS');
       V().checkPassphrase(passphrase);
       const clean = validateState(backupState);
       const src = backupState && typeof backupState.sourceSchema === 'number' ? backupState.sourceSchema : clean.sourceSchema;
@@ -1202,25 +1310,24 @@
   // Use a Drive copy (an envelope) as this device's new vault under the same passphrase. Same checks as sync.inspect and adoptEnvelope.
   function installEnvelope(env, passphrase) {
     return serial(async () => {
-      if (state || key) throw new Error('VAULT_EXISTS');
+      if (state || ks) throw new Error('VAULT_EXISTS');
       if (typeof passphrase !== 'string' || !passphrase) { const e = new Error('Enter the passphrase of the Drive copy.'); e.code = 'NEED_PASSPHRASE'; throw e; }
-      const { salt: sl } = V().parseEnvelope(env);
-      const k = await V().deriveKey(passphrase, sl);
-      let raw;
-      try { raw = await V().decrypt(k, env); }
+      const parsed = V().parseEnvelope(env);
+      let o, raw;
+      try { o = await V().openEnvelope(env, passphrase); raw = o.raw; }
       catch (e) { const x = new Error('The Drive copy uses a different passphrase.'); x.code = 'WRONG_PASSPHRASE'; throw x; }
       const m = readMeta(env, raw), st = validateState(raw), a = getAdapter();
       if (await a.get(KEY)) throw new Error('VAULT_EXISTS');
-      // Persist only the known envelope fields, never whatever else the remote JSON carried.
-      const out = { v: env.v, kdf: { name: env.kdf.name, hash: env.kdf.hash, iter: env.kdf.iter, salt: env.kdf.salt }, iv: env.iv, ct: env.ct };
-      if (env.rev !== undefined) Object.assign(out, { rev: env.rev, updatedAt: env.updatedAt, deviceId: env.deviceId });
-      await a.set(KEY, out);
-      key = k; salt = sl; meta = Object.assign({}, m); deviceId = m.deviceId || deviceId;
+      // Persist only the known envelope fields, never whatever else the remote JSON carried. A v1 copy is stored as it came and rewritten as v2 on the next save.
+      await a.set(KEY, V().cleanEnvelope(env));
+      ks = o.fmt === 2 ? { key: o.key, kek: o.kek, wraps: o.wraps } : await V().newKeyset(passphrase, null);
+      if (o.fmt === 1) carryKeySalt(st, parsed, ks);
+      meta = Object.assign({}, m); deviceId = m.deviceId || deviceId;
       const fresh = defaultState();
       st.ops = fresh.ops; // the device's own dates and diagnostics start empty, as after a restore
       state = st;
       if (L.search) L.search.build();
-      return { meta: Object.assign({}, m), state: st, sourceSchema: raw && raw.schema, salt: sl };
+      return { meta: Object.assign({}, m), state: st, sourceSchema: raw && raw.schema, salt: parsed.salt };
     });
   }
   async function wipe() {
@@ -1230,5 +1337,5 @@
 
   // Validation helpers shared with home.js and admin.js (same rules and messages as the rest of validateState).
   L.validate = { fail, isObj, str, num, date, oneOf, bool, arr, strip, ts, newId };
-  L.store = { SCHEMA, _rawEnvelope: () => getAdapter().get(KEY), matchesMain, _setAdapter, exists, init, unlock, lock, isUnlocked, getState, commit, changePassphrase, replaceState, wipe, validateState, newId, defaultState, getMeta, saltId, exportEnvelope, inspectEnvelope, adoptEnvelope, createFromBackup, installEnvelope, dropsWork, droppedData, nameList, lossText, lossWhy, LOCATION_TYPES, LOST_REASONS, COMP_FIELDS, validateGoals: (list, privOk) => cleanGoals(list, privOk === true) };
+  L.store = { SCHEMA, RECOVERY_HOLD_MS, _rawEnvelope: () => getAdapter().get(KEY), matchesMain, hasRecovery, recoveryMatches, beginRecovery, turnOffRecovery, openWithRecovery, _setAdapter, exists, init, unlock, lock, isUnlocked, getState, commit, changePassphrase, replaceState, wipe, validateState, newId, defaultState, getMeta, saltId, exportEnvelope, inspectEnvelope, adoptEnvelope, createFromBackup, installEnvelope, dropsWork, droppedData, nameList, lossText, lossWhy, LOCATION_TYPES, LOST_REASONS, COMP_FIELDS, validateGoals: (list, privOk) => cleanGoals(list, privOk === true) };
 })();

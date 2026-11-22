@@ -213,11 +213,15 @@ test('SEC-23 a foreign error with a string code is replaced by a fixed message',
 test('SEC-24 adoptEnvelope stores only the known envelope fields', async () => {
   const { ad } = await fresh();
   const env = await L.store.exportEnvelope();
-  const remote = Object.assign({}, env, { junk: 'x'.repeat(1000), kdf: Object.assign({}, env.kdf, { extra: 1 }) });
-  const info = await L.store.inspectEnvelope(JSON.parse(JSON.stringify(remote)));
+  // v1.8.0: an envelope v2 with an unknown field is refused whole (strict parse); the junk-stripping below is proved on a v1-format copy.
+  await assert.rejects(L.store.inspectEnvelope(Object.assign(JSON.parse(JSON.stringify(env)), { junk: 'x' })), { message: 'BAD_PASSPHRASE_OR_DATA' });
+  const V1 = L.vault, salt1 = V1.parseEnvelope(env).salt, key1 = await V1.deriveKey(PASS, salt1), raw1 = await V1.decrypt(key1, env);
+  const env1 = Object.assign(await V1.makeEnvelope(key1, salt1, raw1), { rev: env.rev, updatedAt: env.updatedAt, deviceId: env.deviceId });
+  const remote = Object.assign({}, env1, { junk: 'x'.repeat(1000), kdf: Object.assign({}, env1.kdf, { extra: 1 }) });
+  const info = await L.store.inspectEnvelope(JSON.parse(JSON.stringify(remote)), PASS);
   await L.store.adoptEnvelope(info);
   const stored = await ad.get('envelope');
-  assert.deepEqual(Object.keys(stored).sort(), ['ct', 'deviceId', 'iv', 'kdf', 'rev', 'updatedAt', 'v']);
+  assert.deepEqual(Object.keys(stored).sort(), ['ct', 'deviceId', 'iv', 'kdf', 'rev', 'updatedAt', 'v']); // the v1 copy as adopted
   assert.deepEqual(Object.keys(stored.kdf).sort(), ['hash', 'iter', 'name', 'salt']);
   L.store.lock(); await L.store.unlock(PASS);
 });
