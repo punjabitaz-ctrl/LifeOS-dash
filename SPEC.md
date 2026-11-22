@@ -615,3 +615,29 @@ Where the addendum was ambiguous the safer reading was taken.
 3. After "Use recovery key" on the lock screen, the decrypted copy waits at most 5 minutes for the new passphrase; Back, Cancel and the limit empty it (SEC-129).
 4. A passphrase change with a recovery key on checks the current passphrase before a new key is shown (SEC-130).
 5. A key included on the recovery sheet is dropped as soon as another screen is drawn (SEC-131).
+
+## v2.0.0 addendum: NAS (owner decisions, 22 Nov 2026; draft, build not started)
+Source: docs/review/product-ops.md B23, B13 (LAN host), B24, B26. Owner decisions: the NAS runs TrueNAS; he reaches home over Tailscale when away; LifeOS moves to a subdomain of tazabbas.com; local AI runs the smallest practical model on the NAS and a stronger model on his primary PC (RTX 5070); Google Drive stays as the second, backup copy. Full security audit, focused on the new transport, the sync service and the CSP change.
+
+### Network and names (one config file, not secrets)
+- All names live in one build-time file (config/hosts.json) read by build.mjs into the CSP; changing a name is a config change plus a rebuild. Defaults: app `lifeos.tazabbas.com` (Cloudflare Worker behind Access, as today), sync `sync.lifeos.tazabbas.com` and small model `ai-nas.lifeos.tazabbas.com` (both on the NAS), stronger model `ai-pc.lifeos.tazabbas.com` (the PC).
+- The three home names resolve in Cloudflare DNS (DNS only, never proxied) to Tailscale addresses, so they answer only on his tailnet, at home and away. TLS by Caddy on the NAS and on the PC with a Let's Encrypt certificate through the Cloudflare DNS challenge; the Cloudflare API token for that lives only on those machines, never in the repo, the app or chat. No ports opened on the router.
+- CSP connect-src gains exactly those three https origins, nothing user-entered. Each home service allows CORS only from the app origin.
+- Moving the app to the new origin moves browser storage: the guide covers carrying the vault across by backup and restore or by a Drive sync, and Drive's OAuth client gains the new origin. The workers.dev address keeps working until he retires it.
+
+### NAS sync service (B23)
+- A small service in this repo (Node built-ins only, no dependencies), shipped as a container for a TrueNAS custom app with a compose file and a setup guide. It stores only ciphertext envelopes (main vault and archive files) on a dataset he picks; it never receives a passphrase, recovery key or plaintext.
+- API: get the current envelope and its revision; put with the expected revision (compare-and-swap; a mismatch returns the current revision and the app shows the existing conflict dialog); list, put and get archive files; keep the last 30 envelope versions and offer a restore of one. Size caps match the app's; strict validation; constant-time token check; rate limits; logs hold codes and sizes only, never content.
+- Auth on top of the tailnet: a long random sync token per device, created in Settings, kept inside the encrypted vault (never in plain browser storage), registered on the service by its hash; revocable per device.
+- In the app: NAS becomes the primary sync target with Drive as the second copy. Sync now writes to the NAS first, then Drive; status shows both; archiving's verified-copy rule accepts a NAS copy re-downloaded and decrypted. Sync stays manual (no background sync), conflict rules unchanged.
+
+### Local AI hosts (B13)
+- Ollama on the NAS for the smallest practical model and on the PC for a stronger one, each behind Caddy at its fixed name, with Ollama's allowed origins set to the app origin only. The setup guide names the models after a check of current options at build time; no model is bundled.
+- In AI settings: choose NAS model, PC model, Anthropic, manual or none; an optional fallback (for example PC, then NAS when the PC is off). The numbers-only boundary is unchanged for every provider; Test connection works for each.
+
+### Only if needed
+- B24 faster saves (per-area encryption) only if saves stay slow at his real data size after the first real run.
+- B26 custom domain is covered by the move above.
+
+### Rules
+- Schema bump only if state changes (sync targets, device tokens, AI host choice), with migrations from 1 and downgrade guards. Tests prove: compare-and-swap and conflicts, version history and restore, token checks and revocation, no plaintext or key material ever sent to or stored by the service, CORS limited to the app origin, CSP lists only the configured names, AI boundary unchanged for the new hosts, archive copies verified from the NAS. The service gets its own unit tests and a smoke that runs it locally in the build workspace.
