@@ -1,0 +1,18 @@
+# TrueNAS custom app (Install via YAML) or `docker compose up -d`. Replace the two host paths with your own datasets.
+# The service listens on plain http. Publish it only on the NAS's own address for Caddy; never to the internet.
+services:
+  lifeos-sync:
+    image: lifeos-sync:2.0.0            # built from server/Dockerfile (see docs/NAS-SETUP.md)
+    restart: unless-stopped
+    environment:
+      # The one origin allowed by CORS: the app's address. Add the workers.dev address, comma separated, only while you still use it.
+      LIFEOS_APP_ORIGINS: "https://lifeos.tazabbas.com"
+    ports:
+      - "127.0.0.1:8787:8787"           # Caddy on the same machine reaches it here
+    volumes:
+      - /mnt/POOL/lifeos/data:/data     # ciphertext only: vault versions and archive files
+      - /mnt/POOL/lifeos/config:/config # tokens.json (hashes only) and optional config.json
+    read_only: true
+    tmpfs: ["/tmp"]
+    cap_drop: ["ALL"]
+    security_opt: ["no-new-privileges:true"]

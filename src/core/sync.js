@@ -249,6 +249,8 @@
     const s = JSON.parse(JSON.stringify(state));
     delete s.audit; delete s.ops;
     if (s.settings) { delete s.settings.sync; delete s.settings.setup; }
+    // v2.0.0: the NAS token and bookkeeping describe this device, not the content.
+    if (s.settings) delete s.settings.nas;
     const d = await L._webcrypto.subtle.digest('SHA-256', new TextEncoder().encode(stable(s)));
     return Array.from(new Uint8Array(d), (x) => x.toString(16).padStart(2, '0')).join('');
   }
@@ -398,5 +400,7 @@
     fetchCopy, installCopy, takeClientId,
     SCOPE, FILE_NAME, MAX_REMOTE, isAvailable, validateClientId, buildAuthUrl, begin, parseFragment, consumeReturn, takeReturn,
     isConnected, expiresAt, disconnect, run, apply, fingerprint, putNamed, getNamed, _setFetch, _setToken,
+    // shared with the NAS target (src/core/nas.js): the same summary, fingerprint and snapshot export
+    _shared: { summary, hide, exportSnap, fingerprint, OWN, err },
   };
 })();

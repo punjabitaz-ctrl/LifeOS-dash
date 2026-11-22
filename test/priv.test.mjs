@@ -629,7 +629,7 @@ test('schema 1 to 9 migrate into 10 with no loss: every text an old copy held is
   for (let n = 1; n <= 9; n++) {
     const old = asSchema(n, src), oldText = text(old);
     const got = S.validateState(clone(old));
-    assert.equal(got.schema, 19); assert.equal(got.sourceSchema, n); assert.ok(!got.priv); assert.equal(got.settings.privAutoLockSec, 60);
+    assert.equal(got.schema, 20); assert.equal(got.sourceSchema, n); assert.ok(!got.priv); assert.equal(got.settings.privAutoLockSec, 60);
     const gotText = text(got);
     for (const m of new Set(oldText.match(/LEAK mark \d+/g) || [])) assert.ok(gotText.includes(m), 'schema ' + n + ' lost ' + m);
     for (const c of P.COLLECTIONS) assert.ok(c === 'cycle' ? got.cycle === null || typeof got.cycle === 'object' : Array.isArray(got[c]), c);
@@ -646,15 +646,15 @@ test('a stored v0.10.0 vault unlocks, migrates and persists; a v0.10.0 backup im
   await ad.set('envelope', await V.makeEnvelope(key, salt, nine));
   S.lock();
   const st = await S.unlock(PASS);
-  assert.equal(st.schema, 19); assert.equal(st.people.length, 1);
+  assert.equal(st.schema, 20); assert.equal(st.people.length, 1);
   await S.commit(() => {});
-  assert.equal((await (await V.openEnvelope(await ad.get('envelope'), PASS)).raw).schema, 19);
+  assert.equal((await (await V.openEnvelope(await ad.get('envelope'), PASS)).raw).schema, 20);
   const backup = JSON.stringify(await V.makeEnvelope(await realDerive('backup passphrase 1', salt), salt, nine));
   const imp = await V.importBackup('backup passphrase 1', backup);
-  assert.equal(imp.schema, 19); assert.equal(imp.sourceSchema, 9);
+  assert.equal(imp.schema, 20); assert.equal(imp.sourceSchema, 9);
   assert.deepEqual(S.droppedData(S.getState(), imp), []);
   await S.replaceState(imp);
-  assert.equal(S.getState().schema, 19);
+  assert.equal(S.getState().schema, 20);
   // while a vault with a private vault would lose it
   await P.setUp(PRIV);
   assert.deepEqual(S.droppedData(S.getState(), imp), ['private vault']);
@@ -664,7 +664,7 @@ test('a stored v0.10.0 vault unlocks, migrates and persists; a v0.10.0 backup im
 test('an older app (v0.10.0, schema 9) refuses a schema 10 vault in unlock, backup and sync, so it can never strip the private vault', async () => {
   // Rebuild the v0.10.0 validateState gate (SCHEMA 9, accepted list 1 to 8 and SCHEMA) from the current source in a clean context.
   const read = (f) => readFileSync(new URL('../src/core/' + f, import.meta.url), 'utf8');
-  const store = read('store.js').replace('SCHEMA = 19,', 'SCHEMA = 9,').replace('[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, SCHEMA]', '[1, 2, 3, 4, 5, 6, 7, 8, SCHEMA]');
+  const store = read('store.js').replace('SCHEMA = 20,', 'SCHEMA = 9,').replace('[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, SCHEMA]', '[1, 2, 3, 4, 5, 6, 7, 8, SCHEMA]');
   assert.ok(/SCHEMA = 9,/.test(store) && /\[1, 2, 3, 4, 5, 6, 7, 8, SCHEMA\]/.test(store));
   const ctx = vm.createContext({ crypto: globalThis.crypto, TextEncoder, TextDecoder, btoa, atob, console, JSON, Promise, Uint8Array, Date, Math, Array, Object, Set, Map, Number, String, Error, WeakSet, WeakMap, setTimeout, clearTimeout, AbortController, URL, URLSearchParams, structuredClone });
   ctx.globalThis = ctx;

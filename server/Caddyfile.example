@@ -1,0 +1,24 @@
+# Caddy on the NAS. The Cloudflare token is read from the environment (CLOUDFLARE_API_TOKEN), never written in this file.
+# Caddy needs the Cloudflare DNS module (for example the image built with `xcaddy build --with github.com/caddy-dns/cloudflare`).
+# The name must be a DNS-only record in Cloudflare that points at the NAS's Tailscale address, so it answers only on your tailnet.
+sync.lifeos.tazabbas.com {
+	tls {
+		dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+	}
+	# The service is plain http on this machine. Caddy sets X-Forwarded-For for the service's rate limits.
+	reverse_proxy 127.0.0.1:8787
+	# No request or response bodies are logged. Keep access logs off or minimal.
+	log {
+		output discard
+	}
+}
+
+# The model hosts (see docs/AI-SETUP.md). Ollama's allowed origins are set to the app origin only (OLLAMA_ORIGINS).
+ai-nas.lifeos.tazabbas.com {
+	tls {
+		dns cloudflare {env.CLOUDFLARE_API_TOKEN}
+	}
+	reverse_proxy 127.0.0.1:11434 {
+		header_up Host 127.0.0.1:11434
+	}
+}

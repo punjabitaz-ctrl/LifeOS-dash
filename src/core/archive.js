@@ -82,7 +82,7 @@
       }
       if (!Array.isArray(x.copies) || x.copies.length > 20) throw new Error('Invalid data: archive copies');
       const copies = x.copies.map((c) => {
-        if (!isObj(c) || !['drive', 'download'].includes(c.where) || typeof c.at !== 'string' || c.at.length > 40 || typeof c.verified !== 'boolean') throw new Error('Invalid data: archive copy');
+        if (!isObj(c) || !['drive', 'nas', 'download'].includes(c.where) || typeof c.at !== 'string' || c.at.length > 40 || typeof c.verified !== 'boolean') throw new Error('Invalid data: archive copy');
         return { where: c.where, at: c.at, verified: c.verified };
       });
       return { year: x.year, createdAt: x.createdAt, sha256: x.sha256, counts, copies };
@@ -454,7 +454,7 @@
     if (!ok) throw bad('That is not your current recovery key.');
     return text;
   }
-  // opts: { year, passphrase, recoveryKey (needed when a recovery key is on), today, drive: bool, download: bool, io: { put(name,text), get(name), save(name,text), confirmSaved() } }
+  // opts: { year, passphrase, recoveryKey (needed when a recovery key is on), today, drive: bool, nas: bool, download: bool, io: { put(name,text), get(name), nasPut(name,text), nasGet(name), save(name,text), confirmSaved() } }
   // Returns { year, counts, copies }. Throws (leaving the vault untouched) when any step fails or no copy is verified.
   async function archiveYear(opts) {
     const st0 = S().getState(), year = opts.year, today = opts.today || M().todayISO();
@@ -491,7 +491,16 @@
         const back = await io.get(built.name);
         await verify(back, opts.passphrase, pl, built);
         copies.push({ where: 'drive', at: at(), verified: true });
-      } catch (e) { if (!opts.download) throw e; }
+      } catch (e) { if (!opts.download && !opts.nas) throw e; }
+    }
+    // v2.0.0: a NAS copy counts like a Drive copy: written, downloaded again, decrypted and matched by counts and SHA-256.
+    if (opts.nas) {
+      try {
+        await io.nasPut(built.name, built.text);
+        const back = await io.nasGet(built.name);
+        await verify(back, opts.passphrase, pl, built);
+        copies.push({ where: 'nas', at: at(), verified: true });
+      } catch (e) { if (!opts.download && !copies.length) throw e; }
     }
     if (opts.download) {
       io.save(built.name, built.text);

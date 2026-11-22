@@ -1,6 +1,6 @@
 # LifeOS
 
-Version <!--version-->1.8.0<!--/version--> (set by package.json; `node build.mjs` writes it here).
+Version <!--version-->2.0.0<!--/version--> (set by package.json; `node build.mjs` writes it here).
 
 LifeOS (Living Independent and Free Everyday Operating System) is a single-file, offline, local-first life dashboard. It tracks eleven areas (money, assets, work, health and more) plus business records and tax estimates, keeps a private vault with its own passphrase (Wellbeing lives there), builds weekly reviews, and keeps a memory of insights you approve. Vanilla JS, no dependencies.
 
@@ -72,6 +72,14 @@ Build, then open `dist/lifeos.html` in a browser (double-click works, it needs n
 - Important dates (label and name only) appear in the dashboard "At a glance" card; Feb 29 shows on Feb 28 in other years. Pipeline items and projects show linked people and their last contact; unlinking never deletes either side.
 - The weekly review gains a Social step (offers only); Goals gain people overdue and contacts per week. The AI and digest see counts only, with groups numbered by position.
 - Vault schema 9, migrated from schema 1 to 8 with no data loss: each distinct name in old contact entries becomes a person with those entries as the log; an entry that cannot map stays a visible entry. Contact entries added later (for example by CSV import) are offered for conversion, once. `node test/smoke-social.mjs` runs the flow. Audited: names, group names, labels, facts, channels and notes never leave the vault. See the v0.10.0 audit in docs/SECURITY.md.
+
+## v2.0.0: NAS sync and home model hosts
+- NAS sync is the main sync target and Google Drive the second copy. Sync now writes the NAS, then Drive. The service (`server/`, Node built-ins only, run as a container) stores ciphertext only: the vault with its last 30 versions, and archive files. Setup: docs/NAS-SETUP.md.
+- Each device has its own token, made in Settings and kept only inside the encrypted vault; the service holds only its hash and can revoke it per device.
+- AI providers gain "NAS model" and "PC model" (Ollama behind Caddy at fixed names from `config/hosts.json`) with an optional fallback and a Test connection for each. Setup: docs/AI-SETUP.md.
+- `config/hosts.json` names the app, sync, ai-nas and ai-pc hosts; the build puts exactly the three home origins into connect-src.
+- Service tests: `node --test server/test/`; the service smoke: `node test/smoke-nas-service.mjs`; the page smoke: `node test/smoke-nas.mjs`.
+- Audited 22 Nov 2026: SEC-134 (Medium) and SEC-135 to SEC-138 (Low) fixed with regression tests, SEC-139 (Info), see docs/SECURITY.md "v2.0.0 audit". If the NAS copy is older than the last sync (after a restore or snapshot rollback on the NAS), Sync offers "Replace the NAS copy" after saving it to a file.
 
 ## v1.8.0: Passphrase recovery
 - Optional recovery key for the main vault and a separate one for the private vault (256 random bits, shown once, never stored). Turn on, replace or turn off in Settings and on the private vault screen; "Use recovery key" on each lock screen sets a new passphrase and a new key. See docs/RECOVERY.md.

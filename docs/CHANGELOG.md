@@ -2,6 +2,14 @@
 
 Newest first. One line per change. Versions come from package.json (see docs/RUNBOOK.md); fixes by number are described in docs/SECURITY.md.
 
+## 2.0.0 (schema 20): NAS sync and home model hosts
+- config/hosts.json (app, sync, ai-nas, ai-pc) is read by build.mjs into connect-src: exactly the three home https origins are added, nothing user-entered.
+- server/: the NAS sync service (Node built-ins only). Ciphertext-only storage, compare-and-swap puts with atomic writes, the last 30 versions with list and restore, archive files, hashed per-device bearer tokens (add, register, revoke), CORS only for the configured app origins, rate limits, logs with codes and sizes only. Dockerfile, compose file, Caddyfile example, docs/NAS-SETUP.md.
+- App: the NAS is the primary sync target and Drive the second copy (Sync now writes the NAS, then Drive; status for both; same conflict dialog and rules; manual only). Device tokens are made in Settings and kept only inside the encrypted vault. Archive copies can go to the NAS and count as verified when read back and decrypted. "Connect Tailscale and try again" when a home host cannot be reached.
+- AI: providers "NAS model" and "PC model" beside Anthropic, local, manual and none, an optional fallback, Test connection for each; the numbers-only boundary is unchanged. docs/AI-SETUP.md covers Ollama behind Caddy.
+- Schema 20 (settings.nas, settings.aiHosts), migrations from 1 and downgrade guards. Decisions in SPEC.md "Amendment (v2.0.0 build)". Tests: server/test/, test/v200.test.mjs, test/v200-hosts.test.mjs, test/v200-ai.test.mjs, test/smoke-nas.mjs, test/smoke-nas-service.mjs.
+- Existing tests: schema numbers 19 to 20 and "newer schema" fixtures 20 to 21, one connect-src pattern, and the v1.8.0 older-app emulation (see the build notes in docs/HANDOFF.md).
+
 ## 1.8.0 (schema 19): Passphrase recovery
 - Envelope v2: each vault (main and private) has a random 256-bit data key, kept only wrapped under the passphrase and, when turned on, a recovery key. v1 files still open and are rewritten as v2 on the next save. An older app opens a v2 file with the passphrase, reads a stub that says "schema 20" and refuses it with its newer-version message.
 - Optional recovery keys, separate for the main and the private vault: 256 random bits as grouped base32 with a checksum, shown once, retyped to confirm, never stored. Turn on, replace, turn off and a passphrase change replace the data key. "Use recovery key" on the lock screen and the private unlock sets a new passphrase and a new key. Wrong keys share the unlock attempt delays.

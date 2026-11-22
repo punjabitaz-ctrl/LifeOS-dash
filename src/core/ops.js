@@ -11,7 +11,7 @@
   // ---- fixed vocabulary ----
   const AREAS = Object.freeze(['app', 'lock', 'dashboard', 'money', 'assets', 'work', 'health', 'goals', 'home', 'admin', 'learning', 'activities', 'social', 'wellbeing', 'business', 'review', 'memory', 'settings', 'private', 'archive', 'sync', 'backup', 'storage', 'csv', 'ai']);
   const BASE_CODES = ['UNKNOWN_ERROR', 'RENDER_ERROR', 'DECRYPT_FAIL', 'PRIV_DECRYPT_FAIL', 'STORAGE_QUOTA', 'STORAGE_PERSIST_ERROR', 'STORAGE_ESTIMATE_ERROR', 'BACKUP_EXPORT_FAIL',
-    'SYNC_409', 'SYNC_RECONNECT', 'SYNC_CHANGED', 'SYNC_HTTP', 'SYNC_TOO_LARGE', 'SYNC_ROLLBACK', 'SYNC_TAMPER', 'SYNC_INVALID', 'SYNC_OLDER_FORMAT', 'SYNC_LOCAL_CHANGED', 'SYNC_FAIL',
+    'SYNC_409', 'SYNC_RECONNECT', 'SYNC_CHANGED', 'SYNC_HTTP', 'SYNC_TOO_LARGE', 'SYNC_ROLLBACK', 'SYNC_TAMPER', 'SYNC_INVALID', 'SYNC_OLDER_FORMAT', 'SYNC_LOCAL_CHANGED', 'SYNC_FAIL', 'SYNC_NAS_UNREACHABLE', 'SYNC_NAS_AUTH',
     'CSV_REJECT', 'AI_TIMEOUT', 'AI_NETWORK', 'AI_HTTP', 'AI_BAD_REPLY', 'AI_FAIL', 'ARCHIVE_FAIL'];
   const CODES = Object.freeze(BASE_CODES.concat(AREAS.map((a) => 'UNCAUGHT_' + a.toUpperCase()), AREAS.map((a) => 'REJECTION_' + a.toUpperCase())));
   const CODE_SET = new Set(CODES), AREA_SET = new Set(AREAS);
@@ -20,6 +20,7 @@
     ROLLBACK: 'SYNC_ROLLBACK', TAMPER: 'SYNC_TAMPER', REMOTE_INVALID: 'SYNC_INVALID', REMOTE_CHANGED: 'SYNC_CHANGED', RECONNECT: 'SYNC_RECONNECT', HTTP: 'SYNC_HTTP',
     TOO_LARGE: 'SYNC_TOO_LARGE', OLDER_FORMAT: 'SYNC_OLDER_FORMAT', LOCAL_CHANGED: 'SYNC_LOCAL_CHANGED', WRONG_PASSPHRASE: 'DECRYPT_FAIL',
     AI_TIMEOUT: 'AI_TIMEOUT', AI_NETWORK: 'AI_NETWORK', AI_HTTP: 'AI_HTTP', AI_BAD_REPLY: 'AI_BAD_REPLY',
+    NAS_UNREACHABLE: 'SYNC_NAS_UNREACHABLE', NAS_AUTH: 'SYNC_NAS_AUTH',
     ARCHIVE: 'ARCHIVE_FAIL', CSV: 'CSV_REJECT' // SEC-95: archive and CSV failures carry these fixed keys
   });
   const PERSIST = Object.freeze(['unknown', 'granted', 'denied', 'unavailable', 'error']);

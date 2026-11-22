@@ -12,10 +12,22 @@
   const DEFAULT_MODEL = 'claude-haiku-4-5';
   const MAX_OUT = 20000;
 
+  // v2.0.0: the NAS and PC model hosts are the fixed names the build put in LifeOS.HOSTS (config/hosts.json). Nothing user-entered forms the address.
+  const HOME_KEY = { nas: 'ai-nas', pc: 'ai-pc' };
+  const HOME_NAME = { nas: 'NAS model', pc: 'PC model' };
+  const MODEL_RE = /^[A-Za-z0-9][A-Za-z0-9._:\/@-]{0,99}$/;
+  let hostsOverride = null;
+  function _setHosts(h) { hostsOverride = h && typeof h === 'object' ? h : null; }
+  function hostFor(kind) {
+    const h = hostsOverride || L.HOSTS;
+    const name = h && typeof h === 'object' ? h[HOME_KEY[kind]] : '';
+    return typeof name === 'string' && /^[a-z0-9.-]{3,253}$/.test(name) ? name : '';
+  }
+  const isHome = (k) => k === 'nas' || k === 'pc';
   function validateProvider(p) {
     if (!p || typeof p !== 'object') throw new Error('Provider required');
     const kind = p.kind;
-    if (!['none', 'anthropic', 'local', 'manual'].includes(kind)) throw new Error('Unknown provider');
+    if (!['none', 'anthropic', 'local', 'manual', 'nas', 'pc'].includes(kind)) throw new Error('Unknown provider');
     const s = (v, max, n) => { if (v === undefined || v === null) return ''; if (typeof v !== 'string' || v.length > max) throw new Error(n + ' is invalid'); return v.trim(); };
     const out = { kind, baseUrl: s(p.baseUrl, 200, 'Base URL'), model: s(p.model, 100, 'Model'), apiKey: s(p.apiKey, 300, 'API key') };
     if (out.apiKey && !/^[\x21-\x7e]+$/.test(out.apiKey)) throw new Error('API key contains invalid characters');
@@ -25,6 +37,11 @@
       if (!out.model) throw new Error('Model name is required for a local provider');
     }
     if (kind === 'anthropic') { out.baseUrl = ''; if (!out.model) out.model = DEFAULT_MODEL; }
+    if (isHome(kind)) {
+      out.baseUrl = ''; out.apiKey = '';
+      if (!out.model) throw new Error('Model name is required for the ' + HOME_NAME[kind]);
+      if (!MODEL_RE.test(out.model)) throw new Error('Model name is invalid');
+    }
     return out;
   }
 
@@ -61,23 +78,46 @@
 
   // v1.3.0: a fixed code on each failure, so diagnostics can name it without keeping any text.
   const coded = (e, code) => { e.code = code; return e; };
-  async function complete(provider, prompt, fetchImpl) {
+  // opts: { hosts: settings.aiHosts (models of the two home hosts and the optional fallback), report: an object that receives { kind } of the host that answered }.
+  // The fallback is tried only when the first host could not be reached or timed out, never after an answer or an error reply. The prompt is the same object.
+  async function complete(provider, prompt, fetchImpl, opts) {
     // The private vault is always closed before any AI call.
     if (L.priv) L.priv.close('system');
     const p = validateProvider(provider);
     if (p.kind === 'none' || p.kind === 'manual') throw new Error('MANUAL');
     if (!prompt || typeof prompt.system !== 'string' || typeof prompt.user !== 'string') throw new Error('Invalid prompt');
+    try {
+      const text = await completeOne(p, prompt, fetchImpl);
+      if (opts && opts.report) opts.report.kind = p.kind;
+      return text;
+    } catch (e) {
+      const h = opts && opts.hosts, fb = h && (h.fallback === 'nas' || h.fallback === 'pc') ? h.fallback : '';
+      const model = fb ? (fb === 'nas' ? h.nasModel : h.pcModel) : '';
+      if (!fb || fb === p.kind || !(e && (e.code === 'AI_NETWORK' || e.code === 'AI_TIMEOUT')) || !model) throw e;
+      const q = validateProvider({ kind: fb, model });
+      const text = await completeOne(q, prompt, fetchImpl);
+      if (opts && opts.report) opts.report.kind = q.kind;
+      return text;
+    }
+  }
+  async function completeOne(p, prompt, fetchImpl) {
     if (p.kind === 'anthropic' && !p.apiKey) throw new Error('API key is missing');
     const doFetch = fetchImpl || ((...a) => globalThis.fetch(...a));
     const ctl = new AbortController();
-    const timer = setTimeout(() => ctl.abort(), 20000);
+    let timer = setTimeout(() => ctl.abort(), 20000);
+    // A small model that has to load can take a while; the home hosts get a longer limit than the cloud.
+    if (isHome(p.kind)) { clearTimeout(timer); timer = setTimeout(() => ctl.abort(), 90000); }
     let url, headers, body;
     if (p.kind === 'anthropic') {
       url = 'https://api.anthropic.com/v1/messages';
       headers = { 'content-type': 'application/json', 'x-api-key': p.apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' };
       body = { model: p.model, max_tokens: 600, system: prompt.system, messages: [{ role: 'user', content: prompt.user }] };
     } else {
-      url = p.baseUrl + '/chat/completions';
+      if (isHome(p.kind)) {
+        const host = hostFor(p.kind);
+        if (!host) { clearTimeout(timer); throw coded(new Error('The ' + HOME_NAME[p.kind] + ' host is not set in this build'), 'AI_FAIL'); }
+        url = 'https://' + host + '/v1/chat/completions';
+      } else url = p.baseUrl + '/chat/completions';
       headers = { 'content-type': 'application/json' };
       if (p.apiKey) headers.authorization = 'Bearer ' + p.apiKey;
       body = { model: p.model, max_tokens: 600, stream: false, messages: [{ role: 'system', content: prompt.system }, { role: 'user', content: prompt.user }] };
@@ -87,7 +127,7 @@
       res = await doFetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: ctl.signal, credentials: 'omit', redirect: 'error', referrerPolicy: 'no-referrer' });
     } catch (e) {
       clearTimeout(timer);
-      throw coded(new Error(e && e.name === 'AbortError' ? 'The AI request timed out' : 'Could not reach the AI provider'), e && e.name === 'AbortError' ? 'AI_TIMEOUT' : 'AI_NETWORK');
+      throw coded(new Error(e && e.name === 'AbortError' ? 'The AI request timed out' : isHome(p.kind) ? 'Could not reach the ' + HOME_NAME[p.kind] + '. Connect Tailscale and try again.' : 'Could not reach the AI provider'), e && e.name === 'AbortError' ? 'AI_TIMEOUT' : 'AI_NETWORK');
     }
     try {
       if (!res || !res.ok) throw coded(new Error('The AI provider returned an error' + (res && res.status ? ' (HTTP ' + res.status + ')' : '')), 'AI_HTTP');
@@ -112,6 +152,7 @@
   const TEST_CODES = new Set(['AI_TIMEOUT', 'AI_NETWORK', 'AI_HTTP', 'AI_BAD_REPLY', 'AI_FAIL']);
   async function testConnection(provider, fetchImpl) {
     try {
+      // No fallback in a test: it checks exactly the host that was chosen.
       await complete(provider, { system: TEST_PROMPT.system, user: TEST_PROMPT.user }, fetchImpl);
       return { ok: true, code: null };
     } catch (e) {
@@ -123,5 +164,5 @@
     }
   }
 
-  L.ai = { validateProvider, complete, isLocalUrl, testConnection, TEST_PROMPT };
+  L.ai = { validateProvider, complete, isLocalUrl, testConnection, TEST_PROMPT, hostFor, _setHosts };
 })();

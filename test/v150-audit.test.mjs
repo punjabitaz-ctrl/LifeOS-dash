@@ -239,7 +239,7 @@ test('schema 17 migration from every schema 1 to 16 gives the new memory fields 
     s.memory.mutes = [{ domain: 'money', kind: 'savings', at: '2026-11-01T00:00:00.000Z', active: true }];
     s.memory.insights.push({ id: 'q', level: 1, period: PERIOD, domain: 'money', text: 't', source: 'rules', status: 'rejected', createdAt: '2026-11-01T00:00:00.000Z', decidedAt: '2026-11-02T00:00:00.000Z', kind: 'savings', reason: 'other' });
     const got = S.validateState(s);
-    assert.equal(got.schema, 19); assert.equal(got.sourceSchema, n);
+    assert.equal(got.schema, 20); assert.equal(got.sourceSchema, n);
     assert.deepEqual(got.memory.mutes, [], 'mutes from an older format are not trusted');
     assert.equal(got.memory.insights[0].reason, undefined); assert.equal(got.memory.insights[0].kind, undefined);
     assert.equal(got.memory.lastReviewAt, '');

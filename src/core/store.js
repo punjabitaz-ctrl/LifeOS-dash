@@ -2,7 +2,7 @@
   'use strict';
   const L = (globalThis.LifeOS = globalThis.LifeOS || {});
   const KEY = 'envelope';
-  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 19, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
+  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 20, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
   const HABIT_CAP = 8, HABIT_LOG_CAP = 100000, KIND_CAP = 30;
   const RENEWAL_TOTAL_CAP = 2000;
   const ENTRY_CAP = 50000, INSIGHT_CAP = 5000, REVIEW_CAP = 1000, LESSON_CAP = 30, AUDIT_CAP = 200;
@@ -100,12 +100,14 @@
     const t = isObj(s.targets) ? s.targets : fail('targets');
     const p = isObj(s.provider) ? s.provider : fail('provider');
     const provider = {
-      kind: oneOf(p.kind, ['none', 'anthropic', 'local', 'manual'], 'provider kind'),
+      kind: oneOf(p.kind, ['none', 'anthropic', 'local', 'manual', 'nas', 'pc'], 'provider kind'),
       baseUrl: str(p.baseUrl, 200, 'baseUrl', true),
       model: str(p.model, 100, 'model', true),
       apiKey: str(p.apiKey, 300, 'apiKey', true),
     };
     if (provider.kind === 'local' && provider.baseUrl && !(L.ai && L.ai.isLocalUrl(provider.baseUrl))) fail('local provider must use localhost');
+    // v2.0.0: the NAS and PC model hosts are fixed names from the build (config/hosts.json); a stored address is never used, never user-entered.
+    if (provider.kind === 'nas' || provider.kind === 'pc') { provider.baseUrl = ''; provider.apiKey = ''; }
     if (typeof s.currency !== 'string' || !/^[A-Z]{3}$/.test(s.currency)) fail('currency');
     return {
       currency: s.currency,
@@ -117,6 +119,9 @@
       },
       provider,
       sync: cleanSync(s.sync),
+      // v2.0.0: the NAS sync target (this device's token and bookkeeping) and the AI host choices. Older schemas get the defaults.
+      nas: schema >= 20 ? cleanNas(s.nas) : cleanNas(undefined),
+      aiHosts: schema >= 20 ? cleanAiHosts(s.aiHosts) : cleanAiHosts(undefined),
       health: schema >= 4 ? cleanHealthSettings(s.health) : { units: 'lb' },
       home: schema >= 6 ? cleanHomeSettings(s.home) : { starterDone: false },
       learning: schema >= 7 ? L.learning.cleanSettings(s.learning) : { weeklyMinutes: 0 },
@@ -212,6 +217,27 @@
     const ks = x.keySalt === undefined ? '' : str(x.keySalt, 24, 'keySalt', true);
     if (ks && !/^[A-Za-z0-9+/]{22}==$/.test(ks)) fail('keySalt');
     return { clientId: cid, remoteRev: num(x.remoteRev === undefined ? -1 : x.remoteRev, -1, 1e9, 'remoteRev', true), fp, fileId: fid, keySalt: ks };
+  }
+  const TOKEN_RE = /^lfs_[A-Za-z0-9_-]{43}$/;
+  function cleanNas(x) {
+    const d = { token: '', tokenAt: '', remoteRev: -1, srev: -1, fp: '', keySalt: '' };
+    if (x === undefined) return d;
+    if (!isObj(x)) fail('nas');
+    const token = x.token === undefined ? '' : str(x.token, 60, 'nas token', true);
+    if (token && !TOKEN_RE.test(token)) fail('nas token');
+    const at = x.tokenAt === undefined ? '' : str(x.tokenAt, 10, 'nas tokenAt', true);
+    if (at && !/^\d{4}-\d{2}-\d{2}$/.test(at)) fail('nas tokenAt');
+    const fp = x.fp === undefined ? '' : str(x.fp, 64, 'nas fp', true);
+    if (fp && !/^[0-9a-f]{64}$/.test(fp)) fail('nas fp');
+    const ks = x.keySalt === undefined ? '' : str(x.keySalt, 24, 'nas keySalt', true);
+    if (ks && !/^[A-Za-z0-9+/]{22}==$/.test(ks)) fail('nas keySalt');
+    return { token, tokenAt: at, remoteRev: num(x.remoteRev === undefined ? -1 : x.remoteRev, -1, 1e9, 'nas remoteRev', true), srev: num(x.srev === undefined ? -1 : x.srev, -1, 1e9, 'nas srev', true), fp, keySalt: ks };
+  }
+  function cleanAiHosts(x) {
+    const d = { nasModel: '', pcModel: '', fallback: '' };
+    if (x === undefined) return d;
+    if (!isObj(x)) fail('aiHosts');
+    return { nasModel: x.nasModel === undefined ? '' : str(x.nasModel, 100, 'nas model', true).trim(), pcModel: x.pcModel === undefined ? '' : str(x.pcModel, 100, 'pc model', true).trim(), fallback: x.fallback === undefined ? '' : oneOf(x.fallback, ['', 'nas', 'pc'], 'ai fallback') };
   }
   function cleanEntryText(e) {
     if (!isObj(e)) return e;
@@ -685,7 +711,7 @@
   function validateStateRaw(o, opts) {
     if (!isObj(o)) fail('state must be an object');
     scan(o, 0, { n: 4e6 });
-    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, SCHEMA].includes(o.schema)) fail('unsupported schema');
+    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, SCHEMA].includes(o.schema)) fail('unsupported schema');
     if (!L.metrics) fail('metrics module missing');
     const settings = cleanSettings(o.settings, o.schema), entries = cleanEntries(o.entries);
     const out = { schema: SCHEMA, settings, entries };
@@ -921,6 +947,8 @@
         targets: { workoutsPerWeek: 4, contactDays: 30, savingsRate: 0.2 },
         provider: { kind: 'none', baseUrl: '', model: '', apiKey: '' },
         sync: { clientId: '', remoteRev: -1, fp: '', fileId: '', keySalt: '' },
+        nas: { token: '', tokenAt: '', remoteRev: -1, srev: -1, fp: '', keySalt: '' },
+        aiHosts: { nasModel: '', pcModel: '', fallback: '' },
         health: { units: 'lb' },
         home: { starterDone: false },
         learning: { weeklyMinutes: 0 },
@@ -1199,7 +1227,9 @@
       // A restored backup never brings its own sync bookkeeping: an older remoteRev would weaken the rollback
       // check, and a different OAuth client ID would be swapped in without the user seeing it.
       clean.settings.sync = Object.assign({}, st.settings.sync);
+      clean.settings.nas = Object.assign({}, st.settings.nas);
       keepLocalOps(clean, st, src);
+      if (src < 20) clean.settings.aiHosts = Object.assign({}, st.settings.aiHosts);
       const sealed = await seal(ks, clean, meta.rev + 1);
       if (state !== st) throw new Error('LOCKED');
       await getAdapter().set(KEY, sealed.env);
@@ -1272,6 +1302,8 @@
       // The sync bookkeeping write that follows every adopt seals this into the stored envelope.
       const next = JSON.parse(JSON.stringify(info.state));
       keepLocalOps(next, st, info.sourceSchema);
+      // v2.0.0: the token and bookkeeping belong to this device; a downloaded copy never replaces them.
+      if (st.settings && st.settings.nas) next.settings.nas = JSON.parse(JSON.stringify(st.settings.nas));
       replaceContents(st, next);
       if (L.search) L.search.invalidate();
     });
@@ -1302,6 +1334,7 @@
       // Like a restore: the backup brings no sync bookkeeping, no device dates and no diagnostics of its own.
       const fresh = defaultState();
       clean.settings.sync = fresh.settings.sync;
+      clean.settings.nas = fresh.settings.nas;
       clean.ops = fresh.ops;
       if (src < 15) { clean.settings.backupReminderDays = fresh.settings.backupReminderDays; clean.settings.syncReminder = fresh.settings.syncReminder; }
       return startFrom(passphrase, validateState(clean), 0);
@@ -1324,6 +1357,7 @@
       if (o.fmt === 1) carryKeySalt(st, parsed, ks);
       meta = Object.assign({}, m); deviceId = m.deviceId || deviceId;
       const fresh = defaultState();
+      st.settings.nas = fresh.settings.nas; // this device registers its own token
       st.ops = fresh.ops; // the device's own dates and diagnostics start empty, as after a restore
       state = st;
       if (L.search) L.search.build();

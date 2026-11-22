@@ -25,6 +25,7 @@ import '../src/core/calendar.js';
 import '../src/core/jobs.js';
 import '../src/core/search.js';
 import '../src/core/sync.js';
+import '../src/core/nas.js';
 import '../src/core/archive.js';
 export const L = globalThis.LifeOS;
 export function memAdapter() {

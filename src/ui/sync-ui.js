@@ -14,7 +14,7 @@
   function section(c) {
     var s = L.store.getState(), sy = s.settings.sync || { clientId: '', remoteRev: -1 };
     var h = c.h;
-    var card = h('div', { class: 'card', id: 'sync-card' }, h('h2', { text: 'Google Drive sync' }));
+    var card = h('div', { class: 'card', id: 'sync-card' }, h('h2', { text: 'Google Drive sync (second copy)' }));
     if (!L.sync.isAvailable(window.location)) {
       card.appendChild(h('p', { class: 'mut', id: 'sync-na', text: 'Sync is only offered when this page is served over https. Only the encrypted vault is ever uploaded.' }));
       return card;
@@ -92,6 +92,8 @@
     }
 
     syncBtn = c.btn('Sync now', function () { start('').catch(function () {}); }, 'pri', { id: 'sync-now' });
+    // v2.0.0: the NAS card's Sync now runs the NAS first and then this same Drive step.
+    L.syncUI._driveStart = function (pass) { return start(pass || ''); };
     var form = h('form', {
       onsubmit: function (e) {
         e.preventDefault();
@@ -142,5 +144,5 @@
     });
   }
 
-  L.syncUI = { section: section, afterUnlock: afterUnlock };
+  L.syncUI = { section: section, afterUnlock: afterUnlock, _sumList: sumList };
 })();

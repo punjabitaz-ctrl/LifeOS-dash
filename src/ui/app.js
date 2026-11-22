@@ -346,8 +346,9 @@
     try {
       if (!L.store.isUnlocked() || !L.sync) return Promise.resolve(false);
       var m = mainState(), sy = m.settings.sync || {};
-      if (!m.settings.syncReminder || !sy.clientId) return Promise.resolve(false);
-      return L.sync.fingerprint(m).then(function (fp) { return fp !== sy.fp; });
+      var nasSy = m.settings.nas || {};
+      if (!m.settings.syncReminder || (!sy.clientId && !nasSy.token)) return Promise.resolve(false);
+      return L.sync.fingerprint(m).then(function (fp) { return (!!sy.clientId && fp !== sy.fp) || (!!nasSy.token && fp !== nasSy.fp); });
     } catch (e) { return Promise.resolve(false); }
   }
   document.addEventListener('visibilitychange', function () {
@@ -1571,7 +1572,7 @@
         render();
         return;
       }
-      return L.ai.complete(s.settings.provider, pr).then(function (text) {
+      return L.ai.complete(s.settings.provider, pr, undefined, { hosts: s.settings.aiHosts }).then(function (text) {
         return runPropose(L.memory.parseResponse(text), level, period, 'ai');
       }).then(function () { setNotice('ok', 'Suggestions added for your review.'); render(); }, function (e) {
         if (e && e.message === 'MANUAL') { ai = { level: level, period: period, prompt: pr.system + '\n\n' + pr.user }; render(); return; }
@@ -1583,7 +1584,7 @@
     var kind = mainState().settings.provider.kind;
     var box = h('div', null,
       h('div', { class: 'row' }, btn(label, function () { suggestAI(level, period); }, 'sm', { id: level === 1 ? 'ai-suggest' : 'ai-suggest-' + level })),
-      h('p', { class: 'mut small', text: kind === 'anthropic' ? 'Sends only the numeric digest, your current targets, approved insights and counts of rejected insights to api.anthropic.com.' : kind === 'local' ? 'Sends only the numeric digest, your current targets, approved insights and counts of rejected insights to your local model.' : 'Manual mode: copy the prompt into your own AI chat and paste the reply here.' }));
+      h('p', { class: 'mut small', text: kind === 'anthropic' ? 'Sends only the numeric digest, your current targets, approved insights and counts of rejected insights to api.anthropic.com.' : kind === 'local' ? 'Sends only the numeric digest, your current targets, approved insights and counts of rejected insights to your local model.' : kind === 'nas' || kind === 'pc' ? 'Sends only the numeric digest, your current targets, approved insights and counts of rejected insights to your ' + (kind === 'nas' ? 'NAS' : 'PC') + ' model over Tailscale.' : 'Manual mode: copy the prompt into your own AI chat and paste the reply here.' }));
     if (ai && ai.level === level && ai.period.from === period.from) {
       var ta = h('textarea', { id: 'ai-prompt', readOnly: true, value: ai.prompt, 'aria-label': 'Prompt to copy' });
       var paste = h('textarea', { id: 'ai-paste', 'aria-label': 'Paste the AI reply here', maxlength: '20000' });
@@ -4326,10 +4327,12 @@
     var p;
     try {
       p = L.ai.validateProvider({ kind: kind, baseUrl: kind === 'local' ? base.value.trim() : '', model: model.value.trim(), apiKey: kind === 'anthropic' ? (key.value.trim() || pv.apiKey || '') : '' });
-    } catch (e) { out.textContent = 'Connection failed. Code: AI_FAIL. ' + TEST_TEXT.AI_FAIL; return; }
+    } catch (e) { out.textContent = 'Connection failed. Code: AI_FAIL. ' + TEST_TEXT.AI_FAIL; out.setAttribute('data-code', 'AI_FAIL'); return; }
     out.textContent = 'Testing. A fixed message with no data from your vault is being sent.';
     L.ai.testConnection(p).then(function (r) {
-      out.textContent = r.ok ? 'Connection works. The provider answered the fixed test message.' : 'Connection failed. Code: ' + r.code + '. ' + TEST_TEXT[r.code];
+      // v2.0.0: the home hosts answer only on the tailnet, so an unreachable host gets the plain Tailscale message.
+      var home = (kind === 'nas' || kind === 'pc') && (r.code === 'AI_NETWORK' || r.code === 'AI_TIMEOUT');
+      out.textContent = r.ok ? 'Connection works. The provider answered the fixed test message.' : 'Connection failed. Code: ' + r.code + '. ' + (home ? 'Cannot reach the ' + (kind === 'nas' ? 'NAS' : 'PC') + ' model. Connect Tailscale and try again.' : TEST_TEXT[r.code]);
       out.setAttribute('data-code', r.ok ? 'OK' : r.code);
     });
   }
@@ -4370,24 +4373,41 @@
     var model = h('input', { type: 'text', id: 'p-model', value: pv.model || '', autocomplete: 'off', maxlength: '100' });
     var key = h('input', { type: 'password', id: 'p-key', autocomplete: 'off', placeholder: pv.apiKey ? 'Leave blank to keep the saved key' : 'Paste API key' });
     var testOut = h('p', { class: 'small', id: 'p-test-out', role: 'status', text: '' });
+    // v2.0.0: the NAS and PC model hosts (Ollama behind Caddy) have fixed names from the build; only the model name is typed.
+    var ah = set.aiHosts || { nasModel: '', pcModel: '', fallback: '' };
+    var nasModel = h('input', { type: 'text', id: 'p-nas-model', value: ah.nasModel || '', autocomplete: 'off', maxlength: '100', placeholder: 'a model name from your NAS' });
+    var pcModel = h('input', { type: 'text', id: 'p-pc-model', value: ah.pcModel || '', autocomplete: 'off', maxlength: '100', placeholder: 'a model name from your PC' });
+    var fallback = sel('p-fallback', [{ v: '', t: 'No fallback' }, { v: 'pc', t: 'Try the PC model if the first one cannot be reached' }, { v: 'nas', t: 'Try the NAS model if the first one cannot be reached' }], ah.fallback || '', function () {});
+    var nasOut = h('p', { class: 'small', id: 'p-nas-out', role: 'status', text: '' }), pcOut = h('p', { class: 'small', id: 'p-pc-out', role: 'status', text: '' });
+    var homeOn = kind !== 'none' && kind !== 'manual';
     var provCard = h('form', {
       class: 'card',
       onsubmit: function (e) {
         e.preventDefault();
         act(function () {
-          var p = { kind: kind, baseUrl: kind === 'local' ? base.value.trim() : '', model: (kind === 'anthropic' || kind === 'local') ? model.value.trim() : '', apiKey: kind === 'anthropic' ? (key.value.trim() || pv.apiKey || '') : '' };
+          var p = { kind: kind, baseUrl: kind === 'local' ? base.value.trim() : '', model: (kind === 'anthropic' || kind === 'local') ? model.value.trim() : kind === 'nas' ? nasModel.value.trim() : kind === 'pc' ? pcModel.value.trim() : '', apiKey: kind === 'anthropic' ? (key.value.trim() || pv.apiKey || '') : '' };
           p = L.ai.validateProvider(p);
-          return commit(function (x) { x.settings.provider = p; }, 'provider change').then(function () { key.value = ''; view.kind = null; setNotice('ok', 'Provider saved.'); render(); });
+          var hosts = { nasModel: nasModel.value.trim(), pcModel: pcModel.value.trim(), fallback: fallback.value };
+          if (hosts.nasModel) L.ai.validateProvider({ kind: 'nas', model: hosts.nasModel });
+          if (hosts.pcModel) L.ai.validateProvider({ kind: 'pc', model: hosts.pcModel });
+          if (hosts.fallback && hosts.fallback === kind) throw new Error('The fallback must be a different host from the mode you chose.');
+          if (hosts.fallback && !hosts[hosts.fallback + 'Model']) throw new Error('Enter the model name for the fallback host first.');
+          return commit(function (x) { x.settings.provider = p; x.settings.aiHosts = hosts; }, 'provider change').then(function () { key.value = ''; view.kind = null; setNotice('ok', 'Provider saved.'); render(); });
         });
       }
     },
       h('h2', { text: 'AI provider' }),
-      field('Mode', sel('p-kind', [{ v: 'none', t: 'None (rules only)' }, { v: 'manual', t: 'Manual copy and paste' }, { v: 'anthropic', t: 'Anthropic API' }, { v: 'local', t: 'Local model (OpenAI compatible)' }], kind, function (e) { view.kind = e.target.value; render(); })),
+      field('Mode', sel('p-kind', [{ v: 'none', t: 'None (rules only)' }, { v: 'manual', t: 'Manual copy and paste' }, { v: 'anthropic', t: 'Anthropic API' }, { v: 'nas', t: 'NAS model (small model on your NAS)' }, { v: 'pc', t: 'PC model (stronger model on your PC)' }, { v: 'local', t: 'Local model (OpenAI compatible)' }], kind, function (e) { view.kind = e.target.value; render(); })),
       kind === 'anthropic' ? [field('Model', model), field('API key', key, pv.apiKey ? 'Saved key ends in ' + pv.apiKey.slice(-4) : 'No key saved'),
         h('p', { class: 'mut small', text: 'The key is stored only inside your encrypted vault. Requests go straight from this page to api.anthropic.com.' })] : null,
       kind === 'local' ? [field('Base URL (localhost only)', base), urlShow, field('Model', model)] : null,
+      homeOn ? [h('h3', { text: 'Home model hosts' }),
+        h('p', { class: 'mut small', text: 'These run on your own machines and answer only when Tailscale is connected. The addresses are fixed in this build; you enter only the model names. Only the numeric digest, your targets, approved insights and counts of rejected insights are ever sent, as with any provider. Check which models are currently available before choosing one (docs/AI-SETUP.md).' }),
+        field('NAS model name', nasModel), h('div', { class: 'row' }, btn('Test NAS model', function () { testConnection('nas', base, nasModel, key, pv, nasOut); }, 'sm', { id: 'p-nas-test' })), nasOut,
+        field('PC model name', pcModel), h('div', { class: 'row' }, btn('Test PC model', function () { testConnection('pc', base, pcModel, key, pv, pcOut); }, 'sm', { id: 'p-pc-test' })), pcOut,
+        field('Fallback', fallback)] : null,
       h('div', { class: 'row' }, h('button', { type: 'submit', class: 'btn pri', text: 'Save provider' }),
-        btn('Test connection', function () { testConnection(kind, base, model, key, pv, testOut); }, '', { id: 'p-test' }),
+        btn('Test connection', function () { testConnection(kind, base, kind === 'nas' ? nasModel : kind === 'pc' ? pcModel : model, key, pv, testOut); }, '', { id: 'p-test' }),
         pv.apiKey ? btn('Remove saved key', function () {
           act(function () { return commit(function (x) { x.settings.provider.apiKey = ''; }, 'provider change').then(function () { setNotice('ok', 'Key removed.'); render(); }); });
         }) : null),
@@ -4509,7 +4529,10 @@
 
     out.push(h('p', { class: 'mut small', id: 'app-version', text: 'LifeOS v' + L.VERSION }));
 
-    if (L.syncUI) out.push(L.syncUI.section(syncCtx()));
+    // v2.0.0: the NAS is the main sync target (its card first); Drive is the second copy. The Drive card is drawn first so the NAS card can reach its Sync step.
+    var driveCard = L.syncUI ? L.syncUI.section(syncCtx()) : null;
+    if (L.nasUI) out.push(L.nasUI.section(syncCtx()));
+    if (driveCard) out.push(driveCard);
     if (L.archiveUI) out.push(L.archiveUI.section(archCtx()));
 
     // session

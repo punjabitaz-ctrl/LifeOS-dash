@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-fJLjaIuY63uYlo3+sVfficGrSAN/7Xb4KOeyBQg5gt8='; style-src 'sha256-dkGw1nhveikRf03GT4p42Bmd2r0LI4q5rZNRWShN/zk='; connect-src https://api.anthropic.com https://www.googleapis.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'; manifest-src 'self'; worker-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-F4fmliRErL99H5dh9db6xj2M6pqtF22mg9EcOgFeWGI='; style-src 'sha256-dkGw1nhveikRf03GT4p42Bmd2r0LI4q5rZNRWShN/zk='; connect-src https://api.anthropic.com https://www.googleapis.com https://sync.lifeos.tazabbas.com https://ai-nas.lifeos.tazabbas.com https://ai-pc.lifeos.tazabbas.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'; manifest-src 'self'; worker-src 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#2255d4">
-<meta name="lifeos-shell" content="1.8.0">
-<link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAA9zQYyAAAAEnRFWHRsaWZlb3Mtc2hlbGwAMS44LjC1kg1OAAADOklEQVR42u3dvU0DMRiA4czCGowRsQNFNkhLnQ0omAGxAiUVTZoUKaBJQ0FDc+hDuigCKfzkfPg+P5ZeiQqF4+FkfLEzO7t47KQszVwEAS0BLQEtAS2gJaAloCWgJaAFtAS0BLQEtAS0gJaAloCWgJaAFtAS0BLQEtAS0AJaAloCWgJaAlpAS0BLQEtAS0ALaAloCWgJaAHtQghoCWgJ6NNbrLbd3f1L97R7604d8X2ubp6788s1QECPXwAsMeKPY77cQAT09DEfonanBnqU4u45xri+3YEEdPkC2lgDJKAnP90AGmigBTTQAhpooIGuH3QsEfYPiR7Wr18e+MQ/wq2vjQM9AdAB+TerNrE+Hk8zgQa6OtAB04MfoFOAHupniGkK0ED/K+ihX38rqIGuEPQp04xjo4XpB9CVgQ50pUasjAAN9KigPy/HDT2yL+sBXRHoknfnVu7SQFcEutTcuaW5NNAVgR7rNWde8QC6ItBjjbg2QAMNNNBAAw000EADDbSNvUBb5QAaaOvQQAPtSSHQbb6Xo/R5It7LAXSad9tlXt0AuuL3Q8c/bUOPVrZjAd3IjpVWdoMDXfGewiHm03FntqcQ6CpA99OPvx7UHisadn0DXRXow7v1T2EH5FYPnAF6IqAP79iBO36+/mM2+q/jwYyTk4CeFGgBDTTQQAMNNNACGmgBDbSABhpooIEGGmgBDbSABlpAAw000EADDbSABlpAAy2ggQYaaKCBBlpAAy2ggRbQQAMNNNBAAy2ggRbQQAMNNNBAAw000EALaKAFNNBAA518xEHocYY00ECnGpk/EQtoqIEGOseIj7YAGuhUc2qggU41gAYaaKCBBhpooIEGGmiggQYaaKCBBhpooIEGGmiggQYaaKCBBhpooIEGGmiggQbaABpooIEGGmigixbbi4zjw46VCTVfboj9ZmQ80iAtaNOO4yN2fTvGAOo0mJ3LMeEWq+0H7PhFtjziGjg5SQJaAloCWgJaQEtAS0BLQEtAC2gJaAloCWgB7SIIaAloCWgJaAEtAS0BLQEtAS2gJaAloCWgJaAFtAS0BLQEtAS0gJaAloCWgJaAFtAS0BLQEtDSvncTEEXALVKZAwAAAABJRU5ErkJggg==">
+<meta name="lifeos-shell" content="2.0.0">
+<link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAA9zQYyAAAAEnRFWHRsaWZlb3Mtc2hlbGwAMi4wLjD8ISYmAAADOklEQVR42u3dvU0DMRiA4czCGowRsQNFNkhLnQ0omAGxAiUVTZoUKaBJQ0FDc+hDuigCKfzkfPg+P5ZeiQqF4+FkfLEzO7t47KQszVwEAS0BLQEtAS2gJaAloCWgJaAFtAS0BLQEtAS0gJaAloCWgJaAFtAS0BLQEtAS0AJaAloCWgJaAlpAS0BLQEtAS0ALaAloCWgJaAHtQghoCWgJ6NNbrLbd3f1L97R7604d8X2ubp6788s1QECPXwAsMeKPY77cQAT09DEfonanBnqU4u45xri+3YEEdPkC2lgDJKAnP90AGmigBTTQAhpooIGuH3QsEfYPiR7Wr18e+MQ/wq2vjQM9AdAB+TerNrE+Hk8zgQa6OtAB04MfoFOAHupniGkK0ED/K+ihX38rqIGuEPQp04xjo4XpB9CVgQ50pUasjAAN9KigPy/HDT2yL+sBXRHoknfnVu7SQFcEutTcuaW5NNAVgR7rNWde8QC6ItBjjbg2QAMNNNBAAw000EADDbSNvUBb5QAaaOvQQAPtSSHQbb6Xo/R5It7LAXSad9tlXt0AuuL3Q8c/bUOPVrZjAd3IjpVWdoMDXfGewiHm03FntqcQ6CpA99OPvx7UHisadn0DXRXow7v1T2EH5FYPnAF6IqAP79iBO36+/mM2+q/jwYyTk4CeFGgBDTTQQAMNNNACGmgBDbSABhpooIEGGmgBDbSABlpAAw000EADDbSABlpAAy2ggQYaaKCBBlpAAy2ggRbQQAMNNNBAAy2ggRbQQAMNNNBAAw000EALaKAFNNBAA518xEHocYY00ECnGpk/EQtoqIEGOseIj7YAGuhUc2qggU41gAYaaKCBBhpooIEGGmiggQYaaKCBBhpooIEGGmiggQYaaKCBBhpooIEGGmiggQbaABpooIEGGmigixbbi4zjw46VCTVfboj9ZmQ80iAtaNOO4yN2fTvGAOo0mJ3LMeEWq+0H7PhFtjziGjg5SQJaAloCWgJaQEtAS0BLQEtAC2gJaAloCWgB7SIIaAloCWgJaAEtAS0BLQEtAS2gJaAloCWgJaAFtAS0BLQEtAS0gJaAloCWgJaAFtAS0BLQEtDSvncTEEXALVKZAwAAAABJRU5ErkJggg==">
 <title>LifeOS</title>
 <style>:root{color-scheme:light dark;--bg:#f4f5f7;--card:#fff;--fg:#14171c;--mut:#5b6573;--line:#dde1e7;--acc:#2255d4;--acc-fg:#fff;--ok:#1c7a46;--warn:#9a5b00;--bad:#b42318;--r:14px;--sh:0 1px 2px rgba(0,0,0,.06);--font:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
 @media (prefers-color-scheme:dark){:root{--bg:#0f1216;--card:#181c22;--fg:#e8ebf0;--mut:#9aa4b2;--line:#2a313a;--acc:#6b93ff;--acc-fg:#0b1020;--ok:#4ac283;--warn:#e2a03f;--bad:#f2766b;--sh:none}}
@@ -235,7 +235,8 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
 <body>
 <div id="app"></div>
 <script>globalThis.LifeOS = globalThis.LifeOS || {};
-globalThis.LifeOS.VERSION = "1.8.0";
+globalThis.LifeOS.VERSION = "2.0.0";
+globalThis.LifeOS.HOSTS = {"app":"lifeos.tazabbas.com","sync":"sync.lifeos.tazabbas.com","ai-nas":"ai-nas.lifeos.tazabbas.com","ai-pc":"ai-pc.lifeos.tazabbas.com"};
 ;
 (function () {
   'use strict';
@@ -548,7 +549,7 @@ globalThis.LifeOS.VERSION = "1.8.0";
   // ---- fixed vocabulary ----
   const AREAS = Object.freeze(['app', 'lock', 'dashboard', 'money', 'assets', 'work', 'health', 'goals', 'home', 'admin', 'learning', 'activities', 'social', 'wellbeing', 'business', 'review', 'memory', 'settings', 'private', 'archive', 'sync', 'backup', 'storage', 'csv', 'ai']);
   const BASE_CODES = ['UNKNOWN_ERROR', 'RENDER_ERROR', 'DECRYPT_FAIL', 'PRIV_DECRYPT_FAIL', 'STORAGE_QUOTA', 'STORAGE_PERSIST_ERROR', 'STORAGE_ESTIMATE_ERROR', 'BACKUP_EXPORT_FAIL',
-    'SYNC_409', 'SYNC_RECONNECT', 'SYNC_CHANGED', 'SYNC_HTTP', 'SYNC_TOO_LARGE', 'SYNC_ROLLBACK', 'SYNC_TAMPER', 'SYNC_INVALID', 'SYNC_OLDER_FORMAT', 'SYNC_LOCAL_CHANGED', 'SYNC_FAIL',
+    'SYNC_409', 'SYNC_RECONNECT', 'SYNC_CHANGED', 'SYNC_HTTP', 'SYNC_TOO_LARGE', 'SYNC_ROLLBACK', 'SYNC_TAMPER', 'SYNC_INVALID', 'SYNC_OLDER_FORMAT', 'SYNC_LOCAL_CHANGED', 'SYNC_FAIL', 'SYNC_NAS_UNREACHABLE', 'SYNC_NAS_AUTH',
     'CSV_REJECT', 'AI_TIMEOUT', 'AI_NETWORK', 'AI_HTTP', 'AI_BAD_REPLY', 'AI_FAIL', 'ARCHIVE_FAIL'];
   const CODES = Object.freeze(BASE_CODES.concat(AREAS.map((a) => 'UNCAUGHT_' + a.toUpperCase()), AREAS.map((a) => 'REJECTION_' + a.toUpperCase())));
   const CODE_SET = new Set(CODES), AREA_SET = new Set(AREAS);
@@ -557,6 +558,7 @@ globalThis.LifeOS.VERSION = "1.8.0";
     ROLLBACK: 'SYNC_ROLLBACK', TAMPER: 'SYNC_TAMPER', REMOTE_INVALID: 'SYNC_INVALID', REMOTE_CHANGED: 'SYNC_CHANGED', RECONNECT: 'SYNC_RECONNECT', HTTP: 'SYNC_HTTP',
     TOO_LARGE: 'SYNC_TOO_LARGE', OLDER_FORMAT: 'SYNC_OLDER_FORMAT', LOCAL_CHANGED: 'SYNC_LOCAL_CHANGED', WRONG_PASSPHRASE: 'DECRYPT_FAIL',
     AI_TIMEOUT: 'AI_TIMEOUT', AI_NETWORK: 'AI_NETWORK', AI_HTTP: 'AI_HTTP', AI_BAD_REPLY: 'AI_BAD_REPLY',
+    NAS_UNREACHABLE: 'SYNC_NAS_UNREACHABLE', NAS_AUTH: 'SYNC_NAS_AUTH',
     ARCHIVE: 'ARCHIVE_FAIL', CSV: 'CSV_REJECT' // SEC-95: archive and CSV failures carry these fixed keys
   });
   const PERSIST = Object.freeze(['unknown', 'granted', 'denied', 'unavailable', 'error']);
@@ -886,7 +888,7 @@ globalThis.LifeOS.VERSION = "1.8.0";
   'use strict';
   const L = (globalThis.LifeOS = globalThis.LifeOS || {});
   const KEY = 'envelope';
-  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 19, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
+  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 20, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
   const HABIT_CAP = 8, HABIT_LOG_CAP = 100000, KIND_CAP = 30;
   const RENEWAL_TOTAL_CAP = 2000;
   const ENTRY_CAP = 50000, INSIGHT_CAP = 5000, REVIEW_CAP = 1000, LESSON_CAP = 30, AUDIT_CAP = 200;
@@ -984,12 +986,14 @@ globalThis.LifeOS.VERSION = "1.8.0";
     const t = isObj(s.targets) ? s.targets : fail('targets');
     const p = isObj(s.provider) ? s.provider : fail('provider');
     const provider = {
-      kind: oneOf(p.kind, ['none', 'anthropic', 'local', 'manual'], 'provider kind'),
+      kind: oneOf(p.kind, ['none', 'anthropic', 'local', 'manual', 'nas', 'pc'], 'provider kind'),
       baseUrl: str(p.baseUrl, 200, 'baseUrl', true),
       model: str(p.model, 100, 'model', true),
       apiKey: str(p.apiKey, 300, 'apiKey', true),
     };
     if (provider.kind === 'local' && provider.baseUrl && !(L.ai && L.ai.isLocalUrl(provider.baseUrl))) fail('local provider must use localhost');
+    // v2.0.0: the NAS and PC model hosts are fixed names from the build (config/hosts.json); a stored address is never used, never user-entered.
+    if (provider.kind === 'nas' || provider.kind === 'pc') { provider.baseUrl = ''; provider.apiKey = ''; }
     if (typeof s.currency !== 'string' || !/^[A-Z]{3}$/.test(s.currency)) fail('currency');
     return {
       currency: s.currency,
@@ -1001,6 +1005,9 @@ globalThis.LifeOS.VERSION = "1.8.0";
       },
       provider,
       sync: cleanSync(s.sync),
+      // v2.0.0: the NAS sync target (this device's token and bookkeeping) and the AI host choices. Older schemas get the defaults.
+      nas: schema >= 20 ? cleanNas(s.nas) : cleanNas(undefined),
+      aiHosts: schema >= 20 ? cleanAiHosts(s.aiHosts) : cleanAiHosts(undefined),
       health: schema >= 4 ? cleanHealthSettings(s.health) : { units: 'lb' },
       home: schema >= 6 ? cleanHomeSettings(s.home) : { starterDone: false },
       learning: schema >= 7 ? L.learning.cleanSettings(s.learning) : { weeklyMinutes: 0 },
@@ -1096,6 +1103,27 @@ globalThis.LifeOS.VERSION = "1.8.0";
     const ks = x.keySalt === undefined ? '' : str(x.keySalt, 24, 'keySalt', true);
     if (ks && !/^[A-Za-z0-9+/]{22}==$/.test(ks)) fail('keySalt');
     return { clientId: cid, remoteRev: num(x.remoteRev === undefined ? -1 : x.remoteRev, -1, 1e9, 'remoteRev', true), fp, fileId: fid, keySalt: ks };
+  }
+  const TOKEN_RE = /^lfs_[A-Za-z0-9_-]{43}$/;
+  function cleanNas(x) {
+    const d = { token: '', tokenAt: '', remoteRev: -1, srev: -1, fp: '', keySalt: '' };
+    if (x === undefined) return d;
+    if (!isObj(x)) fail('nas');
+    const token = x.token === undefined ? '' : str(x.token, 60, 'nas token', true);
+    if (token && !TOKEN_RE.test(token)) fail('nas token');
+    const at = x.tokenAt === undefined ? '' : str(x.tokenAt, 10, 'nas tokenAt', true);
+    if (at && !/^\d{4}-\d{2}-\d{2}$/.test(at)) fail('nas tokenAt');
+    const fp = x.fp === undefined ? '' : str(x.fp, 64, 'nas fp', true);
+    if (fp && !/^[0-9a-f]{64}$/.test(fp)) fail('nas fp');
+    const ks = x.keySalt === undefined ? '' : str(x.keySalt, 24, 'nas keySalt', true);
+    if (ks && !/^[A-Za-z0-9+/]{22}==$/.test(ks)) fail('nas keySalt');
+    return { token, tokenAt: at, remoteRev: num(x.remoteRev === undefined ? -1 : x.remoteRev, -1, 1e9, 'nas remoteRev', true), srev: num(x.srev === undefined ? -1 : x.srev, -1, 1e9, 'nas srev', true), fp, keySalt: ks };
+  }
+  function cleanAiHosts(x) {
+    const d = { nasModel: '', pcModel: '', fallback: '' };
+    if (x === undefined) return d;
+    if (!isObj(x)) fail('aiHosts');
+    return { nasModel: x.nasModel === undefined ? '' : str(x.nasModel, 100, 'nas model', true).trim(), pcModel: x.pcModel === undefined ? '' : str(x.pcModel, 100, 'pc model', true).trim(), fallback: x.fallback === undefined ? '' : oneOf(x.fallback, ['', 'nas', 'pc'], 'ai fallback') };
   }
   function cleanEntryText(e) {
     if (!isObj(e)) return e;
@@ -1569,7 +1597,7 @@ globalThis.LifeOS.VERSION = "1.8.0";
   function validateStateRaw(o, opts) {
     if (!isObj(o)) fail('state must be an object');
     scan(o, 0, { n: 4e6 });
-    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, SCHEMA].includes(o.schema)) fail('unsupported schema');
+    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, SCHEMA].includes(o.schema)) fail('unsupported schema');
     if (!L.metrics) fail('metrics module missing');
     const settings = cleanSettings(o.settings, o.schema), entries = cleanEntries(o.entries);
     const out = { schema: SCHEMA, settings, entries };
@@ -1805,6 +1833,8 @@ globalThis.LifeOS.VERSION = "1.8.0";
         targets: { workoutsPerWeek: 4, contactDays: 30, savingsRate: 0.2 },
         provider: { kind: 'none', baseUrl: '', model: '', apiKey: '' },
         sync: { clientId: '', remoteRev: -1, fp: '', fileId: '', keySalt: '' },
+        nas: { token: '', tokenAt: '', remoteRev: -1, srev: -1, fp: '', keySalt: '' },
+        aiHosts: { nasModel: '', pcModel: '', fallback: '' },
         health: { units: 'lb' },
         home: { starterDone: false },
         learning: { weeklyMinutes: 0 },
@@ -2083,7 +2113,9 @@ globalThis.LifeOS.VERSION = "1.8.0";
       // A restored backup never brings its own sync bookkeeping: an older remoteRev would weaken the rollback
       // check, and a different OAuth client ID would be swapped in without the user seeing it.
       clean.settings.sync = Object.assign({}, st.settings.sync);
+      clean.settings.nas = Object.assign({}, st.settings.nas);
       keepLocalOps(clean, st, src);
+      if (src < 20) clean.settings.aiHosts = Object.assign({}, st.settings.aiHosts);
       const sealed = await seal(ks, clean, meta.rev + 1);
       if (state !== st) throw new Error('LOCKED');
       await getAdapter().set(KEY, sealed.env);
@@ -2156,6 +2188,8 @@ globalThis.LifeOS.VERSION = "1.8.0";
       // The sync bookkeeping write that follows every adopt seals this into the stored envelope.
       const next = JSON.parse(JSON.stringify(info.state));
       keepLocalOps(next, st, info.sourceSchema);
+      // v2.0.0: the token and bookkeeping belong to this device; a downloaded copy never replaces them.
+      if (st.settings && st.settings.nas) next.settings.nas = JSON.parse(JSON.stringify(st.settings.nas));
       replaceContents(st, next);
       if (L.search) L.search.invalidate();
     });
@@ -2186,6 +2220,7 @@ globalThis.LifeOS.VERSION = "1.8.0";
       // Like a restore: the backup brings no sync bookkeeping, no device dates and no diagnostics of its own.
       const fresh = defaultState();
       clean.settings.sync = fresh.settings.sync;
+      clean.settings.nas = fresh.settings.nas;
       clean.ops = fresh.ops;
       if (src < 15) { clean.settings.backupReminderDays = fresh.settings.backupReminderDays; clean.settings.syncReminder = fresh.settings.syncReminder; }
       return startFrom(passphrase, validateState(clean), 0);
@@ -2208,6 +2243,7 @@ globalThis.LifeOS.VERSION = "1.8.0";
       if (o.fmt === 1) carryKeySalt(st, parsed, ks);
       meta = Object.assign({}, m); deviceId = m.deviceId || deviceId;
       const fresh = defaultState();
+      st.settings.nas = fresh.settings.nas; // this device registers its own token
       st.ops = fresh.ops; // the device's own dates and diagnostics start empty, as after a restore
       state = st;
       if (L.search) L.search.build();
@@ -9779,10 +9815,22 @@ globalThis.LifeOS.VERSION = "1.8.0";
   const DEFAULT_MODEL = 'claude-haiku-4-5';
   const MAX_OUT = 20000;
 
+  // v2.0.0: the NAS and PC model hosts are the fixed names the build put in LifeOS.HOSTS (config/hosts.json). Nothing user-entered forms the address.
+  const HOME_KEY = { nas: 'ai-nas', pc: 'ai-pc' };
+  const HOME_NAME = { nas: 'NAS model', pc: 'PC model' };
+  const MODEL_RE = /^[A-Za-z0-9][A-Za-z0-9._:\/@-]{0,99}$/;
+  let hostsOverride = null;
+  function _setHosts(h) { hostsOverride = h && typeof h === 'object' ? h : null; }
+  function hostFor(kind) {
+    const h = hostsOverride || L.HOSTS;
+    const name = h && typeof h === 'object' ? h[HOME_KEY[kind]] : '';
+    return typeof name === 'string' && /^[a-z0-9.-]{3,253}$/.test(name) ? name : '';
+  }
+  const isHome = (k) => k === 'nas' || k === 'pc';
   function validateProvider(p) {
     if (!p || typeof p !== 'object') throw new Error('Provider required');
     const kind = p.kind;
-    if (!['none', 'anthropic', 'local', 'manual'].includes(kind)) throw new Error('Unknown provider');
+    if (!['none', 'anthropic', 'local', 'manual', 'nas', 'pc'].includes(kind)) throw new Error('Unknown provider');
     const s = (v, max, n) => { if (v === undefined || v === null) return ''; if (typeof v !== 'string' || v.length > max) throw new Error(n + ' is invalid'); return v.trim(); };
     const out = { kind, baseUrl: s(p.baseUrl, 200, 'Base URL'), model: s(p.model, 100, 'Model'), apiKey: s(p.apiKey, 300, 'API key') };
     if (out.apiKey && !/^[\x21-\x7e]+$/.test(out.apiKey)) throw new Error('API key contains invalid characters');
@@ -9792,6 +9840,11 @@ globalThis.LifeOS.VERSION = "1.8.0";
       if (!out.model) throw new Error('Model name is required for a local provider');
     }
     if (kind === 'anthropic') { out.baseUrl = ''; if (!out.model) out.model = DEFAULT_MODEL; }
+    if (isHome(kind)) {
+      out.baseUrl = ''; out.apiKey = '';
+      if (!out.model) throw new Error('Model name is required for the ' + HOME_NAME[kind]);
+      if (!MODEL_RE.test(out.model)) throw new Error('Model name is invalid');
+    }
     return out;
   }
 
@@ -9828,23 +9881,46 @@ globalThis.LifeOS.VERSION = "1.8.0";
 
   // v1.3.0: a fixed code on each failure, so diagnostics can name it without keeping any text.
   const coded = (e, code) => { e.code = code; return e; };
-  async function complete(provider, prompt, fetchImpl) {
+  // opts: { hosts: settings.aiHosts (models of the two home hosts and the optional fallback), report: an object that receives { kind } of the host that answered }.
+  // The fallback is tried only when the first host could not be reached or timed out, never after an answer or an error reply. The prompt is the same object.
+  async function complete(provider, prompt, fetchImpl, opts) {
     // The private vault is always closed before any AI call.
     if (L.priv) L.priv.close('system');
     const p = validateProvider(provider);
     if (p.kind === 'none' || p.kind === 'manual') throw new Error('MANUAL');
     if (!prompt || typeof prompt.system !== 'string' || typeof prompt.user !== 'string') throw new Error('Invalid prompt');
+    try {
+      const text = await completeOne(p, prompt, fetchImpl);
+      if (opts && opts.report) opts.report.kind = p.kind;
+      return text;
+    } catch (e) {
+      const h = opts && opts.hosts, fb = h && (h.fallback === 'nas' || h.fallback === 'pc') ? h.fallback : '';
+      const model = fb ? (fb === 'nas' ? h.nasModel : h.pcModel) : '';
+      if (!fb || fb === p.kind || !(e && (e.code === 'AI_NETWORK' || e.code === 'AI_TIMEOUT')) || !model) throw e;
+      const q = validateProvider({ kind: fb, model });
+      const text = await completeOne(q, prompt, fetchImpl);
+      if (opts && opts.report) opts.report.kind = q.kind;
+      return text;
+    }
+  }
+  async function completeOne(p, prompt, fetchImpl) {
     if (p.kind === 'anthropic' && !p.apiKey) throw new Error('API key is missing');
     const doFetch = fetchImpl || ((...a) => globalThis.fetch(...a));
     const ctl = new AbortController();
-    const timer = setTimeout(() => ctl.abort(), 20000);
+    let timer = setTimeout(() => ctl.abort(), 20000);
+    // A small model that has to load can take a while; the home hosts get a longer limit than the cloud.
+    if (isHome(p.kind)) { clearTimeout(timer); timer = setTimeout(() => ctl.abort(), 90000); }
     let url, headers, body;
     if (p.kind === 'anthropic') {
       url = 'https://api.anthropic.com/v1/messages';
       headers = { 'content-type': 'application/json', 'x-api-key': p.apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' };
       body = { model: p.model, max_tokens: 600, system: prompt.system, messages: [{ role: 'user', content: prompt.user }] };
     } else {
-      url = p.baseUrl + '/chat/completions';
+      if (isHome(p.kind)) {
+        const host = hostFor(p.kind);
+        if (!host) { clearTimeout(timer); throw coded(new Error('The ' + HOME_NAME[p.kind] + ' host is not set in this build'), 'AI_FAIL'); }
+        url = 'https://' + host + '/v1/chat/completions';
+      } else url = p.baseUrl + '/chat/completions';
       headers = { 'content-type': 'application/json' };
       if (p.apiKey) headers.authorization = 'Bearer ' + p.apiKey;
       body = { model: p.model, max_tokens: 600, stream: false, messages: [{ role: 'system', content: prompt.system }, { role: 'user', content: prompt.user }] };
@@ -9854,7 +9930,7 @@ globalThis.LifeOS.VERSION = "1.8.0";
       res = await doFetch(url, { method: 'POST', headers, body: JSON.stringify(body), signal: ctl.signal, credentials: 'omit', redirect: 'error', referrerPolicy: 'no-referrer' });
     } catch (e) {
       clearTimeout(timer);
-      throw coded(new Error(e && e.name === 'AbortError' ? 'The AI request timed out' : 'Could not reach the AI provider'), e && e.name === 'AbortError' ? 'AI_TIMEOUT' : 'AI_NETWORK');
+      throw coded(new Error(e && e.name === 'AbortError' ? 'The AI request timed out' : isHome(p.kind) ? 'Could not reach the ' + HOME_NAME[p.kind] + '. Connect Tailscale and try again.' : 'Could not reach the AI provider'), e && e.name === 'AbortError' ? 'AI_TIMEOUT' : 'AI_NETWORK');
     }
     try {
       if (!res || !res.ok) throw coded(new Error('The AI provider returned an error' + (res && res.status ? ' (HTTP ' + res.status + ')' : '')), 'AI_HTTP');
@@ -9879,6 +9955,7 @@ globalThis.LifeOS.VERSION = "1.8.0";
   const TEST_CODES = new Set(['AI_TIMEOUT', 'AI_NETWORK', 'AI_HTTP', 'AI_BAD_REPLY', 'AI_FAIL']);
   async function testConnection(provider, fetchImpl) {
     try {
+      // No fallback in a test: it checks exactly the host that was chosen.
       await complete(provider, { system: TEST_PROMPT.system, user: TEST_PROMPT.user }, fetchImpl);
       return { ok: true, code: null };
     } catch (e) {
@@ -9890,7 +9967,7 @@ globalThis.LifeOS.VERSION = "1.8.0";
     }
   }
 
-  L.ai = { validateProvider, complete, isLocalUrl, testConnection, TEST_PROMPT };
+  L.ai = { validateProvider, complete, isLocalUrl, testConnection, TEST_PROMPT, hostFor, _setHosts };
 })();
 
 ;
@@ -10703,6 +10780,8 @@ globalThis.LifeOS.VERSION = "1.8.0";
     const s = JSON.parse(JSON.stringify(state));
     delete s.audit; delete s.ops;
     if (s.settings) { delete s.settings.sync; delete s.settings.setup; }
+    // v2.0.0: the NAS token and bookkeeping describe this device, not the content.
+    if (s.settings) delete s.settings.nas;
     const d = await L._webcrypto.subtle.digest('SHA-256', new TextEncoder().encode(stable(s)));
     return Array.from(new Uint8Array(d), (x) => x.toString(16).padStart(2, '0')).join('');
   }
@@ -10852,6 +10931,311 @@ globalThis.LifeOS.VERSION = "1.8.0";
     fetchCopy, installCopy, takeClientId,
     SCOPE, FILE_NAME, MAX_REMOTE, isAvailable, validateClientId, buildAuthUrl, begin, parseFragment, consumeReturn, takeReturn,
     isConnected, expiresAt, disconnect, run, apply, fingerprint, putNamed, getNamed, _setFetch, _setToken,
+    // shared with the NAS target (src/core/nas.js): the same summary, fingerprint and snapshot export
+    _shared: { summary, hide, exportSnap, fingerprint, OWN, err },
+  };
+})();
+
+;
+(function () {
+  'use strict';
+  // v2.0.0: the NAS sync target. Same rules as Drive sync (manual only, nothing merged, a backup of the losing copy first, rollback and
+  // tamper checks, no silent adoption of a copy under another key), against the owner's own service (server/). The service sees only the
+  // sealed envelope (ciphertext and its outer fields): no passphrase, recovery key, plaintext or key material is ever sent.
+  // The device token lives only inside the encrypted state (settings.nas.token). It is sent only as a bearer header, never in a URL,
+  // storage, error, diagnostic or log.
+  const L = (globalThis.LifeOS = globalThis.LifeOS || {});
+  const MAX_REMOTE = 64 * 1024 * 1024, TIMEOUT_MS = 30000;
+  const TOKEN_RE = /^lfs_[A-Za-z0-9_-]{43}$/;
+  const ARCHIVE_RE = /^lifeos-archive-\d{4}\.json$/;
+  const TAILSCALE = 'Connect Tailscale and try again.';
+  const OWN = new WeakSet();
+  const err = (code, message) => { const e = new Error(message); e.code = code; OWN.add(e); return e; };
+  let fetchImpl = null, baseOverride = null;
+  const getFetch = () => {
+    const f = fetchImpl || (typeof fetch === 'function' ? fetch : null);
+    if (!f) throw err('NO_FETCH', 'This browser cannot reach the NAS.');
+    return f;
+  };
+  function _setFetch(f) { fetchImpl = typeof f === 'function' ? f : null; }
+  // Test hook: the address is fixed by the build (LifeOS.HOSTS.sync). Tests may point it at http://localhost or http://127.0.0.1 only.
+  function _setBase(u) { baseOverride = typeof u === 'string' && /^http:\/\/(localhost|127\.0\.0\.1):\d{4,5}$/.test(u) ? u : null; }
+  const hostName = () => { const h = L.HOSTS; return h && typeof h.sync === 'string' && /^[a-z0-9.-]{3,253}$/.test(h.sync) ? h.sync : ''; };
+  const base = () => baseOverride || (hostName() ? 'https://' + hostName() : '');
+  const isConfigured = () => !!base();
+  // The page must be https (or localhost for tests): the service answers CORS only for the app's own https origin.
+  function isAvailable(loc) {
+    if (!loc || !isConfigured()) return false;
+    return loc.protocol === 'https:' || (loc.protocol === 'http:' && (loc.hostname === 'localhost' || loc.hostname === '127.0.0.1'));
+  }
+
+  // ---- the device token ----
+  const hex = (u8) => Array.from(u8, (x) => x.toString(16).padStart(2, '0')).join('');
+  const b64url = (u8) => btoa(String.fromCharCode.apply(null, u8)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  const makeToken = () => 'lfs_' + b64url(L._webcrypto.getRandomValues(new Uint8Array(32)));
+  async function tokenHash(token) {
+    return hex(new Uint8Array(await L._webcrypto.subtle.digest('SHA-256', new TextEncoder().encode(String(token)))));
+  }
+  const nasOf = () => (L.store.getState().settings.nas) || {};
+  const hasToken = () => !!nasOf().token;
+  // The token names this device to the service; it is not sync state, so the bookkeeping (what this device last synced) is kept when it changes.
+  // Creates a token, keeps it inside the encrypted vault, and returns only its hash (what the service registers). The token itself is never shown.
+  async function createToken() {
+    const t = makeToken();
+    await L.store.commit((x) => {
+      x.settings.nas = Object.assign({}, x.settings.nas, { token: t, tokenAt: L.metrics.todayISO() });
+      if (!Array.isArray(x.audit)) x.audit = [];
+      x.audit.push({ ts: new Date().toISOString(), action: 'nas token created' });
+      while (x.audit.length > 200) x.audit.shift();
+    }, { quiet: true });
+    return { hash: await tokenHash(t) };
+  }
+  // A token made by the service's own `token add` can be pasted once; it goes straight into the encrypted vault.
+  async function setToken(text) {
+    const t = typeof text === 'string' ? text.trim() : '';
+    if (!TOKEN_RE.test(t)) throw err('BAD_TOKEN', 'That is not a LifeOS device token (it starts with lfs_).');
+    await L.store.commit((x) => {
+      x.settings.nas = Object.assign({}, x.settings.nas, { token: t, tokenAt: L.metrics.todayISO() });
+      if (!Array.isArray(x.audit)) x.audit = [];
+      x.audit.push({ ts: new Date().toISOString(), action: 'nas token saved' });
+    }, { quiet: true });
+    return { hash: await tokenHash(t) };
+  }
+  async function currentHash() { const t = nasOf().token; return t ? tokenHash(t) : ''; }
+  async function removeToken() {
+    await L.store.commit((x) => {
+      x.settings.nas = Object.assign({}, x.settings.nas, { token: '', tokenAt: '' });
+      if (!Array.isArray(x.audit)) x.audit = [];
+      x.audit.push({ ts: new Date().toISOString(), action: 'nas token removed' });
+    }, { quiet: true });
+  }
+
+  // ---- transport ----
+  async function readCapped(res, ctl) {
+    const tooBig = () => err('TOO_LARGE', 'The NAS copy is larger than 64 MB, so it was rejected.');
+    if (!res.body || typeof res.body.getReader !== 'function') { const t = await res.text(); if (t.length > MAX_REMOTE) throw tooBig(); return t; }
+    const rd = res.body.getReader(), parts = [];
+    let n = 0;
+    for (;;) {
+      const { done, value } = await rd.read();
+      if (done) break;
+      n += value.byteLength;
+      if (n > MAX_REMOTE) { try { ctl.abort(); rd.cancel(); } catch (e) { /* ignore */ } throw tooBig(); }
+      parts.push(value);
+    }
+    const all = new Uint8Array(n);
+    let o = 0;
+    for (const p of parts) { all.set(p, o); o += p.byteLength; }
+    return new TextDecoder().decode(all);
+  }
+  // Every failure is a fixed code and a fixed message; nothing from a response, URL or header is copied in.
+  async function api(method, path, o) {
+    o = o || {};
+    const token = nasOf().token;
+    if (!isConfigured()) throw err('NAS_UNREACHABLE', 'The NAS address is not set in this build.');
+    if (!token) throw err('NAS_AUTH', 'No device token yet. Create one in Settings and register it on the NAS service.');
+    const headers = { Authorization: 'Bearer ' + token };
+    if (o.body !== undefined) headers['Content-Type'] = 'application/json';
+    if (o.expected !== undefined) headers['X-Expected-Rev'] = String(o.expected);
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), TIMEOUT_MS);
+    let res, text = '';
+    try {
+      res = await getFetch()(base() + path, { method, body: o.body, headers, signal: ctl.signal, credentials: 'omit', redirect: 'error', cache: 'no-store', referrerPolicy: 'no-referrer', mode: 'cors' });
+      const len = res.headers && res.headers.get && Number(res.headers.get('content-length'));
+      if (len > MAX_REMOTE) throw err('TOO_LARGE', 'The NAS copy is larger than 64 MB, so it was rejected.');
+      text = await readCapped(res, ctl);
+    } catch (e) {
+      if (OWN.has(e)) throw e;
+      throw err('NAS_UNREACHABLE', 'Cannot reach the NAS. ' + TAILSCALE);
+    } finally { clearTimeout(timer); }
+    const st = Number(res.status) || 0;
+    const rev = res.headers && res.headers.get ? res.headers.get('x-rev') : null;
+    if (st === 401) throw err('NAS_AUTH', 'The NAS did not accept this device\'s token. Create a new token in Settings and register it on the service.');
+    if (st === 404) return { status: 404, text: '', rev: null };
+    if (st === 409) { let cur = null; try { const j = JSON.parse(text); if (Number.isInteger(j.rev)) cur = j.rev; } catch (e) { /* fixed message below */ } return { status: 409, text: '', rev: cur }; }
+    if (st === 413) throw err('TOO_LARGE', 'The NAS service refused the copy as too large. Nothing was uploaded.');
+    if (st === 422) throw err('REMOTE_INVALID', 'The NAS service did not accept the file format. Nothing was uploaded.');
+    if (st === 429) throw err('HTTP', 'The NAS service is limiting requests. Wait a minute and try again.');
+    if (st < 200 || st >= 300) throw err('HTTP', 'The NAS service returned an error (HTTP ' + st + ').');
+    return { status: st, text, rev: rev !== null && /^\d{1,10}$/.test(rev) ? Number(rev) : null };
+  }
+  const json = (text) => { try { const v = JSON.parse(text); if (v && typeof v === 'object') return v; } catch (e) { /* fall through */ } throw err('REMOTE_INVALID', 'The NAS service sent an unexpected reply.'); };
+  const changed = () => err('REMOTE_CHANGED', 'The NAS copy changed while syncing. Nothing was overwritten. Run sync again.');
+
+  // Reaching the service with this device's token (Test connection). Success or one fixed code.
+  async function test() {
+    try { const r = await api('GET', '/v1/health'); json(r.text); return { ok: true, code: null }; }
+    catch (e) {
+      const code = e && e.code === 'NAS_AUTH' ? 'NAS_AUTH' : e && e.code === 'NAS_UNREACHABLE' ? 'NAS_UNREACHABLE' : 'NAS_FAIL';
+      if (L.ops && L.ops.record && code !== 'NAS_FAIL') L.ops.recordError(e, 'sync'); else if (L.ops && L.ops.record) L.ops.record('SYNC_FAIL', 'sync');
+      return { ok: false, code, message: e && OWN.has(e) ? e.message : 'The NAS service could not be checked.' };
+    }
+  }
+  async function getVault() {
+    const r = await api('GET', '/v1/vault');
+    if (r.status === 404) return null;
+    if (r.rev === null) throw err('REMOTE_INVALID', 'The NAS service sent an unexpected reply.');
+    return { text: r.text, rev: r.rev };
+  }
+  async function putVault(text, expected) {
+    if (text.length > MAX_REMOTE) throw err('TOO_LARGE', 'The vault is larger than 64 MB, so nothing was uploaded. Your data on this device is unchanged. Delete old entries, study sessions, takeaways, activities, logged contacts, facts or long notes, then sync again.');
+    const r = await api('PUT', '/v1/vault', { body: text, expected });
+    if (r.status === 409) throw changed();
+    const j = json(r.text);
+    if (!Number.isInteger(j.rev)) throw err('REMOTE_INVALID', 'The NAS service sent an unexpected reply.');
+    return j.rev;
+  }
+
+  // ---- archive files ----
+  async function putNamed(name, text) {
+    if (!ARCHIVE_RE.test(name)) throw err('BAD_NAME', 'That is not an archive file name.');
+    if (text.length > MAX_REMOTE) throw err('TOO_LARGE', 'The archive is larger than 64 MB, so nothing was uploaded.');
+    await api('PUT', '/v1/archives/' + name, { body: text });
+    return true;
+  }
+  async function getNamed(name) {
+    if (!ARCHIVE_RE.test(name)) throw err('BAD_NAME', 'That is not an archive file name.');
+    const r = await api('GET', '/v1/archives/' + name);
+    if (r.status === 404) throw err('NOT_FOUND', 'That archive is not on the NAS.');
+    return r.text;
+  }
+
+  // ---- history kept by the service (the last 30 copies) ----
+  async function versions() {
+    const j = json((await api('GET', '/v1/versions')).text);
+    if (!Array.isArray(j.versions)) throw err('REMOTE_INVALID', 'The NAS service sent an unexpected reply.');
+    return j.versions.slice(0, 30).map((v) => {
+      if (!v || !Number.isInteger(v.id) || !Number.isInteger(v.envRev) || typeof v.at !== 'string' || !Number.isInteger(v.size)) throw err('REMOTE_INVALID', 'The NAS service sent an unexpected reply.');
+      return { id: v.id, envRev: v.envRev, at: v.at.slice(0, 40), size: v.size };
+    });
+  }
+  async function getVersion(id) {
+    if (!Number.isInteger(id) || id < 0) throw err('BAD_NAME', 'That is not a version number.');
+    const r = await api('GET', '/v1/versions/' + id);
+    if (r.status === 404) throw err('NOT_FOUND', 'That version is no longer on the NAS.');
+    return r.text;
+  }
+
+  // ---- sync: the same comparison as Drive ----
+  async function inspect(text, passphrase) {
+    let envObj;
+    try { envObj = JSON.parse(text); } catch (e) { throw err('REMOTE_INVALID', 'The NAS file is not a valid LifeOS vault.'); }
+    try { return await L.store.inspectEnvelope(envObj, passphrase); }
+    catch (e) {
+      if (e && e.code === 'NEED_PASSPHRASE') throw err2('NEED_PASSPHRASE', 'Enter the passphrase of the NAS copy.');
+      if (e && e.code === 'WRONG_PASSPHRASE') throw err2('WRONG_PASSPHRASE', 'The NAS copy uses a different passphrase.');
+      if (String((e && e.message) || '').indexOf('Vault revision check') === 0) throw err('TAMPER', 'The NAS copy failed its revision check (the outer and inner revision numbers disagree). It was rejected.');
+      throw err('REMOTE_INVALID', 'The NAS file is not a valid LifeOS vault.');
+    }
+  }
+  const err2 = (code, message) => { const e = new Error(message); e.code = code; return e; };
+  async function bookkeeping(remoteRev, srev, action, fp, keySalt) {
+    const S = L.store;
+    await S.commit((x) => {
+      x.settings.nas = Object.assign({}, x.settings.nas, { remoteRev, srev, fp, keySalt });
+      if (L.ops && x.ops) L.ops.markSync(x, L.metrics.todayISO(), S.getMeta().rev);
+      if (!Array.isArray(x.audit)) x.audit = [];
+      x.audit.push({ ts: new Date().toISOString(), action });
+      while (x.audit.length > 200) x.audit.shift();
+    }, { quiet: true });
+  }
+  const SH = () => L.sync._shared;
+
+  async function run(opts) {
+    opts = opts || {};
+    const S = L.store, sh = SH();
+    const cur = S.getState();
+    const sy = cur.settings.nas;
+    const g = await getVault();
+    const fp = await sh.fingerprint(cur);
+    if (!g) {
+      const ex = await sh.exportSnap();
+      const srev = await putVault(JSON.stringify(ex.env), 'none');
+      await bookkeeping(ex.env.rev, srev, 'sync: uploaded to NAS', ex.snap, ex.saltId);
+      return { kind: 'uploaded', rev: ex.env.rev, target: 'nas' };
+    }
+    const info = await inspect(g.text, opts.passphrase);
+    const rr = info.meta.rev;
+    if (rr < sy.remoteRev) throw err('ROLLBACK', 'The NAS copy is older than the last sync. It was rejected as a possible rollback and nothing changed.');
+    const base0 = sy.fp || (await sh.fingerprint(S.validateState(S.defaultState())));
+    const keyDiffers = !info.sameKey, remoteChanged = rr > sy.remoteRev;
+    const localKeyChanged = keyDiffers && (!remoteChanged || (!!sy.keySalt && sy.keySalt !== S.saltId()));
+    const localChanged = fp !== base0 || localKeyChanged;
+    if (!remoteChanged && !localChanged) {
+      await S.commit((x) => { if (L.ops && x.ops) L.ops.markSync(x, L.metrics.todayISO(), S.getMeta().rev); }, { quiet: true });
+      return { kind: 'in-sync', rev: rr, target: 'nas' };
+    }
+    if (!remoteChanged) {
+      const ex = await sh.exportSnap(Math.max(rr, sy.remoteRev) + 1);
+      const srev = await putVault(JSON.stringify(ex.env), g.rev);
+      await bookkeeping(ex.env.rev, srev, 'sync: uploaded to NAS', ex.snap, ex.saltId);
+      return { kind: 'uploaded', rev: ex.env.rev, target: 'nas' };
+    }
+    const lm = S.getMeta();
+    const dropped = S.droppedData(cur, Object.defineProperty(Object.assign({}, info.state), 'sourceSchema', { value: info.sourceSchema, enumerable: false })), dropsWork = dropped.length > 0;
+    return sh.hide({
+      kind: localChanged ? 'conflict' : 'download-offer', target: 'nas',
+      local: sh.summary(lm, cur, cur.schema), remote: sh.summary(info.meta, info.state, info.sourceSchema), passphraseDiffers: keyDiffers, dropsWork, dropped,
+    }, { g, info, fp, saltId: S.saltId(), dropsWork, dropped });
+  }
+
+  async function apply(decision, choice, opts) {
+    opts = opts || {};
+    const ctx = decision && decision._ctx;
+    if (!ctx) throw err('BAD_DECISION', 'Nothing to apply.');
+    const S = L.store, sh = SH();
+    const stamp = L.metrics.todayISO();
+    if (choice === 'cancel' || choice === 'skip') return { kind: 'cancelled', target: 'nas' };
+    const wantsRemote = (decision.kind === 'download-offer' && choice === 'download') || (decision.kind === 'conflict' && choice === 'remote');
+    const wantsLocal = decision.kind === 'conflict' && choice === 'local';
+    if (!wantsRemote && !wantsLocal) throw err('BAD_CHOICE', 'Unknown choice.');
+    if (wantsRemote && ctx.dropsWork && opts.allowWorkLoss !== true) {
+      throw err('OLDER_FORMAT', S.lossWhy(ctx.dropped || [], ctx.info.sourceSchema < 14, 'The NAS copy') + 'Using it would remove this device\'s ' + S.lossText(S.getState(), null, ctx.dropped || []) + '. Nothing was replaced. Tick the box to go ahead.');
+    }
+    if (S.saltId() !== ctx.saltId) throw err('LOCAL_CHANGED', 'This device changed after the NAS copy was checked. Nothing was replaced. Run sync again.');
+    if (decision.kind === 'download-offer' && (await sh.fingerprint(S.getState())) !== ctx.fp) {
+      throw err('LOCAL_CHANGED', 'This device changed after the NAS copy was checked. Nothing was replaced. Run sync again.');
+    }
+    if (decision.kind === 'conflict') {
+      if (typeof opts.saveBackup !== 'function') throw err('NEED_BACKUP', 'A backup of the losing copy is required first.');
+      if (wantsRemote) await opts.saveBackup(JSON.stringify(await S.exportEnvelope()), 'lifeos-local-copy-' + stamp + '.json');
+      else await opts.saveBackup(ctx.g.text, 'lifeos-nas-copy-' + stamp + '.json');
+    }
+    if (wantsRemote) {
+      const afp = await sh.fingerprint(ctx.info.state);
+      await S.adoptEnvelope(ctx.info);
+      await bookkeeping(ctx.info.meta.rev, ctx.g.rev, 'sync: downloaded from NAS', afp, S.saltId());
+      return { kind: 'downloaded', rev: ctx.info.meta.rev, target: 'nas' };
+    }
+    const ex = await sh.exportSnap(ctx.info.meta.rev + 1);
+    const srev = await putVault(JSON.stringify(ex.env), ctx.g.rev);
+    await bookkeeping(ex.env.rev, srev, 'sync: uploaded to NAS', ex.snap, ex.saltId);
+    return { kind: 'uploaded', rev: ex.env.rev, target: 'nas' };
+  }
+
+  // SEC-134: after ROLLBACK (the NAS copy is older than the one this device last synced, for example after a restore on the service or a
+  // snapshot rollback of the dataset) sync would refuse forever. The owner may then replace the NAS copy with this device's copy. The older
+  // copy is checked again, never adopted, and saved to a file first; the write is a compare-and-swap on the service revision just read.
+  async function replaceOlder(opts) {
+    opts = opts || {};
+    if (typeof opts.saveBackup !== 'function') throw err('NEED_BACKUP', 'A backup of the NAS copy is required first.');
+    const S = L.store, sh = SH(), sy = S.getState().settings.nas;
+    const g = await getVault();
+    if (!g) throw err('BAD_DECISION', 'The NAS holds no copy now. Run sync again.');
+    const info = await inspect(g.text, opts.passphrase);
+    const rr = info.meta.rev;
+    if (!(rr < sy.remoteRev)) throw err('BAD_DECISION', 'The NAS copy is no longer older than the last sync. Nothing was replaced. Run sync again.');
+    await opts.saveBackup(g.text, 'lifeos-nas-copy-' + L.metrics.todayISO() + '.json');
+    const ex = await sh.exportSnap(Math.max(rr, sy.remoteRev) + 1);
+    const srev = await putVault(JSON.stringify(ex.env), g.rev);
+    await bookkeeping(ex.env.rev, srev, 'sync: replaced an older NAS copy', ex.snap, ex.saltId);
+    return { kind: 'uploaded', rev: ex.env.rev, target: 'nas' };
+  }
+
+  L.nas = {
+    TAILSCALE, isAvailable, isConfigured, makeToken, tokenHash, createToken, setToken, removeToken, hasToken, currentHash, test, run, apply, replaceOlder,
+    putNamed, getNamed, versions, getVersion, _setFetch, _setBase,
   };
 })();
 
@@ -10940,7 +11324,7 @@ globalThis.LifeOS.VERSION = "1.8.0";
       }
       if (!Array.isArray(x.copies) || x.copies.length > 20) throw new Error('Invalid data: archive copies');
       const copies = x.copies.map((c) => {
-        if (!isObj(c) || !['drive', 'download'].includes(c.where) || typeof c.at !== 'string' || c.at.length > 40 || typeof c.verified !== 'boolean') throw new Error('Invalid data: archive copy');
+        if (!isObj(c) || !['drive', 'nas', 'download'].includes(c.where) || typeof c.at !== 'string' || c.at.length > 40 || typeof c.verified !== 'boolean') throw new Error('Invalid data: archive copy');
         return { where: c.where, at: c.at, verified: c.verified };
       });
       return { year: x.year, createdAt: x.createdAt, sha256: x.sha256, counts, copies };
@@ -11312,7 +11696,7 @@ globalThis.LifeOS.VERSION = "1.8.0";
     if (!ok) throw bad('That is not your current recovery key.');
     return text;
   }
-  // opts: { year, passphrase, recoveryKey (needed when a recovery key is on), today, drive: bool, download: bool, io: { put(name,text), get(name), save(name,text), confirmSaved() } }
+  // opts: { year, passphrase, recoveryKey (needed when a recovery key is on), today, drive: bool, nas: bool, download: bool, io: { put(name,text), get(name), nasPut(name,text), nasGet(name), save(name,text), confirmSaved() } }
   // Returns { year, counts, copies }. Throws (leaving the vault untouched) when any step fails or no copy is verified.
   async function archiveYear(opts) {
     const st0 = S().getState(), year = opts.year, today = opts.today || M().todayISO();
@@ -11349,7 +11733,16 @@ globalThis.LifeOS.VERSION = "1.8.0";
         const back = await io.get(built.name);
         await verify(back, opts.passphrase, pl, built);
         copies.push({ where: 'drive', at: at(), verified: true });
-      } catch (e) { if (!opts.download) throw e; }
+      } catch (e) { if (!opts.download && !opts.nas) throw e; }
+    }
+    // v2.0.0: a NAS copy counts like a Drive copy: written, downloaded again, decrypted and matched by counts and SHA-256.
+    if (opts.nas) {
+      try {
+        await io.nasPut(built.name, built.text);
+        const back = await io.nasGet(built.name);
+        await verify(back, opts.passphrase, pl, built);
+        copies.push({ where: 'nas', at: at(), verified: true });
+      } catch (e) { if (!opts.download && !copies.length) throw e; }
     }
     if (opts.download) {
       io.save(built.name, built.text);
@@ -11849,8 +12242,9 @@ globalThis.LifeOS.VERSION = "1.8.0";
     try {
       if (!L.store.isUnlocked() || !L.sync) return Promise.resolve(false);
       var m = mainState(), sy = m.settings.sync || {};
-      if (!m.settings.syncReminder || !sy.clientId) return Promise.resolve(false);
-      return L.sync.fingerprint(m).then(function (fp) { return fp !== sy.fp; });
+      var nasSy = m.settings.nas || {};
+      if (!m.settings.syncReminder || (!sy.clientId && !nasSy.token)) return Promise.resolve(false);
+      return L.sync.fingerprint(m).then(function (fp) { return (!!sy.clientId && fp !== sy.fp) || (!!nasSy.token && fp !== nasSy.fp); });
     } catch (e) { return Promise.resolve(false); }
   }
   document.addEventListener('visibilitychange', function () {
@@ -13074,7 +13468,7 @@ globalThis.LifeOS.VERSION = "1.8.0";
         render();
         return;
       }
-      return L.ai.complete(s.settings.provider, pr).then(function (text) {
+      return L.ai.complete(s.settings.provider, pr, undefined, { hosts: s.settings.aiHosts }).then(function (text) {
         return runPropose(L.memory.parseResponse(text), level, period, 'ai');
       }).then(function () { setNotice('ok', 'Suggestions added for your review.'); render(); }, function (e) {
         if (e && e.message === 'MANUAL') { ai = { level: level, period: period, prompt: pr.system + '\n\n' + pr.user }; render(); return; }
@@ -13086,7 +13480,7 @@ globalThis.LifeOS.VERSION = "1.8.0";
     var kind = mainState().settings.provider.kind;
     var box = h('div', null,
       h('div', { class: 'row' }, btn(label, function () { suggestAI(level, period); }, 'sm', { id: level === 1 ? 'ai-suggest' : 'ai-suggest-' + level })),
-      h('p', { class: 'mut small', text: kind === 'anthropic' ? 'Sends only the numeric digest, your current targets, approved insights and counts of rejected insights to api.anthropic.com.' : kind === 'local' ? 'Sends only the numeric digest, your current targets, approved insights and counts of rejected insights to your local model.' : 'Manual mode: copy the prompt into your own AI chat and paste the reply here.' }));
+      h('p', { class: 'mut small', text: kind === 'anthropic' ? 'Sends only the numeric digest, your current targets, approved insights and counts of rejected insights to api.anthropic.com.' : kind === 'local' ? 'Sends only the numeric digest, your current targets, approved insights and counts of rejected insights to your local model.' : kind === 'nas' || kind === 'pc' ? 'Sends only the numeric digest, your current targets, approved insights and counts of rejected insights to your ' + (kind === 'nas' ? 'NAS' : 'PC') + ' model over Tailscale.' : 'Manual mode: copy the prompt into your own AI chat and paste the reply here.' }));
     if (ai && ai.level === level && ai.period.from === period.from) {
       var ta = h('textarea', { id: 'ai-prompt', readOnly: true, value: ai.prompt, 'aria-label': 'Prompt to copy' });
       var paste = h('textarea', { id: 'ai-paste', 'aria-label': 'Paste the AI reply here', maxlength: '20000' });
@@ -15829,10 +16223,12 @@ globalThis.LifeOS.VERSION = "1.8.0";
     var p;
     try {
       p = L.ai.validateProvider({ kind: kind, baseUrl: kind === 'local' ? base.value.trim() : '', model: model.value.trim(), apiKey: kind === 'anthropic' ? (key.value.trim() || pv.apiKey || '') : '' });
-    } catch (e) { out.textContent = 'Connection failed. Code: AI_FAIL. ' + TEST_TEXT.AI_FAIL; return; }
+    } catch (e) { out.textContent = 'Connection failed. Code: AI_FAIL. ' + TEST_TEXT.AI_FAIL; out.setAttribute('data-code', 'AI_FAIL'); return; }
     out.textContent = 'Testing. A fixed message with no data from your vault is being sent.';
     L.ai.testConnection(p).then(function (r) {
-      out.textContent = r.ok ? 'Connection works. The provider answered the fixed test message.' : 'Connection failed. Code: ' + r.code + '. ' + TEST_TEXT[r.code];
+      // v2.0.0: the home hosts answer only on the tailnet, so an unreachable host gets the plain Tailscale message.
+      var home = (kind === 'nas' || kind === 'pc') && (r.code === 'AI_NETWORK' || r.code === 'AI_TIMEOUT');
+      out.textContent = r.ok ? 'Connection works. The provider answered the fixed test message.' : 'Connection failed. Code: ' + r.code + '. ' + (home ? 'Cannot reach the ' + (kind === 'nas' ? 'NAS' : 'PC') + ' model. Connect Tailscale and try again.' : TEST_TEXT[r.code]);
       out.setAttribute('data-code', r.ok ? 'OK' : r.code);
     });
   }
@@ -15873,24 +16269,41 @@ globalThis.LifeOS.VERSION = "1.8.0";
     var model = h('input', { type: 'text', id: 'p-model', value: pv.model || '', autocomplete: 'off', maxlength: '100' });
     var key = h('input', { type: 'password', id: 'p-key', autocomplete: 'off', placeholder: pv.apiKey ? 'Leave blank to keep the saved key' : 'Paste API key' });
     var testOut = h('p', { class: 'small', id: 'p-test-out', role: 'status', text: '' });
+    // v2.0.0: the NAS and PC model hosts (Ollama behind Caddy) have fixed names from the build; only the model name is typed.
+    var ah = set.aiHosts || { nasModel: '', pcModel: '', fallback: '' };
+    var nasModel = h('input', { type: 'text', id: 'p-nas-model', value: ah.nasModel || '', autocomplete: 'off', maxlength: '100', placeholder: 'a model name from your NAS' });
+    var pcModel = h('input', { type: 'text', id: 'p-pc-model', value: ah.pcModel || '', autocomplete: 'off', maxlength: '100', placeholder: 'a model name from your PC' });
+    var fallback = sel('p-fallback', [{ v: '', t: 'No fallback' }, { v: 'pc', t: 'Try the PC model if the first one cannot be reached' }, { v: 'nas', t: 'Try the NAS model if the first one cannot be reached' }], ah.fallback || '', function () {});
+    var nasOut = h('p', { class: 'small', id: 'p-nas-out', role: 'status', text: '' }), pcOut = h('p', { class: 'small', id: 'p-pc-out', role: 'status', text: '' });
+    var homeOn = kind !== 'none' && kind !== 'manual';
     var provCard = h('form', {
       class: 'card',
       onsubmit: function (e) {
         e.preventDefault();
         act(function () {
-          var p = { kind: kind, baseUrl: kind === 'local' ? base.value.trim() : '', model: (kind === 'anthropic' || kind === 'local') ? model.value.trim() : '', apiKey: kind === 'anthropic' ? (key.value.trim() || pv.apiKey || '') : '' };
+          var p = { kind: kind, baseUrl: kind === 'local' ? base.value.trim() : '', model: (kind === 'anthropic' || kind === 'local') ? model.value.trim() : kind === 'nas' ? nasModel.value.trim() : kind === 'pc' ? pcModel.value.trim() : '', apiKey: kind === 'anthropic' ? (key.value.trim() || pv.apiKey || '') : '' };
           p = L.ai.validateProvider(p);
-          return commit(function (x) { x.settings.provider = p; }, 'provider change').then(function () { key.value = ''; view.kind = null; setNotice('ok', 'Provider saved.'); render(); });
+          var hosts = { nasModel: nasModel.value.trim(), pcModel: pcModel.value.trim(), fallback: fallback.value };
+          if (hosts.nasModel) L.ai.validateProvider({ kind: 'nas', model: hosts.nasModel });
+          if (hosts.pcModel) L.ai.validateProvider({ kind: 'pc', model: hosts.pcModel });
+          if (hosts.fallback && hosts.fallback === kind) throw new Error('The fallback must be a different host from the mode you chose.');
+          if (hosts.fallback && !hosts[hosts.fallback + 'Model']) throw new Error('Enter the model name for the fallback host first.');
+          return commit(function (x) { x.settings.provider = p; x.settings.aiHosts = hosts; }, 'provider change').then(function () { key.value = ''; view.kind = null; setNotice('ok', 'Provider saved.'); render(); });
         });
       }
     },
       h('h2', { text: 'AI provider' }),
-      field('Mode', sel('p-kind', [{ v: 'none', t: 'None (rules only)' }, { v: 'manual', t: 'Manual copy and paste' }, { v: 'anthropic', t: 'Anthropic API' }, { v: 'local', t: 'Local model (OpenAI compatible)' }], kind, function (e) { view.kind = e.target.value; render(); })),
+      field('Mode', sel('p-kind', [{ v: 'none', t: 'None (rules only)' }, { v: 'manual', t: 'Manual copy and paste' }, { v: 'anthropic', t: 'Anthropic API' }, { v: 'nas', t: 'NAS model (small model on your NAS)' }, { v: 'pc', t: 'PC model (stronger model on your PC)' }, { v: 'local', t: 'Local model (OpenAI compatible)' }], kind, function (e) { view.kind = e.target.value; render(); })),
       kind === 'anthropic' ? [field('Model', model), field('API key', key, pv.apiKey ? 'Saved key ends in ' + pv.apiKey.slice(-4) : 'No key saved'),
         h('p', { class: 'mut small', text: 'The key is stored only inside your encrypted vault. Requests go straight from this page to api.anthropic.com.' })] : null,
       kind === 'local' ? [field('Base URL (localhost only)', base), urlShow, field('Model', model)] : null,
+      homeOn ? [h('h3', { text: 'Home model hosts' }),
+        h('p', { class: 'mut small', text: 'These run on your own machines and answer only when Tailscale is connected. The addresses are fixed in this build; you enter only the model names. Only the numeric digest, your targets, approved insights and counts of rejected insights are ever sent, as with any provider. Check which models are currently available before choosing one (docs/AI-SETUP.md).' }),
+        field('NAS model name', nasModel), h('div', { class: 'row' }, btn('Test NAS model', function () { testConnection('nas', base, nasModel, key, pv, nasOut); }, 'sm', { id: 'p-nas-test' })), nasOut,
+        field('PC model name', pcModel), h('div', { class: 'row' }, btn('Test PC model', function () { testConnection('pc', base, pcModel, key, pv, pcOut); }, 'sm', { id: 'p-pc-test' })), pcOut,
+        field('Fallback', fallback)] : null,
       h('div', { class: 'row' }, h('button', { type: 'submit', class: 'btn pri', text: 'Save provider' }),
-        btn('Test connection', function () { testConnection(kind, base, model, key, pv, testOut); }, '', { id: 'p-test' }),
+        btn('Test connection', function () { testConnection(kind, base, kind === 'nas' ? nasModel : kind === 'pc' ? pcModel : model, key, pv, testOut); }, '', { id: 'p-test' }),
         pv.apiKey ? btn('Remove saved key', function () {
           act(function () { return commit(function (x) { x.settings.provider.apiKey = ''; }, 'provider change').then(function () { setNotice('ok', 'Key removed.'); render(); }); });
         }) : null),
@@ -16012,7 +16425,10 @@ globalThis.LifeOS.VERSION = "1.8.0";
 
     out.push(h('p', { class: 'mut small', id: 'app-version', text: 'LifeOS v' + L.VERSION }));
 
-    if (L.syncUI) out.push(L.syncUI.section(syncCtx()));
+    // v2.0.0: the NAS is the main sync target (its card first); Drive is the second copy. The Drive card is drawn first so the NAS card can reach its Sync step.
+    var driveCard = L.syncUI ? L.syncUI.section(syncCtx()) : null;
+    if (L.nasUI) out.push(L.nasUI.section(syncCtx()));
+    if (driveCard) out.push(driveCard);
     if (L.archiveUI) out.push(L.archiveUI.section(archCtx()));
 
     // session
@@ -17151,7 +17567,7 @@ globalThis.LifeOS.VERSION = "1.8.0";
   function section(c) {
     var s = L.store.getState(), sy = s.settings.sync || { clientId: '', remoteRev: -1 };
     var h = c.h;
-    var card = h('div', { class: 'card', id: 'sync-card' }, h('h2', { text: 'Google Drive sync' }));
+    var card = h('div', { class: 'card', id: 'sync-card' }, h('h2', { text: 'Google Drive sync (second copy)' }));
     if (!L.sync.isAvailable(window.location)) {
       card.appendChild(h('p', { class: 'mut', id: 'sync-na', text: 'Sync is only offered when this page is served over https. Only the encrypted vault is ever uploaded.' }));
       return card;
@@ -17229,6 +17645,8 @@ globalThis.LifeOS.VERSION = "1.8.0";
     }
 
     syncBtn = c.btn('Sync now', function () { start('').catch(function () {}); }, 'pri', { id: 'sync-now' });
+    // v2.0.0: the NAS card's Sync now runs the NAS first and then this same Drive step.
+    L.syncUI._driveStart = function (pass) { return start(pass || ''); };
     var form = h('form', {
       onsubmit: function (e) {
         e.preventDefault();
@@ -17279,7 +17697,204 @@ globalThis.LifeOS.VERSION = "1.8.0";
     });
   }
 
-  L.syncUI = { section: section, afterUnlock: afterUnlock };
+  L.syncUI = { section: section, afterUnlock: afterUnlock, _sumList: sumList };
+})();
+
+;
+(function () {
+  'use strict';
+  var L = globalThis.LifeOS;
+
+  function when(iso) { return iso ? String(iso).replace('T', ' ').slice(0, 16) + ' UTC' : 'unknown'; }
+  function kb(n) { return n >= 1048576 ? (n / 1048576).toFixed(1) + ' MB' : Math.max(1, Math.round(n / 1024)) + ' KB'; }
+  var NAME_RE = /^[A-Za-z0-9][A-Za-z0-9 ._-]{0,39}$/;
+
+  // c is the context app.js passes in: { h, field, btn, openDialog, commit, download, setNotice, render }
+  function section(c) {
+    var h = c.h, s = L.store.getState(), nas = s.settings.nas || {};
+    var card = h('div', { class: 'card', id: 'nas-card' }, h('h2', { text: 'NAS sync (main copy)' }));
+    card.appendChild(h('p', { class: 'mut small', text: 'Your NAS keeps the main encrypted copy and Google Drive keeps a second one. Only the encrypted vault is sent. The passphrase and recovery key never leave this device. Sync is manual: nothing runs in the background.' }));
+    if (!L.nas || !L.nas.isAvailable(window.location)) {
+      card.appendChild(h('p', { class: 'mut', id: 'nas-na', text: 'NAS sync is offered only when this page is served over https from its own address. See docs/NAS-SETUP.md.' }));
+      return card;
+    }
+    var status = h('p', { class: 'small', id: 'nas-status', role: 'status', text: '' });
+    var driveStatus = h('p', { class: 'small', id: 'nas-drive-status', role: 'status', text: '' });
+    var tokenState = h('p', { class: 'small mut', id: 'nas-token-state' });
+    var syncBtn;
+    function say(t) { status.textContent = t; }
+    function paint() {
+      var st = L.store.getState().settings.nas || {};
+      tokenState.textContent = st.token ? 'A device token is saved inside the encrypted vault (since ' + (st.tokenAt || 'an earlier day') + '). It is never shown.' : 'No device token yet. Create one, then register it on the NAS service.';
+      if (syncBtn) syncBtn.disabled = !st.token;
+    }
+    function diag(e) { try { if (L.ops && !L.ops.recordError(e, 'sync')) L.ops.record('SYNC_FAIL', 'sync'); } catch (x) { /* diagnostics never block */ } }
+    function fail(e) {
+      if (e && e.code === 'NEED_PASSPHRASE') { askPass(); return; }
+      diag(e);
+      say(e && e.message ? String(e.message).slice(0, 300) : 'NAS sync failed.');
+      paint();
+    }
+    function askPass() {
+      var p = h('input', { type: 'password', id: 'nas-pass', autocomplete: 'off' });
+      c.openDialog({
+        title: 'Passphrase of the NAS copy', yes: 'Continue',
+        body: [h('p', { class: 'mut', text: 'The NAS copy was made with a different key. Enter the passphrase it was created with. It is used on this device only and is never sent anywhere.' }), c.field('Passphrase', p)],
+        onYes: function () { var v = p.value; p.value = ''; return start(v).then(function (opened) { return opened ? false : undefined; }); }
+      });
+    }
+    function finish(r) {
+      if (r.kind === 'uploaded') say('Uploaded the encrypted vault to the NAS (revision ' + r.rev + ').');
+      else if (r.kind === 'in-sync') say('The NAS copy is already in sync (revision ' + r.rev + ').');
+      else if (r.kind === 'downloaded') { c.setNotice('ok', 'Downloaded the NAS copy (revision ' + r.rev + ').'); c.render(); }
+      else say('Nothing changed on the NAS.');
+      paint();
+    }
+    // After the NAS step (done, cancelled or failed) the Drive copy is written as well, when Drive is connected.
+    function thenDrive() {
+      driveStatus.textContent = '';
+      if (!L.sync || !L.sync.isConnected() || !L.sync.isAvailable(window.location) || !L.syncUI || !L.syncUI._driveStart) { driveStatus.textContent = 'Google Drive: not connected, so no second copy was written.'; return Promise.resolve(); }
+      driveStatus.textContent = 'Google Drive: syncing...';
+      return L.syncUI._driveStart('').then(function () {
+        var el = document.getElementById('sync-status');
+        driveStatus.textContent = 'Google Drive: ' + (el && el.textContent ? el.textContent : 'done.');
+      }, function () { driveStatus.textContent = 'Google Drive: the sync did not finish. See the Google Drive card.'; });
+    }
+    // The Drive step starts after the current NAS dialog has closed, so a Drive dialog is never closed with it (SEC-134).
+    function driveLater() { setTimeout(function () { thenDrive(); }, 0); }
+    function decide(d) {
+      var conflict = d.kind === 'conflict';
+      var pick = h('select', { id: 'nas-choice' },
+        conflict ? [h('option', { value: 'local', text: 'Keep this device and replace the NAS copy' }), h('option', { value: 'remote', text: 'Use the NAS copy and replace this device' })]
+          : [h('option', { value: 'download', text: 'Download the NAS copy' })]);
+      var ack = d.dropsWork ? h('input', { type: 'checkbox', id: 'nas-workloss' }) : null;
+      c.openDialog({
+        title: conflict ? 'Both copies changed' : 'A newer copy is on the NAS', yes: 'Continue',
+        body: [
+          h('p', { class: 'mut', text: conflict ? 'Nothing is merged. Pick the copy to keep. The other copy is saved to a file first.' : 'This device has no changes since the last sync.' }),
+          d.passphraseDiffers ? h('p', { class: 'small', id: 'nas-passdiff', text: 'The NAS copy uses a different passphrase from this device. Using the NAS copy switches this device to that passphrase. Keeping this device uploads it under this device\'s passphrase.' }) : null,
+          L.syncUI._sumList(c, 'This device', d.local), L.syncUI._sumList(c, 'NAS', d.remote), c.field('Choice', pick),
+          ack ? h('p', { class: 'small', id: 'nas-olderformat', text: L.store.lossWhy(d.dropped, d.remote.schema < 14, 'The NAS copy') + 'Using it removes this device\'s ' + L.store.lossText(L.store.getState(), null, d.dropped || []) + '.' }) : null,
+          ack ? h('label', { class: 'row small' }, ack, h('span', { text: 'I understand. Remove this data if I use the NAS copy.' })) : null],
+        onYes: function () {
+          return L.nas.apply(d, pick.value, {
+            allowWorkLoss: !!(ack && ack.checked),
+            saveBackup: function (text, name) { c.download(name, text, 'application/json'); return Promise.resolve(); }
+          }).then(finish, function (e) { fail(e); }).then(driveLater);
+        }
+      });
+    }
+    // SEC-134: the NAS copy is older than the last sync. It is never used; the owner may replace it with this device's copy (saved to a file first).
+    function rollbackDialog(pass) {
+      c.openDialog({
+        title: 'The NAS copy is older than the last sync', yes: 'Replace the NAS copy', danger: true,
+        body: [h('p', { class: 'mut', id: 'nas-rollback', text: 'The NAS sent a copy older than the one this device last synced, for example after a restore or a snapshot rollback on the NAS. It was not used and nothing on this device changed. If you did not expect this, check the NAS first. You can replace the NAS copy with this device\'s copy. The NAS copy is saved to a file first.' })],
+        onYes: function () {
+          return L.nas.replaceOlder({ passphrase: pass, saveBackup: function (text, name) { c.download(name, text, 'application/json'); return Promise.resolve(); } })
+            .then(finish, function (e) { fail(e); }).then(driveLater);
+        }
+      });
+    }
+    // Resolves true when a dialog took over, false when the NAS step finished. While a NAS dialog is open the Drive step waits (SEC-134):
+    // it runs once that dialog's choice is made, so a Drive dialog can never replace the NAS one.
+    function start(pass) {
+      say('Syncing with the NAS...');
+      return L.nas.run({ passphrase: pass }).then(function (r) {
+        if (r.kind === 'conflict' || r.kind === 'download-offer') { say('Choose how to continue.'); decide(r); return true; }
+        finish(r);
+        driveLater();
+        return false;
+      }, function (e) {
+        if (e && e.code === 'WRONG_PASSPHRASE') { diag(e); say(e.message + ' Check the passphrase and try again.'); paint(); throw e; }
+        if (e && e.code === 'NEED_PASSPHRASE') { say('Enter the passphrase of the NAS copy.'); driveStatus.textContent = 'Google Drive: waits for the NAS step.'; askPass(); return true; }
+        if (e && e.code === 'ROLLBACK') { diag(e); say(e.message); driveStatus.textContent = 'Google Drive: waits for the NAS step.'; paint(); rollbackDialog(pass); return true; }
+        fail(e);
+        paint();
+        // The NAS could not be reached or refused: the Drive copy is still written.
+        driveLater();
+        return false;
+      });
+    }
+
+    // ---- device token ----
+    function tokenDialog() {
+      var name = h('input', { type: 'text', id: 'nas-devname', maxlength: '40', autocomplete: 'off', value: 'this-device' });
+      c.openDialog({
+        title: 'Create a device token', yes: 'Create',
+        body: [h('p', { class: 'mut', text: 'A long random token is made here and kept only inside the encrypted vault. You register it on the NAS service by its hash, so the token itself is never shown or copied.' }),
+          c.field('Device name (for you to recognise it on the service)', name)],
+        onYes: function () {
+          var n = name.value.trim();
+          if (!NAME_RE.test(n)) throw new Error('Use 1 to 40 letters, digits, spaces, dots, dashes or underscores for the device name.');
+          return L.nas.createToken().then(function (r) { paint(); showRegister(n, r.hash); return false; });
+        }
+      });
+    }
+    function showRegister(n, hash) {
+      var cmd = 'token register ' + (/\s/.test(n) ? '"' + n + '"' : n) + ' ' + hash;
+      var box = h('textarea', { id: 'nas-register', readOnly: true, rows: '3', value: cmd, 'aria-label': 'Registration command' });
+      c.openDialog({
+        title: 'Register this device on the NAS', yes: 'Done',
+        body: [h('p', { class: 'mut', text: 'Run this on the NAS with the service command (docs/NAS-SETUP.md), then press Test connection. It holds only a hash. If you create another token, revoke this device name on the service.' }), box],
+        onYes: function () { say('Token created. Register it on the service, then test the connection.'); }
+      });
+    }
+    function pasteDialog() {
+      var t = h('input', { type: 'password', id: 'nas-paste', autocomplete: 'off', maxlength: '60' });
+      c.openDialog({
+        title: 'Use a token from the service', yes: 'Save',
+        body: [h('p', { class: 'mut', text: 'Paste a token made by the service\'s token add command. It goes straight into the encrypted vault and is not shown again.' }), c.field('Device token', t)],
+        onYes: function () { var v = t.value; t.value = ''; return L.nas.setToken(v).then(function () { paint(); say('Token saved. Test the connection next.'); }); }
+      });
+    }
+    function removeDialog() {
+      c.openDialog({
+        title: 'Remove the device token?', yes: 'Remove', danger: true,
+        body: [h('p', { class: 'mut', text: 'This device stops syncing with the NAS. Revoke the device on the service too. The NAS keeps its copies.' })],
+        onYes: function () { return L.nas.removeToken().then(function () { paint(); say('Token removed.'); }); }
+      });
+    }
+    var TEST_TEXT = { NAS_UNREACHABLE: 'Cannot reach the NAS. ' + (L.nas ? L.nas.TAILSCALE : ''), NAS_AUTH: 'The NAS did not accept this device\'s token. Register its hash on the service, or create a new token.', NAS_FAIL: 'The NAS service could not be checked.' };
+    function testIt() {
+      if (!L.nas.hasToken()) { say('Create a device token first.'); return; }
+      say('Testing the NAS. Nothing from your vault is sent.');
+      L.nas.test().then(function (r) {
+        say(r.ok ? 'The NAS answered and accepted this device\'s token.' : 'Connection failed. Code: ' + r.code + '. ' + (TEST_TEXT[r.code] || ''));
+        status.setAttribute('data-code', r.ok ? 'OK' : r.code);
+      });
+    }
+    function historyDialog() {
+      say('Reading the NAS history...');
+      L.nas.versions().then(function (list) {
+        say('');
+        var rows = list.length ? list.map(function (v) {
+          return h('div', { class: 'row small' },
+            h('span', { text: when(v.at) + ', revision ' + v.envRev + ', ' + kb(v.size) }),
+            c.btn('Save as file', function () {
+              L.nas.getVersion(v.id).then(function (t) { c.download('lifeos-nas-version-' + v.id + '.json', t, 'application/json'); c.setNotice('ok', 'Saved a copy of that version. Restore it from Settings, Restore from a backup file.'); }, fail);
+            }, 'sm'));
+        }) : [h('p', { class: 'mut', text: 'The NAS holds no copy yet.' })];
+        c.openDialog({ title: 'NAS history (last ' + 30 + ' copies)', yes: 'Close', body: [h('p', { class: 'mut small', text: 'Each is an encrypted copy. Save one as a file and restore it with your passphrase.' })].concat(rows), onYes: function () {} });
+      }, fail);
+    }
+
+    syncBtn = c.btn('Sync now', function () { start('').catch(function () {}); }, 'pri', { id: 'nas-sync-now' });
+    card.appendChild(tokenState);
+    card.appendChild(h('div', { class: 'row' },
+      c.btn('Create device token', tokenDialog, '', { id: 'nas-token-new' }),
+      c.btn('Use a token from the service', pasteDialog, '', { id: 'nas-token-paste' }),
+      c.btn('Remove token', removeDialog, '', { id: 'nas-token-off' })));
+    card.appendChild(h('div', { class: 'row' }, syncBtn,
+      c.btn('Test connection', testIt, '', { id: 'nas-test' }),
+      c.btn('NAS history', historyDialog, '', { id: 'nas-history' })));
+    card.appendChild(status);
+    card.appendChild(driveStatus);
+    card.appendChild(h('p', { class: 'mut small', text: 'Sync now writes the NAS first, then Google Drive when it is connected. If the NAS cannot be reached you will see "Connect Tailscale and try again".' }));
+    paint();
+    return card;
+  }
+
+  L.nasUI = { section: section };
 })();
 
 ;
@@ -17340,7 +17955,7 @@ globalThis.LifeOS.VERSION = "1.8.0";
     return parts.length ? parts.join(', ') : 'nothing';
   }
   function copiesText(a) {
-    var v = a.copies.filter(function (x) { return x.verified; }).map(function (x) { return x.where === 'drive' ? 'Drive (verified)' : 'download (confirmed)'; });
+    var v = a.copies.filter(function (x) { return x.verified; }).map(function (x) { return x.where === 'drive' ? 'Drive (verified)' : x.where === 'nas' ? 'NAS (verified)' : 'download (confirmed)'; });
     return v.length ? v.join(' and ') : 'no verified copy';
   }
   function state() { return L.store.getState(); }
@@ -17374,6 +17989,8 @@ globalThis.LifeOS.VERSION = "1.8.0";
     L.archive.NAMES.forEach(function (n) { var k = pl.recs[n].length + pl.priv[n].length; if (k) counts[n] = k; });
     var connected = L.sync && L.sync.isConnected && L.sync.isConnected() && L.sync.isAvailable(window.location);
     var pass = h('input', { type: 'password', id: 'arch-pass', autocomplete: 'current-password' }), rk = L.store.hasRecovery() ? h('input', { type: 'password', id: 'arch-key', autocomplete: 'off' }) : null;
+    var nasOn = !!(L.nas && L.nas.isAvailable(window.location) && L.nas.hasToken());
+    var nr = h('input', { type: 'checkbox', id: 'arch-nas', checked: nasOn, disabled: !nasOn });
     var dr = h('input', { type: 'checkbox', id: 'arch-drive', checked: connected, disabled: !connected });
     var dl = h('input', { type: 'checkbox', id: 'arch-dl', checked: true });
     var status = h('p', { class: 'small', id: 'arch-status', role: 'status', text: '' });
@@ -17388,18 +18005,21 @@ globalThis.LifeOS.VERSION = "1.8.0";
         gate ? h('p', { class: 'warn small', id: 'arch-gate', text: gate }) : null,
         c.field('Main passphrase', pass, 'The archive file is encrypted with it.'),
         rk ? c.field('Recovery key', rk, 'The archive file carries it, so it opens with the key as well. It is checked and never stored.') : null,
+        h('label', { class: 'row small' }, nr, h('span', { text: nasOn ? 'Keep a copy on the NAS (checked by downloading it again and decrypting it)' : 'The NAS has no device token on this device (create one in Settings to keep a NAS copy too)' })),
         h('label', { class: 'row small' }, dr, h('span', { text: connected ? 'Keep a copy on Google Drive (checked by downloading it again)' : 'Google Drive is not connected (connect it in Settings to keep a Drive copy too)' })),
         h('label', { class: 'row small' }, dl, h('span', { text: 'Download a copy. Save it on your NAS: the browser cannot write there itself, so you save it and then confirm.' })),
         status, saved],
       onYes: function () {
         if (running) return false;
-        if (!dr.checked && !dl.checked) throw new Error('Choose at least one copy to keep.');
+        if (!dr.checked && !dl.checked && !nr.checked) throw new Error('Choose at least one copy to keep.');
         running = true;
         var p = pass.value;
         status.textContent = 'Writing and checking the archive file...';
         var io = {
           put: function (n, t) { return L.sync.putNamed(n, t); },
           get: function (n) { return L.sync.getNamed(n); },
+          nasPut: function (n, t) { return L.nas.putNamed(n, t); },
+          nasGet: function (n) { return L.nas.getNamed(n); },
           save: function (n, t) { c.download(n, t, 'application/json'); },
           confirmSaved: function () {
             return new Promise(function (res) {
@@ -17411,7 +18031,7 @@ globalThis.LifeOS.VERSION = "1.8.0";
             });
           }
         };
-        return L.archive.archiveYear({ year: year, passphrase: p, recoveryKey: rk ? rk.value : undefined, today: c.today(), drive: dr.checked && connected, download: dl.checked, io: io }).then(function (r) {
+        return L.archive.archiveYear({ year: year, passphrase: p, recoveryKey: rk ? rk.value : undefined, today: c.today(), drive: dr.checked && connected, nas: nr.checked && nasOn, download: dl.checked, io: io }).then(function (r) {
           running = false; pass.value = ''; if (rk) rk.value = '';
           c.setNotice('ok', 'Archived ' + year + ': ' + countText(r.counts) + '. Copies: ' + r.copies.map(function (x) { return x.where; }).join(' and ') + '.');
           c.render();
@@ -17428,8 +18048,10 @@ globalThis.LifeOS.VERSION = "1.8.0";
     // SEC-128: a file made under an earlier main passphrase opens with the main recovery key it carries (typed here, never stored).
     var rk = h('input', { type: 'password', id: 'arch-open-key', autocomplete: 'off' });
     var connected = L.sync && L.sync.isConnected && L.sync.isConnected();
-    var src = h('select', { id: 'arch-src' }, [h('option', { value: 'file', text: 'A file I saved' })].concat(year ? [h('option', { value: 'drive', text: 'Google Drive', disabled: !connected })] : []));
+    var nasOn = !!(L.nas && L.nas.isAvailable(window.location) && L.nas.hasToken());
+    var src = h('select', { id: 'arch-src' }, [h('option', { value: 'file', text: 'A file I saved' })].concat(year ? [h('option', { value: 'nas', text: 'NAS', disabled: !nasOn }), h('option', { value: 'drive', text: 'Google Drive', disabled: !connected })] : []));
     if (year && connected) src.value = 'drive';
+    if (year && nasOn) src.value = 'nas';
     var restore = mode === 'restore';
     var tick = restore ? h('input', { type: 'checkbox', id: 'arch-restore-ok' }) : null;
     c.openDialog({
@@ -17444,7 +18066,7 @@ globalThis.LifeOS.VERSION = "1.8.0";
         if (restore && !tick.checked) throw new Error('Tick the box to confirm the restore.');
         var p = pass.value, pv = pp.value, fk = rk.value ? { recovery: rk.value } : undefined;
         rk.value = '';
-        var get = src.value === 'drive' && year ? L.sync.getNamed(L.archive.fileName(year)) : c.readFile(file.files && file.files[0], L.archive.MAX_FILE);
+        var get = src.value === 'nas' && year ? L.nas.getNamed(L.archive.fileName(year)) : src.value === 'drive' && year ? L.sync.getNamed(L.archive.fileName(year)) : c.readFile(file.files && file.files[0], L.archive.MAX_FILE);
         return get.then(function (text) {
           if (restore) return L.archive.restoreYear(text, p, year, pv || undefined, fk).then(function (r) { pass.value = ''; c.setNotice('ok', 'Restored ' + r.year + ': ' + r.added + ' records added, ' + r.skipped + ' already in the vault.'); c.render(); });
           return L.archive.openArchive(text, fk || p, year || undefined, pv || undefined).then(function () { pass.value = ''; c.go('archive'); });

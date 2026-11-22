@@ -74,7 +74,7 @@ test('schema 1 to 10 migrate into 11 with no loss: every text an old copy held i
   for (let n = 1; n <= 10; n++) {
     const old = asSchema(n, src), oldText = text(old);
     const got = S.validateState(clone(old));
-    assert.equal(got.schema, 19); assert.equal(got.sourceSchema, n); assert.ok(!got.priv);
+    assert.equal(got.schema, 20); assert.equal(got.sourceSchema, n); assert.ok(!got.priv);
     assert.deepEqual(got.settings.layouts, { narrow: [], wide: [] }, 'schema ' + n);
     const gotText = text(got);
     for (const m of new Set(oldText.match(/LEAK mark \d+/g) || [])) assert.ok(gotText.includes(m), 'schema ' + n + ' lost ' + m);
@@ -89,20 +89,20 @@ test('a v0.11.0 backup (schema 10) imports cleanly and a stored schema 10 vault 
   const ten = asSchema(10, fullOld());
   const salt = V.newSalt(), key = await ORIG('backup passphrase 1', salt);
   const imp = await V.importBackup('backup passphrase 1', JSON.stringify(await V.makeEnvelope(key, salt, ten)));
-  assert.equal(imp.schema, 19); assert.equal(imp.sourceSchema, 10);
+  assert.equal(imp.schema, 20); assert.equal(imp.sourceSchema, 10);
   await vault(null);
   assert.deepEqual(S.droppedData(S.getState(), imp), [], 'a fresh vault loses nothing');
   await S.replaceState(imp);
-  assert.equal(S.getState().schema, 19);
+  assert.equal(S.getState().schema, 20);
   // stored vault written by v0.11.0
   const ad = memAdapter(); S._setAdapter(ad); S.lock(); await S.init(PASS);
   const env = await S.exportEnvelope(); const salt2 = V.parseEnvelope(env).salt, key2 = await fastDerive(PASS, salt2);
   await ad.set('envelope', await V.makeEnvelope(key2, salt2, ten));
   S.lock();
   const st = await S.unlock(PASS);
-  assert.equal(st.schema, 19); assert.deepEqual(st.settings.layouts, { narrow: [], wide: [] });
+  assert.equal(st.schema, 20); assert.deepEqual(st.settings.layouts, { narrow: [], wide: [] });
   await S.commit(() => {});
-  assert.equal((await (await V.openEnvelope(await ad.get('envelope'), PASS)).raw).schema, 19);
+  assert.equal((await (await V.openEnvelope(await ad.get('envelope'), PASS)).raw).schema, 20);
 });
 
 test('downgrade guards: an older-format copy cannot silently strip lines of work, expected income, links or layouts', async () => {
@@ -125,7 +125,7 @@ test('downgrade guards: an older-format copy cannot silently strip lines of work
   await S.replaceState(old(lay), { allowWorkLoss: true });
   assert.deepEqual(S.getState().settings.layouts, { narrow: [], wide: [] });
   // an unknown newer schema is refused
-  assert.throws(() => S.validateState(Object.assign(S.defaultState(), { schema: 20 })), /schema/);
+  assert.throws(() => S.validateState(Object.assign(S.defaultState(), { schema: 21 })), /schema/);
 });
 
 // ---------------------------------------------------------------- validation

@@ -20,5 +20,19 @@ Test connection has nothing to test in this mode and says so.
 3. In Settings, AI provider: Mode "Local model", Base URL `http://localhost:11434/v1`, Model the name you pulled, Save provider. Only `http://localhost` and `http://127.0.0.1` with a port are accepted.
 4. Press Test connection.
 
-## A model on another machine on your home network
-Not supported yet. The hosted copy is https, so browsers block plain http calls to another machine on the network (mixed content), and the fixed Content Security Policy cannot list an address you type without being loosened. It is planned for v2.0.0 together with NAS sync, with an https host that has a fixed name.
+## 4. Models on your home machines: the NAS model and the PC model (v2.0.0)
+LifeOS can call Ollama on your NAS (a small model) and on your PC (a stronger one). Each sits behind Caddy at a fixed name from `config/hosts.json` (`ai-nas.lifeos.tazabbas.com`, `ai-pc.lifeos.tazabbas.com`) and answers only on your tailnet. You type only a model name in Settings; the address is fixed in the build and the page's policy allows exactly those names. Setup of DNS and Caddy is the same as the sync service (docs/NAS-SETUP.md, sections 4 and 5).
+
+Pick models yourself. Model names change often, so check the current options in the Ollama library and what your hardware runs well before you choose. Names such as `llama3.2:3b` or `qwen3:8b` are only examples of how a name looks. Use the exact name `ollama list` shows on that machine.
+
+On each machine (NAS and PC):
+1. Install Ollama and pull a model (`ollama pull <model name>`).
+2. Allow calls from the app address only: set `OLLAMA_ORIGINS` to the exact app origin (scheme and host, no path), for example `OLLAMA_ORIGINS=https://lifeos.tazabbas.com`. Do not use `*`. Add the workers.dev origin, comma separated, only while you still use it. Restart Ollama. Keep Ollama listening on the machine's own address (`127.0.0.1:11434`) and let Caddy be the only way in.
+3. Caddy: the `ai-nas` block in `server/Caddyfile.example` shows the shape (Cloudflare DNS challenge, token from the environment). On the PC use the `ai-pc` name and the PC's own Tailscale address in Cloudflare DNS (DNS only, never proxied).
+4. In LifeOS, Settings, AI provider: choose Mode "NAS model" or "PC model", type the model name, Save provider, then press Test connection. Each host also has its own Test button under "Home model hosts".
+5. Optional fallback: choose "Try the NAS model if the first one cannot be reached" (or the PC one). It is used only when the first host cannot be reached or times out (for example the PC is off), never after an error reply, and it needs that host's model name filled in.
+
+What is sent is unchanged for every provider: the numeric weekly digest, your targets, approved insights and counts of rejected insights. No entries, titles, notes or names. Test connection sends a fixed message with nothing from your vault. If a host cannot be reached the page says "Connect Tailscale and try again". A first call can be slow while a model loads; the page waits up to 90 seconds for a home host.
+
+## A model on another machine on your home network (not on the tailnet)
+Not supported. The page is https, so browsers block plain http calls to another machine, and the fixed Content Security Policy lists only the names in `config/hosts.json`.

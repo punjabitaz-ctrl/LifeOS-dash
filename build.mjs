@@ -40,19 +40,41 @@ export function syncDocs(root = dirname(fileURLToPath(import.meta.url))) {
   }
   return problems;
 }
+// v2.0.0: config/hosts.json holds the names (not secrets). Exactly the sync, ai-nas and ai-pc names become https connect-src origins; the app name is
+// recorded for the guide and the service's CORS setting only. Nothing user-entered ever reaches the policy. No file means no extra origins.
+export const HOST_KEYS = ['app', 'sync', 'ai-nas', 'ai-pc'];
+const HOST_RE = /^(?=.{1,253}$)[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+$/;
+export function hostsOf(root = dirname(fileURLToPath(import.meta.url))) {
+  const p = join(root, 'config/hosts.json');
+  if (!existsSync(p)) return null;
+  let j;
+  try { j = JSON.parse(readFileSync(p, 'utf8')); } catch (e) { throw new Error('Build failed: config/hosts.json is not valid JSON'); }
+  if (!j || typeof j !== 'object' || Array.isArray(j)) throw new Error('Build failed: config/hosts.json must be an object');
+  for (const k of Object.keys(j)) if (!HOST_KEYS.includes(k)) throw new Error('Build failed: config/hosts.json has an unknown name: ' + k.slice(0, 40));
+  const out = {};
+  for (const k of HOST_KEYS) {
+    const v = j[k];
+    if (typeof v !== 'string' || !HOST_RE.test(v)) throw new Error('Build failed: config/hosts.json needs a plain lowercase host name for "' + k + '" (no scheme, port, path or wildcard)');
+    out[k] = v;
+  }
+  const seen = new Set(['api.anthropic.com', 'www.googleapis.com', 'localhost']);
+  for (const k of ['sync', 'ai-nas', 'ai-pc']) { if (seen.has(out[k])) throw new Error('Build failed: config/hosts.json names must be different from each other and from the built-in hosts'); seen.add(out[k]); }
+  return out;
+}
 const sha = (s) => 'sha256-' + createHash('sha256').update(s, 'utf8').digest('base64');
 
 function assemble(root) {
   let html = read(root, 'src/ui/shell.html');
   let css = read(root, 'src/ui/styles.css');
   const optional = (f) => (existsSync(join(root, f)) ? [f] : []);
-  const files = [...CORE, ...optional('src/core/sync.js'), ...optional('src/core/archive.js'), 'src/ui/app.js', ...optional('src/ui/sync-ui.js'), ...optional('src/ui/pwa.js'), ...optional('src/ui/archive-ui.js'), ...optional('src/ui/recovery-ui.js'), ...optional('src/ui/guide-ui.js')];
-  const head = `globalThis.LifeOS = globalThis.LifeOS || {};\nglobalThis.LifeOS.VERSION = ${JSON.stringify(versionOf(root))};`;
+  const files = [...CORE, ...optional('src/core/sync.js'), ...optional('src/core/nas.js'), ...optional('src/core/archive.js'), 'src/ui/app.js', ...optional('src/ui/sync-ui.js'), ...optional('src/ui/nas-ui.js'), ...optional('src/ui/pwa.js'), ...optional('src/ui/archive-ui.js'), ...optional('src/ui/recovery-ui.js'), ...optional('src/ui/guide-ui.js')];
+  const hosts = hostsOf(root);
+  const head = `globalThis.LifeOS = globalThis.LifeOS || {};\nglobalThis.LifeOS.VERSION = ${JSON.stringify(versionOf(root))};` + (hosts ? `\nglobalThis.LifeOS.HOSTS = ${JSON.stringify(hosts)};` : '');
   const js = [head].concat(files.map((f) => read(root, f))).join('\n;\n').replace(/<\/script/gi, (m) => '<\\' + m.slice(1)).replace(/<!--/g, '<\\!--').replace(/<script/gi, (m) => '<\\' + m.slice(1));
   // Neutralise </style in CSS: in a CSS escape, \3c is '<', so the text stays inert but the HTML parser never sees the tag.
   css = css.replace(/<\/style/gi, (m) => '\\3c ' + m.slice(1));
   if (!html.includes('__CSP__')) throw new Error('Build failed: shell.html is missing the __CSP__ placeholder');
-  const csp = `default-src 'none'; script-src '${sha(js)}'; style-src '${sha(css)}'; connect-src https://api.anthropic.com https://www.googleapis.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'; manifest-src 'self'; worker-src 'self'`;
+  const csp = `default-src 'none'; script-src '${sha(js)}'; style-src '${sha(css)}'; connect-src https://api.anthropic.com https://www.googleapis.com${hosts ? ' ' + ['sync', 'ai-nas', 'ai-pc'].map((k) => 'https://' + hosts[k]).join(' ') : ''} http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'; manifest-src 'self'; worker-src 'self'`;
   html = html.split('__CSP__').join(csp).split('__VERSION__').join(versionOf(root)).split('__APPLE_ICON__').join(appleIconDataUrl(versionOf(root)));
   html = inline(html, 'style', '/*__CSS__*/', css);
   html = inline(html, 'script', '/*__JS__*/', js);

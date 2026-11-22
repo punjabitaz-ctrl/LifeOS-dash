@@ -14,7 +14,7 @@
     return parts.length ? parts.join(', ') : 'nothing';
   }
   function copiesText(a) {
-    var v = a.copies.filter(function (x) { return x.verified; }).map(function (x) { return x.where === 'drive' ? 'Drive (verified)' : 'download (confirmed)'; });
+    var v = a.copies.filter(function (x) { return x.verified; }).map(function (x) { return x.where === 'drive' ? 'Drive (verified)' : x.where === 'nas' ? 'NAS (verified)' : 'download (confirmed)'; });
     return v.length ? v.join(' and ') : 'no verified copy';
   }
   function state() { return L.store.getState(); }
@@ -48,6 +48,8 @@
     L.archive.NAMES.forEach(function (n) { var k = pl.recs[n].length + pl.priv[n].length; if (k) counts[n] = k; });
     var connected = L.sync && L.sync.isConnected && L.sync.isConnected() && L.sync.isAvailable(window.location);
     var pass = h('input', { type: 'password', id: 'arch-pass', autocomplete: 'current-password' }), rk = L.store.hasRecovery() ? h('input', { type: 'password', id: 'arch-key', autocomplete: 'off' }) : null;
+    var nasOn = !!(L.nas && L.nas.isAvailable(window.location) && L.nas.hasToken());
+    var nr = h('input', { type: 'checkbox', id: 'arch-nas', checked: nasOn, disabled: !nasOn });
     var dr = h('input', { type: 'checkbox', id: 'arch-drive', checked: connected, disabled: !connected });
     var dl = h('input', { type: 'checkbox', id: 'arch-dl', checked: true });
     var status = h('p', { class: 'small', id: 'arch-status', role: 'status', text: '' });
@@ -62,18 +64,21 @@
         gate ? h('p', { class: 'warn small', id: 'arch-gate', text: gate }) : null,
         c.field('Main passphrase', pass, 'The archive file is encrypted with it.'),
         rk ? c.field('Recovery key', rk, 'The archive file carries it, so it opens with the key as well. It is checked and never stored.') : null,
+        h('label', { class: 'row small' }, nr, h('span', { text: nasOn ? 'Keep a copy on the NAS (checked by downloading it again and decrypting it)' : 'The NAS has no device token on this device (create one in Settings to keep a NAS copy too)' })),
         h('label', { class: 'row small' }, dr, h('span', { text: connected ? 'Keep a copy on Google Drive (checked by downloading it again)' : 'Google Drive is not connected (connect it in Settings to keep a Drive copy too)' })),
         h('label', { class: 'row small' }, dl, h('span', { text: 'Download a copy. Save it on your NAS: the browser cannot write there itself, so you save it and then confirm.' })),
         status, saved],
       onYes: function () {
         if (running) return false;
-        if (!dr.checked && !dl.checked) throw new Error('Choose at least one copy to keep.');
+        if (!dr.checked && !dl.checked && !nr.checked) throw new Error('Choose at least one copy to keep.');
         running = true;
         var p = pass.value;
         status.textContent = 'Writing and checking the archive file...';
         var io = {
           put: function (n, t) { return L.sync.putNamed(n, t); },
           get: function (n) { return L.sync.getNamed(n); },
+          nasPut: function (n, t) { return L.nas.putNamed(n, t); },
+          nasGet: function (n) { return L.nas.getNamed(n); },
           save: function (n, t) { c.download(n, t, 'application/json'); },
           confirmSaved: function () {
             return new Promise(function (res) {
@@ -85,7 +90,7 @@
             });
           }
         };
-        return L.archive.archiveYear({ year: year, passphrase: p, recoveryKey: rk ? rk.value : undefined, today: c.today(), drive: dr.checked && connected, download: dl.checked, io: io }).then(function (r) {
+        return L.archive.archiveYear({ year: year, passphrase: p, recoveryKey: rk ? rk.value : undefined, today: c.today(), drive: dr.checked && connected, nas: nr.checked && nasOn, download: dl.checked, io: io }).then(function (r) {
           running = false; pass.value = ''; if (rk) rk.value = '';
           c.setNotice('ok', 'Archived ' + year + ': ' + countText(r.counts) + '. Copies: ' + r.copies.map(function (x) { return x.where; }).join(' and ') + '.');
           c.render();
@@ -102,8 +107,10 @@
     // SEC-128: a file made under an earlier main passphrase opens with the main recovery key it carries (typed here, never stored).
     var rk = h('input', { type: 'password', id: 'arch-open-key', autocomplete: 'off' });
     var connected = L.sync && L.sync.isConnected && L.sync.isConnected();
-    var src = h('select', { id: 'arch-src' }, [h('option', { value: 'file', text: 'A file I saved' })].concat(year ? [h('option', { value: 'drive', text: 'Google Drive', disabled: !connected })] : []));
+    var nasOn = !!(L.nas && L.nas.isAvailable(window.location) && L.nas.hasToken());
+    var src = h('select', { id: 'arch-src' }, [h('option', { value: 'file', text: 'A file I saved' })].concat(year ? [h('option', { value: 'nas', text: 'NAS', disabled: !nasOn }), h('option', { value: 'drive', text: 'Google Drive', disabled: !connected })] : []));
     if (year && connected) src.value = 'drive';
+    if (year && nasOn) src.value = 'nas';
     var restore = mode === 'restore';
     var tick = restore ? h('input', { type: 'checkbox', id: 'arch-restore-ok' }) : null;
     c.openDialog({
@@ -118,7 +125,7 @@
         if (restore && !tick.checked) throw new Error('Tick the box to confirm the restore.');
         var p = pass.value, pv = pp.value, fk = rk.value ? { recovery: rk.value } : undefined;
         rk.value = '';
-        var get = src.value === 'drive' && year ? L.sync.getNamed(L.archive.fileName(year)) : c.readFile(file.files && file.files[0], L.archive.MAX_FILE);
+        var get = src.value === 'nas' && year ? L.nas.getNamed(L.archive.fileName(year)) : src.value === 'drive' && year ? L.sync.getNamed(L.archive.fileName(year)) : c.readFile(file.files && file.files[0], L.archive.MAX_FILE);
         return get.then(function (text) {
           if (restore) return L.archive.restoreYear(text, p, year, pv || undefined, fk).then(function (r) { pass.value = ''; c.setNotice('ok', 'Restored ' + r.year + ': ' + r.added + ' records added, ' + r.skipped + ' already in the vault.'); c.render(); });
           return L.archive.openArchive(text, fk || p, year || undefined, pv || undefined).then(function () { pass.value = ''; c.go('archive'); });

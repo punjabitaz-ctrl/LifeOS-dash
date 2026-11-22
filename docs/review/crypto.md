@@ -47,3 +47,8 @@ The v0.12.0 notes above describe the v1 layout (the state sealed directly under 
 - Rotation: every change of the wrap set makes a new data key and fresh salts. Data keys are non-extractable after unwrap. Parsing is strict (unknown fields refused, sizes checked). v1 files open and are written as v2 on the next save.
 - Sync compares the passphrase wrap salt as the key identity (`saltId`); a v1 upgrade carries the sync record forward (SEC-127).
 - Findings and proofs: docs/SECURITY.md "v1.8.0 audit" (SEC-127 to SEC-133), test/v180.test.mjs, test/v180-audit.test.mjs.
+
+## v2.0.0 threat model change (NAS sync, audited 22 Nov 2026)
+- A new place holds ciphertext: the NAS service keeps the last 30 vault envelopes and the archive files. It never receives a passphrase, recovery key, data key or plaintext; it reads only outer fields. Anyone who takes the dataset gets what a Drive copy gives: offline guessing at the PBKDF2 cost.
+- A compromised or restored NAS can serve an older genuine copy. The envelope revision (bound to the inner one) and this device's NAS bookkeeping refuse it as a rollback; it is never adopted, and the owner may replace it after saving it to a file (SEC-134). It cannot forge a newer copy without a key.
+- The device token is a bearer secret inside the encrypted state and inside every sealed copy; the service stores only its SHA-256. A stolen token lets its holder read and replace ciphertext on the NAS (on the tailnet only), which the rollback and conflict rules on each device then catch.
