@@ -616,7 +616,7 @@ Where the addendum was ambiguous the safer reading was taken.
 4. A passphrase change with a recovery key on checks the current passphrase before a new key is shown (SEC-130).
 5. A key included on the recovery sheet is dropped as soon as another screen is drawn (SEC-131).
 
-## v2.0.0 addendum: NAS (owner decisions, 22 Nov 2026; draft, build not started)
+## v2.0.0 addendum: NAS (owner decisions, 22 Nov 2026)
 Source: docs/review/product-ops.md B23, B13 (LAN host), B24, B26. Owner decisions: the NAS runs TrueNAS; he reaches home over Tailscale when away; LifeOS moves to a subdomain of tazabbas.com; local AI runs the smallest practical model on the NAS and a stronger model on his primary PC (RTX 5070); Google Drive stays as the second, backup copy. Full security audit, focused on the new transport, the sync service and the CSP change.
 
 ### Network and names (one config file, not secrets)
@@ -641,3 +641,6 @@ Source: docs/review/product-ops.md B23, B13 (LAN host), B24, B26. Owner decision
 
 ### Rules
 - Schema bump only if state changes (sync targets, device tokens, AI host choice), with migrations from 1 and downgrade guards. Tests prove: compare-and-swap and conflicts, version history and restore, token checks and revocation, no plaintext or key material ever sent to or stored by the service, CORS limited to the app origin, CSP lists only the configured names, AI boundary unchanged for the new hosts, archive copies verified from the NAS. The service gets its own unit tests and a smoke that runs it locally in the build workspace.
+
+### Owner confirmation (22 Nov 2026)
+- Tailscale runs on his phone, laptop and desktop and will run on the NAS; the home names are reached only with Tailscale connected, and the app says so plainly when a home host cannot be reached ("Connect Tailscale and try again"), never a raw network error. Build now, before the NAS rebuild: the service is tested locally in the build workspace; the TrueNAS install is a guide he follows later.
