@@ -232,7 +232,12 @@ s.invoices.push(
 
 // ---- home screen: hide the tax modules (no tax profile in the demo) ----
 const hide = new Set(['tax-setaside', 'tax-next', 'payees-near', 'budget-pinned']);
-for (const k of ['narrow', 'wide']) s.settings.layouts[k] = L.layout.MODULES.map((m) => ({ id: m.id, size: m.size, hidden: hide.has(m.id) }));
+// Domain tiles first so the overview is what a visitor sees, then the money modules, then priorities and at a glance.
+const order = ['tile-money', 'tile-assets', 'tile-work', 'tile-health', 'tile-goals', 'tile-activities', 'tile-social', 'tile-learning', 'tile-home', 'tile-admin', 'tile-wellbeing',
+  'rev-month', 'rev-expected', 'inv-open', 'rev-net-line', 'priorities', 'glance'];
+const byId = new Map(L.layout.MODULES.map((m) => [m.id, m]));
+const rest = L.layout.MODULES.filter((m) => !order.includes(m.id)).map((m) => m.id);
+for (const k of ['narrow', 'wide']) s.settings.layouts[k] = order.concat(rest).map((mid) => ({ id: mid, size: byId.get(mid).size, hidden: hide.has(mid) }));
 
 // ---- four finished weekly reviews, the latest one last weekend ----
 const prio = [['Send the Orbit dealer kit', 'Two workouts before Thursday', 'Call Avery about the trip'], ['Finish the partner tier plan draft', 'Record episode 14', 'Book the mountain cabin'],

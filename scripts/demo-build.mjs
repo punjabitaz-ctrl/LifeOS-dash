@@ -29,7 +29,10 @@ const opener = `
     return (same ? Promise.resolve() : L.store.wipe()).then(function () { return exists.apply(L.store, arguments); }).then(function (x) {
       if (x) return x;
       try { localStorage.setItem('lifeos-demo', BUILD); } catch (e) { /* demo only */ }
-      return L.vault.importBackup(PASS, DATA).then(function (st) { return L.store.createFromBackup(PASS, st); }).then(function () { L.store.lock(); return true; });
+      return L.vault.importBackup(PASS, DATA).then(function (st) { return L.store.createFromBackup(PASS, st); })
+        // The demo counts as backed up (its backup file is this build), so the backup reminder stays quiet.
+        .then(function () { return L.store.commit(function (x) { L.ops.markBackup(x, L.metrics.todayISO(), L.store.getMeta().rev); }); })
+        .then(function () { L.store.lock(); return true; });
     });
   };
   // The lock screen opens itself with the demo passphrase.
