@@ -105,7 +105,13 @@ const wk = L.metrics.weekStart(TODAY);
 const outc = [['Partner tier plan: first draft', 'p-job', 'done', 0], ['Quarterly partner review deck', 'p-job', 'done', 1], ['Onboard two new referral partners', 'p-job', 'todo', 3],
   ['Juniper holiday landing page', 'p-cl-a', 'done', 1], ['Orbit dealer kit: final layout', 'p-cl-b', 'todo', 2], ['Record episode 14', 'p-pod', 'done', 0], ['Publish case study: Juniper', 'p-web', 'todo', 4]];
 for (const [title, pid, status, d] of outc) s.entries.push(E({ domain: 'work', type: 'outcome', date: add(wk, d), title, projectId: pid, status }));
-for (let w = 1; w <= 6; w++) for (let i = 0; i < 4 + (w % 3); i++) s.entries.push(E({ domain: 'work', type: 'outcome', date: add(wk, -7 * w + i), title: 'Weekly outcome ' + (w * 10 + i), projectId: ['p-job', 'p-cl-a', 'p-cl-b', 'p-pod'][i % 4], status: i < 3 + (w % 2) ? 'done' : 'todo' }));
+const pastOutcomes = {
+  'p-job': ['Partner newsletter sent', 'Referral program FAQ', 'Pipeline review with sales', 'Two partner trainings run', 'Partner portal cleanup', 'Co-sell playbook outline'],
+  'p-cl-a': ['Juniper menu photo shoot', 'Juniper email template', 'Juniper social calendar', 'Juniper loyalty card design', 'Juniper signage proofs', 'Juniper monthly report'],
+  'p-cl-b': ['Orbit dealer survey', 'Orbit spec sheet layout', 'Orbit trade show banner', 'Orbit catalog edits', 'Orbit product photos picked', 'Orbit price list update'],
+  'p-pod': ['Record episode 9', 'Edit episode 10', 'Book two guests', 'Record episode 12', 'Show notes for episode 11', 'Edit episode 13'],
+};
+for (let w = 1; w <= 6; w++) for (let i = 0; i < 4 + (w % 3); i++) { const pid = ['p-job', 'p-cl-a', 'p-cl-b', 'p-pod'][i % 4]; s.entries.push(E({ domain: 'work', type: 'outcome', date: add(wk, -7 * w + i), title: pastOutcomes[pid][(w + i) % 6], projectId: pid, status: (i < 3 + (w % 2)) || w > 1 ? 'done' : 'todo' })); }
 s.pipeline.push(
   { id: 'pl-1', title: 'Retainer: brand refresh', org: 'Fernhill Dental Group', kind: 'deal', stage: 'contacted', source: 'Referral', nextStep: 'Send scope and two options', nextDate: add(TODAY, 2), updatedAt: add(TODAY, -3), notes: '' },
   { id: 'pl-2', title: 'Spring campaign sprint', org: 'Orbit Bicycle Works', kind: 'deal', stage: 'offer', source: 'Existing client', nextStep: 'Confirm start date', nextDate: add(TODAY, 1), updatedAt: add(TODAY, -1), notes: '' },

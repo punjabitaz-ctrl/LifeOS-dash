@@ -55,7 +55,10 @@ if (!html.includes(sha(js))) throw new Error('Demo build failed: the script hash
 const appJs = readFileSync(path.join(root, 'src/ui/app.js'), 'utf8').replace(/<\/script/gi, (x) => '<\\' + x.slice(1)).replace(/<!--/g, '<\\!--').replace(/<script/gi, (x) => '<\\' + x.slice(1));
 const at = js.indexOf(appJs);
 if (at < 0) throw new Error('Demo build failed: app.js not found in the bundle');
-const js2 = js.slice(0, at) + opener.replace(/<\/script/gi, '<\\/script') + '\n;\n' + js.slice(at);
+// The demo is public, so labels that name the owner's real business read as the fictional studio instead.
+const rename = (t) => t.split('AYiN Advisors ').join('Maple & Main Studio ').split('AYiN and clients').join('Studio and clients').split('Open AYiN').join('Open Studio');
+const js2 = rename(js.slice(0, at)) + opener.replace(/<\/script/gi, '<\\/script') + '\n;\n' + rename(js.slice(at));
+if (/AYiN/.test(js2.replace(/\/\/[^\n]*/g, ''))) console.warn('Demo build: a label still names AYiN');
 html = html.replace(m[0], () => '<script>' + js2 + '</script>').split(sha(js)).join(sha(js2));
 html = html.replace(/<title>[^<]*<\/title>/, '<title>LifeOS demo</title>');
 mkdirSync(path.dirname(out), { recursive: true });
