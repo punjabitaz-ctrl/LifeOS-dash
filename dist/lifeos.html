@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-F4fmliRErL99H5dh9db6xj2M6pqtF22mg9EcOgFeWGI='; style-src 'sha256-dkGw1nhveikRf03GT4p42Bmd2r0LI4q5rZNRWShN/zk='; connect-src https://api.anthropic.com https://www.googleapis.com https://sync.lifeos.tazabbas.com https://ai-nas.lifeos.tazabbas.com https://ai-pc.lifeos.tazabbas.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'; manifest-src 'self'; worker-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-HV4f+2mbGOe51lKdKADsfoSmmSUyjIa5QoN2jrzM50U='; style-src 'sha256-dkGw1nhveikRf03GT4p42Bmd2r0LI4q5rZNRWShN/zk='; connect-src https://api.anthropic.com https://www.googleapis.com https://sync.lifeos.tazabbas.com https://ai-nas.lifeos.tazabbas.com https://ai-pc.lifeos.tazabbas.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'; manifest-src 'self'; worker-src 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#2255d4">
 <meta name="lifeos-shell" content="2.0.0">
@@ -4074,6 +4074,15 @@ globalThis.LifeOS.HOSTS = {"app":"lifeos.tazabbas.com","sync":"sync.lifeos.tazab
     try { return new Intl.NumberFormat('en-US', { style: 'currency', currency: cur || 'USD', maximumFractionDigits: 0 }).format(n); }
     catch (e) { return String(Math.round(n)); }
   }
+  // One number from the weekly digest, written the way the rest of the app writes it: currency for an amount (whole units),
+  // "%" for a rate (a change in a rate is in points), and grouped digits with the unit for a count. signed adds "+" to a rise.
+  function fmtDigest(n, unit, signed) {
+    const v = Number(n) || 0, plus = signed && v > 0 ? '+' : '';
+    if (/^[A-Z]{3}$/.test(unit || '')) return plus + fmtMoney(v, unit);
+    const num = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 }).format(v);
+    if (unit === '%') return plus + num + (signed ? (Math.abs(v) === 1 ? ' point' : ' points') : '%');
+    return plus + num + (unit ? ' ' + unit : '');
+  }
   function headline(state, id, today) {
     if (!DOMAINS.some((d) => d.id === id)) throw new Error('Unknown domain');
     if (!isDate(today)) throw new Error('today must be YYYY-MM-DD');
@@ -4140,7 +4149,7 @@ globalThis.LifeOS.HOSTS = {"app":"lifeos.tazabbas.com","sync":"sync.lifeos.tazab
     }
   }
 
-  L.metrics = { todayISO, DEFAULT_KINDS, HABIT_CAP, convertWeight, movingAverage, bodySeries, bodyMetrics, isoWeek, weekNumber, workoutWeek, trainingCycle, cycleLabel, sleepAvg, sleepSummary, habitStats, habitRate, addHabit, deleteHabit, toggleHabit, healthDigest, setWeightUnits, linkedOutcomeCount, deleteProject, liveProjects, STAGES, OPEN_STAGES, STALE_DAYS, overdueProjects, isStale, pipelineCounts, openPipeline, weekOutcomes, carryOverCandidates, carryOver, workSummary, DOMAINS, isDate, addDays, validateEntry, headline, weekStart, weeklyDigest, series, fmtMoney, cents, ACCOUNT_KINDS, LIAB_KINDS, DEFAULT_CATEGORIES, UNCAT, addMonths, monthEnd, advanceDate, netWorthDetail, netWorthHistory, monthView, cashflow, dueRecurring, confirmRecurring, skipRecurring };
+  L.metrics = { todayISO, DEFAULT_KINDS, HABIT_CAP, convertWeight, movingAverage, bodySeries, bodyMetrics, isoWeek, weekNumber, workoutWeek, trainingCycle, cycleLabel, sleepAvg, sleepSummary, habitStats, habitRate, addHabit, deleteHabit, toggleHabit, healthDigest, setWeightUnits, linkedOutcomeCount, deleteProject, liveProjects, STAGES, OPEN_STAGES, STALE_DAYS, overdueProjects, isStale, pipelineCounts, openPipeline, weekOutcomes, carryOverCandidates, carryOver, workSummary, DOMAINS, isDate, addDays, validateEntry, headline, weekStart, weeklyDigest, series, fmtMoney, fmtDigest, cents, ACCOUNT_KINDS, LIAB_KINDS, DEFAULT_CATEGORIES, UNCAT, addMonths, monthEnd, advanceDate, netWorthDetail, netWorthHistory, monthView, cashflow, dueRecurring, confirmRecurring, skipRecurring };
   L.DOMAINS = DOMAINS;
 })();
 
@@ -10172,8 +10181,10 @@ globalThis.LifeOS.HOSTS = {"app":"lifeos.tazabbas.com","sync":"sync.lifeos.tazab
   }
   const hasData = (state) => jobsOf(state).length > 0;
   function reviewWeek(state, wk, today) {
-    const w = weekly(state, wk);
-    return { weekly: w, due: followUps(state, w.end).filter((x) => x.due), asOf: M().isDate(today) ? today : w.end };
+    const w = weekly(state, wk), asOf = M().isDate(today) ? today : w.end;
+    // Due by the week's end, but overdue only when the date is before today: a follow-up later this week is not late yet.
+    const due = followUps(state, w.end).filter((x) => x.due).map((x) => Object.assign(x, { overdue: x.date < asOf }));
+    return { weekly: w, due, asOf };
   }
 
   // ---- add and edit ----
@@ -13559,8 +13570,8 @@ globalThis.LifeOS.HOSTS = {"app":"lifeos.tazabbas.com","sync":"sync.lifeos.tazab
     var rows = L.DOMAINS.filter(function (d) { return d.id !== 'wellbeing'; }).map(function (d) {
       var x = (dg.domains && dg.domains[d.id]) || { now: 0, prev: 0, unit: '' };
       var dl = Math.round((x.now - x.prev) * 100) / 100;
-      return h('tr', null, h('td', { text: d.label }), h('td', { text: String(Math.round(x.now * 100) / 100) + ' ' + x.unit }),
-        h('td', { text: String(Math.round(x.prev * 100) / 100) }), h('td', { text: (dl > 0 ? '+' : '') + dl }));
+      return h('tr', null, h('td', { text: d.label }), h('td', { text: L.metrics.fmtDigest(x.now, x.unit) }),
+        h('td', { text: L.metrics.fmtDigest(x.prev, x.unit) }), h('td', { text: L.metrics.fmtDigest(dl, x.unit, true) }));
     });
     var mine = s.memory.insights.filter(function (i) { return i.level === 1 && i.period && i.period.from === wk; });
     var haveRules = mine.some(function (i) { return i.source === 'rules'; });
@@ -17403,11 +17414,11 @@ globalThis.LifeOS.HOSTS = {"app":"lifeos.tazabbas.com","sync":"sync.lifeos.tazab
     var site = mxName(s.sites, sh.siteId, 'hostname'), line = mxName(s.projects, sh.projectId), np = mxInp('pl-new-' + sh.id.slice(0, 8), '', 60);
     var plats = h('div', { class: 'chips pc-platforms' }, sh.platforms.map(function (p) {
       return h('span', { class: 'chip pc-platform', 'data-platform': p.name }, p.name,
-        h('button', { type: 'button', class: 'x pc-pl-rename', text: 'r', 'aria-label': 'Rename platform ' + p.name, onclick: function () {
+        h('button', { type: 'button', class: 'x pc-pl-rename', text: 'Rename', 'aria-label': 'Rename platform ' + p.name, onclick: function () {
           var nm = mxInp('pl-rename', p.name, 60);
           openDialog({ title: 'Rename platform', yes: 'Save', body: field('Platform name', nm), onYes: function () { return commit(function (x) { M.renamePlatform(x, sh.id, p.id, nm.value); }, 'platform rename').then(function () { render(); }); } });
         } }),
-        h('button', { type: 'button', class: 'x pc-pl-remove', text: 'x', 'aria-label': 'Remove platform ' + p.name, onclick: function () {
+        h('button', { type: 'button', class: 'x pc-pl-remove', text: 'Remove', 'aria-label': 'Remove platform ' + p.name, onclick: function () {
           openDialog({ title: 'Remove this platform?', yes: 'Remove', danger: true, body: [h('p', { class: 'mut', text: p.name }), h('p', { class: 'small', text: 'The release dates and numbers typed for it are removed too.' })],
             onYes: function () { return commit(function (x) { M.removePlatform(x, sh.id, p.id); }, 'platform remove').then(function () { render(); }); } });
         } }));

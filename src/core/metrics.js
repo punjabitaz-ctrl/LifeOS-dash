@@ -669,6 +669,15 @@
     try { return new Intl.NumberFormat('en-US', { style: 'currency', currency: cur || 'USD', maximumFractionDigits: 0 }).format(n); }
     catch (e) { return String(Math.round(n)); }
   }
+  // One number from the weekly digest, written the way the rest of the app writes it: currency for an amount (whole units),
+  // "%" for a rate (a change in a rate is in points), and grouped digits with the unit for a count. signed adds "+" to a rise.
+  function fmtDigest(n, unit, signed) {
+    const v = Number(n) || 0, plus = signed && v > 0 ? '+' : '';
+    if (/^[A-Z]{3}$/.test(unit || '')) return plus + fmtMoney(v, unit);
+    const num = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 }).format(v);
+    if (unit === '%') return plus + num + (signed ? (Math.abs(v) === 1 ? ' point' : ' points') : '%');
+    return plus + num + (unit ? ' ' + unit : '');
+  }
   function headline(state, id, today) {
     if (!DOMAINS.some((d) => d.id === id)) throw new Error('Unknown domain');
     if (!isDate(today)) throw new Error('today must be YYYY-MM-DD');
@@ -735,6 +744,6 @@
     }
   }
 
-  L.metrics = { todayISO, DEFAULT_KINDS, HABIT_CAP, convertWeight, movingAverage, bodySeries, bodyMetrics, isoWeek, weekNumber, workoutWeek, trainingCycle, cycleLabel, sleepAvg, sleepSummary, habitStats, habitRate, addHabit, deleteHabit, toggleHabit, healthDigest, setWeightUnits, linkedOutcomeCount, deleteProject, liveProjects, STAGES, OPEN_STAGES, STALE_DAYS, overdueProjects, isStale, pipelineCounts, openPipeline, weekOutcomes, carryOverCandidates, carryOver, workSummary, DOMAINS, isDate, addDays, validateEntry, headline, weekStart, weeklyDigest, series, fmtMoney, cents, ACCOUNT_KINDS, LIAB_KINDS, DEFAULT_CATEGORIES, UNCAT, addMonths, monthEnd, advanceDate, netWorthDetail, netWorthHistory, monthView, cashflow, dueRecurring, confirmRecurring, skipRecurring };
+  L.metrics = { todayISO, DEFAULT_KINDS, HABIT_CAP, convertWeight, movingAverage, bodySeries, bodyMetrics, isoWeek, weekNumber, workoutWeek, trainingCycle, cycleLabel, sleepAvg, sleepSummary, habitStats, habitRate, addHabit, deleteHabit, toggleHabit, healthDigest, setWeightUnits, linkedOutcomeCount, deleteProject, liveProjects, STAGES, OPEN_STAGES, STALE_DAYS, overdueProjects, isStale, pipelineCounts, openPipeline, weekOutcomes, carryOverCandidates, carryOver, workSummary, DOMAINS, isDate, addDays, validateEntry, headline, weekStart, weeklyDigest, series, fmtMoney, fmtDigest, cents, ACCOUNT_KINDS, LIAB_KINDS, DEFAULT_CATEGORIES, UNCAT, addMonths, monthEnd, advanceDate, netWorthDetail, netWorthHistory, monthView, cashflow, dueRecurring, confirmRecurring, skipRecurring };
   L.DOMAINS = DOMAINS;
 })();

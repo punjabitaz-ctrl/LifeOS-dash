@@ -1663,8 +1663,8 @@
     var rows = L.DOMAINS.filter(function (d) { return d.id !== 'wellbeing'; }).map(function (d) {
       var x = (dg.domains && dg.domains[d.id]) || { now: 0, prev: 0, unit: '' };
       var dl = Math.round((x.now - x.prev) * 100) / 100;
-      return h('tr', null, h('td', { text: d.label }), h('td', { text: String(Math.round(x.now * 100) / 100) + ' ' + x.unit }),
-        h('td', { text: String(Math.round(x.prev * 100) / 100) }), h('td', { text: (dl > 0 ? '+' : '') + dl }));
+      return h('tr', null, h('td', { text: d.label }), h('td', { text: L.metrics.fmtDigest(x.now, x.unit) }),
+        h('td', { text: L.metrics.fmtDigest(x.prev, x.unit) }), h('td', { text: L.metrics.fmtDigest(dl, x.unit, true) }));
     });
     var mine = s.memory.insights.filter(function (i) { return i.level === 1 && i.period && i.period.from === wk; });
     var haveRules = mine.some(function (i) { return i.source === 'rules'; });
@@ -5507,11 +5507,11 @@
     var site = mxName(s.sites, sh.siteId, 'hostname'), line = mxName(s.projects, sh.projectId), np = mxInp('pl-new-' + sh.id.slice(0, 8), '', 60);
     var plats = h('div', { class: 'chips pc-platforms' }, sh.platforms.map(function (p) {
       return h('span', { class: 'chip pc-platform', 'data-platform': p.name }, p.name,
-        h('button', { type: 'button', class: 'x pc-pl-rename', text: 'r', 'aria-label': 'Rename platform ' + p.name, onclick: function () {
+        h('button', { type: 'button', class: 'x pc-pl-rename', text: 'Rename', 'aria-label': 'Rename platform ' + p.name, onclick: function () {
           var nm = mxInp('pl-rename', p.name, 60);
           openDialog({ title: 'Rename platform', yes: 'Save', body: field('Platform name', nm), onYes: function () { return commit(function (x) { M.renamePlatform(x, sh.id, p.id, nm.value); }, 'platform rename').then(function () { render(); }); } });
         } }),
-        h('button', { type: 'button', class: 'x pc-pl-remove', text: 'x', 'aria-label': 'Remove platform ' + p.name, onclick: function () {
+        h('button', { type: 'button', class: 'x pc-pl-remove', text: 'Remove', 'aria-label': 'Remove platform ' + p.name, onclick: function () {
           openDialog({ title: 'Remove this platform?', yes: 'Remove', danger: true, body: [h('p', { class: 'mut', text: p.name }), h('p', { class: 'small', text: 'The release dates and numbers typed for it are removed too.' })],
             onYes: function () { return commit(function (x) { M.removePlatform(x, sh.id, p.id); }, 'platform remove').then(function () { render(); }); } });
         } }));

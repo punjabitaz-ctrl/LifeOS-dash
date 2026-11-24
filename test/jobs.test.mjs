@@ -307,6 +307,20 @@ test('weekly view across a month end and a year end: the week is Monday to Sunda
 });
 
 // ---------------------------------------------------------------- follow-ups in review, at a glance, calendar
+test('follow-ups: in the weekly review, only a date before today is overdue, not one later this week', () => {
+  const st = withJobs([
+    job({ id: 'y', title: 'Yesterday role', stage: 'applied', followUp: '2026-11-13' }),
+    job({ id: 't', title: 'Today role', stage: 'applied', followUp: TODAY }),
+    job({ id: 'l', title: 'Later role', stage: 'applied', followUp: '2026-11-15' }),
+  ]);
+  // Mid-week (today 11-12): 11-13, 11-14 and 11-15 are all still to come.
+  assert.deepEqual(J.reviewWeek(st, WK, '2026-11-12').due.map((x) => [x.id, x.overdue]), [['y', false], ['t', false], ['l', false]]);
+  // On 11-14: yesterday's is overdue, today's and Sunday's are not.
+  assert.deepEqual(J.reviewWeek(st, WK, TODAY).due.map((x) => [x.id, x.overdue]), [['y', true], ['t', false], ['l', false]]);
+  // Without a valid today the week's end is the reference, as before.
+  assert.deepEqual(J.reviewWeek(st, WK).due.map((x) => [x.id, x.overdue]), [['y', true], ['t', true], ['l', false]]);
+});
+
 test('follow-ups: the review lists those due by the end of the week, at a glance shows the next 30 days, the calendar file uses a generic title', () => {
   const st = withJobs([
     job({ id: 'a', title: 'Alpha role at Alpha Corp', stage: 'applied', followUp: '2026-11-10' }),

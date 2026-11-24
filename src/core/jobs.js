@@ -91,8 +91,10 @@
   }
   const hasData = (state) => jobsOf(state).length > 0;
   function reviewWeek(state, wk, today) {
-    const w = weekly(state, wk);
-    return { weekly: w, due: followUps(state, w.end).filter((x) => x.due), asOf: M().isDate(today) ? today : w.end };
+    const w = weekly(state, wk), asOf = M().isDate(today) ? today : w.end;
+    // Due by the week's end, but overdue only when the date is before today: a follow-up later this week is not late yet.
+    const due = followUps(state, w.end).filter((x) => x.due).map((x) => Object.assign(x, { overdue: x.date < asOf }));
+    return { weekly: w, due, asOf };
   }
 
   // ---- add and edit ----
