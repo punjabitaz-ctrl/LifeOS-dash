@@ -29,8 +29,8 @@ const REAL_DERIVE = (p, salt) => { realKeys(); try { return V.deriveKey(p, salt)
 
 // ---------------------------------------------------------------- schema 18
 test('schema 18: the schema is 18 and package.json is the version source', () => {
-  assert.equal(S.SCHEMA, 20); assert.equal(S.defaultState().schema, 20);
-  assert.equal(JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version, '2.0.0');
+  assert.equal(S.SCHEMA, 21); assert.equal(S.defaultState().schema, 21);
+  assert.equal(JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version, '2.1.0');
 });
 const OLDFIELDS = { role: 'Account Executive', locationType: 'remote', targetOteCents: 20000000, appliedOn: '2026-11-01', resume: 'v3', followUp: '2026-11-20' };
 test('migrations 1 to 17 into 18: the pipeline survives with every old text, and no job field is invented or trusted from an older format', () => {
@@ -52,7 +52,7 @@ test('migrations 1 to 17 into 18: the pipeline survives with every old text, and
     if (n < 17) { delete o.memory.lastReviewAt; delete o.memory.mutes; delete o.memory.startedOn; }
     delete o.settings.layouts;
     const got = S.validateState(o);
-    assert.equal(got.schema, 20); assert.equal(got.sourceSchema, n);
+    assert.equal(got.schema, 21); assert.equal(got.sourceSchema, n);
     if (n < 3) { assert.deepEqual(got.pipeline, [], 'schema ' + n + ' carries no pipeline'); continue; }
     assert.equal(got.pipeline.length, 2, 'schema ' + n);
     const a = got.pipeline.find((x) => x.id === 'a');
@@ -69,16 +69,16 @@ test('a v1.5.0 backup (schema 17) imports cleanly into an empty vault and a stor
   st.pipeline.push(job({ id: 'a', title: 'Backup job', stage: 'interview', notes: 'kept' }));
   const salt = V.newSalt(), key = await REAL_DERIVE('backup passphrase 1', salt);
   const imp = await V.importBackup('backup passphrase 1', JSON.stringify(await V.makeEnvelope(key, salt, S.validateState(Object.assign(clone(st), { schema: 17 })))));
-  assert.equal(imp.schema, 20); assert.equal(imp.sourceSchema, 20, 'the backup was written by this validator');
+  assert.equal(imp.schema, 21); assert.equal(imp.sourceSchema, 21, 'the backup was written by this validator');
   // a file really written at schema 17 (envelope plaintext with schema 17)
   const raw17 = clone(S.validateState(clone(st))); raw17.schema = 17;
   const k2 = await REAL_DERIVE('backup passphrase 1', salt);
   const imp17 = await V.importBackup('backup passphrase 1', JSON.stringify(await V.makeEnvelope(k2, salt, raw17)));
-  assert.equal(imp17.schema, 20); assert.equal(imp17.sourceSchema, 17); assert.equal(imp17.pipeline[0].notes, 'kept'); assert.equal(imp17.pipeline[0].role, undefined);
+  assert.equal(imp17.schema, 21); assert.equal(imp17.sourceSchema, 17); assert.equal(imp17.pipeline[0].notes, 'kept'); assert.equal(imp17.pipeline[0].role, undefined);
   await vault(null);
   assert.deepEqual(S.droppedData(S.getState(), imp17), []);
   await S.replaceState(imp17);
-  assert.equal(S.getState().schema, 20); assert.equal(S.getState().pipeline.length, 1);
+  assert.equal(S.getState().schema, 21); assert.equal(S.getState().pipeline.length, 1);
   // stored as schema 17 on disk: unlock migrates, and the first write saves schema 18
   const ad = memAdapter(); S._setAdapter(ad); S.lock(); await S.init(PASS);
   const env = await S.exportEnvelope(), salt2 = V.parseEnvelope(env).salt;
@@ -87,9 +87,9 @@ test('a v1.5.0 backup (schema 17) imports cleanly into an empty vault and a stor
   await ad.set('envelope', await V.makeEnvelope(key2, salt2, raw17));
   S.lock();
   const un = await S.unlock(PASS);
-  assert.equal(un.schema, 20); assert.equal(un.pipeline.length, 1);
+  assert.equal(un.schema, 21); assert.equal(un.pipeline.length, 1);
   await S.commit(() => {});
-  assert.equal((await (await V.openEnvelope(await ad.get('envelope'), PASS)).raw).schema, 20);
+  assert.equal((await (await V.openEnvelope(await ad.get('envelope'), PASS)).raw).schema, 21);
 });
 test('downgrade guards: an older-format copy names the job details it would drop; a newer schema is refused', async () => {
   const cur = withJobs([job(Object.assign({ id: 'a', stage: 'applied' }, OLDFIELDS))]);
@@ -106,14 +106,14 @@ test('downgrade guards: an older-format copy names the job details it would drop
   const plain = withJobs([job({ id: 'a' })]);
   assert.deepEqual(S.droppedData(plain, S.validateState(Object.assign(clone(plain), { schema: 17 }))), [], 'a plain pipeline item loses nothing');
   assert.deepEqual(S.droppedData(cur, S.validateState(clone(cur))), []);
-  assert.throws(() => S.validateState(Object.assign(S.defaultState(), { schema: 21 })), /schema/);
+  assert.throws(() => S.validateState(Object.assign(S.defaultState(), { schema: 22 })), /schema/);
   // through a real backup and a sync copy: an older-format file never silently strips the details
   await vault(cur);
   const salt = V.newSalt(), key = await REAL_DERIVE('backup passphrase 1', salt);
   const old17 = Object.assign(clone(cur), { schema: 17 });
   const imp = await V.importBackup('backup passphrase 1', JSON.stringify(await V.makeEnvelope(key, salt, old17)));
   assert.equal(imp.sourceSchema, 17); assert.ok(S.dropsWork(S.getState(), imp));
-  await assert.rejects(V.importBackup('backup passphrase 1', JSON.stringify(await V.makeEnvelope(key, salt, Object.assign(clone(cur), { schema: 21 })))), /schema/);
+  await assert.rejects(V.importBackup('backup passphrase 1', JSON.stringify(await V.makeEnvelope(key, salt, Object.assign(clone(cur), { schema: 22 })))), /schema/);
 });
 
 // ---------------------------------------------------------------- validateState for every new field

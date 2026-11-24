@@ -663,3 +663,42 @@ Where the addendum was ambiguous the safer reading was taken.
 ## Amendment (v2.0.0 audit)
 1. After ROLLBACK on the NAS (its copy is older than the last sync, for example after a restore on the service or a snapshot rollback), the owner may choose "Replace the NAS copy": the NAS copy is checked again, never adopted, saved to a file first, and replaced by this device's copy with compare-and-swap on the service revision just read (SEC-134). The Drive step of Sync now starts only after a NAS dialog has closed.
 2. The service reads at most `maxUploads` bodies at a time (default 2), answers 503 BUSY beyond that, and with `trustProxy` keys rate limits on the last X-Forwarded-For entry (SEC-136, SEC-137).
+
+## v2.1.0 addendum: Eating (owner request, 24 Nov 2026)
+The owner asked for one place for activity, exercise and eating on phone and PC, and chose to add eating to Health rather than build another app. The owner's own framing: fixed portions instead of counting macros, a daily protein target the owner sets, eggs as the usual breakfast, a base batch-cooked once or twice a week and finished fresh, little time to cook, and the real question being whether a meal was eaten for health or for fullness. Schema 21 with tested migrations from 1 to 20 and the downgrade guards (SEC-27/28) extended to the new data.
+
+### Saved meals (fixed portions)
+- `meals:[{id, name, protein, slot}]`, cap 50. `name` 1 to 60 characters (the owner's own words, for example "3 eggs and toast"), `protein` whole grams 0 to 300 for one portion as the owner defines it, `slot` one of breakfast, lunch, dinner, snack, any. Add, edit and delete in a "Saved meals" section. No calories, carbs, fat or food database: one number per meal.
+- Deleting a saved meal keeps every logged meal and its protein (history never changes); those log rows read "Removed meal".
+
+### Meal log (one tap)
+- `mealLog:[{id, date, protein, mealId?, oneOff?, forHealth?}]`, cap 20000. Logging a saved meal is one tap on its button and copies its protein into the row, so editing a saved meal later never rewrites past days. A "One-off" row (`oneOff:true`, never with a `mealId`) takes a protein number only (eating out, something new); it has no name and no free text.
+- `forHealth` is optional true or false: the owner's own answer to "Ate for health?" for that meal, tapped Yes or No on the row. Unanswered rows count in neither direction.
+- A day picker (default today) chooses which day the taps log to and which day is shown. Remove deletes one row.
+
+### Protein target
+- `settings.food = { proteinTarget? }`: whole grams per day, 1 to 1000, typed by the owner (empty clears). The app never suggests or computes a target and never says whether a number is good or bad; with no target set, target figures read "Set a target".
+
+### Views (Health screen, phone first)
+- "Eating" card right after Today: the day's protein total against the target with a bar, saved-meal buttons (breakfast first, then lunch, dinner, snack, any), the One-off form, the day's rows with Yes or No for "Ate for health?" and Remove.
+- "Eating this week" (Monday to Sunday, like workouts): average protein per logged day (days with no meal logged are left out, not counted as zero), days at or over the target (x of 7, or "Set a target"), meals logged, and the share of answered meals marked "Ate for health"; a 7-day row of bars. Every figure with no data reads "no data", never zero.
+- Search finds saved meal names (Health area).
+
+### Privacy and AI
+- Meals and the meal log live only inside the encrypted vault and sync and back up with it like everything else; they stay live when a year is archived. A saved meal can move into the private vault and its log rows follow it (like a daily check and its ticks); a row logged for a private meal is private.
+- `weeklyDigest` gains `food:{meals, proteinAvg, proteinDays, forHealthRate}`, numbers only. Owner rule for this build: like body metrics, these numbers are not sent to any AI provider (the prompt line is left out); they stay in the stored review inside the vault. Meal names never reach the digest, a prompt, the audit log, an error message, diagnostics or the calendar file.
+- Tracker, not advice: no recommendation, judgement or diagnosis in UI copy; labels state numbers and the owner's own answers only. No em dashes.
+
+## Amendment (v2.1.0 build)
+1. A row's kind is explicit: a one-off row carries `oneOff:true` (never with a `mealId`), so a row whose saved meal was deleted (neither field) reads "Removed meal" and a one-off reads "One-off". `oneOff` must be `true` or absent.
+2. A logged row whose `mealId` names no saved meal (for example in a file edited by hand) keeps its day and protein and loses only the link, like a deleted meal.
+3. The weekly digest stores `food` with "none" as 0, like the other digest blocks; the Health screen shows "no data" instead.
+4. The day picked on the Eating card is held in memory only; picking today again, or locking, returns it to today.
+5. No meal data in the archive: the meal log stays live when a year is archived (cap 20000 rows, about ten years at five meals a day).
+
+## Amendment (v2.1.0 audit)
+1. A logged meal cannot move out of the private vault alone while its saved meal stays private: "Its saved meal is in the private vault. Move the saved meal out instead; it takes this with it." Nothing is written (SEC-140).
+2. The day picked on the Eating card is reset on lock (SEC-141).
+
+## Amendment (full review after v2.1.0)
+1. `LifeOS.HOSTS` is frozen and read-only in the built page, and the test hook `ai._setHosts` keeps a frozen copy of only `ai-nas` and `ai-pc` (SEC-142). This is how v2.0.0 item 12 is now met.

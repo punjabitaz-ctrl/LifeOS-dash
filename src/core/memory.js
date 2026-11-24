@@ -140,7 +140,7 @@
       const md = dg.media;
       if (md && (md.clientsOverdue || md.episodesThisMonth || md.sitesRenewing)) lines.push('- clients and media detail (numbers only): clients with an overdue invoice ' + md.clientsOverdue + ', episodes published this month ' + md.episodesThisMonth + ', sites with a renewal in the next 30 days ' + md.sitesRenewing);
       const hh = dg.health;
-      // Body metrics (weight change) stay in the vault: they are never sent to a provider.
+      // Body metrics (weight change) stay in the vault: they are never sent to a provider. v2.1.0: so do the eating numbers (dg.food).
       if (hh) lines.push('- health detail: sessions ' + hh.sessions + ', minutes ' + hh.minutes + ', average sleep ' + hh.avgSleep + ' hours, daily checks completed ' + hh.habitRate + '%');
       // Goals: counts only, never titles, notes or values; weight and body fat goals are not counted at all (SEC-32).
       const gc = dg.goals;

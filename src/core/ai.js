@@ -17,11 +17,19 @@
   const HOME_NAME = { nas: 'NAS model', pc: 'PC model' };
   const MODEL_RE = /^[A-Za-z0-9][A-Za-z0-9._:\/@-]{0,99}$/;
   let hostsOverride = null;
-  function _setHosts(h) { hostsOverride = h && typeof h === 'object' ? h : null; }
+  const HOST_RE = /^[a-z0-9.-]{3,253}$/;
+  // Test hook. SEC-142 (v2.1.0): only the two fixed names are taken, copied into a frozen table when set, so a caller's object can add no
+  // other key and cannot be changed afterwards.
+  function _setHosts(h) {
+    if (!h || typeof h !== 'object') { hostsOverride = null; return; }
+    const o = {};
+    for (const k of Object.values(HOME_KEY)) if (typeof h[k] === 'string' && HOST_RE.test(h[k])) o[k] = h[k];
+    hostsOverride = Object.freeze(o);
+  }
   function hostFor(kind) {
     const h = hostsOverride || L.HOSTS;
     const name = h && typeof h === 'object' ? h[HOME_KEY[kind]] : '';
-    return typeof name === 'string' && /^[a-z0-9.-]{3,253}$/.test(name) ? name : '';
+    return typeof name === 'string' && HOST_RE.test(name) ? name : '';
   }
   const isHome = (k) => k === 'nas' || k === 'pc';
   function validateProvider(p) {

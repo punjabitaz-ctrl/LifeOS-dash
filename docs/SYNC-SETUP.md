@@ -2,6 +2,8 @@
 
 You do this once. It uses your own Google Cloud project, so no one else holds your credentials.
 
+Since v2.0.0 the NAS is the main sync copy and Google Drive is the second copy (see docs/NAS-SETUP.md). Drive works on its own too, so you can set it up before or without the NAS. In the app the Drive card is "Google Drive sync (second copy)".
+
 1. Go to https://console.cloud.google.com and sign in with the Google account whose Drive will hold the vault.
 2. Create a project (for example "LifeOS sync") from the project picker at the top.
 3. Open APIs and Services, then Library. Search for "Google Drive API" and press Enable.
@@ -12,9 +14,10 @@ You do this once. It uses your own Google Cloud project, so no one else holds yo
 8. Under Authorised JavaScript origins, add the origin of the site that serves LifeOS, for example `https://lifeos.example.com` (no trailing slash, no path).
 9. Under Authorised redirect URIs, add the full address of the LifeOS page, for example `https://lifeos.example.com/`. It must match exactly, including the trailing slash if there is one.
 10. Create the client and copy the Client ID (it ends in `.apps.googleusercontent.com`). You do not need the client secret and LifeOS never asks for it.
-11. Open LifeOS over https, unlock, go to Settings, then Google Drive sync. Paste the Client ID and press Save client ID.
+11. Open LifeOS over https, unlock, go to Settings, then Google Drive sync (second copy). Paste the Client ID and press Save client ID.
 12. Press Connect Google Drive, approve the consent screen (Google warns the app is unverified because it is in testing mode, which is expected for your own project), then unlock again when you return.
-13. Press Sync now. The first sync uploads your encrypted vault. On a second device, create or unlock a vault, paste the same Client ID, connect, and press Sync now. You will be asked for the passphrase of the Drive copy once.
+13. Press Sync now on the Google Drive card. The first sync uploads your encrypted vault. On a second device, create or unlock a vault, paste the same Client ID, connect, and press Sync now. You will be asked for the passphrase of the Drive copy once.
+14. Once the NAS is set up, Sync now on the NAS card writes the NAS first, then Google Drive when it is connected. Sync now on the Google Drive card still writes Drive alone.
 
 ## Limits, stated plainly
 
@@ -34,5 +37,6 @@ The live copy sits behind a Cloudflare Access sign-in. Google's sign-in sends th
 2. Sign in to Access first, then open LifeOS, unlock and press Connect Google Drive. After you approve at Google, the browser must come back to the same LifeOS address with the vault lock screen. Unlock again; the Connected line shows in Settings.
 3. If Access intercepts the return (you see the Access sign-in or an Access error page instead of LifeOS): sign in to Access again in the same tab and reload the page. If that does not work, close the tab, open LifeOS fresh, and press Connect again. Check that the Access session has not expired and that the Access policy allows your account for the exact path above.
 4. If it keeps failing, test the same sign-in once from `http://localhost` (Sync is offered over localhost as well, see the limits above) to tell an Access problem from a Google Cloud setting problem, then compare the redirect URI in Google Cloud with the address in the browser bar character by character.
-5. The optional "Remind me to sync" setting (Settings, Storage and backup safety) shows a one-line notice on lock and when you leave the tab if this device has changes that are not on Drive. It never syncs by itself.
+5. When you move LifeOS to its own address (`https://lifeos.tazabbas.com`, see docs/NAS-SETUP.md), add that origin and that page address to the same OAuth client in step 8 and step 9. Keep the workers.dev entries until you retire that address.
+6. The optional "Remind me to sync" setting (Settings, Storage and backup safety) shows a one-line notice on lock and when you leave the tab if this device has changes that are not on Drive. It never syncs by itself.
 

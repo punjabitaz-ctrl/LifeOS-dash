@@ -23,6 +23,8 @@
     people: { refs: [['groupId', 'groups'], ['pipelineIds', 'pipeline', true], ['projectIds', 'projects', true]] },
     groups: {}, contacts: { refs: [['personId', 'people']] },
     habits: {}, habitLog: { key: (r) => r.habitId + '|' + r.date },
+    // v2.1.0: a saved meal moves with its logged rows (like a daily check and its ticks); a row logged for a private meal is private.
+    meals: {}, mealLog: { refs: [['mealId', 'meals']] },
     // v1.1.0: business records. An invoice and its income entry move together (one-to-one money link, like an activity and its expense).
     invoices: { refs: [['projectId', 'projects'], ['incomeId', 'entries'], ['clientId', 'clients']] }, trips: { refs: [['projectId', 'projects']] }, payees: {}, taxPayments: {},
     // v1.7.0: clients, shows, episodes, platform numbers, sites and site traffic. A show moves with its episodes and numbers, an episode with
@@ -266,6 +268,7 @@
       for (const [c, k] of [[pc, a.id], ['entries', a[pf]]]) { if (to) isP[c].add(k); else isP[c].delete(k); }
     }
     for (const t of listOf(clean, 'habitLog')) if (isP.habits.has(t.habitId)) isP.habitLog.add(keyOf('habitLog', t));
+    for (const t of listOf(clean, 'mealLog')) if (t.mealId && isP.meals.has(t.mealId)) isP.mealLog.add(t.id);
     // SEC-62: a record created from or under a private record is private too, so no private text reaches the main state through a
     // derived record (a confirmed recurring item, a carried-over outcome, the next maintenance task or renewal, a person added from
     // an activity, a contact or study session logged for a private person or item). New records inherit when the caller names a
@@ -285,6 +288,7 @@
           }
         }
         for (const t of listOf(clean, 'habitLog')) if (isP.habits.has(t.habitId)) isP.habitLog.add(keyOf('habitLog', t));
+    for (const t of listOf(clean, 'mealLog')) if (t.mealId && isP.meals.has(t.mealId)) isP.mealLog.add(t.id);
       }
     }
     for (const c of COLLECTIONS) {
@@ -714,6 +718,7 @@
       if (cc === 'episodes') for (const a of refs('platformStats', 'episodeId', k)) q.push(['platformStats', a.id]);
       if (cc === 'sites') for (const a of refs('siteTraffic', 'siteId', k)) q.push(['siteTraffic', a.id]);
       if (cc === 'habits') for (const t of refs('habitLog', 'habitId', k)) q.push(['habitLog', keyOf('habitLog', t)]);
+      if (cc === 'meals') for (const t of refs('mealLog', 'mealId', k)) q.push(['mealLog', t.id]);
       if (children) for (const [ch, f] of CHILDREN[cc] || []) for (const r of refs(ch, f, k)) if (ch !== 'entries' || (cc === 'accounts' ? r.type === 'balance' : (r.type === 'outcome' || r.type === 'income' || r.type === 'expense'))) q.push([ch, keyOf(ch, r)]);
     }
     return out;
@@ -739,7 +744,8 @@
     if (!want) {
       const going = new Set(list.map(([cc, k]) => cc + '\u0000' + k));
       for (const [cc, k] of list) {
-        const need = cc === 'episodes' || cc === 'platformStats' ? ['shows', 'showId', 'show'] : cc === 'siteTraffic' ? ['sites', 'siteId', 'site'] : null;
+        // SEC-140 (v2.1.0): the same holds for a logged meal while its saved meal stays private.
+        const need = cc === 'episodes' || cc === 'platformStats' ? ['shows', 'showId', 'show'] : cc === 'siteTraffic' ? ['sites', 'siteId', 'site'] : cc === 'mealLog' ? ['meals', 'mealId', 'saved meal'] : null;
         if (!need) continue;
         const r = listOf(st, cc).find((x) => keyOf(cc, x) === k), pid = r && r[need[1]];
         if (typeof pid === 'string' && inPriv(need[0], pid) && !inBase(need[0], pid) && !going.has(need[0] + '\u0000' + pid)) throw new Error('Its ' + need[2] + ' is in the private vault. Move the ' + need[2] + ' out instead; it takes this with it.');

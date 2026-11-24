@@ -3,9 +3,17 @@
 Newest first. One line per change. Versions come from package.json (see docs/RUNBOOK.md); fixes by number are described in docs/SECURITY.md.
 
 ## Unreleased
+
+## 2.1.0 (schema 21): Eating in Health
+- Health gains an Eating card: saved meals (fixed portions with one protein number, up to 50, grouped by breakfast, lunch, dinner, snack and any time), one tap logs a meal for the chosen day and copies its protein, a one-off meal by protein only, an optional "Ate for health?" yes or no per meal, and the day's protein against an optional target the owner sets (never suggested).
+- "Eating this week": average protein per logged day, days at or over the target, meals logged and the ate-for-health share; a week with nothing logged reads "no data". Search finds saved meal names.
+- Saved meals and logged meals can move to the private vault (a meal moves with its logged rows). Meal names never leave the vault; the weekly digest gains four numbers (meals, average protein, days at target, ate-for-health share) and they are not sent to any AI provider.
 - Weekly review, Job search follow-ups: a follow-up due later this week is no longer labelled "(overdue)"; only a date before today is (`jobs.reviewWeek`).
 - Weekly review, "This week vs last week": amounts as currency, rates with "%", counts with grouped digits and their unit (singular for one), and each change signed (a change in a rate is in points). `metrics.fmtDigest`.
 - Podcasts: the platform chip buttons read "Rename" and "Remove", and the release chip button "Remove", instead of "r" and "x".
+- Schema 21 (meals, mealLog, settings.food) with migrations from 1 and downgrade guards. Decisions in SPEC.md "v2.1.0 addendum: Eating". Tests: test/v210.test.mjs.
+- Existing tests: schema numbers 20 to 21, "newer schema" fixtures 21 to 22, version strings 2.0.0 to 2.1.0.
+- Security: audit SEC-140 (a logged meal can no longer seem to leave the private vault while its meal stays private) and SEC-141 (the picked Eating day resets on lock); full review SEC-142 (the home host names are frozen after load). Tests: test/v210-audit.test.mjs.
 
 ## 2.0.0 (schema 20): NAS sync and home model hosts
 - config/hosts.json (app, sync, ai-nas, ai-pc) is read by build.mjs into connect-src: exactly the three home https origins are added, nothing user-entered.

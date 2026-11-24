@@ -199,7 +199,7 @@
   const COUNT_KEYS = [['entries', 'Entries'], ['accounts', 'Accounts'], ['recurring', 'Recurring items'], ['budgets', 'Budgets'], ['projects', 'Projects'], ['pipeline', 'Pipeline items'], ['goals', 'Goals'],
     ['properties', 'Properties'], ['vehicles', 'Vehicles'], ['maintenance', 'Maintenance items'], ['renewals', 'Renewals'], ['documents', 'Documents'], ['taxItems', 'Tax items'],
     ['learningItems', 'Learning items'], ['studySessions', 'Study sessions'], ['takeaways', 'Takeaways'], ['activities', 'Activities'], ['groups', 'Groups'], ['people', 'People'], ['contacts', 'Contacts'],
-    ['payees', 'Payees'], ['invoices', 'Invoices'], ['trips', 'Mileage trips'], ['taxPayments', 'Tax payments'], ['clients', 'Clients'], ['shows', 'Shows'], ['episodes', 'Episodes'], ['platformStats', 'Platform numbers'], ['sites', 'Sites'], ['siteTraffic', 'Site traffic months'], ['habits', 'Daily checks'], ['habitLog', 'Daily check log'], ['archives', 'Archived years']];
+    ['payees', 'Payees'], ['invoices', 'Invoices'], ['trips', 'Mileage trips'], ['taxPayments', 'Tax payments'], ['clients', 'Clients'], ['shows', 'Shows'], ['episodes', 'Episodes'], ['platformStats', 'Platform numbers'], ['sites', 'Sites'], ['siteTraffic', 'Site traffic months'], ['habits', 'Daily checks'], ['habitLog', 'Daily check log'], ['meals', 'Saved meals'], ['mealLog', 'Meal log'], ['archives', 'Archived years']];
   const n = (a) => (Array.isArray(a) ? a.length : 0);
 
   // ---- verify a backup file: decrypt in memory, compare with the live vault, discard. Writes nothing anywhere. ----

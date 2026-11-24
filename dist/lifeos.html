@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-DRQeWXN1uomX847UKJHccx+7FjYjoSKdyxLZl8vcb/U='; style-src 'sha256-dkGw1nhveikRf03GT4p42Bmd2r0LI4q5rZNRWShN/zk='; connect-src https://api.anthropic.com https://www.googleapis.com https://sync.lifeos.tazabbas.com https://ai-nas.lifeos.tazabbas.com https://ai-pc.lifeos.tazabbas.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'; manifest-src 'self'; worker-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-1pF02vkix9wY5dowAHirOw/rri8A1qBbH9aizsnsdSc='; style-src 'sha256-CfEZSRN+LvyaeuHLBMyXrSx8eRHeUG6aZIFvJ5XUFlo='; connect-src https://api.anthropic.com https://www.googleapis.com https://sync.lifeos.tazabbas.com https://ai-nas.lifeos.tazabbas.com https://ai-pc.lifeos.tazabbas.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'; manifest-src 'self'; worker-src 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#2255d4">
-<meta name="lifeos-shell" content="2.0.0">
-<link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAA9zQYyAAAAEnRFWHRsaWZlb3Mtc2hlbGwAMi4wLjD8ISYmAAADOklEQVR42u3dvU0DMRiA4czCGowRsQNFNkhLnQ0omAGxAiUVTZoUKaBJQ0FDc+hDuigCKfzkfPg+P5ZeiQqF4+FkfLEzO7t47KQszVwEAS0BLQEtAS2gJaAloCWgJaAFtAS0BLQEtAS0gJaAloCWgJaAFtAS0BLQEtAS0AJaAloCWgJaAlpAS0BLQEtAS0ALaAloCWgJaAHtQghoCWgJ6NNbrLbd3f1L97R7604d8X2ubp6788s1QECPXwAsMeKPY77cQAT09DEfonanBnqU4u45xri+3YEEdPkC2lgDJKAnP90AGmigBTTQAhpooIGuH3QsEfYPiR7Wr18e+MQ/wq2vjQM9AdAB+TerNrE+Hk8zgQa6OtAB04MfoFOAHupniGkK0ED/K+ihX38rqIGuEPQp04xjo4XpB9CVgQ50pUasjAAN9KigPy/HDT2yL+sBXRHoknfnVu7SQFcEutTcuaW5NNAVgR7rNWde8QC6ItBjjbg2QAMNNNBAAw000EADDbSNvUBb5QAaaOvQQAPtSSHQbb6Xo/R5It7LAXSad9tlXt0AuuL3Q8c/bUOPVrZjAd3IjpVWdoMDXfGewiHm03FntqcQ6CpA99OPvx7UHisadn0DXRXow7v1T2EH5FYPnAF6IqAP79iBO36+/mM2+q/jwYyTk4CeFGgBDTTQQAMNNNACGmgBDbSABhpooIEGGmgBDbSABlpAAw000EADDbSABlpAAy2ggQYaaKCBBlpAAy2ggRbQQAMNNNBAAy2ggRbQQAMNNNBAAw000EALaKAFNNBAA518xEHocYY00ECnGpk/EQtoqIEGOseIj7YAGuhUc2qggU41gAYaaKCBBhpooIEGGmiggQYaaKCBBhpooIEGGmiggQYaaKCBBhpooIEGGmiggQbaABpooIEGGmigixbbi4zjw46VCTVfboj9ZmQ80iAtaNOO4yN2fTvGAOo0mJ3LMeEWq+0H7PhFtjziGjg5SQJaAloCWgJaQEtAS0BLQEtAC2gJaAloCWgB7SIIaAloCWgJaAEtAS0BLQEtAS2gJaAloCWgJaAFtAS0BLQEtAS0gJaAloCWgJaAFtAS0BLQEtDSvncTEEXALVKZAwAAAABJRU5ErkJggg==">
+<meta name="lifeos-shell" content="2.1.0">
+<link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAA9zQYyAAAAEnRFWHRsaWZlb3Mtc2hlbGwAMi4xLjD940wRAAADOklEQVR42u3dvU0DMRiA4czCGowRsQNFNkhLnQ0omAGxAiUVTZoUKaBJQ0FDc+hDuigCKfzkfPg+P5ZeiQqF4+FkfLEzO7t47KQszVwEAS0BLQEtAS2gJaAloCWgJaAFtAS0BLQEtAS0gJaAloCWgJaAFtAS0BLQEtAS0AJaAloCWgJaAlpAS0BLQEtAS0ALaAloCWgJaAHtQghoCWgJ6NNbrLbd3f1L97R7604d8X2ubp6788s1QECPXwAsMeKPY77cQAT09DEfonanBnqU4u45xri+3YEEdPkC2lgDJKAnP90AGmigBTTQAhpooIGuH3QsEfYPiR7Wr18e+MQ/wq2vjQM9AdAB+TerNrE+Hk8zgQa6OtAB04MfoFOAHupniGkK0ED/K+ihX38rqIGuEPQp04xjo4XpB9CVgQ50pUasjAAN9KigPy/HDT2yL+sBXRHoknfnVu7SQFcEutTcuaW5NNAVgR7rNWde8QC6ItBjjbg2QAMNNNBAAw000EADDbSNvUBb5QAaaOvQQAPtSSHQbb6Xo/R5It7LAXSad9tlXt0AuuL3Q8c/bUOPVrZjAd3IjpVWdoMDXfGewiHm03FntqcQ6CpA99OPvx7UHisadn0DXRXow7v1T2EH5FYPnAF6IqAP79iBO36+/mM2+q/jwYyTk4CeFGgBDTTQQAMNNNACGmgBDbSABhpooIEGGmgBDbSABlpAAw000EADDbSABlpAAy2ggQYaaKCBBlpAAy2ggRbQQAMNNNBAAy2ggRbQQAMNNNBAAw000EALaKAFNNBAA518xEHocYY00ECnGpk/EQtoqIEGOseIj7YAGuhUc2qggU41gAYaaKCBBhpooIEGGmiggQYaaKCBBhpooIEGGmiggQYaaKCBBhpooIEGGmiggQbaABpooIEGGmigixbbi4zjw46VCTVfboj9ZmQ80iAtaNOO4yN2fTvGAOo0mJ3LMeEWq+0H7PhFtjziGjg5SQJaAloCWgJaQEtAS0BLQEtAC2gJaAloCWgB7SIIaAloCWgJaAEtAS0BLQEtAS2gJaAloCWgJaAFtAS0BLQEtAS0gJaAloCWgJaAFtAS0BLQEtDSvncTEEXALVKZAwAAAABJRU5ErkJggg==">
 <title>LifeOS</title>
 <style>:root{color-scheme:light dark;--bg:#f4f5f7;--card:#fff;--fg:#14171c;--mut:#5b6573;--line:#dde1e7;--acc:#2255d4;--acc-fg:#fff;--ok:#1c7a46;--warn:#9a5b00;--bad:#b42318;--r:14px;--sh:0 1px 2px rgba(0,0,0,.06);--font:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
 @media (prefers-color-scheme:dark){:root{--bg:#0f1216;--card:#181c22;--fg:#e8ebf0;--mut:#9aa4b2;--line:#2a313a;--acc:#6b93ff;--acc-fg:#0b1020;--ok:#4ac283;--warn:#e2a03f;--bad:#f2766b;--sh:none}}
@@ -230,13 +230,21 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
 .rk-boxes { display: flex; flex-wrap: wrap; gap: 6px; }
 .rk-box { display: inline-block; min-width: 3.6em; min-height: 2em; border: 1px solid #000; padding: 2px 6px; text-align: center; font-family: ui-monospace, Menlo, Consolas, monospace; }
 .rk-part { margin: 12px 0; }
+
+/* v2.1.0 eating */
+.eat-total{font-weight:600;margin:8px 0 4px}
+.eat-slot h3{margin:12px 0 6px}
+.eat-day{margin:6px 0}
+.bar-fill.eat-under{opacity:.55}
+.eat-row .row{gap:6px}
 </style>
 </head>
 <body>
 <div id="app"></div>
 <script>globalThis.LifeOS = globalThis.LifeOS || {};
-globalThis.LifeOS.VERSION = "2.0.0";
+globalThis.LifeOS.VERSION = "2.1.0";
 globalThis.LifeOS.HOSTS = {"app":"lifeos.tazabbas.com","sync":"sync.lifeos.tazabbas.com","ai-nas":"ai-nas.lifeos.tazabbas.com","ai-pc":"ai-pc.lifeos.tazabbas.com"};
+Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalThis.LifeOS.HOSTS), writable: false, configurable: false, enumerable: true });
 ;
 (function () {
   'use strict';
@@ -737,7 +745,7 @@ globalThis.LifeOS.HOSTS = {"app":"lifeos.tazabbas.com","sync":"sync.lifeos.tazab
   const COUNT_KEYS = [['entries', 'Entries'], ['accounts', 'Accounts'], ['recurring', 'Recurring items'], ['budgets', 'Budgets'], ['projects', 'Projects'], ['pipeline', 'Pipeline items'], ['goals', 'Goals'],
     ['properties', 'Properties'], ['vehicles', 'Vehicles'], ['maintenance', 'Maintenance items'], ['renewals', 'Renewals'], ['documents', 'Documents'], ['taxItems', 'Tax items'],
     ['learningItems', 'Learning items'], ['studySessions', 'Study sessions'], ['takeaways', 'Takeaways'], ['activities', 'Activities'], ['groups', 'Groups'], ['people', 'People'], ['contacts', 'Contacts'],
-    ['payees', 'Payees'], ['invoices', 'Invoices'], ['trips', 'Mileage trips'], ['taxPayments', 'Tax payments'], ['clients', 'Clients'], ['shows', 'Shows'], ['episodes', 'Episodes'], ['platformStats', 'Platform numbers'], ['sites', 'Sites'], ['siteTraffic', 'Site traffic months'], ['habits', 'Daily checks'], ['habitLog', 'Daily check log'], ['archives', 'Archived years']];
+    ['payees', 'Payees'], ['invoices', 'Invoices'], ['trips', 'Mileage trips'], ['taxPayments', 'Tax payments'], ['clients', 'Clients'], ['shows', 'Shows'], ['episodes', 'Episodes'], ['platformStats', 'Platform numbers'], ['sites', 'Sites'], ['siteTraffic', 'Site traffic months'], ['habits', 'Daily checks'], ['habitLog', 'Daily check log'], ['meals', 'Saved meals'], ['mealLog', 'Meal log'], ['archives', 'Archived years']];
   const n = (a) => (Array.isArray(a) ? a.length : 0);
 
   // ---- verify a backup file: decrypt in memory, compare with the live vault, discard. Writes nothing anywhere. ----
@@ -888,7 +896,7 @@ globalThis.LifeOS.HOSTS = {"app":"lifeos.tazabbas.com","sync":"sync.lifeos.tazab
   'use strict';
   const L = (globalThis.LifeOS = globalThis.LifeOS || {});
   const KEY = 'envelope';
-  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 20, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
+  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 21, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
   const HABIT_CAP = 8, HABIT_LOG_CAP = 100000, KIND_CAP = 30;
   const RENEWAL_TOTAL_CAP = 2000;
   const ENTRY_CAP = 50000, INSIGHT_CAP = 5000, REVIEW_CAP = 1000, LESSON_CAP = 30, AUDIT_CAP = 200;
@@ -1023,6 +1031,8 @@ globalThis.LifeOS.HOSTS = {"app":"lifeos.tazabbas.com","sync":"sync.lifeos.tazab
       setup: cleanSetup(s.setup, schema),
       // v1.7.0: days without contact before an active client is flagged.
       clients: schema >= 19 ? L.clients.cleanSettings(s.clients) : L.clients.cleanSettings(undefined),
+      // v2.1.0: the daily protein target (whole grams, typed by the owner). Older schemas have none.
+      food: schema >= 21 ? L.food.cleanSettings(s.food) : {},
     };
   }
   function cleanSetup(x, schema) {
@@ -1256,6 +1266,11 @@ globalThis.LifeOS.HOSTS = {"app":"lifeos.tazabbas.com","sync":"sync.lifeos.tazab
         sessions: num(x.sessions, 0, 1e6, 'digest health', true), minutes: num(x.minutes, 0, 1e9, 'digest health'), avgSleep: num(x.avgSleep, 0, 24, 'digest health'),
         weightChange: num(x.weightChange, -1e4, 1e4, 'digest health'), habitRate: num(x.habitRate, 0, 100, 'digest health'),
       };
+    }
+    if (d.food !== undefined) {
+      if (!isObj(d.food)) fail('digest food');
+      const x = d.food;
+      out.food = { meals: num(x.meals, 0, 1e6, 'digest food', true), proteinAvg: num(x.proteinAvg, 0, 1e4, 'digest food', true), proteinDays: num(x.proteinDays, 0, 7, 'digest food', true), forHealthRate: num(x.forHealthRate, 0, 100, 'digest food') };
     }
     if (d.goals !== undefined) {
       if (!isObj(d.goals)) fail('digest goals');
@@ -1597,7 +1612,7 @@ globalThis.LifeOS.HOSTS = {"app":"lifeos.tazabbas.com","sync":"sync.lifeos.tazab
   function validateStateRaw(o, opts) {
     if (!isObj(o)) fail('state must be an object');
     scan(o, 0, { n: 4e6 });
-    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, SCHEMA].includes(o.schema)) fail('unsupported schema');
+    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, SCHEMA].includes(o.schema)) fail('unsupported schema');
     if (!L.metrics) fail('metrics module missing');
     const settings = cleanSettings(o.settings, o.schema), entries = cleanEntries(o.entries);
     const out = { schema: SCHEMA, settings, entries };
@@ -1714,6 +1729,10 @@ globalThis.LifeOS.HOSTS = {"app":"lifeos.tazabbas.com","sync":"sync.lifeos.tazab
       for (const x of out.sites) if (x.showId !== undefined && !showIds.has(x.showId)) delete x.showId;
       for (const i of out.invoices) if (i.clientId !== undefined && (!nineteen || !clientIds.has(i.clientId))) delete i.clientId;
     }
+    // Schema 21 adds saved meals and the meal log (Eating, in Health). Older formats get empty lists; a link to a meal that no longer
+    // exists is dropped and the logged row is kept.
+    out.meals = o.schema >= 21 ? L.food.cleanMeals(o.meals) : [];
+    out.mealLog = o.schema >= 21 ? L.food.cleanLog(o.mealLog, out.meals) : [];
     // Schema 14 adds the archive index and the yearly summaries (numbers only). Older formats have neither.
     out.archives = o.schema >= 14 ? L.archive.cleanArchives(o.archives) : [];
     out.summaries = o.schema >= 14 ? L.archive.cleanSummaries(o.summaries, out.archives) : {};
@@ -1803,6 +1822,12 @@ globalThis.LifeOS.HOSTS = {"app":"lifeos.tazabbas.com","sync":"sync.lifeos.tazab
       const cs = cur.settings && cur.settings.clients;
       if (cs && cs.contactDays !== L.clients.DEFAULT_CONTACT_DAYS) out.push('client contact reminder days');
     }
+    if (src < 21) {
+      // v2.1.0: saved meals, the meal log and the daily protein target.
+      for (const [k, n] of [['meals', 'saved meals'], ['mealLog', 'logged meals']]) if ((cur[k] || []).length) out.push(n);
+      const fd = cur.settings && cur.settings.food;
+      if (fd && fd.proteinTarget !== undefined) out.push('protein target');
+    }
     if (src < 4) {
       if (cur.cycle) out.push('training cycle');
       if ((cur.habits || []).length) out.push('daily checks');
@@ -1815,7 +1840,7 @@ globalThis.LifeOS.HOSTS = {"app":"lifeos.tazabbas.com","sync":"sync.lifeos.tazab
   const dropsWork = (cur, next) => droppedData(cur, next).length > 0;
   const andList = (l) => (l.length > 1 ? l.slice(0, -1).join(', ') + ' and ' + l[l.length - 1] : l.join(''));
   // Plain-language list for warnings, with counts: "3 projects and 4 pipeline items". Names only, never values.
-  const COUNTED = { properties: 'properties', vehicles: 'vehicles', 'maintenance items': 'maintenance', renewals: 'renewals', documents: 'documents', 'tax items': 'taxItems', 'learning items': 'learningItems', 'study sessions': 'studySessions', takeaways: 'takeaways', activities: 'activities', 'social groups': 'groups', people: 'people', 'logged contacts': 'contacts', invoices: 'invoices', 'mileage trips': 'trips', payees: 'payees', 'estimated tax payments': 'taxPayments', clients: 'clients', shows: 'shows', episodes: 'episodes', 'platform numbers': 'platformStats', sites: 'sites', 'site traffic months': 'siteTraffic' };
+  const COUNTED = { properties: 'properties', vehicles: 'vehicles', 'maintenance items': 'maintenance', renewals: 'renewals', documents: 'documents', 'tax items': 'taxItems', 'learning items': 'learningItems', 'study sessions': 'studySessions', takeaways: 'takeaways', activities: 'activities', 'social groups': 'groups', people: 'people', 'logged contacts': 'contacts', invoices: 'invoices', 'mileage trips': 'trips', payees: 'payees', 'estimated tax payments': 'taxPayments', clients: 'clients', shows: 'shows', episodes: 'episodes', 'platform numbers': 'platformStats', sites: 'sites', 'site traffic months': 'siteTraffic', 'saved meals': 'meals', 'logged meals': 'mealLog' };
   function lossText(cur, next, list) {
     return andList((list || droppedData(cur, next)).map((n) => (n === 'projects' ? cur.projects.length + ' projects' : n === 'pipeline items' ? cur.pipeline.length + ' pipeline items' : n === 'daily checks' ? cur.habits.length + ' daily checks' : n === 'goals' ? cur.goals.length + ' goals' : COUNTED[n] ? cur[COUNTED[n]].length + ' ' + n : 'your ' + n)));
   }
@@ -1845,6 +1870,7 @@ globalThis.LifeOS.HOSTS = {"app":"lifeos.tazabbas.com","sync":"sync.lifeos.tazab
         backupReminderDays: 7, syncReminder: false,
         setup: { dismissed: false, targetsSaved: false },
         clients: { contactDays: 30 },
+        food: {},
       },
       entries: [],
       accounts: [], recurring: [], budgets: [], categories: defaultCategories(),
@@ -1857,6 +1883,7 @@ globalThis.LifeOS.HOSTS = {"app":"lifeos.tazabbas.com","sync":"sync.lifeos.tazab
       clients: [], shows: [], episodes: [], platformStats: [], sites: [], siteTraffic: [],
       archives: [], summaries: {}, ops: L.ops.defaultOps(),
       cycle: null, kinds: L.metrics.DEFAULT_KINDS.slice(), habits: [], habitLog: [],
+      meals: [], mealLog: [],
       memory: { insights: [], lessons: [], reviews: [], lastReviewAt: '', mutes: [], startedOn: localToday() },
       audit: [],
     };
@@ -2286,6 +2313,8 @@ globalThis.LifeOS.HOSTS = {"app":"lifeos.tazabbas.com","sync":"sync.lifeos.tazab
     people: { refs: [['groupId', 'groups'], ['pipelineIds', 'pipeline', true], ['projectIds', 'projects', true]] },
     groups: {}, contacts: { refs: [['personId', 'people']] },
     habits: {}, habitLog: { key: (r) => r.habitId + '|' + r.date },
+    // v2.1.0: a saved meal moves with its logged rows (like a daily check and its ticks); a row logged for a private meal is private.
+    meals: {}, mealLog: { refs: [['mealId', 'meals']] },
     // v1.1.0: business records. An invoice and its income entry move together (one-to-one money link, like an activity and its expense).
     invoices: { refs: [['projectId', 'projects'], ['incomeId', 'entries'], ['clientId', 'clients']] }, trips: { refs: [['projectId', 'projects']] }, payees: {}, taxPayments: {},
     // v1.7.0: clients, shows, episodes, platform numbers, sites and site traffic. A show moves with its episodes and numbers, an episode with
@@ -2529,6 +2558,7 @@ globalThis.LifeOS.HOSTS = {"app":"lifeos.tazabbas.com","sync":"sync.lifeos.tazab
       for (const [c, k] of [[pc, a.id], ['entries', a[pf]]]) { if (to) isP[c].add(k); else isP[c].delete(k); }
     }
     for (const t of listOf(clean, 'habitLog')) if (isP.habits.has(t.habitId)) isP.habitLog.add(keyOf('habitLog', t));
+    for (const t of listOf(clean, 'mealLog')) if (t.mealId && isP.meals.has(t.mealId)) isP.mealLog.add(t.id);
     // SEC-62: a record created from or under a private record is private too, so no private text reaches the main state through a
     // derived record (a confirmed recurring item, a carried-over outcome, the next maintenance task or renewal, a person added from
     // an activity, a contact or study session logged for a private person or item). New records inherit when the caller names a
@@ -2548,6 +2578,7 @@ globalThis.LifeOS.HOSTS = {"app":"lifeos.tazabbas.com","sync":"sync.lifeos.tazab
           }
         }
         for (const t of listOf(clean, 'habitLog')) if (isP.habits.has(t.habitId)) isP.habitLog.add(keyOf('habitLog', t));
+    for (const t of listOf(clean, 'mealLog')) if (t.mealId && isP.meals.has(t.mealId)) isP.mealLog.add(t.id);
       }
     }
     for (const c of COLLECTIONS) {
@@ -2977,6 +3008,7 @@ globalThis.LifeOS.HOSTS = {"app":"lifeos.tazabbas.com","sync":"sync.lifeos.tazab
       if (cc === 'episodes') for (const a of refs('platformStats', 'episodeId', k)) q.push(['platformStats', a.id]);
       if (cc === 'sites') for (const a of refs('siteTraffic', 'siteId', k)) q.push(['siteTraffic', a.id]);
       if (cc === 'habits') for (const t of refs('habitLog', 'habitId', k)) q.push(['habitLog', keyOf('habitLog', t)]);
+      if (cc === 'meals') for (const t of refs('mealLog', 'mealId', k)) q.push(['mealLog', t.id]);
       if (children) for (const [ch, f] of CHILDREN[cc] || []) for (const r of refs(ch, f, k)) if (ch !== 'entries' || (cc === 'accounts' ? r.type === 'balance' : (r.type === 'outcome' || r.type === 'income' || r.type === 'expense'))) q.push([ch, keyOf(ch, r)]);
     }
     return out;
@@ -3002,7 +3034,8 @@ globalThis.LifeOS.HOSTS = {"app":"lifeos.tazabbas.com","sync":"sync.lifeos.tazab
     if (!want) {
       const going = new Set(list.map(([cc, k]) => cc + '\u0000' + k));
       for (const [cc, k] of list) {
-        const need = cc === 'episodes' || cc === 'platformStats' ? ['shows', 'showId', 'show'] : cc === 'siteTraffic' ? ['sites', 'siteId', 'site'] : null;
+        // SEC-140 (v2.1.0): the same holds for a logged meal while its saved meal stays private.
+        const need = cc === 'episodes' || cc === 'platformStats' ? ['shows', 'showId', 'show'] : cc === 'siteTraffic' ? ['sites', 'siteId', 'site'] : cc === 'mealLog' ? ['meals', 'mealId', 'saved meal'] : null;
         if (!need) continue;
         const r = listOf(st, cc).find((x) => keyOf(cc, x) === k), pid = r && r[need[1]];
         if (typeof pid === 'string' && inPriv(need[0], pid) && !inBase(need[0], pid) && !going.has(need[0] + '\u0000' + pid)) throw new Error('Its ' + need[2] + ' is in the private vault. Move the ' + need[2] + ' out instead; it takes this with it.');
@@ -4056,7 +4089,7 @@ globalThis.LifeOS.HOSTS = {"app":"lifeos.tazabbas.com","sync":"sync.lifeos.tazab
     const we = addDays(ws, 6), wm = sumMoney(byDomain(state, 'money'), ws, we), nw = netWorthDetail(state, we);
     const mv = monthView(state, monthOf(we));
     const money = { income: dollars(wm.incC), spend: dollars(wm.expC), budgetUsedPct: mv.budgetCents > 0 ? r1(mv.budgetedSpentCents * 100 / mv.budgetCents) : 0, netWorth: nw.total, liabilities: nw.liabilities };
-    return { week: ws, domains, money, work: workDigest(state, ws), jobs: L.jobs ? L.jobs.digest(state, ws) : undefined, media: L.clients && L.media ? { clientsOverdue: L.clients.digest(state, ws), episodesThisMonth: L.media.digest(state, ws).episodesThisMonth, sitesRenewing: L.media.digest(state, ws).sitesRenewing } : undefined, health: healthDigest(state, ws), activities: L.activities.digest(state, ws), goals: L.goals.digestCounts(state, ws), home: L.home.digest(state, ws), admin: L.admin.digest(state, ws), learning: L.learning.digest(state, ws), social: L.social.digest(state, ws), revenue: L.revenue.digest(state, ws), business: L.business.digest(state, ws) };
+    return { week: ws, domains, money, work: workDigest(state, ws), jobs: L.jobs ? L.jobs.digest(state, ws) : undefined, media: L.clients && L.media ? { clientsOverdue: L.clients.digest(state, ws), episodesThisMonth: L.media.digest(state, ws).episodesThisMonth, sitesRenewing: L.media.digest(state, ws).sitesRenewing } : undefined, health: healthDigest(state, ws), food: L.food ? L.food.digest(state, ws) : undefined, activities: L.activities.digest(state, ws), goals: L.goals.digestCounts(state, ws), home: L.home.digest(state, ws), admin: L.admin.digest(state, ws), learning: L.learning.digest(state, ws), social: L.social.digest(state, ws), revenue: L.revenue.digest(state, ws), business: L.business.digest(state, ws) };
   }
   function series(state, domainId, n, today) {
     if (!DOMAINS.some((d) => d.id === domainId)) throw new Error('Unknown domain');
@@ -4153,6 +4186,194 @@ globalThis.LifeOS.HOSTS = {"app":"lifeos.tazabbas.com","sync":"sync.lifeos.tazab
 
   L.metrics = { todayISO, DEFAULT_KINDS, HABIT_CAP, convertWeight, movingAverage, bodySeries, bodyMetrics, isoWeek, weekNumber, workoutWeek, trainingCycle, cycleLabel, sleepAvg, sleepSummary, habitStats, habitRate, addHabit, deleteHabit, toggleHabit, healthDigest, setWeightUnits, linkedOutcomeCount, deleteProject, liveProjects, STAGES, OPEN_STAGES, STALE_DAYS, overdueProjects, isStale, pipelineCounts, openPipeline, weekOutcomes, carryOverCandidates, carryOver, workSummary, DOMAINS, isDate, addDays, validateEntry, headline, weekStart, weeklyDigest, series, fmtMoney, fmtDigest, cents, ACCOUNT_KINDS, LIAB_KINDS, DEFAULT_CATEGORIES, UNCAT, addMonths, monthEnd, advanceDate, netWorthDetail, netWorthHistory, monthView, cashflow, dueRecurring, confirmRecurring, skipRecurring };
   L.DOMAINS = DOMAINS;
+})();
+
+;
+(function () {
+  'use strict';
+  // v2.1.0: Eating, inside Health. Saved meals are fixed portions with one protein number each; the meal log is one tap per meal and
+  // copies the protein, so editing a saved meal never rewrites a past day. "Ate for health?" is the owner's own yes or no per meal.
+  // A tracker, not advice: no target is ever suggested and no figure is called good or bad. Every figure that cannot be known is null
+  // ("no data"), never 0 and never NaN. Meal names stay in the vault: the digest carries numbers only, and those numbers are not sent
+  // to any AI provider (memory.js leaves them out of the prompt, like body metrics).
+  const L = (globalThis.LifeOS = globalThis.LifeOS || {});
+  const SLOTS = Object.freeze(['breakfast', 'lunch', 'dinner', 'snack', 'any']);
+  const SLOT_LABEL = Object.freeze({ breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner', snack: 'Snack', any: 'Any time' });
+  const MEAL_CAP = 50, LOG_CAP = 20000, NAME_MAX = 60, PROTEIN_MAX = 300, TARGET_MAX = 1000;
+  const BIDI = /[؜​-‏‪-‮⁠-⁩﻿]/g;
+  const V = () => L.validate, M = () => L.metrics;
+  const list = (state, k) => (state && Array.isArray(state[k]) ? state[k] : []);
+  const fail = (m) => { throw new Error(m); };
+  const given = (v) => v !== undefined && v !== null && v !== '';
+  const clean1 = (s) => String(s == null ? '' : s).replace(BIDI, '').replace(/\s+/g, ' ').trim();
+
+  // ---- validation (schema 21): rebuilt from whitelists with caps; a link to a meal that no longer exists is dropped, the row is kept ----
+  function cleanSettings(x) {
+    if (x === undefined || x === null) return {};
+    if (!V().isObj(x)) V().fail('food settings');
+    const o = {};
+    if (x.proteinTarget !== undefined && x.proteinTarget !== null) o.proteinTarget = V().num(x.proteinTarget, 1, TARGET_MAX, 'protein target', true);
+    return o;
+  }
+  function cleanMeals(l) {
+    if (l === undefined || l === null) return [];
+    const seen = new Set();
+    return V().arr(l, MEAL_CAP, 'saved meals').map((x) => {
+      if (!V().isObj(x)) V().fail('saved meal');
+      const id = V().str(x.id, 100, 'meal id');
+      if (seen.has(id)) V().fail('duplicate meal id');
+      seen.add(id);
+      return {
+        id,
+        name: V().str(V().strip(V().str(x.name, NAME_MAX, 'meal name')).trim(), NAME_MAX, 'meal name'),
+        protein: V().num(x.protein, 0, PROTEIN_MAX, 'meal protein', true),
+        slot: V().oneOf(x.slot === undefined ? 'any' : x.slot, SLOTS, 'meal slot'),
+      };
+    });
+  }
+  function cleanLog(l, meals) {
+    if (l === undefined || l === null) return [];
+    const ids = new Set((meals || []).map((m) => m.id)), seen = new Set();
+    return V().arr(l, LOG_CAP, 'meal log').map((x) => {
+      if (!V().isObj(x)) V().fail('logged meal');
+      const id = V().str(x.id, 100, 'logged meal id');
+      if (seen.has(id)) V().fail('duplicate logged meal id');
+      seen.add(id);
+      const o = { id, date: V().date(x.date, 'logged meal date'), protein: V().num(x.protein, 0, PROTEIN_MAX, 'logged meal protein', true) };
+      if (given(x.mealId)) { const m = V().str(x.mealId, 100, 'logged meal link'); if (ids.has(m)) o.mealId = m; }
+      if (x.forHealth !== undefined && x.forHealth !== null) o.forHealth = V().bool(x.forHealth, 'ate for health');
+      // A one-off row has no meal; a row whose meal was deleted has neither (it reads "Removed meal").
+      if (x.oneOff === true) { if (o.mealId) V().fail('a one-off row has no meal'); o.oneOff = true; }
+      else if (x.oneOff !== undefined) V().fail('one-off must be true or absent');
+      return o;
+    });
+  }
+
+  // ---- input parsing (typed by the owner) ----
+  function wholeIn(v, min, max, what) {
+    const s = String(v == null ? '' : v).trim();
+    if (!/^\d{1,4}$/.test(s) || Number(s) < min || Number(s) > max) fail(what + ' must be a whole number from ' + min + ' to ' + max + '.');
+    return Number(s);
+  }
+  function nameIn(v) {
+    const s = clean1(v);
+    if (!s) fail('Enter a name for the meal.');
+    if (s.length > NAME_MAX) fail('A meal name can be up to ' + NAME_MAX + ' characters.');
+    if (L.admin && L.admin.looksSecret && L.admin.looksSecret(s)) fail('That looks like an ID number or a card number. Do not enter ID numbers, account numbers or passwords here.');
+    return s;
+  }
+  const dayIn = (d) => { if (!M().isDate(d)) fail('Choose a day.'); return d; };
+  const ensure = (state) => { if (!Array.isArray(state.meals)) state.meals = []; if (!Array.isArray(state.mealLog)) state.mealLog = []; };
+
+  // ---- saved meals ----
+  // input: { name, protein (grams as typed), slot }
+  function addMeal(state, input) {
+    ensure(state);
+    if (!V().isObj(input)) fail('Meal must be an object');
+    if (state.meals.length >= MEAL_CAP) fail('You can keep up to ' + MEAL_CAP + ' saved meals.');
+    const slot = given(input.slot) ? input.slot : 'any';
+    if (!SLOTS.includes(slot)) fail('Pick when you usually eat it from the list.');
+    const m = { id: V().newId(), name: nameIn(input.name), protein: wholeIn(input.protein, 0, PROTEIN_MAX, 'Protein (g)'), slot };
+    state.meals.push(m);
+    return m.id;
+  }
+  function updateMeal(state, id, input) {
+    ensure(state);
+    const m = state.meals.find((x) => x.id === id);
+    if (!m) fail('That meal no longer exists.');
+    if (!V().isObj(input)) fail('Meal must be an object');
+    const slot = given(input.slot) ? input.slot : m.slot;
+    if (!SLOTS.includes(slot)) fail('Pick when you usually eat it from the list.');
+    const name = nameIn(input.name), protein = wholeIn(input.protein, 0, PROTEIN_MAX, 'Protein (g)');
+    m.name = name; m.protein = protein; m.slot = slot;
+  }
+  // The meal goes; every logged row keeps its day and protein and loses only the link.
+  function deleteMeal(state, id) {
+    ensure(state);
+    if (!state.meals.some((x) => x.id === id)) fail('That meal no longer exists.');
+    state.meals = state.meals.filter((x) => x.id !== id);
+    for (const r of state.mealLog) if (r.mealId === id) delete r.mealId;
+  }
+  // Breakfast first, then lunch, dinner, snack and any time; the owner's order within a slot.
+  function mealsBySlot(state) {
+    const ms = list(state, 'meals');
+    return SLOTS.map((s) => ({ slot: s, label: SLOT_LABEL[s], meals: ms.filter((m) => m.slot === s) })).filter((g) => g.meals.length);
+  }
+
+  // ---- the log ----
+  function logMeal(state, mealId, day) {
+    ensure(state);
+    const m = state.meals.find((x) => x.id === mealId);
+    if (!m) fail('That meal no longer exists.');
+    if (state.mealLog.length >= LOG_CAP) fail('The meal log is full (' + LOG_CAP + ' rows).');
+    const r = { id: V().newId(), date: dayIn(day), protein: m.protein, mealId: m.id };
+    state.mealLog.push(r);
+    return r.id;
+  }
+  function logOneOff(state, protein, day) {
+    ensure(state);
+    if (state.mealLog.length >= LOG_CAP) fail('The meal log is full (' + LOG_CAP + ' rows).');
+    const r = { id: V().newId(), date: dayIn(day), protein: wholeIn(protein, 0, PROTEIN_MAX, 'Protein (g)'), oneOff: true };
+    state.mealLog.push(r);
+    return r.id;
+  }
+  // v: true, false, or null to clear the answer.
+  function setForHealth(state, id, v) {
+    ensure(state);
+    const r = state.mealLog.find((x) => x.id === id);
+    if (!r) fail('That logged meal no longer exists.');
+    if (v === null) delete r.forHealth;
+    else if (v === true || v === false) r.forHealth = v;
+    else fail('Answer yes or no.');
+  }
+  function removeLog(state, id) {
+    ensure(state);
+    if (!state.mealLog.some((x) => x.id === id)) fail('That logged meal no longer exists.');
+    state.mealLog = state.mealLog.filter((x) => x.id !== id);
+  }
+  function setProteinTarget(state, v) {
+    const s = String(v == null ? '' : v).trim();
+    if (!s) { state.settings.food = {}; return null; }
+    const n = wholeIn(s, 1, TARGET_MAX, 'Daily protein target (g)');
+    state.settings.food = { proteinTarget: n };
+    return n;
+  }
+  const targetOf = (state) => { const f = state && state.settings && state.settings.food; return f && Number.isInteger(f.proteinTarget) ? f.proteinTarget : null; };
+
+  // ---- figures ----
+  const mealName = (state, r) => { if (r.oneOff) return 'One-off'; if (!r.mealId) return 'Removed meal'; const m = list(state, 'meals').find((x) => x.id === r.mealId); return m ? m.name : 'Removed meal'; };
+  function day(state, d) {
+    const rows = list(state, 'mealLog').filter((r) => r.date === d);
+    const protein = rows.reduce((a, r) => a + r.protein, 0), target = targetOf(state);
+    return { date: d, rows, meals: rows.length, protein, target, left: target === null ? null : Math.max(0, target - protein), share: target === null ? null : Math.min(1, protein / target) };
+  }
+  // Monday to Sunday from ws. Days with no meal logged are left out of the average (not counted as zero).
+  function week(state, ws) {
+    const target = targetOf(state), days = [];
+    for (let i = 0; i < 7; i++) { const d = M().addDays(ws, i); const x = day(state, d); days.push({ date: d, meals: x.meals, protein: x.protein }); }
+    const logged = days.filter((x) => x.meals > 0), rows = list(state, 'mealLog').filter((r) => r.date >= ws && r.date <= M().addDays(ws, 6));
+    const answered = rows.filter((r) => r.forHealth === true || r.forHealth === false), yes = answered.filter((r) => r.forHealth === true).length;
+    return {
+      days, target,
+      meals: rows.length,
+      loggedDays: logged.length,
+      proteinAvg: logged.length ? Math.round(logged.reduce((a, x) => a + x.protein, 0) / logged.length) : null,
+      proteinDays: target === null ? null : days.filter((x) => x.meals > 0 && x.protein >= target).length,
+      answered: answered.length, forHealth: yes,
+      forHealthRate: answered.length ? Math.round((yes / answered.length) * 1000) / 10 : null,
+    };
+  }
+  // Numbers only, for the weekly digest. 0 stands for "none" here, as in the other digest blocks.
+  function digest(state, ws) {
+    const w = week(state, ws);
+    return { meals: w.meals, proteinAvg: w.proteinAvg === null ? 0 : w.proteinAvg, proteinDays: w.proteinDays === null ? 0 : w.proteinDays, forHealthRate: w.forHealthRate === null ? 0 : w.forHealthRate };
+  }
+
+  L.food = {
+    SLOTS, SLOT_LABEL, MEAL_CAP, LOG_CAP, NAME_MAX, PROTEIN_MAX, TARGET_MAX,
+    cleanSettings, cleanMeals, cleanLog, addMeal, updateMeal, deleteMeal, mealsBySlot, logMeal, logOneOff, setForHealth, removeLog,
+    setProteinTarget, targetOf, mealName, day, week, digest,
+  };
 })();
 
 ;
@@ -9550,7 +9771,7 @@ globalThis.LifeOS.HOSTS = {"app":"lifeos.tazabbas.com","sync":"sync.lifeos.tazab
       const md = dg.media;
       if (md && (md.clientsOverdue || md.episodesThisMonth || md.sitesRenewing)) lines.push('- clients and media detail (numbers only): clients with an overdue invoice ' + md.clientsOverdue + ', episodes published this month ' + md.episodesThisMonth + ', sites with a renewal in the next 30 days ' + md.sitesRenewing);
       const hh = dg.health;
-      // Body metrics (weight change) stay in the vault: they are never sent to a provider.
+      // Body metrics (weight change) stay in the vault: they are never sent to a provider. v2.1.0: so do the eating numbers (dg.food).
       if (hh) lines.push('- health detail: sessions ' + hh.sessions + ', minutes ' + hh.minutes + ', average sleep ' + hh.avgSleep + ' hours, daily checks completed ' + hh.habitRate + '%');
       // Goals: counts only, never titles, notes or values; weight and body fat goals are not counted at all (SEC-32).
       const gc = dg.goals;
@@ -9831,11 +10052,19 @@ globalThis.LifeOS.HOSTS = {"app":"lifeos.tazabbas.com","sync":"sync.lifeos.tazab
   const HOME_NAME = { nas: 'NAS model', pc: 'PC model' };
   const MODEL_RE = /^[A-Za-z0-9][A-Za-z0-9._:\/@-]{0,99}$/;
   let hostsOverride = null;
-  function _setHosts(h) { hostsOverride = h && typeof h === 'object' ? h : null; }
+  const HOST_RE = /^[a-z0-9.-]{3,253}$/;
+  // Test hook. SEC-142 (v2.1.0): only the two fixed names are taken, copied into a frozen table when set, so a caller's object can add no
+  // other key and cannot be changed afterwards.
+  function _setHosts(h) {
+    if (!h || typeof h !== 'object') { hostsOverride = null; return; }
+    const o = {};
+    for (const k of Object.values(HOME_KEY)) if (typeof h[k] === 'string' && HOST_RE.test(h[k])) o[k] = h[k];
+    hostsOverride = Object.freeze(o);
+  }
   function hostFor(kind) {
     const h = hostsOverride || L.HOSTS;
     const name = h && typeof h === 'object' ? h[HOME_KEY[kind]] : '';
-    return typeof name === 'string' && /^[a-z0-9.-]{3,253}$/.test(name) ? name : '';
+    return typeof name === 'string' && HOST_RE.test(name) ? name : '';
   }
   const isHome = (k) => k === 'nas' || k === 'pc';
   function validateProvider(p) {
@@ -10438,12 +10667,12 @@ globalThis.LifeOS.HOSTS = {"app":"lifeos.tazabbas.com","sync":"sync.lifeos.tazab
   const COLL_AREA = {
     accounts: 'assets', recurring: 'money', budgets: 'money', projects: 'work', pipeline: 'work', goals: 'goals', maintenance: 'home', vehicles: 'home', properties: 'home', renewals: 'admin',
     documents: 'admin', taxItems: 'admin', learningItems: 'learning', studySessions: 'learning', takeaways: 'learning', activities: 'activities', people: 'social', groups: 'social', contacts: 'social',
-    habits: 'health', invoices: 'business', trips: 'business', payees: 'business', taxPayments: 'business',
+    habits: 'health', meals: 'health', invoices: 'business', trips: 'business', payees: 'business', taxPayments: 'business',
     clients: 'clients', shows: 'podcasts', episodes: 'podcasts', sites: 'websites',
   };
   const ENTRY_AREA = { money: 'money', assets: 'assets', work: 'work', health: 'health', goals: 'goals', home: 'home', admin: 'admin', learning: 'learning', activities: 'activities', social: 'social', wellbeing: 'wellbeing' };
   // Fields that hold a fixed list value, an id, a key or a date are not typed text: they are left out of the index.
-  const SKIP = new Set(['id', 'importKey', 'createdAt', 'updatedAt', 'kind', 'type', 'state', 'status', 'stage', 'cadence', 'channel', 'scope', 'unit', 'locationType', 'lostReason', 'domain', 'monthDay', 'repeat', 'severity', 'format', 'measure']);
+  const SKIP = new Set(['id', 'importKey', 'createdAt', 'updatedAt', 'kind', 'type', 'state', 'status', 'stage', 'cadence', 'channel', 'scope', 'unit', 'locationType', 'lostReason', 'domain', 'monthDay', 'repeat', 'severity', 'format', 'measure', 'slot']);
   const LABELS = ['title', 'name', 'hostname', 'text', 'label', 'role', 'org', 'category', 'number', 'nextAction', 'provider', 'notes'];
   const DATEISH = /^\d{4}-\d{2}(-\d{2})?(T[\d:.]+Z?)?$/;
   let index = null;
@@ -12125,7 +12354,7 @@ globalThis.LifeOS.HOSTS = {"app":"lifeos.tazabbas.com","sync":"sync.lifeos.tazab
   function st() { var b = L.store.getState(); return L.priv.isOpen() ? L.priv.view(b) : b; }
   var DOMAIN_COLLS = {
     money: ['entries', 'recurring', 'budgets', 'activities'], assets: ['entries', 'accounts'], work: ['entries', 'projects', 'pipeline'],
-    health: ['entries', 'habits', 'habitLog', 'cycle', 'activities'], activities: ['activities', 'entries', 'people'],
+    health: ['entries', 'habits', 'habitLog', 'meals', 'mealLog', 'cycle', 'activities'], activities: ['activities', 'entries', 'people'],
     social: ['people', 'contacts', 'groups', 'activities'], learning: ['learningItems', 'studySessions', 'takeaways'],
     home: ['properties', 'vehicles', 'maintenance', 'recurring'], admin: ['renewals', 'documents', 'taxItems', 'learningItems', 'recurring', 'business-*'],
     goals: null, wellbeing: ['entries', 'wellbeing']
@@ -12237,7 +12466,7 @@ globalThis.LifeOS.HOSTS = {"app":"lifeos.tazabbas.com","sync":"sync.lifeos.tazab
     locking = Promise.all([p, remind]).then(function (r) {
       L.store.lock();
       if (L.recoveryUI) L.recoveryUI.clear(); lockRecover = false;
-      privNew = false; goalMemo = new Map(); searchQ = '';
+      privNew = false; goalMemo = new Map(); searchQ = ''; eatDay = '';
       closeDialog();
       csvPending = null; ledger = null; actImp = null; jobImp = null; jobImpDone = null; actImpDone = null; dashEdit = false; ai = null; notice = r[1] ? { kind: 'ok', text: SYNC_NOTE } : null; lastActive = 0;
       view = { name: 'lock' };
@@ -14397,9 +14626,98 @@ globalThis.LifeOS.HOSTS = {"app":"lifeos.tazabbas.com","sync":"sync.lifeos.tazab
 
     return h('div', null, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Health' }),
       h('p', { class: 'mut small', text: 'A tracker for your own numbers. It gives no medical advice.' }),
-      todayCard, wkCard, bodyCard, sleepCard, habitCard, setup,
+      todayCard, eatingCards(s, t), wkCard, bodyCard, sleepCard, habitCard, setup,
       h('h2', { text: 'All health entries' }),
       domainScreen(s, { embed: true }));
+  }
+
+  // ---------- eating (v2.1.0, inside Health) ----------
+  // The day the meal buttons log to and the day shown. Kept in memory only (never stored, never in the URL); empty means today.
+  var eatDay = '';
+  var WD = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  function eatingCards(s, t) {
+    var F = L.food, d = eatDay && L.metrics.isDate(eatDay) ? eatDay : t, dy = F.day(s, d), tg = dy.target;
+    function done(msg) { return function () { setNotice('ok', msg); render(); }; }
+    var pick = h('input', { type: 'date', id: 'eat-day', value: d, required: true, onchange: function (e) { eatDay = e.target.value === t ? '' : e.target.value; render(); } });
+    var total = h('p', { class: 'eat-total', id: 'eat-total', text: dy.protein + ' g protein' + (tg === null ? '' : ' of ' + tg + ' g') + ', ' + dy.meals + (dy.meals === 1 ? ' meal' : ' meals') + (d === t ? ' today' : ' on ' + d) }, lockMark(['meals', 'mealLog']));
+    var bar = tg === null ? h('p', { class: 'mut small', id: 'eat-no-target', text: 'Set a target under Daily protein target below to see progress.' }) : svgBar(Math.round(dy.share * 100), 'bar-fill');
+    var groups = F.mealsBySlot(s);
+    var buttons = groups.length ? groups.map(function (g) {
+      return h('div', { class: 'eat-slot' }, h('h3', { class: 'small', text: g.label }),
+        h('div', { class: 'chips', role: 'group', 'aria-label': g.label + ' meals' }, g.meals.map(function (m) {
+          return h('button', { type: 'button', class: 'chipbtn eat-log', 'data-meal': m.name, 'aria-label': 'Log ' + m.name + ', ' + m.protein + ' g protein', text: m.name + ' (' + m.protein + ' g)', onclick: function () {
+            act(function () { return commit(function (x) { F.logMeal(x, m.id, d); }, 'meal log', [['meals', m.id]]).then(done('Meal logged.')); });
+          } });
+        })));
+    }) : h('p', { class: 'mut small', id: 'eat-no-meals', text: 'No saved meals yet. Add your usual meals under Saved meals below, then log each one with one tap.' });
+    var oneP = h('input', { type: 'text', id: 'eat-one-p', inputmode: 'numeric', autocomplete: 'off', maxlength: '3' });
+    var fOne = h('form', { class: 'row', onsubmit: function (e) {
+      e.preventDefault();
+      act(function () { var v = oneP.value; return commit(function (x) { F.logOneOff(x, v, d); }, 'meal log').then(done('Meal logged.')); });
+    } }, field('One-off meal, protein (g)', oneP), h('button', { type: 'submit', class: 'btn', id: 'eat-one-add', text: 'Log one-off' }));
+    var rows = dy.rows.map(function (r) {
+      var yes = r.forHealth === true, no = r.forHealth === false, nm = F.mealName(s, r);
+      function setFH(v) { act(function () { return commit(function (x) { F.setForHealth(x, r.id, v); }, 'meal answer').then(function () { render(); }); }); }
+      return h('div', ROW({ class: 'item eat-row', 'data-eat-row': nm }, 'mealLog', r),
+        h('div', null, h('div', { class: 'entry-t', text: nm }), h('div', { class: 'mut small', text: r.protein + ' g protein' })),
+        h('div', { class: 'row' }, h('span', { class: 'small', text: 'Ate for health?' }),
+          h('button', { type: 'button', class: 'chipbtn eat-yes', 'aria-pressed': yes ? 'true' : 'false', 'aria-label': 'Ate for health: yes, ' + nm, text: 'Yes', onclick: function () { setFH(yes ? null : true); } }),
+          h('button', { type: 'button', class: 'chipbtn eat-no', 'aria-pressed': no ? 'true' : 'false', 'aria-label': 'Ate for health: no, ' + nm, text: 'No', onclick: function () { setFH(no ? null : false); } }),
+          btn('Remove', function () { act(function () { return commit(function (x) { F.removeLog(x, r.id); }, 'meal remove').then(done('Meal removed.')); }); }, 'sm bad', { 'aria-label': 'Remove ' + nm })));
+    });
+    var eatCard = h('div', { class: 'card', id: 'hl-eat' }, h('h2', { text: 'Eating' }), field('Day', pick), total, bar, buttons, fOne,
+      rows.length ? h('div', { id: 'eat-rows' }, rows) : h('p', { class: 'mut small', id: 'eat-none', text: 'Nothing logged for this day yet.' }));
+
+    // week (Monday to Sunday, like workouts)
+    var wk = F.week(s, L.metrics.weekStart(t)), mx = Math.max(1, tg || 0, Math.max.apply(null, wk.days.map(function (x) { return x.protein; })));
+    var dayRows = wk.days.map(function (x, i) {
+      return h('div', { class: 'eat-day' }, h('div', { class: 'row sp small' }, h('span', { text: WD[i] + ' ' + x.date.slice(5) }),
+        h('span', { text: x.meals ? x.protein + ' g, ' + x.meals + (x.meals === 1 ? ' meal' : ' meals') : 'nothing logged' })), svgBar(Math.round(x.protein / mx * 100), tg !== null && x.protein >= tg ? 'bar-fill' : 'bar-fill eat-under'));
+    });
+    var weekCard = h('div', { class: 'card', id: 'hl-eat-week' }, h('h2', { text: 'Eating this week' }),
+      h('div', { class: 'stats' },
+        stat('Protein per logged day', wk.proteinAvg === null ? 'no data' : wk.proteinAvg + ' g', 'eat-avg'),
+        stat('Days at or over target', wk.proteinDays === null ? 'Set a target' : wk.proteinDays + ' of 7', 'eat-days'),
+        stat('Meals logged', String(wk.meals), 'eat-meals'),
+        stat('Ate for health', wk.forHealthRate === null ? 'no data' : fmt1(wk.forHealthRate) + '% of ' + wk.answered + ' answered', 'eat-fh')),
+      lockMark(['meals', 'mealLog']), dayRows);
+
+    // saved meals and the target
+    var mName = h('input', { type: 'text', id: 'ml-name', maxlength: '60', autocomplete: 'off' });
+    var mProt = h('input', { type: 'text', id: 'ml-protein', inputmode: 'numeric', autocomplete: 'off', maxlength: '3' });
+    var slotOpts = F.SLOTS.map(function (x) { return { v: x, t: F.SLOT_LABEL[x] }; });
+    var mSlot = sel('ml-slot', slotOpts, 'breakfast');
+    var mealRows = (s.meals || []).map(function (m) {
+      return h('div', ROW({ class: 'item meal', 'data-meal-row': m.name }, 'meals', m, true),
+        h('div', null, h('div', { class: 'entry-t', text: m.name }), h('div', { class: 'mut small', text: F.SLOT_LABEL[m.slot] + ', ' + m.protein + ' g protein' })),
+        h('div', { class: 'row' }, isPrivRec('meals', m) ? lockBadge() : null, btn('Edit', function () { editMealDialog(m); }, 'sm', { 'aria-label': 'Edit meal ' + m.name })));
+    });
+    var fMeal = h('form', { onsubmit: function (e) {
+      e.preventDefault();
+      act(function () { var o = { name: mName.value, protein: mProt.value, slot: mSlot.value }; return commit(function (x) { F.addMeal(x, o); }, 'saved meal add').then(done('Meal saved.')); });
+    } }, field('Meal name, as you make it (for example 3 eggs and toast)', mName), field('Protein in one portion (g)', mProt), field('Usually eaten at', mSlot),
+      h('button', { type: 'submit', class: 'btn pri', id: 'ml-add', text: 'Add meal', disabled: (s.meals || []).length >= F.MEAL_CAP }));
+    var tIn = h('input', { type: 'text', id: 'eat-target', inputmode: 'numeric', autocomplete: 'off', maxlength: '4', value: tg === null ? '' : String(tg) });
+    var fTarget = h('form', { class: 'row', onsubmit: function (e) {
+      e.preventDefault();
+      act(function () { var v = tIn.value; return commit(function (x) { F.setProteinTarget(x, v); }, 'protein target').then(done(v.trim() ? 'Target saved.' : 'Target cleared.')); });
+    } }, field('Daily protein target (g, you choose it; empty clears)', tIn), h('button', { type: 'submit', class: 'btn', id: 'eat-target-save', text: 'Save target' }));
+    var mealsCard = details('hl-meals', 'Saved meals and protein target (' + (s.meals || []).length + ' of ' + F.MEAL_CAP + ')',
+      [mealRows.length ? h('div', { id: 'ml-list' }, mealRows) : h('p', { class: 'mut small', text: 'Fixed portions you eat often. Each has one protein number.' }), fMeal, h('hr'), fTarget], false);
+    return [eatCard, weekCard, mealsCard];
+  }
+  function editMealDialog(m) {
+    var F = L.food;
+    var n = h('input', { type: 'text', id: 'me-name', maxlength: '60', value: m.name });
+    var p = h('input', { type: 'text', id: 'me-protein', inputmode: 'numeric', maxlength: '3', value: String(m.protein) });
+    var sl = sel('me-slot', F.SLOTS.map(function (x) { return { v: x, t: F.SLOT_LABEL[x] }; }), m.slot);
+    var del = btn('Delete meal', function () {
+      openDialog({ title: 'Delete this saved meal?', yes: 'Delete', danger: true, body: h('p', { class: 'mut', text: m.name + ' is removed from your saved meals. Days you already logged keep their protein and show "Removed meal".' }),
+        onYes: function () { return commit(function (x) { F.deleteMeal(x, m.id); }, 'saved meal delete').then(function () { setNotice('ok', 'Meal deleted.'); render(); }); } });
+    }, 'sm bad', { id: 'me-del' });
+    openDialog({ title: 'Edit meal', yes: 'Save',
+      body: [field('Meal name', n), field('Protein in one portion (g)', p), field('Usually eaten at', sl), h('p', { class: 'mut small', text: 'Days you already logged keep the protein they were logged with.' }), h('div', { class: 'row' }, del, movePrivBtn('meals', m))],
+      onYes: function () { return commit(function (x) { F.updateMeal(x, m.id, { name: n.value, protein: p.value, slot: sl.value }); }, 'saved meal edit').then(function () { setNotice('ok', 'Meal saved.'); render(); }); } });
   }
 
   // ---------- goals (v0.6.0) ----------
@@ -15874,7 +16192,7 @@ globalThis.LifeOS.HOSTS = {"app":"lifeos.tazabbas.com","sync":"sync.lifeos.tazab
   var PRIV_LABEL = { entries: 'Entries', accounts: 'Accounts', recurring: 'Recurring items', budgets: 'Budgets', projects: 'Projects', pipeline: 'Pipeline', goals: 'Goals',
     maintenance: 'Maintenance', vehicles: 'Vehicles', properties: 'Properties', renewals: 'Renewals', documents: 'Documents', taxItems: 'Tax items', learningItems: 'Learning items',
     studySessions: 'Study sessions', takeaways: 'Takeaways', activities: 'Activities', people: 'People', groups: 'Groups', contacts: 'Logged contacts', habits: 'Daily checks',
-    habitLog: 'Daily check ticks', cycle: 'Training cycle', invoices: 'Invoices', trips: 'Mileage trips', payees: 'Payees', taxPayments: 'Tax payments', clients: 'Clients', shows: 'Shows', episodes: 'Episodes', platformStats: 'Platform numbers', sites: 'Sites', siteTraffic: 'Site traffic' };
+    habitLog: 'Daily check ticks', cycle: 'Training cycle', invoices: 'Invoices', trips: 'Mileage trips', payees: 'Payees', taxPayments: 'Tax payments', clients: 'Clients', shows: 'Shows', episodes: 'Episodes', platformStats: 'Platform numbers', sites: 'Sites', siteTraffic: 'Site traffic', meals: 'Saved meals', mealLog: 'Logged meals' };
   function privKey(c, r) { return c === 'cycle' ? 'cycle' : c === 'budgets' ? r.category : c === 'habitLog' ? r.habitId + '|' + r.date : r.id; }
   function privList(s, c) { return c === 'cycle' ? (s.cycle ? [s.cycle] : []) : (s[c] || []); }
   function privText(c, r, s) {
@@ -15886,6 +16204,8 @@ globalThis.LifeOS.HOSTS = {"app":"lifeos.tazabbas.com","sync":"sync.lifeos.tazab
       case 'takeaways': return r.date + ' ' + String(r.text).slice(0, 60);
       case 'contacts': return r.date + ' ' + r.channel + (r.notes ? ' ' + String(r.notes).slice(0, 40) : '');
       case 'habitLog': return r.date + ' ' + ((s.habits || []).filter(function (x) { return x.id === r.habitId; })[0] || { name: 'check' }).name;
+      case 'meals': return r.name;
+      case 'mealLog': return 'Meal ' + r.date + ', ' + r.protein + ' g';
       case 'cycle': return 'Training cycle from ' + r.startDate;
       case 'invoices': return 'Invoice ' + r.number;
       case 'trips': return 'Trip ' + r.date + ', ' + r.miles + ' mi';

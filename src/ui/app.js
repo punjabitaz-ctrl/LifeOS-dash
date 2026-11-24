@@ -216,7 +216,7 @@
   function st() { var b = L.store.getState(); return L.priv.isOpen() ? L.priv.view(b) : b; }
   var DOMAIN_COLLS = {
     money: ['entries', 'recurring', 'budgets', 'activities'], assets: ['entries', 'accounts'], work: ['entries', 'projects', 'pipeline'],
-    health: ['entries', 'habits', 'habitLog', 'cycle', 'activities'], activities: ['activities', 'entries', 'people'],
+    health: ['entries', 'habits', 'habitLog', 'meals', 'mealLog', 'cycle', 'activities'], activities: ['activities', 'entries', 'people'],
     social: ['people', 'contacts', 'groups', 'activities'], learning: ['learningItems', 'studySessions', 'takeaways'],
     home: ['properties', 'vehicles', 'maintenance', 'recurring'], admin: ['renewals', 'documents', 'taxItems', 'learningItems', 'recurring', 'business-*'],
     goals: null, wellbeing: ['entries', 'wellbeing']
@@ -328,7 +328,7 @@
     locking = Promise.all([p, remind]).then(function (r) {
       L.store.lock();
       if (L.recoveryUI) L.recoveryUI.clear(); lockRecover = false;
-      privNew = false; goalMemo = new Map(); searchQ = '';
+      privNew = false; goalMemo = new Map(); searchQ = ''; eatDay = '';
       closeDialog();
       csvPending = null; ledger = null; actImp = null; jobImp = null; jobImpDone = null; actImpDone = null; dashEdit = false; ai = null; notice = r[1] ? { kind: 'ok', text: SYNC_NOTE } : null; lastActive = 0;
       view = { name: 'lock' };
@@ -2488,9 +2488,98 @@
 
     return h('div', null, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Health' }),
       h('p', { class: 'mut small', text: 'A tracker for your own numbers. It gives no medical advice.' }),
-      todayCard, wkCard, bodyCard, sleepCard, habitCard, setup,
+      todayCard, eatingCards(s, t), wkCard, bodyCard, sleepCard, habitCard, setup,
       h('h2', { text: 'All health entries' }),
       domainScreen(s, { embed: true }));
+  }
+
+  // ---------- eating (v2.1.0, inside Health) ----------
+  // The day the meal buttons log to and the day shown. Kept in memory only (never stored, never in the URL); empty means today.
+  var eatDay = '';
+  var WD = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+  function eatingCards(s, t) {
+    var F = L.food, d = eatDay && L.metrics.isDate(eatDay) ? eatDay : t, dy = F.day(s, d), tg = dy.target;
+    function done(msg) { return function () { setNotice('ok', msg); render(); }; }
+    var pick = h('input', { type: 'date', id: 'eat-day', value: d, required: true, onchange: function (e) { eatDay = e.target.value === t ? '' : e.target.value; render(); } });
+    var total = h('p', { class: 'eat-total', id: 'eat-total', text: dy.protein + ' g protein' + (tg === null ? '' : ' of ' + tg + ' g') + ', ' + dy.meals + (dy.meals === 1 ? ' meal' : ' meals') + (d === t ? ' today' : ' on ' + d) }, lockMark(['meals', 'mealLog']));
+    var bar = tg === null ? h('p', { class: 'mut small', id: 'eat-no-target', text: 'Set a target under Daily protein target below to see progress.' }) : svgBar(Math.round(dy.share * 100), 'bar-fill');
+    var groups = F.mealsBySlot(s);
+    var buttons = groups.length ? groups.map(function (g) {
+      return h('div', { class: 'eat-slot' }, h('h3', { class: 'small', text: g.label }),
+        h('div', { class: 'chips', role: 'group', 'aria-label': g.label + ' meals' }, g.meals.map(function (m) {
+          return h('button', { type: 'button', class: 'chipbtn eat-log', 'data-meal': m.name, 'aria-label': 'Log ' + m.name + ', ' + m.protein + ' g protein', text: m.name + ' (' + m.protein + ' g)', onclick: function () {
+            act(function () { return commit(function (x) { F.logMeal(x, m.id, d); }, 'meal log', [['meals', m.id]]).then(done('Meal logged.')); });
+          } });
+        })));
+    }) : h('p', { class: 'mut small', id: 'eat-no-meals', text: 'No saved meals yet. Add your usual meals under Saved meals below, then log each one with one tap.' });
+    var oneP = h('input', { type: 'text', id: 'eat-one-p', inputmode: 'numeric', autocomplete: 'off', maxlength: '3' });
+    var fOne = h('form', { class: 'row', onsubmit: function (e) {
+      e.preventDefault();
+      act(function () { var v = oneP.value; return commit(function (x) { F.logOneOff(x, v, d); }, 'meal log').then(done('Meal logged.')); });
+    } }, field('One-off meal, protein (g)', oneP), h('button', { type: 'submit', class: 'btn', id: 'eat-one-add', text: 'Log one-off' }));
+    var rows = dy.rows.map(function (r) {
+      var yes = r.forHealth === true, no = r.forHealth === false, nm = F.mealName(s, r);
+      function setFH(v) { act(function () { return commit(function (x) { F.setForHealth(x, r.id, v); }, 'meal answer').then(function () { render(); }); }); }
+      return h('div', ROW({ class: 'item eat-row', 'data-eat-row': nm }, 'mealLog', r),
+        h('div', null, h('div', { class: 'entry-t', text: nm }), h('div', { class: 'mut small', text: r.protein + ' g protein' })),
+        h('div', { class: 'row' }, h('span', { class: 'small', text: 'Ate for health?' }),
+          h('button', { type: 'button', class: 'chipbtn eat-yes', 'aria-pressed': yes ? 'true' : 'false', 'aria-label': 'Ate for health: yes, ' + nm, text: 'Yes', onclick: function () { setFH(yes ? null : true); } }),
+          h('button', { type: 'button', class: 'chipbtn eat-no', 'aria-pressed': no ? 'true' : 'false', 'aria-label': 'Ate for health: no, ' + nm, text: 'No', onclick: function () { setFH(no ? null : false); } }),
+          btn('Remove', function () { act(function () { return commit(function (x) { F.removeLog(x, r.id); }, 'meal remove').then(done('Meal removed.')); }); }, 'sm bad', { 'aria-label': 'Remove ' + nm })));
+    });
+    var eatCard = h('div', { class: 'card', id: 'hl-eat' }, h('h2', { text: 'Eating' }), field('Day', pick), total, bar, buttons, fOne,
+      rows.length ? h('div', { id: 'eat-rows' }, rows) : h('p', { class: 'mut small', id: 'eat-none', text: 'Nothing logged for this day yet.' }));
+
+    // week (Monday to Sunday, like workouts)
+    var wk = F.week(s, L.metrics.weekStart(t)), mx = Math.max(1, tg || 0, Math.max.apply(null, wk.days.map(function (x) { return x.protein; })));
+    var dayRows = wk.days.map(function (x, i) {
+      return h('div', { class: 'eat-day' }, h('div', { class: 'row sp small' }, h('span', { text: WD[i] + ' ' + x.date.slice(5) }),
+        h('span', { text: x.meals ? x.protein + ' g, ' + x.meals + (x.meals === 1 ? ' meal' : ' meals') : 'nothing logged' })), svgBar(Math.round(x.protein / mx * 100), tg !== null && x.protein >= tg ? 'bar-fill' : 'bar-fill eat-under'));
+    });
+    var weekCard = h('div', { class: 'card', id: 'hl-eat-week' }, h('h2', { text: 'Eating this week' }),
+      h('div', { class: 'stats' },
+        stat('Protein per logged day', wk.proteinAvg === null ? 'no data' : wk.proteinAvg + ' g', 'eat-avg'),
+        stat('Days at or over target', wk.proteinDays === null ? 'Set a target' : wk.proteinDays + ' of 7', 'eat-days'),
+        stat('Meals logged', String(wk.meals), 'eat-meals'),
+        stat('Ate for health', wk.forHealthRate === null ? 'no data' : fmt1(wk.forHealthRate) + '% of ' + wk.answered + ' answered', 'eat-fh')),
+      lockMark(['meals', 'mealLog']), dayRows);
+
+    // saved meals and the target
+    var mName = h('input', { type: 'text', id: 'ml-name', maxlength: '60', autocomplete: 'off' });
+    var mProt = h('input', { type: 'text', id: 'ml-protein', inputmode: 'numeric', autocomplete: 'off', maxlength: '3' });
+    var slotOpts = F.SLOTS.map(function (x) { return { v: x, t: F.SLOT_LABEL[x] }; });
+    var mSlot = sel('ml-slot', slotOpts, 'breakfast');
+    var mealRows = (s.meals || []).map(function (m) {
+      return h('div', ROW({ class: 'item meal', 'data-meal-row': m.name }, 'meals', m, true),
+        h('div', null, h('div', { class: 'entry-t', text: m.name }), h('div', { class: 'mut small', text: F.SLOT_LABEL[m.slot] + ', ' + m.protein + ' g protein' })),
+        h('div', { class: 'row' }, isPrivRec('meals', m) ? lockBadge() : null, btn('Edit', function () { editMealDialog(m); }, 'sm', { 'aria-label': 'Edit meal ' + m.name })));
+    });
+    var fMeal = h('form', { onsubmit: function (e) {
+      e.preventDefault();
+      act(function () { var o = { name: mName.value, protein: mProt.value, slot: mSlot.value }; return commit(function (x) { F.addMeal(x, o); }, 'saved meal add').then(done('Meal saved.')); });
+    } }, field('Meal name, as you make it (for example 3 eggs and toast)', mName), field('Protein in one portion (g)', mProt), field('Usually eaten at', mSlot),
+      h('button', { type: 'submit', class: 'btn pri', id: 'ml-add', text: 'Add meal', disabled: (s.meals || []).length >= F.MEAL_CAP }));
+    var tIn = h('input', { type: 'text', id: 'eat-target', inputmode: 'numeric', autocomplete: 'off', maxlength: '4', value: tg === null ? '' : String(tg) });
+    var fTarget = h('form', { class: 'row', onsubmit: function (e) {
+      e.preventDefault();
+      act(function () { var v = tIn.value; return commit(function (x) { F.setProteinTarget(x, v); }, 'protein target').then(done(v.trim() ? 'Target saved.' : 'Target cleared.')); });
+    } }, field('Daily protein target (g, you choose it; empty clears)', tIn), h('button', { type: 'submit', class: 'btn', id: 'eat-target-save', text: 'Save target' }));
+    var mealsCard = details('hl-meals', 'Saved meals and protein target (' + (s.meals || []).length + ' of ' + F.MEAL_CAP + ')',
+      [mealRows.length ? h('div', { id: 'ml-list' }, mealRows) : h('p', { class: 'mut small', text: 'Fixed portions you eat often. Each has one protein number.' }), fMeal, h('hr'), fTarget], false);
+    return [eatCard, weekCard, mealsCard];
+  }
+  function editMealDialog(m) {
+    var F = L.food;
+    var n = h('input', { type: 'text', id: 'me-name', maxlength: '60', value: m.name });
+    var p = h('input', { type: 'text', id: 'me-protein', inputmode: 'numeric', maxlength: '3', value: String(m.protein) });
+    var sl = sel('me-slot', F.SLOTS.map(function (x) { return { v: x, t: F.SLOT_LABEL[x] }; }), m.slot);
+    var del = btn('Delete meal', function () {
+      openDialog({ title: 'Delete this saved meal?', yes: 'Delete', danger: true, body: h('p', { class: 'mut', text: m.name + ' is removed from your saved meals. Days you already logged keep their protein and show "Removed meal".' }),
+        onYes: function () { return commit(function (x) { F.deleteMeal(x, m.id); }, 'saved meal delete').then(function () { setNotice('ok', 'Meal deleted.'); render(); }); } });
+    }, 'sm bad', { id: 'me-del' });
+    openDialog({ title: 'Edit meal', yes: 'Save',
+      body: [field('Meal name', n), field('Protein in one portion (g)', p), field('Usually eaten at', sl), h('p', { class: 'mut small', text: 'Days you already logged keep the protein they were logged with.' }), h('div', { class: 'row' }, del, movePrivBtn('meals', m))],
+      onYes: function () { return commit(function (x) { F.updateMeal(x, m.id, { name: n.value, protein: p.value, slot: sl.value }); }, 'saved meal edit').then(function () { setNotice('ok', 'Meal saved.'); render(); }); } });
   }
 
   // ---------- goals (v0.6.0) ----------
@@ -3965,7 +4054,7 @@
   var PRIV_LABEL = { entries: 'Entries', accounts: 'Accounts', recurring: 'Recurring items', budgets: 'Budgets', projects: 'Projects', pipeline: 'Pipeline', goals: 'Goals',
     maintenance: 'Maintenance', vehicles: 'Vehicles', properties: 'Properties', renewals: 'Renewals', documents: 'Documents', taxItems: 'Tax items', learningItems: 'Learning items',
     studySessions: 'Study sessions', takeaways: 'Takeaways', activities: 'Activities', people: 'People', groups: 'Groups', contacts: 'Logged contacts', habits: 'Daily checks',
-    habitLog: 'Daily check ticks', cycle: 'Training cycle', invoices: 'Invoices', trips: 'Mileage trips', payees: 'Payees', taxPayments: 'Tax payments', clients: 'Clients', shows: 'Shows', episodes: 'Episodes', platformStats: 'Platform numbers', sites: 'Sites', siteTraffic: 'Site traffic' };
+    habitLog: 'Daily check ticks', cycle: 'Training cycle', invoices: 'Invoices', trips: 'Mileage trips', payees: 'Payees', taxPayments: 'Tax payments', clients: 'Clients', shows: 'Shows', episodes: 'Episodes', platformStats: 'Platform numbers', sites: 'Sites', siteTraffic: 'Site traffic', meals: 'Saved meals', mealLog: 'Logged meals' };
   function privKey(c, r) { return c === 'cycle' ? 'cycle' : c === 'budgets' ? r.category : c === 'habitLog' ? r.habitId + '|' + r.date : r.id; }
   function privList(s, c) { return c === 'cycle' ? (s.cycle ? [s.cycle] : []) : (s[c] || []); }
   function privText(c, r, s) {
@@ -3977,6 +4066,8 @@
       case 'takeaways': return r.date + ' ' + String(r.text).slice(0, 60);
       case 'contacts': return r.date + ' ' + r.channel + (r.notes ? ' ' + String(r.notes).slice(0, 40) : '');
       case 'habitLog': return r.date + ' ' + ((s.habits || []).filter(function (x) { return x.id === r.habitId; })[0] || { name: 'check' }).name;
+      case 'meals': return r.name;
+      case 'mealLog': return 'Meal ' + r.date + ', ' + r.protein + ' g';
       case 'cycle': return 'Training cycle from ' + r.startDate;
       case 'invoices': return 'Invoice ' + r.number;
       case 'trips': return 'Trip ' + r.date + ', ' + r.miles + ' mi';

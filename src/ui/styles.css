@@ -220,3 +220,10 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
 .rk-boxes { display: flex; flex-wrap: wrap; gap: 6px; }
 .rk-box { display: inline-block; min-width: 3.6em; min-height: 2em; border: 1px solid #000; padding: 2px 6px; text-align: center; font-family: ui-monospace, Menlo, Consolas, monospace; }
 .rk-part { margin: 12px 0; }
+
+/* v2.1.0 eating */
+.eat-total{font-weight:600;margin:8px 0 4px}
+.eat-slot h3{margin:12px 0 6px}
+.eat-day{margin:6px 0}
+.bar-fill.eat-under{opacity:.55}
+.eat-row .row{gap:6px}

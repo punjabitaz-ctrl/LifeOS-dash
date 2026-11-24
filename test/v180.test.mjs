@@ -146,7 +146,7 @@ test('an older app (v1.7.0) opens a v2 file with the passphrase, finds schema 20
   for (const [what, txt, pass] of [['the stored vault', text, PASS], ['a backup', backup, BKP]]) {
     const raw = await oldRead(txt, pass);
     assert.equal(raw.schema, 20, what); assert.ok(Object.keys(raw).every((k) => ['schema', 'newerFormat', '_meta'].includes(k)), what + ': the stub holds no data');
-    // v2.0.0: this build's own SCHEMA is now 20, so the v1.7.0 refusal is emulated by that version's accepted list (1 to 19); the stub still stops every app that knows schemas only up to 19, and this build never takes the stub for a vault either.
+    // v2.0.0: this build's own SCHEMA is 20 or later (21 from v2.1.0), so the v1.7.0 refusal is emulated by that version's accepted list (1 to 19); the stub still stops every app that knows schemas only up to 19, and this build never takes the stub for a vault either.
     assert.ok(![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19].includes(raw.schema), what + ': unlock, sync and restore stop here (unsupported schema)');
     assert.throws(() => S.validateState(raw), /./, what);
     assert.ok(raw.schema > 19, what + ': verifyBackup says "made by a newer version of LifeOS"');
@@ -376,7 +376,7 @@ test('no recovery key text, wrapped key or key bytes appears in any state field,
   assert.ok(!JSON.stringify(stored(ad)).includes(canon) && !JSON.stringify(stored(ad)).toLowerCase().includes(canon.toLowerCase()));
   // the state carries no recovery field at all: whether a key is on is read from the wraps
   const names = []; (function walk(o, d) { if (d > 6 || !o || typeof o !== 'object') return; for (const k of Object.keys(o)) { names.push(k); walk(o[k], d + 1); } })(s, 0);
-  assert.ok(!names.some((k) => /recover/i.test(k)), 'no recovery field in the state'); assert.equal(S.SCHEMA, 20);
+  assert.ok(!names.some((k) => /recover/i.test(k)), 'no recovery field in the state'); assert.equal(S.SCHEMA, 21);
   // adversarial markers (spaces and quotes) in a passphrase and a note never reach the recovery paths' messages
   const MARK = 'My "odd" pass phrase 99';
   const e = await rej(S.beginRecovery(MARK)); assert.ok(!e.message.includes(MARK));
@@ -395,7 +395,7 @@ test('source rules: no innerHTML, outerHTML, insertAdjacentHTML, document.write,
   assert.ok(/passField\('rk-key-retype'\)/.test(ui) && /passField\('rk-enter-key'\)/.test(ui) && /passField\('rk-keep-key'\)/.test(ui), 'key fields are password fields (spell check off like a passphrase)');
   assert.ok(existsSync(new URL('../docs/RECOVERY.md', import.meta.url))); assert.ok(!/—/.test(src('docs/RECOVERY.md')));
   const b = src('build.mjs'); assert.ok(b.indexOf("'src/ui/recovery-ui.js'") > b.indexOf("'src/ui/archive-ui.js'") && b.indexOf("'src/ui/recovery-ui.js'") > 0);
-  assert.equal(JSON.parse(src('package.json')).version, '2.0.0');
+  assert.equal(JSON.parse(src('package.json')).version, '2.1.0');
   // the key is only shown in the key dialog and, by the owner's choice, on the sheet; nothing else renders it
   assert.ok(/sheetKeys\[scope\] = inc\.checked \? key : ''/.test(ui) && /sheetKeys = \{ main: '', priv: '' \}/.test(ui));
   const app = src('src/ui/app.js'); assert.ok(/L\.recoveryUI\.clear\(\); lockRecover = false;/.test(app), 'cleared on lock');
