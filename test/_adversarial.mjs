@@ -13,6 +13,9 @@ export function stripJobFields(o) {
   for (const c of MEDIA_COLLECTIONS) delete o[c];
   for (const i of o.invoices || []) delete i.clientId;
   if (o.settings) delete o.settings.clients;
+  // v2.1.0 (schema 21): saved meals, the meal log and the protein target do not exist in an older copy either.
+  delete o.meals; delete o.mealLog;
+  if (o.settings) delete o.settings.food;
   return o;
 }
 export function buildAdversarial(L) {
@@ -80,6 +83,11 @@ export function buildAdversarial(L) {
   s.episodes.push({ id: 'ep1', showId: 'sh1', title: m('episode title "x"').slice(0, 190), number: 7, status: 'published', recordedOn: t, guestIds: ['sp1'], pubs: [{ format: 'audio', platformId: 'pf1', date: t }], notes: m("episode note 'x'") });
   s.platformStats.push({ id: 'ps1', showId: 'sh1', platformId: 'pf1', date: t, measure: 'downloads', value: 7654321987, episodeId: 'ep1' });
   s.siteTraffic.push({ id: 'tf1', siteId: 'st1', month: '2026-11', visits: 8765432198, visitors: 6543219876 });
+  // v2.1.0: a saved meal with a marker in its name and distinctive protein numbers, a row logged from it and a one-off row. The name may never reach
+  // any prompt, digest, insight, audit entry, error, diagnostic, calendar file, URL or storage outside the vault.
+  s.meals.push({ id: 'ml1', name: m('meal "x"').slice(0, 60), protein: 187, slot: 'breakfast' });
+  s.mealLog.push({ id: 'mg1', date: t, protein: 187, mealId: 'ml1', forHealth: true }, { id: 'mg2', date: t, protein: 173, oneOff: true });
+  s.settings.food = { proteinTarget: 175 };
   s.settings.provider = { kind: 'manual', baseUrl: '', model: '', apiKey: 'sk-ant-LEAK key 0123456789' };
   return { state: L.store.validateState(JSON.parse(JSON.stringify(s))), count: k };
 }

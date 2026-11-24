@@ -937,3 +937,35 @@ A real TrueNAS install, Caddy with the Cloudflare DNS challenge, Tailscale, a re
 
 ### Final results (v2.0.0 audit)
 `node build.mjs` ok. `node --test test/`: 907 tests, 907 pass in UTC, America/New_York and Pacific/Auckland, run one after another. `node --test server/test/`: 27 tests, 27 pass. `node test/smokes.mjs`: all 27 smokes passed, twice, in Chrome.
+
+## v2.1.0 audit (24 Nov 2026, Eating in Health)
+Audit of the v2.1.0 delta (src/core/food.js, store.js schema 21, priv.js, search.js, metrics.js, memory.js, ops.js, the Eating cards in src/ui/app.js, styles.css, SPEC.md addendum). Tests: test/v210.test.mjs, test/v210-audit.test.mjs, test/smoke-eat.mjs, meal markers in test/_adversarial.mjs (so every leak test now covers meal names).
+Counts: 2 findings (Low 1, Info 1); both fixed with a regression test. No Critical, High or Medium.
+
+### Findings
+- SEC-140 (Low, fixed): a logged meal could be moved out of the private vault alone while its saved meal stayed private. The move reported success, but the next write put the row straight back (it points at a private meal), so the owner saw a move that did nothing. It is now refused before anything is written with "Its saved meal is in the private vault. Move the saved meal out instead; it takes this with it.", like an episode or a traffic month (SEC-121).
+- SEC-141 (Info, fixed): the day picked on the Eating card outlived a lock, so the next unlock could open on, and log to, an old day. It is reset on lock with the other memory-only screen state.
+
+### Verified as specified (no finding)
+- Validation: meals, the meal log and `settings.food` are rebuilt from whitelists with caps (50, 20000), names 1 to 60 characters with bidi controls stripped, protein whole grams 0 to 300, target 1 to 1000, `oneOff` true or absent and never with a meal, unknown fields dropped, prototype keys refused, a dangling meal link dropped with the row kept. Typed input is whole digits only; a name that looks like an ID or card number is refused.
+- Schema 21: migrations from 1 to 20 give empty meals, log and target; schema 22 is refused; downgrade guards name saved meals, logged meals and the protein target; the v1.8.0 stub (schema 20) is still refused as a vault.
+- Private vault: a saved meal moves with its rows, a row logged for a private meal is private, a closed vault shows only public rows and holds no private meal name or id; search holds private meal names only while the vault is open.
+- Leaks: meal names never reach the digest, a prompt, an insight, the audit log (fixed labels), errors, diagnostics (counts only), the calendar file, URLs or storage outside the vault. The four digest numbers are stored in the review and are not in the AI prompt. Rendering uses h() and text only; no innerHTML; no em dashes in the new copy; no advice or suggested target.
+
+### Not tested
+`test/smoke-eat.mjs` is written but could not run here: this container has no Chrome or Chromium and browser downloads are blocked, so no browser smoke ran for this build. Run `node test/smokes.mjs` on a machine with Chrome.
+
+## Full review after v2.1.0 (24 Nov 2026, whole codebase)
+A read of the whole app and service at v2.1.0, not only the delta: src/core (vault, store, priv, sync, nas, archive, ai, memory, csv, calendar, search, ops, food and the domain modules), src/ui (app, sync-ui, nas-ui, recovery-ui, archive-ui, guide-ui, pwa, shell.html), build.mjs with the CSP and sw.js, and server/lib (app, storage, tokens, validate, config). Tests: test/v210-audit.test.mjs (SEC-142). After the fixes: 924 unit tests pass in UTC, America/New_York and Pacific/Auckland, and 27 service tests pass.
+Counts: 1 finding (Info 1); fixed with regression tests. No Critical, High, Medium or Low beyond SEC-140 and SEC-141 above.
+
+### Findings
+- SEC-142 (Info, fixed): the home host names could be swapped after load by any script already running in the page. `LifeOS.HOSTS` was a plain, writable object, and the AI test hook `ai._setHosts` kept a live reference to whatever object it was given, while SPEC v2.0.0 item 12 says it takes only a fixed-name table. CSP `connect-src` still limited where a request could go, and no page script can run without breaking CSP first, so there was no practical route. The build now freezes `LifeOS.HOSTS` and makes the property read-only, and the hook copies only `ai-nas` and `ai-pc`, each checked against the host name pattern, into a frozen table.
+
+### Verified (no finding)
+- Rendering: no innerHTML, outerHTML, insertAdjacentHTML, document.write, srcdoc, string timers, `new Function` or `_blank` links in src; every screen builds the DOM with h() and text. Downloads are blob URLs revoked after use, with fixed file names.
+- Exports: CSV cells starting with = + - @ tab or a line break are prefixed with an apostrophe and quoted; private records never reach a CSV. ICS text is escaped (backslash, semicolon, comma, line breaks) and folded, so nothing typed can start a line. Backups are encrypted with a typed passphrase.
+- Lock: the Google token, the picked Eating day, search text, the private picker search, imports, dialogs and AI output are cleared on lock; the private vault's own close clears its screen state (SEC-67).
+- Drive: implicit flow with a nonce held in session storage, token shape and type checked, fragment stripped at load, token in memory only.
+- NAS service: every route but the CORS preflight needs a device token, checked by SHA-256 hash against every stored hash with `timingSafeEqual`; origins from a fixed list; URL length, body size, upload count, general, failed-token and write rate limits; envelope rebuilt from known outer fields with `__proto__` refused; version ids and archive names matched by strict patterns before any file name is formed; atomic writes with fsync and rename, mode 0600; logs hold no path value, header, token, address or body.
+- Not changed, noted for the owner: the default Anthropic model in src/core/ai.js is `claude-haiku-4-5`. Moving to a newer model is a cost and quality choice, not a security fix.

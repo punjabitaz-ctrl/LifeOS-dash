@@ -2,7 +2,7 @@
   'use strict';
   const L = (globalThis.LifeOS = globalThis.LifeOS || {});
   const KEY = 'envelope';
-  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 20, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
+  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 21, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
   const HABIT_CAP = 8, HABIT_LOG_CAP = 100000, KIND_CAP = 30;
   const RENEWAL_TOTAL_CAP = 2000;
   const ENTRY_CAP = 50000, INSIGHT_CAP = 5000, REVIEW_CAP = 1000, LESSON_CAP = 30, AUDIT_CAP = 200;
@@ -137,6 +137,8 @@
       setup: cleanSetup(s.setup, schema),
       // v1.7.0: days without contact before an active client is flagged.
       clients: schema >= 19 ? L.clients.cleanSettings(s.clients) : L.clients.cleanSettings(undefined),
+      // v2.1.0: the daily protein target (whole grams, typed by the owner). Older schemas have none.
+      food: schema >= 21 ? L.food.cleanSettings(s.food) : {},
     };
   }
   function cleanSetup(x, schema) {
@@ -370,6 +372,11 @@
         sessions: num(x.sessions, 0, 1e6, 'digest health', true), minutes: num(x.minutes, 0, 1e9, 'digest health'), avgSleep: num(x.avgSleep, 0, 24, 'digest health'),
         weightChange: num(x.weightChange, -1e4, 1e4, 'digest health'), habitRate: num(x.habitRate, 0, 100, 'digest health'),
       };
+    }
+    if (d.food !== undefined) {
+      if (!isObj(d.food)) fail('digest food');
+      const x = d.food;
+      out.food = { meals: num(x.meals, 0, 1e6, 'digest food', true), proteinAvg: num(x.proteinAvg, 0, 1e4, 'digest food', true), proteinDays: num(x.proteinDays, 0, 7, 'digest food', true), forHealthRate: num(x.forHealthRate, 0, 100, 'digest food') };
     }
     if (d.goals !== undefined) {
       if (!isObj(d.goals)) fail('digest goals');
@@ -711,7 +718,7 @@
   function validateStateRaw(o, opts) {
     if (!isObj(o)) fail('state must be an object');
     scan(o, 0, { n: 4e6 });
-    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, SCHEMA].includes(o.schema)) fail('unsupported schema');
+    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, SCHEMA].includes(o.schema)) fail('unsupported schema');
     if (!L.metrics) fail('metrics module missing');
     const settings = cleanSettings(o.settings, o.schema), entries = cleanEntries(o.entries);
     const out = { schema: SCHEMA, settings, entries };
@@ -828,6 +835,10 @@
       for (const x of out.sites) if (x.showId !== undefined && !showIds.has(x.showId)) delete x.showId;
       for (const i of out.invoices) if (i.clientId !== undefined && (!nineteen || !clientIds.has(i.clientId))) delete i.clientId;
     }
+    // Schema 21 adds saved meals and the meal log (Eating, in Health). Older formats get empty lists; a link to a meal that no longer
+    // exists is dropped and the logged row is kept.
+    out.meals = o.schema >= 21 ? L.food.cleanMeals(o.meals) : [];
+    out.mealLog = o.schema >= 21 ? L.food.cleanLog(o.mealLog, out.meals) : [];
     // Schema 14 adds the archive index and the yearly summaries (numbers only). Older formats have neither.
     out.archives = o.schema >= 14 ? L.archive.cleanArchives(o.archives) : [];
     out.summaries = o.schema >= 14 ? L.archive.cleanSummaries(o.summaries, out.archives) : {};
@@ -917,6 +928,12 @@
       const cs = cur.settings && cur.settings.clients;
       if (cs && cs.contactDays !== L.clients.DEFAULT_CONTACT_DAYS) out.push('client contact reminder days');
     }
+    if (src < 21) {
+      // v2.1.0: saved meals, the meal log and the daily protein target.
+      for (const [k, n] of [['meals', 'saved meals'], ['mealLog', 'logged meals']]) if ((cur[k] || []).length) out.push(n);
+      const fd = cur.settings && cur.settings.food;
+      if (fd && fd.proteinTarget !== undefined) out.push('protein target');
+    }
     if (src < 4) {
       if (cur.cycle) out.push('training cycle');
       if ((cur.habits || []).length) out.push('daily checks');
@@ -929,7 +946,7 @@
   const dropsWork = (cur, next) => droppedData(cur, next).length > 0;
   const andList = (l) => (l.length > 1 ? l.slice(0, -1).join(', ') + ' and ' + l[l.length - 1] : l.join(''));
   // Plain-language list for warnings, with counts: "3 projects and 4 pipeline items". Names only, never values.
-  const COUNTED = { properties: 'properties', vehicles: 'vehicles', 'maintenance items': 'maintenance', renewals: 'renewals', documents: 'documents', 'tax items': 'taxItems', 'learning items': 'learningItems', 'study sessions': 'studySessions', takeaways: 'takeaways', activities: 'activities', 'social groups': 'groups', people: 'people', 'logged contacts': 'contacts', invoices: 'invoices', 'mileage trips': 'trips', payees: 'payees', 'estimated tax payments': 'taxPayments', clients: 'clients', shows: 'shows', episodes: 'episodes', 'platform numbers': 'platformStats', sites: 'sites', 'site traffic months': 'siteTraffic' };
+  const COUNTED = { properties: 'properties', vehicles: 'vehicles', 'maintenance items': 'maintenance', renewals: 'renewals', documents: 'documents', 'tax items': 'taxItems', 'learning items': 'learningItems', 'study sessions': 'studySessions', takeaways: 'takeaways', activities: 'activities', 'social groups': 'groups', people: 'people', 'logged contacts': 'contacts', invoices: 'invoices', 'mileage trips': 'trips', payees: 'payees', 'estimated tax payments': 'taxPayments', clients: 'clients', shows: 'shows', episodes: 'episodes', 'platform numbers': 'platformStats', sites: 'sites', 'site traffic months': 'siteTraffic', 'saved meals': 'meals', 'logged meals': 'mealLog' };
   function lossText(cur, next, list) {
     return andList((list || droppedData(cur, next)).map((n) => (n === 'projects' ? cur.projects.length + ' projects' : n === 'pipeline items' ? cur.pipeline.length + ' pipeline items' : n === 'daily checks' ? cur.habits.length + ' daily checks' : n === 'goals' ? cur.goals.length + ' goals' : COUNTED[n] ? cur[COUNTED[n]].length + ' ' + n : 'your ' + n)));
   }
@@ -959,6 +976,7 @@
         backupReminderDays: 7, syncReminder: false,
         setup: { dismissed: false, targetsSaved: false },
         clients: { contactDays: 30 },
+        food: {},
       },
       entries: [],
       accounts: [], recurring: [], budgets: [], categories: defaultCategories(),
@@ -971,6 +989,7 @@
       clients: [], shows: [], episodes: [], platformStats: [], sites: [], siteTraffic: [],
       archives: [], summaries: {}, ops: L.ops.defaultOps(),
       cycle: null, kinds: L.metrics.DEFAULT_KINDS.slice(), habits: [], habitLog: [],
+      meals: [], mealLog: [],
       memory: { insights: [], lessons: [], reviews: [], lastReviewAt: '', mutes: [], startedOn: localToday() },
       audit: [],
     };

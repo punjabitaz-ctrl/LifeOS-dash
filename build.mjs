@@ -4,7 +4,7 @@ import { join, dirname } from 'node:path';
 import { ICONS, drawIcon, manifestFor, appleIconDataUrl } from './src/icons.mjs';
 import { fileURLToPath } from 'node:url';
 
-const CORE = ['vault', 'ops', 'nav', 'setup', 'store', 'priv', 'wellbeing', 'csv', 'metrics', 'home', 'admin', 'learning', 'activities', 'social', 'revenue', 'tax', 'business', 'clients', 'media', 'layout', 'goals', 'memory', 'ai', 'calendar', 'jobs', 'search'].map((n) => `src/core/${n}.js`);
+const CORE = ['vault', 'ops', 'nav', 'setup', 'store', 'priv', 'wellbeing', 'csv', 'metrics', 'food', 'home', 'admin', 'learning', 'activities', 'social', 'revenue', 'tax', 'business', 'clients', 'media', 'layout', 'goals', 'memory', 'ai', 'calendar', 'jobs', 'search'].map((n) => `src/core/${n}.js`);
 
 function read(root, rel) {
   try { return readFileSync(join(root, rel), 'utf8'); }
@@ -69,7 +69,7 @@ function assemble(root) {
   const optional = (f) => (existsSync(join(root, f)) ? [f] : []);
   const files = [...CORE, ...optional('src/core/sync.js'), ...optional('src/core/nas.js'), ...optional('src/core/archive.js'), 'src/ui/app.js', ...optional('src/ui/sync-ui.js'), ...optional('src/ui/nas-ui.js'), ...optional('src/ui/pwa.js'), ...optional('src/ui/archive-ui.js'), ...optional('src/ui/recovery-ui.js'), ...optional('src/ui/guide-ui.js')];
   const hosts = hostsOf(root);
-  const head = `globalThis.LifeOS = globalThis.LifeOS || {};\nglobalThis.LifeOS.VERSION = ${JSON.stringify(versionOf(root))};` + (hosts ? `\nglobalThis.LifeOS.HOSTS = ${JSON.stringify(hosts)};` : '');
+  const head = `globalThis.LifeOS = globalThis.LifeOS || {};\nglobalThis.LifeOS.VERSION = ${JSON.stringify(versionOf(root))};` + (hosts ? `\nglobalThis.LifeOS.HOSTS = ${JSON.stringify(hosts)};\nObject.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalThis.LifeOS.HOSTS), writable: false, configurable: false, enumerable: true });` : '');
   const js = [head].concat(files.map((f) => read(root, f))).join('\n;\n').replace(/<\/script/gi, (m) => '<\\' + m.slice(1)).replace(/<!--/g, '<\\!--').replace(/<script/gi, (m) => '<\\' + m.slice(1));
   // Neutralise </style in CSS: in a CSS escape, \3c is '<', so the text stays inert but the HTML parser never sees the tag.
   css = css.replace(/<\/style/gi, (m) => '\\3c ' + m.slice(1));
