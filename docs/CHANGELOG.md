@@ -2,6 +2,11 @@
 
 Newest first. One line per change. Versions come from package.json (see docs/RUNBOOK.md); fixes by number are described in docs/SECURITY.md.
 
+## Unreleased
+- Weekly review, Job search follow-ups: a follow-up due later this week is no longer labelled "(overdue)"; only a date before today is (`jobs.reviewWeek`).
+- Weekly review, "This week vs last week": amounts as currency, rates with "%", counts with grouped digits and their unit (singular for one), and each change signed (a change in a rate is in points). `metrics.fmtDigest`.
+- Podcasts: the platform chip buttons read "Rename" and "Remove", and the release chip button "Remove", instead of "r" and "x".
+
 ## 2.0.0 (schema 20): NAS sync and home model hosts
 - config/hosts.json (app, sync, ai-nas, ai-pc) is read by build.mjs into connect-src: exactly the three home https origins are added, nothing user-entered.
 - server/: the NAS sync service (Node built-ins only). Ciphertext-only storage, compare-and-swap puts with atomic writes, the last 30 versions with list and restore, archive files, hashed per-device bearer tokens (add, register, revoke), CORS only for the configured app origins, rate limits, logs with codes and sizes only. Dockerfile, compose file, Caddyfile example, docs/NAS-SETUP.md.

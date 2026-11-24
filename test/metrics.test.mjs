@@ -123,3 +123,21 @@ test('series returns n weekly points ending this week', () => {
   assert.deepEqual(r, [{ label: '2026-10-26', value: 0 }, { label: '2026-11-02', value: 1 }, { label: '2026-11-09', value: 1 }]);
   assert.equal(M.series(s, 'money', 4).length, 4);
 });
+
+test('fmtDigest writes review numbers like the rest of the app: currency, rates, grouped counts, signed changes', () => {
+  assert.equal(M.fmtDigest(166720.54, 'USD'), '$166,721');
+  assert.equal(M.fmtDigest(5108.85, 'USD', true), '+$5,109');
+  assert.equal(M.fmtDigest(-250, 'USD', true), '-$250');
+  assert.equal(M.fmtDigest(82.93, '%'), '82.9%');
+  assert.equal(M.fmtDigest(0, '%'), '0%');
+  assert.equal(M.fmtDigest(3.25, '%', true), '+3.3 points');
+  assert.equal(M.fmtDigest(-1, '%', true), '-1 point');
+  assert.equal(M.fmtDigest(1234, 'outcomes'), '1,234 outcomes');
+  assert.equal(M.fmtDigest(0, 'workouts', true), '0 workouts');
+  assert.equal(M.fmtDigest(2, '', true), '+2');
+  assert.equal(M.fmtDigest(NaN, 'items'), '0 items');
+  assert.equal(M.fmtDigest(1, 'days'), '1 day');
+  assert.equal(M.fmtDigest(-1, 'workouts', true), '-1 workout');
+  assert.equal(M.fmtDigest(1, 'people'), '1 person');
+  assert.equal(M.fmtDigest(3, 'people'), '3 people');
+});
