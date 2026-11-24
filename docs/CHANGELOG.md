@@ -5,7 +5,7 @@ Newest first. One line per change. Versions come from package.json (see docs/RUN
 ## Unreleased
 - Weekly review, Job search follow-ups: a follow-up due later this week is no longer labelled "(overdue)"; only a date before today is (`jobs.reviewWeek`).
 - Weekly review, "This week vs last week": amounts as currency, rates with "%", counts with grouped digits and their unit, and each change signed (a change in a rate is in points). `metrics.fmtDigest`.
-- Podcasts: the platform chip buttons read "Rename" and "Remove" instead of "r" and "x".
+- Podcasts: the platform chip buttons read "Rename" and "Remove", and the release chip button "Remove", instead of "r" and "x".
 
 ## 2.0.0 (schema 20): NAS sync and home model hosts
 - config/hosts.json (app, sync, ai-nas, ai-pc) is read by build.mjs into connect-src: exactly the three home https origins are added, nothing user-entered.

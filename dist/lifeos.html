@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-HV4f+2mbGOe51lKdKADsfoSmmSUyjIa5QoN2jrzM50U='; style-src 'sha256-dkGw1nhveikRf03GT4p42Bmd2r0LI4q5rZNRWShN/zk='; connect-src https://api.anthropic.com https://www.googleapis.com https://sync.lifeos.tazabbas.com https://ai-nas.lifeos.tazabbas.com https://ai-pc.lifeos.tazabbas.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'; manifest-src 'self'; worker-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-DQFC+ssYcGqwYNzCMzWhxVNIxwm2C/N+XEPmjRqHIRo='; style-src 'sha256-dkGw1nhveikRf03GT4p42Bmd2r0LI4q5rZNRWShN/zk='; connect-src https://api.anthropic.com https://www.googleapis.com https://sync.lifeos.tazabbas.com https://ai-nas.lifeos.tazabbas.com https://ai-pc.lifeos.tazabbas.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'; manifest-src 'self'; worker-src 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#2255d4">
 <meta name="lifeos-shell" content="2.0.0">
@@ -17367,7 +17367,7 @@ globalThis.LifeOS.HOSTS = {"app":"lifeos.tazabbas.com","sync":"sync.lifeos.tazab
       guests.length ? h('div', { class: 'small', text: 'Guests: ' + guests.join(', ') }) : null,
       e.notes ? h('div', { class: 'small mut', text: e.notes }) : null,
       rel.length ? h('div', { class: 'chips pc-releases' }, rel.map(function (p) {
-        return h('span', { class: 'chip', 'data-format': p.format }, FORMAT_LABEL[p.format] + ' on ' + pf(p.platformId) + ' ' + p.date, h('button', { type: 'button', class: 'x', text: 'x', 'aria-label': 'Remove the ' + FORMAT_LABEL[p.format] + ' release on ' + pf(p.platformId) + ' for ' + e.title,
+        return h('span', { class: 'chip', 'data-format': p.format }, FORMAT_LABEL[p.format] + ' on ' + pf(p.platformId) + ' ' + p.date, h('button', { type: 'button', class: 'x', text: 'Remove', 'aria-label': 'Remove the ' + FORMAT_LABEL[p.format] + ' release on ' + pf(p.platformId) + ' for ' + e.title,
           onclick: function () { mxAct(function (x) { M.setRelease(x, e.id, p.format, p.platformId, ''); }, 'episode release remove', 'Release date removed.'); } }));
       })) : null,
       nums.length ? h('div', { class: 'small pc-ep-numbers', text: 'Latest numbers: ' + nums.map(function (n) { return n.platform + ' ' + MEASURE_LABEL[n.measure].toLowerCase() + ' ' + mxNum(n.value); }).join('; ') }) : null,

@@ -5460,7 +5460,7 @@
       guests.length ? h('div', { class: 'small', text: 'Guests: ' + guests.join(', ') }) : null,
       e.notes ? h('div', { class: 'small mut', text: e.notes }) : null,
       rel.length ? h('div', { class: 'chips pc-releases' }, rel.map(function (p) {
-        return h('span', { class: 'chip', 'data-format': p.format }, FORMAT_LABEL[p.format] + ' on ' + pf(p.platformId) + ' ' + p.date, h('button', { type: 'button', class: 'x', text: 'x', 'aria-label': 'Remove the ' + FORMAT_LABEL[p.format] + ' release on ' + pf(p.platformId) + ' for ' + e.title,
+        return h('span', { class: 'chip', 'data-format': p.format }, FORMAT_LABEL[p.format] + ' on ' + pf(p.platformId) + ' ' + p.date, h('button', { type: 'button', class: 'x', text: 'Remove', 'aria-label': 'Remove the ' + FORMAT_LABEL[p.format] + ' release on ' + pf(p.platformId) + ' for ' + e.title,
           onclick: function () { mxAct(function (x) { M.setRelease(x, e.id, p.format, p.platformId, ''); }, 'episode release remove', 'Release date removed.'); } }));
       })) : null,
       nums.length ? h('div', { class: 'small pc-ep-numbers', text: 'Latest numbers: ' + nums.map(function (n) { return n.platform + ' ' + MEASURE_LABEL[n.measure].toLowerCase() + ' ' + mxNum(n.value); }).join('; ') }) : null,
