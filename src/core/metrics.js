@@ -670,13 +670,15 @@
     catch (e) { return String(Math.round(n)); }
   }
   // One number from the weekly digest, written the way the rest of the app writes it: currency for an amount (whole units),
-  // "%" for a rate (a change in a rate is in points), and grouped digits with the unit for a count. signed adds "+" to a rise.
+  // "%" for a rate (a change in a rate is in points), and grouped digits with the unit for a count (singular for one). signed adds "+" to a rise.
   function fmtDigest(n, unit, signed) {
     const v = Number(n) || 0, plus = signed && v > 0 ? '+' : '';
     if (/^[A-Z]{3}$/.test(unit || '')) return plus + fmtMoney(v, unit);
     const num = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 }).format(v);
     if (unit === '%') return plus + num + (signed ? (Math.abs(v) === 1 ? ' point' : ' points') : '%');
-    return plus + num + (unit ? ' ' + unit : '');
+    // One of a count reads singular ("1 day", "-1 workout", "1 person"); the count units are plain plurals ending in s, and people.
+    const u = Math.abs(v) !== 1 ? unit : unit === 'people' ? 'person' : /s$/.test(unit || '') ? unit.slice(0, -1) : unit;
+    return plus + num + (u ? ' ' + u : '');
   }
   function headline(state, id, today) {
     if (!DOMAINS.some((d) => d.id === id)) throw new Error('Unknown domain');
