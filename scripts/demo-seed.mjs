@@ -61,8 +61,12 @@ for (let k = -11; k <= 0; k++) {
   const m = month(k), cur = k === 0, lastDay = cur ? +TODAY.slice(8, 10) : 28;
   const day = (d) => m + '-' + pad(Math.min(d, lastDay));
   const inMonth = (d) => d <= lastDay;
-  if (inMonth(1)) s.entries.push(E({ domain: 'money', type: 'income', date: day(1), title: 'Salary', value: 6850, category: 'Salary', scope: 'personal', projectId: 'p-job' }));
-  if (inMonth(15)) s.entries.push(E({ domain: 'money', type: 'income', date: day(15), title: 'Salary', value: 6850, category: 'Salary', scope: 'personal', projectId: 'p-job' }));
+  if (inMonth(1)) s.entries.push(E({ domain: 'money', type: 'income', date: day(1), title: 'Salary', value: 2900, category: 'Salary', scope: 'personal', projectId: 'p-job' }));
+  if (inMonth(15)) s.entries.push(E({ domain: 'money', type: 'income', date: day(15), title: 'Salary', value: 2900, category: 'Salary', scope: 'personal', projectId: 'p-job' }));
+  if (inMonth(3)) s.entries.push(E({ domain: 'money', type: 'expense', date: day(3), title: 'Car payment', value: 410, category: 'Transport', scope: 'personal' }));
+  if (inMonth(5)) s.entries.push(E({ domain: 'money', type: 'expense', date: day(5), title: 'Health insurance', value: 286, category: 'Health', scope: 'personal' }));
+  if (inMonth(7)) s.entries.push(E({ domain: 'money', type: 'expense', date: day(7), title: 'Phone plan', value: 75, category: 'Utilities', scope: 'personal' }));
+  for (const d of [10, 24]) if (inMonth(d)) s.entries.push(E({ domain: 'money', type: 'expense', date: day(d), title: d === 10 ? 'Clothes' : 'Home goods', value: jitter(160, 70), category: 'Shopping', scope: 'personal' }));
   // Studio income grows over the year.
   const grow = 11 + k;
   if (inMonth(8)) s.entries.push(E({ domain: 'money', type: 'income', date: day(8), title: 'Juniper Bakery retainer', value: 1200 + grow * 60, category: 'Business', scope: 'business', projectId: 'p-cl-a' }));
@@ -94,7 +98,7 @@ s.recurring.push(
   { id: 'r-rent', title: 'Rent', value: 2450, category: 'Housing', type: 'expense', cadence: 'monthly', nextDate: month(1) + '-02', active: true, household: true },
   { id: 'r-util', title: 'Electric and gas', value: 120, category: 'Utilities', type: 'expense', cadence: 'monthly', nextDate: month(1) + '-12', active: true, household: true },
   { id: 'r-net', title: 'Home internet', value: 65, category: 'Utilities', type: 'expense', cadence: 'monthly', nextDate: add(TODAY, 5), active: true, household: true },
-  { id: 'r-pay', title: 'Salary', value: 6850, category: 'Salary', type: 'income', cadence: 'monthly', nextDate: month(1) + '-01', active: true });
+  { id: 'r-pay', title: 'Salary', value: 2900, category: 'Salary', type: 'income', cadence: 'monthly', nextDate: month(1) + '-01', active: true });
 
 // ---- work: weekly outcomes and a deal pipeline ----
 const wk = L.metrics.weekStart(TODAY);
@@ -185,7 +189,7 @@ s.takeaways.push({ id: 'tk-1', itemId: 'li-2', date: add(TODAY, -5), text: 'Pick
 
 // ---- activities ----
 const acts = [['Trail hike at Ridgeback Park', 'outing', 'done', -16, 180, 0, 5, ['sp-2']], ['Pottery night', 'class', 'done', -9, 120, 4500, 4, ['sp-7']], ['Founders breakfast', 'networking', 'done', -6, 90, 1800, 4, []],
-  ['Food bank shift', 'volunteering', 'done', -3, 150, 0, 5, ['sp-1']], ['Jazz in the square', 'event', 'skipped', -1, 0, 0, 0, []], ['Weekend in the mountains', 'travel', 'planned', 11, 0, 38000, 0, ['sp-6']],
+  ['Food bank shift', 'volunteering', 'done', -1, 150, 0, 5, ['sp-1']], ['Jazz in the square', 'event', 'skipped', -8, 0, 0, 0, []], ['Weekend in the mountains', 'travel', 'planned', 11, 0, 38000, 0, ['sp-6']],
   ['Board game night', 'hobby', 'planned', 4, 0, 0, 0, ['sp-2', 'sp-7']], ['Design meetup', 'networking', 'planned', 9, 0, 1500, 0, []], ['Climbing gym intro', 'class', 'done', -24, 90, 3200, 3, []]];
 for (const [title, category, state, d, minutes, costCents, worthIt, withPeople] of acts) {
   const a = { id: id('ac'), title, category, state, date: add(TODAY, d), place: '', withPeople, notes: '', createdAt: ts(add(TODAY, Math.min(d, 0) - 5)) };
@@ -220,6 +224,24 @@ s.goals.push(
   G({ title: 'Emergency fund: $35k saved', domain: 'goals', metric: 'manual', startValue: 22000, targetValue: 35000, manualValue: 31150 }),
   G({ title: 'Study three hours a week', domain: 'learning', metric: 'studyMinutes', startValue: 60, targetValue: 180 }),
   G({ title: 'Land a partnerships role in AI or XR', horizon: 'annual', domain: 'work', metric: 'manual', startValue: 0, targetValue: 1, manualValue: 0, dueDate: add(TODAY, 120) }));
+
+// ---- studio invoices ----
+s.invoices.push(
+  { id: 'iv-1', number: 'MM-2026-031', projectId: 'p-cl-b', clientId: 'cl-b', issueDate: add(TODAY, -12), dueDate: add(TODAY, -4), lines: [{ description: 'Dealer kit design and layout', qty: 1, unitCents: 240000 }], status: 'sent', notes: '' },
+  { id: 'iv-2', number: 'MM-2026-032', projectId: 'p-cl-a', clientId: 'cl-a', issueDate: add(TODAY, -2), dueDate: add(TODAY, 12), lines: [{ description: 'Holiday campaign landing page', qty: 1, unitCents: 150000 }, { description: 'Social graphics, set of 6', qty: 6, unitCents: 5000 }], status: 'sent', notes: '' });
+
+// ---- home screen: hide the tax modules (no tax profile in the demo) ----
+const hide = new Set(['tax-setaside', 'tax-next', 'payees-near', 'budget-pinned']);
+for (const k of ['narrow', 'wide']) s.settings.layouts[k] = L.layout.MODULES.map((m) => ({ id: m.id, size: m.size, hidden: hide.has(m.id) }));
+
+// ---- four finished weekly reviews, the latest one last weekend ----
+const prio = [['Send the Orbit dealer kit', 'Two workouts before Thursday', 'Call Avery about the trip'], ['Finish the partner tier plan draft', 'Record episode 14', 'Book the mountain cabin'],
+  ['Follow up with Northpine XR', 'Ship the Juniper landing page', 'Three study sessions'], ['Send December invoices', 'Prep the Lumenfold panel', 'Plan the holiday mailbag episode']];
+for (let w = 4; w >= 1; w--) {
+  const weekOf = add(wk, -7 * w), done = add(weekOf, 6);
+  s.memory.reviews.push({ id: id('rv'), weekOf, digest: L.metrics.weeklyDigest(s, weekOf), priorities: prio[4 - w], completedAt: ts(done) });
+}
+s.memory.lastReviewAt = add(wk, -1);
 
 const clean = L.store.validateState(JSON.parse(JSON.stringify(s)));
 const text = await L.vault.exportBackup(DEMO_PASS, clean);

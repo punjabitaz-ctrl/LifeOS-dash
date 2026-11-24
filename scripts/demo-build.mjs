@@ -20,13 +20,15 @@ JSON.parse(data); // must be a backup file (JSON)
 const opener = `
 ;
 (function () {
-  var L = globalThis.LifeOS, PASS = ${JSON.stringify(PASS)}, DATA = ${JSON.stringify(data).replace(/</g, '\\u003c')};
+  var L = globalThis.LifeOS, PASS = ${JSON.stringify(PASS)}, BUILD = ${JSON.stringify(sha(data).slice(7, 19))}, DATA = ${JSON.stringify(data).replace(/</g, '\\u003c')};
   L.DEMO = true;
-  // First visit: restore the demo backup as this browser's vault, then show the normal lock screen.
-  var exists = L.store.exists;
+  // First visit, or a newer demo dataset: restore the demo backup as this browser's vault, then show the normal lock screen.
+  var exists = L.store.exists, mark = function () { try { return localStorage.getItem('lifeos-demo'); } catch (e) { return null; } };
   L.store.exists = function () {
-    return exists.apply(L.store, arguments).then(function (x) {
+    var same = mark() === BUILD;
+    return (same ? Promise.resolve() : L.store.wipe()).then(function () { return exists.apply(L.store, arguments); }).then(function (x) {
       if (x) return x;
+      try { localStorage.setItem('lifeos-demo', BUILD); } catch (e) { /* demo only */ }
       return L.vault.importBackup(PASS, DATA).then(function (st) { return L.store.createFromBackup(PASS, st); }).then(function () { L.store.lock(); return true; });
     });
   };
