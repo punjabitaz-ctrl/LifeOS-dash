@@ -45,7 +45,7 @@ s.accounts.push(
   { id: 'acc-brk', name: 'Index portfolio', kind: 'investment', liability: false, archived: false },
   { id: 'acc-card', name: 'Travel card', kind: 'credit', liability: true, archived: false },
   { id: 'acc-car', name: 'Car loan', kind: 'loan', liability: true, archived: false });
-s.budgets.push({ category: 'Groceries', value: 650 }, { category: 'Dining', value: 300 }, { category: 'Transport', value: 250 }, { category: 'Subscriptions', value: 90 });
+s.budgets.push({ category: 'Groceries', value: 650 }, { category: 'Dining', value: 300 }, { category: 'Transport', value: 600 }, { category: 'Subscriptions', value: 90 });
 
 // Lines of work: a main job plus a small studio with two client lines and a podcast and website under it.
 s.projects.push(
