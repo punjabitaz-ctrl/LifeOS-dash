@@ -123,6 +123,7 @@ s.pipeline.push(
   { id: 'pl-j3', title: 'Head of Alliances', org: 'Cobaltline AI', kind: 'job', stage: 'contacted', source: 'LinkedIn', nextStep: 'Coffee chat with hiring manager', nextDate: add(TODAY, 5), updatedAt: add(TODAY, -4), notes: '', role: 'Head of Alliances', locationType: 'on site', targetOteCents: 26000000, resume: 'Partnerships v4' },
   { id: 'pl-j4', title: 'Partner Enablement Manager', org: 'Quillwave Software', kind: 'job', stage: 'applied', source: 'Job board', nextStep: 'Wait for reply', updatedAt: add(TODAY, -15), notes: '', role: 'Partner Enablement Manager', locationType: 'remote', targetOteCents: 16500000, appliedOn: add(TODAY, -16), resume: 'Enablement v1', followUp: add(TODAY, -2) },
   { id: 'pl-j5', title: 'Ecosystem Partnerships Lead', org: 'Saltmarsh Labs', kind: 'job', stage: 'lost', source: 'Job board', nextStep: '', updatedAt: add(TODAY, -20), notes: '', role: 'Ecosystem Lead', locationType: 'hybrid', appliedOn: add(TODAY, -40), resume: 'Partnerships v3', lostReason: 'role closed' },
+  { id: 'pl-j7', title: 'Partner Programs Lead, XR', org: 'Veldt Interactive', kind: 'job', stage: 'applied', source: 'Network', nextStep: 'Send a thank-you note to the referrer', nextDate: add(TODAY, 2), updatedAt: add(TODAY, -1), notes: '', role: 'Partner Programs Lead', locationType: 'remote', targetOteCents: 22500000, appliedOn: add(TODAY, -1), resume: 'Partnerships v4', followUp: add(TODAY, 7) },
   { id: 'pl-j6', title: 'Strategic Partner Director', org: 'Harborlight Systems', kind: 'job', stage: 'lead', source: 'Referral', nextStep: 'Ask for intro', nextDate: add(TODAY, 4), updatedAt: add(TODAY, -1), notes: '', role: 'Partner Director', locationType: 'remote', targetOteCents: 24000000 });
 
 // ---- social ----
@@ -137,7 +138,7 @@ s.people.push(
   P('sp-6', 'Jordan Blake', 'g-fam', {}),
   P('sp-7', 'Noor Haddad', 'g-fr', {}),
   P('sp-8', 'Theo Marsh', 'g-net', { projectIds: ['p-pod'] }));
-const contactPlan = [['sp-1', 3, 'call'], ['sp-1', 17, 'in person'], ['sp-2', 9, 'message'], ['sp-3', 30, 'video'], ['sp-4', 6, 'email'], ['sp-5', 2, 'video'], ['sp-6', 25, 'call'], ['sp-7', 4, 'in person'], ['sp-8', 60, 'email'], ['sp-2', 1, 'in person']];
+const contactPlan = [['sp-1', 3, 'call'], ['sp-1', 17, 'in person'], ['sp-2', 9, 'message'], ['sp-3', 30, 'video'], ['sp-4', 1, 'email'], ['sp-5', 2, 'video'], ['sp-6', 25, 'call'], ['sp-7', 4, 'in person'], ['sp-8', 60, 'email'], ['sp-2', 1, 'in person']];
 for (const [pid, ago, channel] of contactPlan) s.contacts.push({ id: id('sc'), personId: pid, date: add(TODAY, -ago), channel, notes: '' });
 
 // ---- clients, podcast and website ----
