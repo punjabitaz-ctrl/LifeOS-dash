@@ -5,6 +5,7 @@
 import path from 'node:path';
 import { navTo } from './_nav.mjs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { skipTour } from './_tour.mjs';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const file = path.resolve(here, '..', 'dist', 'lifeos.html');
 let pw;
@@ -23,7 +24,7 @@ const DEFAULT_S = ['v:money', 'v:work', 'v:jobs', 'v:health', 'v:learning', 'v:g
 
 async function run(label, viewport, scheme) {
   const ctx = await browser.newContext(Object.assign({ colorScheme: scheme }, viewport ? { viewport, isMobile: true, hasTouch: true } : { viewport: { width: 1280, height: 900 } }));
-  const page = await ctx.newPage();
+  const page = await ctx.newPage(); await skipTour(page);
   page.on('console', (m) => { if (m.type() === 'error' || /content security policy|refused to/i.test(m.text())) problems.push(label + ' console: ' + m.text()); });
   page.on('pageerror', (e) => problems.push(label + ' pageerror: ' + e.message));
   async function step(name, fn) { try { await fn(); } catch (e) { problems.push(label + ' ' + name + ': ' + String(e.message).split('\n').slice(0, 3).join(' | ')); throw e; } }

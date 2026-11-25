@@ -150,7 +150,10 @@
   function cleanSetup(x, schema) {
     if (schema < 16 || x === undefined || x === null) return { dismissed: schema < 16, targetsSaved: false };
     if (!isObj(x) || typeof x.dismissed !== 'boolean' || typeof x.targetsSaved !== 'boolean') fail('setup');
-    return { dismissed: x.dismissed, targetsSaved: x.targetsSaved };
+    const o = { dismissed: x.dismissed, targetsSaved: x.targetsSaved };
+    // tour: true once the first-run tour has started (optional; absent means it has not). Older builds drop it, so it may show once more there.
+    if (x.tour !== undefined) { if (typeof x.tour !== 'boolean') fail('setup'); o.tour = x.tour; }
+    return o;
   }
   // 6 decimals, like converted weights, so a unit switch round trip does not drift.
   const r6 = (x) => Math.round(x * 1e6) / 1e6;

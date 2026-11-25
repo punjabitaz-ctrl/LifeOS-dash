@@ -5,6 +5,7 @@
 import path from 'node:path';
 import { navTo } from './_nav.mjs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { skipTour } from './_tour.mjs';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const file = path.resolve(here, '..', 'dist', 'lifeos.html');
 let pw;
@@ -22,7 +23,7 @@ const problems = [];
 
 async function run(label, viewport) {
   const ctx = await browser.newContext(viewport ? { viewport, isMobile: true, hasTouch: true } : { viewport: { width: 1280, height: 900 } });
-  const page = await ctx.newPage();
+  const page = await ctx.newPage(); await skipTour(page);
   const requests = [];
   page.on('console', (m) => { if (m.type() === 'error' || /content security policy|refused to/i.test(m.text())) problems.push(label + ' console: ' + m.text()); });
   page.on('pageerror', (e) => problems.push(label + ' pageerror: ' + e.message));
@@ -137,7 +138,7 @@ async function run(label, viewport) {
       await page.uncheck('#rk-new-key'); await sleep(1200);
       const text = await page.evaluate((k) => globalThis.LifeOS.vault.exportBackup('backup passphrase 55', globalThis.LifeOS.store.getState(), k), key3);
       const ctx2 = await browser.newContext(viewport ? { viewport, isMobile: true, hasTouch: true } : { viewport: { width: 1280, height: 900 } });
-      const p2 = await ctx2.newPage();
+      const p2 = await ctx2.newPage(); await skipTour(p2);
       p2.on('pageerror', (e) => problems.push(label + ' restore pageerror: ' + e.message));
       try {
         await p2.goto(pathToFileURL(file).href); await p2.click('#path-restore');

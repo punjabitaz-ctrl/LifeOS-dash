@@ -3,6 +3,7 @@ import http from 'node:http';
 import { navTo } from './_nav.mjs';
 import { readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { skipTour } from './_tour.mjs';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const file = path.resolve(here, '..', 'dist', 'lifeos.html');
 if (!existsSync(file)) { console.error('dist/lifeos.html missing: run node build.mjs first'); process.exit(1); }
@@ -59,7 +60,7 @@ async function wire(ctx, label) {
 async function newPage(label) {
   const ctx = await browser.newContext({ acceptDownloads: true });
   await wire(ctx, label);
-  const page = await ctx.newPage();
+  const page = await ctx.newPage(); await skipTour(page);
   page.on('console', (m) => { if (m.type() === 'error' || /content security policy|refused to/i.test(m.text())) problems.push(label + ' console: ' + m.text()); });
   page.on('pageerror', (e) => problems.push(label + ' pageerror: ' + e.message));
   return { ctx, page };

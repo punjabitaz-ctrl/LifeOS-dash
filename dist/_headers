@@ -1,5 +1,5 @@
 /*
-  Content-Security-Policy: default-src 'none'; script-src 'sha256-SNLG6TrRnWU20edpg6kfztWUPnBbiUVnWuyADQpyNBM='; style-src 'sha256-D/QEkLz+Ve7S3Z2yDzYHa/dx+wk5iGX1Iwm7fOzn+vI='; connect-src https://api.anthropic.com https://www.googleapis.com https://sync.lifeos.tazabbas.com https://ai-nas.lifeos.tazabbas.com https://ai-pc.lifeos.tazabbas.com http://localhost:* http://127.0.0.1:*; font-src data:; img-src data:; base-uri 'none'; form-action 'none'; manifest-src 'self'; worker-src 'self'; frame-ancestors 'none'
+  Content-Security-Policy: default-src 'none'; script-src 'sha256-/s738m2ynrQuepd63tHcop+4dE8VCq2m86HUDQKbzrk='; style-src 'sha256-K0Q5OTm5IcWH3c7MTflJHZHHgEshsLIZxvZfHVxbbJI='; connect-src https://api.anthropic.com https://www.googleapis.com https://sync.lifeos.tazabbas.com https://ai-nas.lifeos.tazabbas.com https://ai-pc.lifeos.tazabbas.com http://localhost:* http://127.0.0.1:*; font-src data:; img-src data:; base-uri 'none'; form-action 'none'; manifest-src 'self'; worker-src 'self'; frame-ancestors 'none'
   Strict-Transport-Security: max-age=63072000
   X-Content-Type-Options: nosniff
   Referrer-Policy: no-referrer

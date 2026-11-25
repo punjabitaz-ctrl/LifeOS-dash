@@ -8,6 +8,7 @@ import { navTo } from './_nav.mjs';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { buildAdversarial, ADV_MARK } from './_adversarial.mjs';
+import { skipTour } from './_tour.mjs';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const file = path.resolve(here, '..', 'dist', 'lifeos.html');
 let pw;
@@ -62,7 +63,7 @@ const calDownload = async (page) => {
 
 async function run(label, viewport) {
   const ctx = await browser.newContext(viewport ? { viewport, isMobile: true, hasTouch: true } : { viewport: { width: 1280, height: 900 } });
-  const page = await ctx.newPage();
+  const page = await ctx.newPage(); await skipTour(page);
   const consoleText = [], requests = [], urls = [];
   page.on('console', (m) => { consoleText.push(m.text()); if (m.type() === 'error' || /content security policy|refused to/i.test(m.text())) problems.push(label + ' console: ' + m.text()); });
   page.on('pageerror', (e) => { consoleText.push(e.message); problems.push(label + ' pageerror: ' + e.message); });
@@ -539,7 +540,7 @@ const PRIV_SETUP = `(async () => {
 })()`;
 async function runPriv(label, viewport) {
   const ctx = await browser.newContext(viewport ? { viewport, isMobile: true, hasTouch: true, acceptDownloads: true } : { viewport: { width: 1280, height: 900 }, acceptDownloads: true });
-  const page = await ctx.newPage();
+  const page = await ctx.newPage(); await skipTour(page);
   const consoleText = [], requests = [], urls = [], prompts = [], doms = [], notices = [], extra = {};
   page.on('console', (m) => { consoleText.push(m.text()); if (m.type() === 'error' || /content security policy|refused to/i.test(m.text())) problems.push(label + ' console: ' + m.text()); });
   page.on('pageerror', (e) => { consoleText.push(e.message); problems.push(label + ' pageerror: ' + e.message); });

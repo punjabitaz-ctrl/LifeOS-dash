@@ -4,6 +4,7 @@
 import path from 'node:path';
 import { navTo } from './_nav.mjs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { skipTour } from './_tour.mjs';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const file = path.resolve(here, '..', 'dist', 'lifeos.html');
 let pw;
@@ -33,7 +34,7 @@ async function run(label, viewport) {
   const size = viewport || { width: 1280, height: 900 };
   const other = viewport ? { width: 1280, height: 900 } : { width: 390, height: 844 };
   const ctx = await browser.newContext(viewport ? { viewport, isMobile: true, hasTouch: true } : { viewport: size });
-  const page = await ctx.newPage();
+  const page = await ctx.newPage(); await skipTour(page);
   page.setDefaultTimeout(15000);
   const requests = [];
   page.on('console', (m) => { if (m.type() === 'error' || /content security policy|refused to/i.test(m.text())) problems.push(label + ' console: ' + m.text()); });

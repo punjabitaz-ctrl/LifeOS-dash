@@ -12,6 +12,7 @@ import { tmpdir } from 'node:os';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { navTo } from './_nav.mjs';
 import { buildAdversarial, ADV_MARK } from './_adversarial.mjs';
+import { skipTour } from './_tour.mjs';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const dist = path.resolve(here, '..', 'dist');
 let pw;
@@ -69,7 +70,7 @@ const a11y = (scope) => scope.evaluate(() => {
 const noHScroll = async (page, where) => { const r = await page.evaluate(() => ({ sw: document.documentElement.scrollWidth, iw: window.innerWidth })); if (r.sw > r.iw) throw new Error(where + ': page scrolls horizontally (' + r.sw + ' > ' + r.iw + ')'); };
 
 async function makePage(ctx, label) {
-  const page = await ctx.newPage(); page.setDefaultTimeout(15000);
+  const page = await ctx.newPage(); await skipTour(page); page.setDefaultTimeout(15000);
   page.on('console', (m) => { if (m.type() === 'error' || /content security policy|refused to/i.test(m.text())) problems.push(label + ' console: ' + m.text()); });
   page.on('pageerror', (e) => problems.push(label + ' pageerror: ' + e.message));
   return page;

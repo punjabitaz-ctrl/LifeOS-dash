@@ -6,6 +6,7 @@
 import path from 'node:path';
 import { navTo } from './_nav.mjs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { skipTour } from './_tour.mjs';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const file = path.resolve(here, '..', 'dist', 'lifeos.html');
 let pw;
@@ -38,7 +39,7 @@ const SEED = `(async () => {
 
 async function run(label, viewport) {
   const ctx = await browser.newContext(viewport ? { viewport, isMobile: true, hasTouch: true } : { viewport: { width: 1280, height: 900 } });
-  const page = await ctx.newPage();
+  const page = await ctx.newPage(); await skipTour(page);
   const requests = [];
   page.on('console', (m) => { if (m.type() === 'error' || /content security policy|refused to/i.test(m.text())) problems.push(label + ' console: ' + m.text()); });
   page.on('pageerror', (e) => problems.push(label + ' pageerror: ' + e.message));
