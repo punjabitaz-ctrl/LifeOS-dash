@@ -6,7 +6,7 @@
   const DOMAINS = ['money', 'assets', 'work', 'health', 'goals', 'home', 'admin', 'learning', 'activities', 'social', 'wellbeing'];
   const NAMES = ['dashboard', 'review', 'memory', 'settings', 'private', 'archive', 'business', 'clients', 'podcasts', 'websites'];
   // The phone bottom bar, and every other area (the More sheet). Each entry is { key, label }; a key is a view key.
-  const BAR = Object.freeze([['dashboard', 'Home'], ['v:money', 'Money'], ['v:work', 'Work'], ['v:health', 'Health']].map(([key, label]) => Object.freeze({ key: key === 'dashboard' ? 'dashboard' : key, label })));
+  const BAR = Object.freeze([['dashboard', 'Overview'], ['v:money', 'Money'], ['v:work', 'Work'], ['v:health', 'Health']].map(([key, label]) => Object.freeze({ key: key === 'dashboard' ? 'dashboard' : key, label })));
   const MORE = Object.freeze([['v:assets', 'Assets'], ['v:command', 'Command center'], ['v:jobs', 'Job search'], ['business', 'Business'], ['clients', 'AYiN and clients'], ['podcasts', 'Podcasts'], ['websites', 'Websites'], ['v:goals', 'Goals'], ['v:home', 'Home and property'], ['v:admin', 'Admin'],
     ['v:learning', 'Learning'], ['v:activities', 'Activities'], ['v:social', 'Social'], ['private', 'Private vault'], ['v:wellbeing', 'Wellbeing'], ['review', 'Review'], ['memory', 'Memory'], ['settings', 'Settings']]
     .map(([key, label]) => Object.freeze({ key, label })));

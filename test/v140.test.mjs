@@ -88,7 +88,7 @@ test('history: private vault entries are names only and nothing is reachable aft
   assert.deepEqual(t.env.log, []);
 });
 test('navigation lists: five bar items plus More reach all areas; no duplicates; labels are plain', () => {
-  assert.deepEqual(N.BAR.map((x) => x.label), ['Home', 'Money', 'Work', 'Health']);
+  assert.deepEqual(N.BAR.map((x) => x.label), ['Overview', 'Money', 'Work', 'Health']);
   const want = ['Assets', 'Command center', 'Business', 'Goals', 'Home and property', 'Admin', 'Learning', 'Activities', 'Social', 'Private vault', 'Wellbeing', 'Review', 'Settings'];
   for (const w of want) assert.ok(N.MORE.some((x) => x.label === w), w);
   const keys = N.all(); assert.equal(new Set(keys).size, keys.length);
@@ -294,7 +294,7 @@ test('restore on the lock screen: every failure leaves no vault, no key and noth
   await check(async () => S.createFromBackup('backup passphrase one', { schema: 3, entries: 'nope' }));
   await check(async () => S.createFromBackup('short', await V.importBackup('backup passphrase one', file)));
   await check(async () => S.createFromBackup('backup passphrase one', { ...clone(fresh()), schema: 99 }));
-  const newer = await craft('backup passphrase one', Object.assign(clone(fresh()), { schema: 23 }));
+  const newer = await craft('backup passphrase one', Object.assign(clone(fresh()), { schema: 24 }));
   const v = await O.verifyBackup('backup passphrase one', newer, { schema: S.SCHEMA }); assert.equal(v.ok, false); assert.equal(v.reason, 'NEWER_SCHEMA');
   await check(() => V.importBackup('backup passphrase one', newer));
 });
@@ -350,7 +350,7 @@ test('Drive copy on the lock screen: tampered, malformed, missing and oversized 
   const t = JSON.parse(env); const tamper = Object.assign({}, t, { rev: (t.rev || 0) + 5 });
   await run([JSON.stringify(tamper)], PASS, 'TAMPER');
   await run(['not json'], PASS, 'REMOTE_INVALID'); await run([JSON.stringify({ v: 2 })], PASS, 'REMOTE_INVALID'); await run([], PASS, 'NOT_FOUND');
-  const newer = await (async () => { const salt = V.newSalt(), key = await V.deriveKey(PASS, salt); return JSON.stringify(await V.makeEnvelope(key, salt, Object.assign(clone(fresh()), { schema: 23 }))); })();
+  const newer = await (async () => { const salt = V.newSalt(), key = await V.deriveKey(PASS, salt); return JSON.stringify(await V.makeEnvelope(key, salt, Object.assign(clone(fresh()), { schema: 24 }))); })();
   await run([newer], PASS, 'REMOTE_INVALID');
   SY._setToken(null); SY._setFetch(driveFake([env]).f); await assert.rejects(SY.fetchCopy(), (e) => e.code === 'RECONNECT');
   SY._setFetch(null);
@@ -399,7 +399,7 @@ test('setup checklist: real saves tick it through the store; export marks the ba
   const st = S.getState(); assert.deepEqual([SU.shown(st), SU.items(st, 2026).filter((i) => i.done).map((i) => i.id)], [false, ['targets', 'accounts']]);
   S.lock(); await S.unlock(PASS); assert.equal(S.getState().settings.setup.dismissed, true);
   const old = clone(fresh()); old.schema = 15; delete old.settings.setup; const got = S.validateState(old);
-  assert.deepEqual(got.settings.setup, { dismissed: true, targetsSaved: false }); assert.equal(got.schema, 22);
+  assert.deepEqual(got.settings.setup, { dismissed: true, targetsSaved: false }); assert.equal(got.schema, 23);
   const bad = clone(fresh()); bad.settings.setup = { dismissed: 'yes', targetsSaved: false }; assert.throws(() => S.validateState(bad), /setup/);
   const keys = clone(fresh()); keys.settings.setup = { dismissed: false, targetsSaved: false, extra: 1 }; assert.deepEqual(S.validateState(keys).settings.setup, { dismissed: false, targetsSaved: false });
   assert.deepEqual(S.defaultState().settings.setup, { dismissed: false, targetsSaved: false });

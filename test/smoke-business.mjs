@@ -175,7 +175,7 @@ async function run(label, viewport) {
       if (pt !== '250000') throw new Error('payee total ' + pt);
       if (!(await text('#pe-card .item')).includes('At or over the threshold')) throw new Error('payee not flagged over the 1099 threshold');
       await tab('mileage'); await eq('#mi-total', usd(W.mileage)); await eq('#ho-result', usd(W.home));
-      await nav('Home'); await page.waitForSelector('#mod-taxset', T);
+      await nav('Overview'); await page.waitForSelector('#mod-taxset', T);
       await eq('#mod-setaside', usd(W.setaside)); await eq('#mod-inv-n', '0'); await noHScroll('dashboard');
     });
     await step('the print view and the export (with the unencrypted-file warning and a confirm)', async () => {
@@ -196,7 +196,7 @@ async function run(label, viewport) {
       await noHScroll('invoice print');
     });
     await step('the 1099 client line moved into the private vault and closed: every tax figure refuses', async () => {
-      await nav('Home'); await page.click('#nav-private'); await page.waitForSelector('#priv-set1', T);
+      await nav('Overview'); await page.click('#nav-private'); await page.waitForSelector('#priv-set1', T);
       await page.fill('#priv-set1', PRIV); await page.fill('#priv-set2', PRIV); await page.click('#priv-setup-btn'); await page.waitForSelector('#priv-bar', T);
       await page.waitForSelector('#priv-rk-prompt', { timeout: 30000 }); await page.click('.dialog button:has-text("Later")');   // v1.8.0: the private recovery key prompt
       await page.selectOption('#priv-coll', 'projects');
@@ -210,7 +210,7 @@ async function run(label, viewport) {
         for (const id of Object.keys(TAXIDS).concat(['tx-card', 'sc-table', 'ex-download', 'mi-total', 'ho-result'])) if (await page.$('#' + id)) throw new Error(t + ': ' + id + ' shown while closed');
         if ((await page.$$eval('#business .tax-notice', (n) => n.map((x) => x.textContent.trim()))).some((x) => x !== NOTICE)) throw new Error('notice');
       }
-      await nav('Home'); await page.waitForSelector('#dash-grid', T);
+      await nav('Overview'); await page.waitForSelector('#dash-grid', T);
       if (await page.$('#mod-setaside')) throw new Error('the dashboard still shows the set-aside');
       if (!(await page.textContent('#dash-grid')).includes(BLOCK)) throw new Error('the dashboard modules do not refuse');
       const dg = await page.evaluate(() => JSON.stringify(globalThis.LifeOS.metrics.weeklyDigest(globalThis.LifeOS.store.getState(), '2026-11-09').business || null));

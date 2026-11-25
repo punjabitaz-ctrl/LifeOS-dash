@@ -86,9 +86,9 @@ async function run(label, viewport) {
   // v1.4.0 B10: until a tax profile exists, the default narrow layout hides the five business and tax modules.
   const defaultAt = (narrow) => (narrow ? defaultOrder.filter((m) => !['tax-setaside', 'tax-next', 'inv-open', 'budget-pinned', 'payees-near'].includes(m)) : defaultOrder);
   const order = () => page.$$eval('#dash-grid .mod', (els) => els.map((e) => e.getAttribute('data-mod')));
-  const dash = async () => { await nav('Home'); await page.waitForSelector('#dash-grid', T); };
+  const dash = async () => { await nav('Overview'); await page.waitForSelector('#dash-grid', T); };
   const unlock = async () => { await page.fill('#pass', PASS); await page.click('button:has-text("Unlock")'); await page.waitForSelector('#dash-grid, .tile', T); };
-  const defaultOrder = ['glance', 'priorities', 'tile-money', 'tile-assets', 'tile-work', 'tile-health', 'tile-activities', 'tile-social', 'tile-learning', 'tile-home', 'tile-admin', 'tile-goals', 'tile-wellbeing', 'rev-month', 'rev-net-line', 'rev-expected', 'tax-setaside', 'tax-next', 'inv-open', 'budget-pinned', 'payees-near'];
+  const defaultOrder = ['kpis', 'shortcuts', 'glance', 'priorities', 'tile-money', 'tile-assets', 'tile-work', 'tile-health', 'tile-activities', 'tile-social', 'tile-learning', 'tile-home', 'tile-admin', 'tile-goals', 'tile-wellbeing', 'rev-month', 'rev-net-line', 'rev-expected', 'tax-setaside', 'tax-next', 'inv-open', 'budget-pinned', 'payees-near'];
   try {
     await page.clock.install({ time: new Date(2026, 10, 14, 10, 0, 0) });
     await page.goto(pathToFileURL(file).href);

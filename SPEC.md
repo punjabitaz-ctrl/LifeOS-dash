@@ -729,3 +729,24 @@ The owner asked for a learning tab "if it doesn't exist yet" to stay on top of l
 - The new fields move with their item into and out of the private vault; with the vault closed, a private item's dates are not shown anywhere. Search finds next steps (Learning area).
 - The weekly digest is unchanged: numbers only, no titles, next steps, providers or kinds, and nothing new reaches an AI provider.
 - No advice wording; dates and the owner's own numbers only. No em dashes.
+
+## v2.3.0 addendum: Overview and visual refresh (owner request, 25 Nov 2026)
+The owner asked for a visual style update and "an overview screen that shows you all the important metrics/cards/tabs that the user has selected for a single pane of glass overview", in a "bright, and modern 2026 design style for a SaaS application". The Dashboard was already a customizable grid (v0.12.0), so it becomes the Overview rather than a second screen. Schema 23 with tested migrations from 1 to 22 and the downgrade guards (SEC-27/28) extended.
+
+### Overview
+- The first screen, the first nav item and every "Back to" button are named Overview (the phone bar said Home, which clashed with Home and property). The page header shows the date and a "Choose what shows" button; Customize is renamed Arrange (same behaviour).
+- Two new modules lead the default order on both widths: Key numbers and Shortcuts. Both can be moved, hidden and shown like any other module.
+- Key numbers: up to 12 picked from 16 (the ten area headline numbers, revenue received and net this month, expected income in the next 30 days, job applications this week, items in the next 30 days, the weekly review streak). Wellbeing has none. Each shows the area, the number, its label and one line of detail; a tap opens its area. A number that cannot be worked out shows a dash and never breaks the screen.
+- Shortcuts: up to 12 of the app's areas (every nav item except the Overview itself), one tap each.
+- Defaults (until the owner saves a choice): Money, Assets, Revenue, Work, Health, Learning, Goals, Next 30 days; shortcuts Money, Work, Job search, Health, Learning, Goals, Review.
+- One picker ("Choose what shows on your Overview", also opened by Edit on either strip): tick and order key numbers (Up and Down buttons, keyboard reachable), show or hide each card for the current screen width, tick shortcuts, and Back to the defaults. Nothing is saved until Save; one commit stores the choices and the layout for that width.
+
+### Data
+- `settings.overview = { custom, metrics, shortcuts }`. `custom` false means the defaults apply. Lists hold whitelisted ids only (no free text), repeats and unknown ids are dropped, at most 12 kept, more than 48 in a file is refused.
+- From a file before schema 23: `overview` is the default, and a saved layout gets Key numbers and Shortcuts at its top once. In schema 23 nothing is moved again.
+- Downgrade guard: a pre-23 copy over a vault with saved Overview choices names "Overview choices" before replacing.
+
+### Look
+- Brighter light theme (cool off-white background, white cards, indigo accent with a violet gradient on primary buttons and the brand mark), softer shadows, larger radii, Inter where installed with system fonts as fallback (nothing is downloaded), a frosted top bar and phone bar, pill nav, tinted notices and chips. Dark theme follows the same tokens.
+- Text, muted text, accent and status colours keep WCAG AA (4.5:1) on cards and background in both themes (tested). Hover lift and transitions are off under prefers-reduced-motion. The app icons and theme colour follow the new accent.
+- No em dashes; no advice wording.

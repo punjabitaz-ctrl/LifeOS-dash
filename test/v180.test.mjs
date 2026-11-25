@@ -376,7 +376,7 @@ test('no recovery key text, wrapped key or key bytes appears in any state field,
   assert.ok(!JSON.stringify(stored(ad)).includes(canon) && !JSON.stringify(stored(ad)).toLowerCase().includes(canon.toLowerCase()));
   // the state carries no recovery field at all: whether a key is on is read from the wraps
   const names = []; (function walk(o, d) { if (d > 6 || !o || typeof o !== 'object') return; for (const k of Object.keys(o)) { names.push(k); walk(o[k], d + 1); } })(s, 0);
-  assert.ok(!names.some((k) => /recover/i.test(k)), 'no recovery field in the state'); assert.equal(S.SCHEMA, 22);
+  assert.ok(!names.some((k) => /recover/i.test(k)), 'no recovery field in the state'); assert.equal(S.SCHEMA, 23);
   // adversarial markers (spaces and quotes) in a passphrase and a note never reach the recovery paths' messages
   const MARK = 'My "odd" pass phrase 99';
   const e = await rej(S.beginRecovery(MARK)); assert.ok(!e.message.includes(MARK));
@@ -395,7 +395,7 @@ test('source rules: no innerHTML, outerHTML, insertAdjacentHTML, document.write,
   assert.ok(/passField\('rk-key-retype'\)/.test(ui) && /passField\('rk-enter-key'\)/.test(ui) && /passField\('rk-keep-key'\)/.test(ui), 'key fields are password fields (spell check off like a passphrase)');
   assert.ok(existsSync(new URL('../docs/RECOVERY.md', import.meta.url))); assert.ok(!/—/.test(src('docs/RECOVERY.md')));
   const b = src('build.mjs'); assert.ok(b.indexOf("'src/ui/recovery-ui.js'") > b.indexOf("'src/ui/archive-ui.js'") && b.indexOf("'src/ui/recovery-ui.js'") > 0);
-  assert.equal(JSON.parse(src('package.json')).version, '2.2.0');
+  assert.equal(JSON.parse(src('package.json')).version, '2.3.0');
   // the key is only shown in the key dialog and, by the owner's choice, on the sheet; nothing else renders it
   assert.ok(/sheetKeys\[scope\] = inc\.checked \? key : ''/.test(ui) && /sheetKeys = \{ main: '', priv: '' \}/.test(ui));
   const app = src('src/ui/app.js'); assert.ok(/L\.recoveryUI\.clear\(\); lockRecover = false;/.test(app), 'cleared on lock');

@@ -2,14 +2,14 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-JGGOhy3CVdCcn9oxt6My9rZiUz5IYW0tORZnQhFo2vY='; style-src 'sha256-CfEZSRN+LvyaeuHLBMyXrSx8eRHeUG6aZIFvJ5XUFlo='; connect-src https://api.anthropic.com https://www.googleapis.com https://sync.lifeos.tazabbas.com https://ai-nas.lifeos.tazabbas.com https://ai-pc.lifeos.tazabbas.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'; manifest-src 'self'; worker-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-crukbQbljOhWPv/JZ9DeSdHmLSROjUGyuBRXst8B4Kk='; style-src 'sha256-J6ILUbq9kTkqF55HN4u9OjwhvIlKIb7FGHf3mZrzfL0='; connect-src https://api.anthropic.com https://www.googleapis.com https://sync.lifeos.tazabbas.com https://ai-nas.lifeos.tazabbas.com https://ai-pc.lifeos.tazabbas.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'; manifest-src 'self'; worker-src 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta name="theme-color" content="#2255d4">
-<meta name="lifeos-shell" content="2.2.0">
-<link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAA9zQYyAAAAEnRFWHRsaWZlb3Mtc2hlbGwAMi4yLjD/pfJIAAADOklEQVR42u3dvU0DMRiA4czCGowRsQNFNkhLnQ0omAGxAiUVTZoUKaBJQ0FDc+hDuigCKfzkfPg+P5ZeiQqF4+FkfLEzO7t47KQszVwEAS0BLQEtAS2gJaAloCWgJaAFtAS0BLQEtAS0gJaAloCWgJaAFtAS0BLQEtAS0AJaAloCWgJaAlpAS0BLQEtAS0ALaAloCWgJaAHtQghoCWgJ6NNbrLbd3f1L97R7604d8X2ubp6788s1QECPXwAsMeKPY77cQAT09DEfonanBnqU4u45xri+3YEEdPkC2lgDJKAnP90AGmigBTTQAhpooIGuH3QsEfYPiR7Wr18e+MQ/wq2vjQM9AdAB+TerNrE+Hk8zgQa6OtAB04MfoFOAHupniGkK0ED/K+ihX38rqIGuEPQp04xjo4XpB9CVgQ50pUasjAAN9KigPy/HDT2yL+sBXRHoknfnVu7SQFcEutTcuaW5NNAVgR7rNWde8QC6ItBjjbg2QAMNNNBAAw000EADDbSNvUBb5QAaaOvQQAPtSSHQbb6Xo/R5It7LAXSad9tlXt0AuuL3Q8c/bUOPVrZjAd3IjpVWdoMDXfGewiHm03FntqcQ6CpA99OPvx7UHisadn0DXRXow7v1T2EH5FYPnAF6IqAP79iBO36+/mM2+q/jwYyTk4CeFGgBDTTQQAMNNNACGmgBDbSABhpooIEGGmgBDbSABlpAAw000EADDbSABlpAAy2ggQYaaKCBBlpAAy2ggRbQQAMNNNBAAy2ggRbQQAMNNNBAAw000EALaKAFNNBAA518xEHocYY00ECnGpk/EQtoqIEGOseIj7YAGuhUc2qggU41gAYaaKCBBhpooIEGGmiggQYaaKCBBhpooIEGGmiggQYaaKCBBhpooIEGGmiggQbaABpooIEGGmigixbbi4zjw46VCTVfboj9ZmQ80iAtaNOO4yN2fTvGAOo0mJ3LMeEWq+0H7PhFtjziGjg5SQJaAloCWgJaQEtAS0BLQEtAC2gJaAloCWgB7SIIaAloCWgJaAEtAS0BLQEtAS2gJaAloCWgJaAFtAS0BLQEtAS0gJaAloCWgJaAFtAS0BLQEtDSvncTEEXALVKZAwAAAABJRU5ErkJggg==">
+<meta name="theme-color" content="#4f46e5">
+<meta name="lifeos-shell" content="2.3.0">
+<link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAA9zQYyAAAAEnRFWHRsaWZlb3Mtc2hlbGwAMi4zLjD+Z5h/AAADOUlEQVR42u3dzUkDQRiA4VTn1QI8WkBuqSCnVODFEjxYgmANYgOCGAiIIAjCyiesBIX4s7vj7DfPwAueJK6PyzibmSyOj+46KUsLF0FAS0BLQEtAC2gJaAloCWgJaAEtAS0BLQEtAS2gJaAloCWgJaAFtAS0BLQEtAS0gJaAloCWgJaAFtAS0BLQEtAS0AJaAloCWgJaQLsQAloCWgJ6eJv1rru+eu62D6/d0BHf5/zssTs9uQcI6PIFwClG/HGslluIgJ4/5n3U7tRAFynuniXG5cUTSEBPX0ArNUACevbTDaCBBlpAAy2ggQYa6PpBxxJh/5Do9ublywOf+Ee49bVxoGcAOiD/ZtUm1sfjaSbQQFcHOmB68AN0CtBj/QwxTQEa6H8FPfbrbwU10BWCHjLNODRamH4AXRnoQDfViJURoIEuCvrzctzYI/uyHtAVgZ7y7tzKXRroikBPNXduaS4NdEWgS73mzCseQFcEutSIawM00EADDTTQQAMNNNBA29gLtFUOoIG2Dg000J4UAt3mezmmPk/EezmATvNuu8yrG0BX/H7o+Kdt7NHKdiygG9mx0spucKAr3lM4xnw67sz2FAJdBeh++vHXg9pjRcOub6CrAr1/t/4p7IDc6oEzQM8E9P4dO3DHz9d/zEb/dTyYcXIS0LMCLaCBBhpooIEGWkADLaCBFtBAAw000EADLaCBFtBAC2iggQYaaKCBFtBAC2igBTTQQAMNNNBAC2igBTTQAhpooIEGGmigBTTQAhpooIEGGmiggQYaaAENtIAGGmigk484CD3OkAYa6FQj8ydiAQ010EDnGPHRFkADnWpODTTQqQbQQAMNNNBAAw000EADDTTQQAMNNNBAAw000EADDTTQQAMNNNBAAw000EADDTTQQBtAAw000EADDfSkxfYi4/CwY2VGrZZbYr8ZGY80SAvatOPwiF3fjjGAOg1m53LMuM169w47fpEtj7gGTk6SgJaAloCWgBbQEtAS0BLQEtACWgJaAloCWkC7CAJaAloCWgJaQEtAS0BLQEtAC2gJaAloCWgJaAEtAS0BLQEtAS2gJaAloCWgJaAFtAS0BLQEtPTRG9p/bUANqNX8AAAAAElFTkSuQmCC">
 <title>LifeOS</title>
-<style>:root{color-scheme:light dark;--bg:#f4f5f7;--card:#fff;--fg:#14171c;--mut:#5b6573;--line:#dde1e7;--acc:#2255d4;--acc-fg:#fff;--ok:#1c7a46;--warn:#9a5b00;--bad:#b42318;--r:14px;--sh:0 1px 2px rgba(0,0,0,.06);--font:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
-@media (prefers-color-scheme:dark){:root{--bg:#0f1216;--card:#181c22;--fg:#e8ebf0;--mut:#9aa4b2;--line:#2a313a;--acc:#6b93ff;--acc-fg:#0b1020;--ok:#4ac283;--warn:#e2a03f;--bad:#f2766b;--sh:none}}
+<style>:root{color-scheme:light dark;--bg:#f5f7fb;--card:#fff;--fg:#0f172a;--mut:#5b6476;--line:#e4e8f0;--acc:#4f46e5;--acc-fg:#fff;--ok:#15803d;--warn:#a16207;--bad:#b91c1c;--r:16px;--sh:0 1px 2px rgba(16,24,40,.04),0 4px 14px rgba(16,24,40,.06);--font:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+@media (prefers-color-scheme:dark){:root{--bg:#0b1020;--card:#131a2b;--fg:#e6e9f2;--mut:#9aa3b8;--line:#253047;--acc:#8b93ff;--acc-fg:#0b1020;--ok:#4ade80;--warn:#fbbf24;--bad:#f87171;--sh:0 1px 2px rgba(0,0,0,.3)}}
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.45 var(--font)}
 .hidden{display:none}
@@ -76,7 +76,7 @@ th,td{text-align:left;padding:6px 8px;border-bottom:1px solid var(--line);font-s
 .dialog h2{margin-top:0}
 .back{margin-bottom:8px}
 input[type=checkbox]{width:auto;min-height:0;flex:none}
-:root{--k0:#2255d4;--k1:#1c7a46;--k2:#9a5b00;--k3:#7a3fb8;--k4:#0e7c86;--k5:#b42318;--k6:#5b6573;--k7:#c2410c;--k8:#4d7c0f}
+:root{--k0:#4f46e5;--k1:#1c7a46;--k2:#9a5b00;--k3:#7a3fb8;--k4:#0e7c86;--k5:#b42318;--k6:#5b6573;--k7:#c2410c;--k8:#4d7c0f}
 @media (prefers-color-scheme:dark){:root{--k0:#6b93ff;--k1:#4ac283;--k2:#e2a03f;--k3:#b794f4;--k4:#4fd1c5;--k5:#f2766b;--k6:#9aa4b2;--k7:#fb923c;--k8:#a3e635}}
 .nav button{font-size:.9rem;padding:12px 2px;min-height:56px}
 @media (min-width:820px){.nav button{font-size:1rem}}
@@ -237,12 +237,94 @@ h3{font-size:.95rem;margin:.6rem 0 .4rem}
 .eat-day{margin:6px 0}
 .bar-fill.eat-under{opacity:.55}
 .eat-row .row{gap:6px}
+
+/* v2.3.0: bright, modern look (overrides the base rules above) and the Overview */
+:root{--acc2:#7c3aed;--acc-soft:#eef2ff;--acc-line:#c7d2fe;--sh-lg:0 2px 4px rgba(16,24,40,.04),0 12px 32px rgba(16,24,40,.10);--t0:#4f46e5;--t1:#0891b2;--t2:#059669;--t3:#d97706;--t4:#db2777;--t5:#7c3aed}
+@media (prefers-color-scheme:dark){:root{--acc2:#a78bfa;--acc-soft:#1c2340;--acc-line:#33407a;--sh-lg:0 8px 28px rgba(0,0,0,.45);--t0:#8b93ff;--t1:#22d3ee;--t2:#34d399;--t3:#fbbf24;--t4:#f472b6;--t5:#a78bfa}}
+html,body{-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;font-feature-settings:"cv11","ss01"}
+body{background:var(--bg);background-image:radial-gradient(1200px 400px at 10% -10%,var(--acc-soft),transparent 60%)}
+.top{background:color-mix(in srgb,var(--card) 82%,transparent);-webkit-backdrop-filter:saturate(1.6) blur(12px);backdrop-filter:saturate(1.6) blur(12px);border-bottom:1px solid var(--line);padding:10px 20px}
+.brand{display:inline-flex;align-items:center;gap:10px;font-weight:800;letter-spacing:-.01em;font-size:1.08rem}
+.brand::before{content:"";width:28px;height:28px;border-radius:9px;background:linear-gradient(135deg,var(--acc),var(--acc2));box-shadow:0 4px 12px rgba(79,70,229,.35)}
+h1{font-size:1.6rem;font-weight:800;letter-spacing:-.02em;line-height:1.2}
+h2{font-size:1.02rem;font-weight:700;letter-spacing:-.01em}
+h3{font-weight:650}
+.main{max-width:1200px;padding:20px 20px 96px}
+.card{border-radius:var(--r);padding:18px;box-shadow:var(--sh);border-color:var(--line)}
+.card>h2:first-child{margin-top:0}
+.tile,.rtile{border-radius:var(--r);padding:16px 18px;box-shadow:var(--sh);transition:transform .15s ease,box-shadow .15s ease,border-color .15s ease;min-height:140px}
+.tile:hover,.rtile:hover{transform:translateY(-2px);box-shadow:var(--sh-lg);border-color:var(--acc-line)}
+.tile-title{font-size:.74rem;font-weight:700;letter-spacing:.07em;color:var(--mut)}
+.tile-value{font-size:1.85rem;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+.spark{color:var(--acc);height:32px}
+.spark polyline{stroke-width:2.2}
+.btn{border-radius:12px;font-weight:550;transition:background-color .15s ease,border-color .15s ease,box-shadow .15s ease,transform .05s ease;box-shadow:0 1px 2px rgba(16,24,40,.05)}
+.btn:hover{border-color:var(--acc-line);background:var(--acc-soft)}
+.btn:active{transform:translateY(1px)}
+.btn.pri{background:linear-gradient(135deg,var(--acc),var(--acc2));border-color:transparent;box-shadow:0 4px 14px rgba(79,70,229,.30)}
+.btn.pri:hover{filter:brightness(1.06);background:linear-gradient(135deg,var(--acc),var(--acc2))}
+.btn.bad:hover{background:transparent;border-color:var(--bad)}
+.btn.ghost{background:transparent;border-color:transparent;box-shadow:none;color:var(--acc)}
+.btn.ghost:hover{background:var(--acc-soft)}
+@media (prefers-color-scheme:dark){.btn.pri{color:#fff;background:linear-gradient(135deg,#5b54f0,#7c3aed)}.btn.pri:hover{background:linear-gradient(135deg,#5b54f0,#7c3aed)}}
+input,select,textarea{border-radius:12px;background:var(--card);transition:border-color .15s ease,box-shadow .15s ease}
+input:focus,select:focus,textarea:focus{border-color:var(--acc);box-shadow:0 0 0 4px var(--acc-soft);outline:none}
+input:focus-visible,select:focus-visible,textarea:focus-visible{outline:3px solid var(--acc);outline-offset:1px}
+.notice,.warn{border-radius:12px}
+.notice.ok{background:color-mix(in srgb,var(--ok) 8%,var(--card))}
+.notice.err{background:color-mix(in srgb,var(--bad) 8%,var(--card))}
+.warn{background:color-mix(in srgb,var(--warn) 8%,var(--card))}
+.chip{border-radius:999px;font-weight:600;background:var(--card)}
+.chip.ok{background:color-mix(in srgb,var(--ok) 10%,var(--card))}
+.chip.bad{background:color-mix(in srgb,var(--bad) 10%,var(--card))}
+.chipbtn,.seg{font-weight:550}
+.stat{border-radius:14px;padding:14px}
+.stat-v{font-weight:800;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+th{font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mut);font-weight:700}
+.overlay{background:rgba(15,23,42,.45);-webkit-backdrop-filter:blur(4px);backdrop-filter:blur(4px)}
+.dialog{border-radius:20px;padding:22px;box-shadow:var(--sh-lg)}
+.pitem,.goal{border-radius:12px;background:var(--card)}
+/* navigation: pill bar on wide screens, a floating bar on phones */
+@media (min-width:820px){.nav{gap:4px;padding:10px 0 0}.nav button{font-weight:600;color:var(--mut);padding:8px 16px}.nav button:hover{color:var(--fg);background:var(--acc-soft)}.nav button[aria-current=page]{background:var(--card);color:var(--acc);border:1px solid var(--line);box-shadow:var(--sh)}}
+.nav.bar{background:color-mix(in srgb,var(--card) 88%,transparent);-webkit-backdrop-filter:saturate(1.6) blur(12px);backdrop-filter:saturate(1.6) blur(12px);border-top:1px solid var(--line)}
+.nav.bar button{font-weight:600}
+.nav.bar button[aria-current=page]{color:var(--acc);background:linear-gradient(var(--acc-soft),var(--acc-soft)) center/calc(100% - 12px) calc(100% - 14px) no-repeat}
+.sheetbtn{border-radius:12px}
+/* the Overview */
+.pagehead{align-items:flex-end;margin-bottom:14px}
+.ov-head h1{margin:0}
+.ov-head p{margin:2px 0 0}
+.ov-card{margin:0}
+.ov-cardhead{margin:0 0 10px}
+.ov-cardhead h2{margin:0}
+.kpis{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media (min-width:640px){.kpis{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@media (min-width:1000px){.kpis{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.kpi{--tone:var(--t0);display:flex;flex-direction:column;gap:2px;text-align:left;font:inherit;color:inherit;cursor:pointer;min-width:0;min-height:44px;padding:14px;border-radius:14px;border:1px solid color-mix(in srgb,var(--tone) 22%,var(--line));background:linear-gradient(180deg,color-mix(in srgb,var(--tone) 9%,var(--card)),var(--card));transition:transform .15s ease,box-shadow .15s ease}
+.kpi:hover{transform:translateY(-2px);box-shadow:var(--sh-lg)}
+.kpi[data-tone="1"]{--tone:var(--t1)}.kpi[data-tone="2"]{--tone:var(--t2)}.kpi[data-tone="3"]{--tone:var(--t3)}.kpi[data-tone="4"]{--tone:var(--t4)}.kpi[data-tone="5"]{--tone:var(--t5)}
+.kpi-area{display:inline-flex;align-items:center;gap:6px;font-size:.72rem;font-weight:700;letter-spacing:.07em;text-transform:uppercase;color:var(--mut)}
+.kpi-dot{width:8px;height:8px;border-radius:50%;background:var(--tone);box-shadow:0 0 0 3px color-mix(in srgb,var(--tone) 20%,transparent)}
+.kpi-value{font-size:1.5rem;font-weight:800;letter-spacing:-.02em;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;margin-top:4px}
+.kpi-label{font-size:.85rem;font-weight:600}
+.kpi-sub{font-size:.78rem;color:var(--mut);overflow-wrap:anywhere}
+.shortcuts{display:flex;flex-wrap:wrap;gap:8px}
+.shortcut{font:inherit;font-weight:600;color:var(--fg);background:var(--card);border:1px solid var(--line);border-radius:999px;padding:8px 16px;min-height:44px;cursor:pointer;transition:background-color .15s ease,border-color .15s ease,color .15s ease}
+.shortcut:hover{border-color:var(--acc-line);background:var(--acc-soft);color:var(--acc)}
+.ovp .fold{border-top:1px solid var(--line);padding:10px 0}
+.ovp .fold:first-child{border-top:0;padding-top:0}
+.pickrow{display:flex;align-items:center;gap:8px;padding:4px 0;flex-wrap:wrap}
+.pick{display:flex;align-items:center;gap:10px;flex:1 1 180px;min-height:44px;cursor:pointer}
+.pick input{width:20px;height:20px;accent-color:var(--acc)}
+.dialog:has(.ovp){max-width:560px}
+@media (max-width:819px){.main{padding:14px 14px calc(96px + env(safe-area-inset-bottom))}.pagehead .row .qa-btn{flex:1 1 calc(50% - 8px);min-width:0}h1{font-size:1.4rem}.kpi-value{font-size:1.3rem}.top{padding:10px 14px}}
+@media (prefers-reduced-motion:reduce){.tile,.rtile,.kpi,.btn,.shortcut{transition:none}.tile:hover,.rtile:hover,.kpi:hover{transform:none}}
 </style>
 </head>
 <body>
 <div id="app"></div>
 <script>globalThis.LifeOS = globalThis.LifeOS || {};
-globalThis.LifeOS.VERSION = "2.2.0";
+globalThis.LifeOS.VERSION = "2.3.0";
 globalThis.LifeOS.HOSTS = {"app":"lifeos.tazabbas.com","sync":"sync.lifeos.tazabbas.com","ai-nas":"ai-nas.lifeos.tazabbas.com","ai-pc":"ai-pc.lifeos.tazabbas.com"};
 Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalThis.LifeOS.HOSTS), writable: false, configurable: false, enumerable: true });
 ;
@@ -789,7 +871,7 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
   const DOMAINS = ['money', 'assets', 'work', 'health', 'goals', 'home', 'admin', 'learning', 'activities', 'social', 'wellbeing'];
   const NAMES = ['dashboard', 'review', 'memory', 'settings', 'private', 'archive', 'business', 'clients', 'podcasts', 'websites'];
   // The phone bottom bar, and every other area (the More sheet). Each entry is { key, label }; a key is a view key.
-  const BAR = Object.freeze([['dashboard', 'Home'], ['v:money', 'Money'], ['v:work', 'Work'], ['v:health', 'Health']].map(([key, label]) => Object.freeze({ key: key === 'dashboard' ? 'dashboard' : key, label })));
+  const BAR = Object.freeze([['dashboard', 'Overview'], ['v:money', 'Money'], ['v:work', 'Work'], ['v:health', 'Health']].map(([key, label]) => Object.freeze({ key: key === 'dashboard' ? 'dashboard' : key, label })));
   const MORE = Object.freeze([['v:assets', 'Assets'], ['v:command', 'Command center'], ['v:jobs', 'Job search'], ['business', 'Business'], ['clients', 'AYiN and clients'], ['podcasts', 'Podcasts'], ['websites', 'Websites'], ['v:goals', 'Goals'], ['v:home', 'Home and property'], ['v:admin', 'Admin'],
     ['v:learning', 'Learning'], ['v:activities', 'Activities'], ['v:social', 'Social'], ['private', 'Private vault'], ['v:wellbeing', 'Wellbeing'], ['review', 'Review'], ['memory', 'Memory'], ['settings', 'Settings']]
     .map(([key, label]) => Object.freeze({ key, label })));
@@ -896,7 +978,7 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
   'use strict';
   const L = (globalThis.LifeOS = globalThis.LifeOS || {});
   const KEY = 'envelope';
-  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 22, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
+  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 23, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
   const HABIT_CAP = 8, HABIT_LOG_CAP = 100000, KIND_CAP = 30;
   const RENEWAL_TOTAL_CAP = 2000;
   const ENTRY_CAP = 50000, INSIGHT_CAP = 5000, REVIEW_CAP = 1000, LESSON_CAP = 30, AUDIT_CAP = 200;
@@ -1020,7 +1102,7 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
       home: schema >= 6 ? cleanHomeSettings(s.home) : { starterDone: false },
       learning: schema >= 7 ? L.learning.cleanSettings(s.learning) : { weeklyMinutes: 0 },
       privAutoLockSec: schema >= 10 && s.privAutoLockSec !== undefined ? num(s.privAutoLockSec, 15, 1800, 'privAutoLockSec', true) : 60,
-      layouts: schema >= 11 ? L.layout.cleanLayouts(s.layouts) : { narrow: [], wide: [] },
+      layouts: schema >= 11 ? L.layout.cleanLayouts(s.layouts, schema) : { narrow: [], wide: [] },
       // v1.1.0: business settings. Migrating from an older schema asks the owner to confirm the business or personal scope once.
       business: schema >= 12 ? L.business.cleanSettings(s.business) : L.business.defaultSettings(false),
       // v1.2.0 part B: the vault size (MB) that makes the dashboard propose archiving.
@@ -1033,6 +1115,8 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
       clients: schema >= 19 ? L.clients.cleanSettings(s.clients) : L.clients.cleanSettings(undefined),
       // v2.1.0: the daily protein target (whole grams, typed by the owner). Older schemas have none.
       food: schema >= 21 ? L.food.cleanSettings(s.food) : {},
+      // v2.3.0: the Overview's chosen key numbers and shortcuts. Older schemas get the defaults.
+      overview: schema >= 23 ? L.overview.cleanSettings(s.overview) : L.overview.defaultSettings(),
     };
   }
   function cleanSetup(x, schema) {
@@ -1612,7 +1696,7 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
   function validateStateRaw(o, opts) {
     if (!isObj(o)) fail('state must be an object');
     scan(o, 0, { n: 4e6 });
-    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, SCHEMA].includes(o.schema)) fail('unsupported schema');
+    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, SCHEMA].includes(o.schema)) fail('unsupported schema');
     if (!L.metrics) fail('metrics module missing');
     const settings = cleanSettings(o.settings, o.schema), entries = cleanEntries(o.entries);
     const out = { schema: SCHEMA, settings, entries };
@@ -1836,6 +1920,11 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
       if (li.some((i) => i.nextAction !== undefined || i.nextDate !== undefined)) out.push('learning next steps');
       if (li.some((i) => i.weeklyMinutes !== undefined)) out.push('minutes per week on learning items');
     }
+    if (src < 23) {
+      // v2.3.0: the Overview's chosen key numbers and shortcuts (an older version shows its own dashboard instead).
+      const ov = cur.settings && cur.settings.overview;
+      if (ov && ov.custom === true) out.push('Overview choices');
+    }
     if (src < 4) {
       if (cur.cycle) out.push('training cycle');
       if ((cur.habits || []).length) out.push('daily checks');
@@ -1879,6 +1968,7 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
         setup: { dismissed: false, targetsSaved: false },
         clients: { contactDays: 30 },
         food: {},
+        overview: { custom: false, metrics: [], shortcuts: [] },
       },
       entries: [],
       accounts: [], recurring: [], budgets: [], categories: defaultCategories(),
@@ -9191,7 +9281,10 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
   const mod = (id, label, sizes, size) => Object.freeze({ id, label, sizes: Object.freeze(sizes), size });
   const TILE_DOMAINS = [['money', 'Money'], ['assets', 'Assets'], ['work', 'Work'], ['health', 'Health'], ['activities', 'Activities'], ['social', 'Social'], ['learning', 'Learning'], ['home', 'Home'], ['admin', 'Admin'], ['goals', 'Goals'], ['wellbeing', 'Wellbeing']];
   // The default order is the order the dashboard had before: at a glance, priorities, the domain tiles; then the revenue modules.
+  // v2.3.0: the Overview's key numbers and shortcuts come first.
   const MODULES = Object.freeze([
+    mod('kpis', 'Key numbers', ['wide'], 'wide'),
+    mod('shortcuts', 'Shortcuts', ['wide'], 'wide'),
     mod('glance', 'At a glance', ['wide'], 'wide'),
     mod('priorities', 'Priorities', ['small', 'wide'], 'wide'),
   ].concat(
@@ -9226,10 +9319,18 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
     }
     return out;
   }
-  function cleanLayouts(x) {
+  // v2.3.0: a layout saved before schema 23 gets the two new Overview modules at the top, where a new vault has them (resolve() alone
+  // would add them at the end). schema is the saved data's schema; without it nothing is added.
+  const NEW_23 = Object.freeze(['kpis', 'shortcuts']);
+  function lift(list, schema) {
+    if (!(Number(schema) < 23) || !list.length) return list;
+    const add = NEW_23.filter((id) => !list.some((x) => x.id === id)).map((id) => ({ id, size: BY_ID.get(id).size, hidden: false }));
+    return add.concat(list);
+  }
+  function cleanLayouts(x, schema) {
     if (x === undefined || x === null) return { narrow: [], wide: [] };
     if (!isObj(x)) fail('layouts');
-    return { narrow: clean(x.narrow), wide: clean(x.wide) };
+    return { narrow: lift(clean(x.narrow), schema), wide: lift(clean(x.wide), schema) };
   }
   const defaultList = () => MODULES.map((m) => ({ id: m.id, size: m.size, hidden: false }));
   // The full ordered list to draw: the saved order, then any module the saved list lacks.
@@ -9302,6 +9403,121 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
   }
 
   L.layout = { BUSINESS, hasTaxProfile, isEmpty, MODULES, SIZES, NARROW_MAX, LIST_CAP, clean, cleanLayouts, defaultList, resolve, which, get, set, reset, move, moveTo, setHidden, setSize, label: (id) => (BY_ID.has(id) ? BY_ID.get(id).label : '') };
+})();
+
+;
+(function () {
+  'use strict';
+  // v2.3.0: the Overview, a single pane of glass. The owner picks which key numbers and which shortcuts sit at the top of the Overview
+  // (the screen that was called Dashboard). Choices live in settings.overview = { custom, metrics, shortcuts }: while custom is false the
+  // defaults apply, so a later build can improve the defaults for anyone who never changed them. Ids are whitelisted; unknown ids and
+  // repeats are dropped, so a choice saved by a newer build never breaks an older list. Wellbeing has no key number: it stays inside the
+  // private vault and never appears on the Overview strip.
+  const L = (globalThis.LifeOS = globalThis.LifeOS || {});
+  const CAP = 12;
+  const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+  const fail = (m) => { throw new Error('Invalid data: ' + m); };
+  const m = (id, label, key) => Object.freeze({ id, label, key });
+  // Each key number: id, the area name shown above it, and the view key a tap opens.
+  const METRICS = Object.freeze([
+    m('money', 'Money', 'v:money'), m('assets', 'Assets', 'v:assets'), m('work', 'Work', 'v:work'), m('health', 'Health', 'v:health'),
+    m('activities', 'Activities', 'v:activities'), m('social', 'Social', 'v:social'), m('learning', 'Learning', 'v:learning'),
+    m('home', 'Home and property', 'v:home'), m('admin', 'Admin', 'v:admin'), m('goals', 'Goals', 'v:goals'),
+    m('rev-month', 'Revenue', 'v:command'), m('net-month', 'Net income', 'v:command'), m('expected-30', 'Expected income', 'v:command'),
+    m('jobs-week', 'Job search', 'v:jobs'), m('upcoming', 'Next 30 days', 'v:activities'), m('streak', 'Weekly review', 'review'),
+  ]);
+  const BY_ID = new Map(METRICS.map((x) => [x.id, x]));
+  const HEADLINE = new Set(['money', 'assets', 'work', 'health', 'activities', 'social', 'learning', 'home', 'admin', 'goals']);
+  // Shortcuts: every area of the app except the Overview itself, in the More sheet's order after the bar's.
+  const shortcutKeys = () => (L.nav ? L.nav.BAR.concat(L.nav.MORE).map((x) => x.key).filter((k) => k !== 'dashboard') : []);
+  const shortcutLabel = (k) => { const x = L.nav ? L.nav.BAR.concat(L.nav.MORE).find((y) => y.key === k) : null; return x ? x.label : ''; };
+  const DEFAULT_METRICS = Object.freeze(['money', 'assets', 'rev-month', 'work', 'health', 'learning', 'goals', 'upcoming']);
+  const DEFAULT_SHORTCUTS = Object.freeze(['v:money', 'v:work', 'v:jobs', 'v:health', 'v:learning', 'v:goals', 'review']);
+  const defaultSettings = () => ({ custom: false, metrics: [], shortcuts: [] });
+
+  function cleanList(list, ok, what) {
+    if (!Array.isArray(list)) fail(what + ' must be a list');
+    if (list.length > CAP * 4) fail(what + ' has too many items');
+    const seen = new Set(), out = [];
+    for (const x of list) {
+      if (typeof x !== 'string' || x.length > 40) fail(what + ' item');
+      if (!ok(x) || seen.has(x)) continue;
+      seen.add(x); out.push(x);
+      if (out.length >= CAP) break;
+    }
+    return out;
+  }
+  const okMetric = (x) => BY_ID.has(x), okShortcut = (x) => shortcutKeys().includes(x);
+  // Saved settings to clean settings. Missing (an older vault) gives the defaults.
+  function cleanSettings(x) {
+    if (x === undefined || x === null) return defaultSettings();
+    if (!isObj(x)) fail('overview');
+    if (typeof x.custom !== 'boolean') fail('overview custom');
+    return { custom: x.custom, metrics: cleanList(x.metrics, okMetric, 'overview metrics'), shortcuts: cleanList(x.shortcuts, okShortcut, 'overview shortcuts') };
+  }
+  const cur = (settings) => (settings && isObj(settings.overview) && settings.overview.custom === true ? settings.overview : null);
+  const metrics = (settings) => { const c = cur(settings); return c ? cleanList(c.metrics, okMetric, 'overview metrics') : DEFAULT_METRICS.slice(); };
+  const shortcuts = (settings) => { const c = cur(settings); return c ? cleanList(c.shortcuts, okShortcut, 'overview shortcuts') : DEFAULT_SHORTCUTS.slice(); };
+  // Mutators for the settings object inside a commit. Saving either list stores both, so the other keeps what was on screen.
+  function save(settings, ms, ss) {
+    settings.overview = { custom: true, metrics: cleanList(ms, okMetric, 'overview metrics'), shortcuts: cleanList(ss, okShortcut, 'overview shortcuts') };
+    return settings.overview;
+  }
+  const reset = (settings) => { settings.overview = defaultSettings(); return settings.overview; };
+  // List helpers for the picker (pure; return new lists).
+  function toggle(list, id, on) {
+    const out = list.filter((x) => x !== id);
+    if (on) { if (out.length >= CAP) return list.slice(); out.push(id); }
+    return out;
+  }
+  function move(list, id, delta) {
+    const out = list.slice(), i = out.indexOf(id);
+    if (i < 0) return out;
+    const t = Math.max(0, Math.min(out.length - 1, i + Math.trunc(Number(delta) || 0)));
+    out.splice(i, 1); out.splice(t, 0, id);
+    return out;
+  }
+
+  // One key number for the strip: { id, area, label, display, sub, key }. A number that cannot be worked out shows a dash instead of
+  // breaking the Overview. state is what the screen shows (private records merged in while the private vault is open).
+  function value(state, id, today) {
+    const d = BY_ID.get(id);
+    if (!d) throw new Error('Unknown key number');
+    const M = L.metrics, cur = state.settings.currency, money = (c) => M.fmtMoney(c / 100, cur);
+    const R = (label, display, sub) => ({ id, area: d.label, label, display, sub: sub || '', key: d.key });
+    try {
+      if (HEADLINE.has(id)) { const x = M.headline(state, id, today); return R(x.label, x.display, x.sub); }
+      switch (id) {
+        case 'rev-month': case 'net-month': {
+          const t = L.revenue.totalsIn(state, { kind: 'all' }, today.slice(0, 7) + '-01', M.monthEnd(today.slice(0, 7)));
+          return id === 'rev-month' ? R('Received this month', money(t.revenueCents), 'Expenses ' + money(t.expenseCents))
+            : R('Net this month', money(t.netCents), money(t.revenueCents) + ' in, ' + money(t.expenseCents) + ' out');
+        }
+        case 'expected-30': {
+          const x = L.revenue.expected(state, { kind: 'all' }, today);
+          return R('Expected in the next 30 days', money(x.next30Cents), x.overdueCount + ' overdue (' + money(x.overdueCents) + ')');
+        }
+        case 'jobs-week': {
+          const w = L.jobs.weekly(state, today);
+          return R('Applications this week', String(w.applications), w.interviews + (w.interviews === 1 ? ' interview, ' : ' interviews, ') + w.followUpsDue + ' follow-ups due');
+        }
+        case 'upcoming': {
+          const g = L.activities.glance(state, today);
+          return R('Items in the next 30 days', String(g.count), g.today.length + ' today, ' + g.week.length + ' this week');
+        }
+        case 'streak': {
+          const n = L.memory.reviewStreak(state, today);
+          return R('Review streak', n + (n === 1 ? ' week' : ' weeks'), 'Weeks in a row with a review');
+        }
+      }
+    } catch (e) { /* fall through to the dash */ }
+    return R(d.label, '-', '');
+  }
+
+  L.overview = {
+    CAP, METRICS, DEFAULT_METRICS, DEFAULT_SHORTCUTS, shortcutKeys, shortcutLabel, defaultSettings, cleanSettings, metrics, shortcuts, save, reset, toggle, move, value,
+    label: (id) => (BY_ID.has(id) ? BY_ID.get(id).label : ''),
+  };
 })();
 
 ;
@@ -12643,7 +12859,7 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
       return h('nav', { class: 'nav bar', 'aria-label': 'Main' }, btns);
     }
     var cur = view.name === 'domain' ? (view.domain === 'money' || view.domain === 'assets' || view.domain === 'work' || view.domain === 'health' ? view.domain : 'dashboard') : view.name;
-    return h('nav', { class: 'nav', 'aria-label': 'Main' }, [['dashboard', 'Home'], ['money', 'Money'], ['assets', 'Assets'], ['work', 'Work'], ['health', 'Health'], ['business', 'Business'], ['clients', 'AYiN and clients'], ['review', 'Review'], ['memory', 'Memory'], ['settings', 'Settings']].map(function (n) {
+    return h('nav', { class: 'nav', 'aria-label': 'Main' }, [['dashboard', 'Overview'], ['money', 'Money'], ['assets', 'Assets'], ['work', 'Work'], ['health', 'Health'], ['business', 'Business'], ['clients', 'AYiN and clients'], ['review', 'Review'], ['memory', 'Memory'], ['settings', 'Settings']].map(function (n) {
       return h('button', { type: 'button', text: n[1], 'aria-current': n[0] === cur ? 'page' : null, onclick: function () { if (n[0] === 'money' || n[0] === 'assets' || n[0] === 'work' || n[0] === 'health') go('domain', { domain: n[0] }); else go(n[0]); } });
     }));
   }
@@ -13051,6 +13267,8 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
     built['rev-net-line'] = revNetLineCard(s, t);
     built['rev-expected'] = revExpectedTile(s, t);
     built['tax-setaside'] = taxSetAsideMod(s); built['tax-next'] = taxNextMod(s); built['inv-open'] = invOpenMod(s); built['budget-pinned'] = budgetPinnedMod(s); built['payees-near'] = payeesNearMod(s);
+    built.kpis = kpiStrip(s, t);
+    built.shortcuts = shortcutStrip(s);
     var due = L.metrics.dueRecurring(s, t).length;
     var w = L.layout.which(window.innerWidth), list = L.layout.get(s.settings, w, { state: mainState() });
     var mods = [];
@@ -13063,7 +13281,8 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
         dashEdit ? modBar(list, m, i, w) : null,
         h('div', { class: 'modbody', inert: dashEdit ? true : null }, el || h('p', { class: 'mut small', text: L.layout.label(m.id) + ' has nothing to show right now.' }))));
     });
-    return h('div', null, h('div', { class: 'row sp' }, h('h1', { text: 'Dashboard' }), h('div', { class: 'row' }, btn('Log study', function () { studyDialog(''); }, 'qa-btn', { id: 'quick-study' }), btn('Add activity', function () { go('domain', { domain: 'activities', open: 'act-add' }); }, 'qa-btn', { id: 'quick-activity' }), btn('Quick add', quickAdd, 'pri qa-btn', { id: 'quick-add' }), btn(dashEdit ? 'Done' : 'Customize', function () { dashEdit = !dashEdit; render(); }, 'qa-btn', { id: 'dash-customize' }))),
+    return h('div', null, h('div', { class: 'row sp pagehead' }, h('div', { class: 'ov-head' }, h('h1', { text: 'Overview' }), h('p', { class: 'mut small', id: 'ov-date', text: longDate(t) })),
+      h('div', { class: 'row' }, btn('Log study', function () { studyDialog(''); }, 'qa-btn', { id: 'quick-study' }), btn('Add activity', function () { go('domain', { domain: 'activities', open: 'act-add' }); }, 'qa-btn', { id: 'quick-activity' }), btn('Quick add', quickAdd, 'pri qa-btn', { id: 'quick-add' }), btn('Choose what shows', function () { overviewPicker(w); }, 'qa-btn', { id: 'ov-pick' }), btn(dashEdit ? 'Done' : 'Arrange', function () { dashEdit = !dashEdit; render(); }, 'qa-btn', { id: 'dash-customize' }))),
       reviewDueCard(mainState(), t),
       setupCard(mainState()),
       L.archiveUI ? L.archiveUI.proposal(archCtx()) : null,
@@ -13072,6 +13291,104 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
       dashEdit ? h('div', { class: 'card', id: 'dash-edit' }, h('p', { class: 'small', id: 'dash-edit-note', text: 'Editing the layout for ' + (w === 'narrow' ? 'narrow screens (under 720 px wide)' : 'wide screens (720 px and over)') + '. Drag a module or use Move up and Move down. Hidden modules are dimmed.' }),
         btn('Reset to default', function () { act(function () { return commit(function (x) { L.layout.reset(x.settings, w); }).then(function () { setNotice('ok', 'Layout reset.'); render(); }); }); }, 'sm', { id: 'dash-reset' })) : null,
       h('div', { class: 'grid modgrid' + (dashEdit ? ' editing' : ''), id: 'dash-grid', 'data-layout': w }, mods));
+  }
+
+  // ---------- v2.3.0 Overview: key numbers, shortcuts and the picker ----------
+  var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  var WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  function longDate(t) {
+    var p = t.split('-').map(Number), d = new Date(Date.UTC(p[0], p[1] - 1, p[2]));
+    return WEEKDAYS[d.getUTCDay()] + ', ' + MONTHS[p[1] - 1] + ' ' + p[2] + ', ' + p[0];
+  }
+  // The key numbers the owner picked, one compact card each; a tap opens the area the number comes from.
+  function kpiStrip(s, t) {
+    var ids = L.overview.metrics(s.settings);
+    var box = h('section', { class: 'card ov-card', id: 'ov-kpis', 'aria-label': 'Key numbers' },
+      h('div', { class: 'row sp ov-cardhead' }, h('h2', { text: 'Key numbers' }), btn('Edit', function () { overviewPicker(L.layout.which(window.innerWidth)); }, 'sm ghost', { id: 'ov-kpis-edit', 'aria-label': 'Choose key numbers' })));
+    if (!ids.length) { box.appendChild(h('p', { class: 'mut small', id: 'ov-kpis-none', text: 'No key numbers picked. Use Edit to add some.' })); return box; }
+    box.appendChild(h('div', { class: 'kpis' }, ids.map(function (id, i) {
+      var v = L.overview.value(s, id, t);
+      return h('button', { type: 'button', class: 'kpi', 'data-kpi': id, 'data-tone': String(i % 6), onclick: function () { goKey(v.key); }, 'aria-label': v.area + ': ' + v.label + ' ' + v.display },
+        h('span', { class: 'kpi-area' }, h('span', { class: 'kpi-dot', 'aria-hidden': 'true' }), v.area),
+        h('span', { class: 'kpi-value', text: v.display }),
+        h('span', { class: 'kpi-label', text: v.label }),
+        v.sub ? h('span', { class: 'kpi-sub', text: v.sub }) : null);
+    })));
+    return box;
+  }
+  // The tabs the owner pinned, one tap each.
+  function shortcutStrip(s) {
+    var keys = L.overview.shortcuts(s.settings);
+    var box = h('section', { class: 'card ov-card', id: 'ov-shortcuts', 'aria-label': 'Shortcuts' },
+      h('div', { class: 'row sp ov-cardhead' }, h('h2', { text: 'Shortcuts' }), btn('Edit', function () { overviewPicker(L.layout.which(window.innerWidth)); }, 'sm ghost', { id: 'ov-sc-edit', 'aria-label': 'Choose shortcuts' })));
+    if (!keys.length) { box.appendChild(h('p', { class: 'mut small', text: 'No shortcuts picked. Use Edit to add some.' })); return box; }
+    box.appendChild(h('div', { class: 'shortcuts' }, keys.map(function (k) {
+      return h('button', { type: 'button', class: 'shortcut', 'data-key': k, text: L.overview.shortcutLabel(k), onclick: function () { goKey(k); } });
+    })));
+    return box;
+  }
+  // One dialog for everything on the Overview: key numbers (picked and ordered), the cards on this screen width, and the shortcuts.
+  // Nothing is saved until Save; Cancel leaves the Overview as it was.
+  function overviewPicker(w) {
+    var s = st(), layout = L.layout.get(s.settings, w, { state: mainState() });
+    var ms = L.overview.metrics(s.settings), ss = L.overview.shortcuts(s.settings);
+    var hidden = {}; layout.forEach(function (m) { hidden[m.id] = m.hidden; });
+    var kBox = h('div', { id: 'ovp-kpis' }), cBox = h('div', { id: 'ovp-cards' }), sBox = h('div', { id: 'ovp-shortcuts' }), note = h('p', { class: 'small mut', id: 'ovp-note', role: 'status', text: '' });
+    function check(id, label, on, onchange, disabled) {
+      return h('label', { class: 'pick' }, h('input', { type: 'checkbox', id: id, checked: on, disabled: disabled || null, onchange: onchange }), h('span', { text: label }));
+    }
+    function paintK() {
+      kBox.replaceChildren(h('p', { class: 'small mut', text: ms.length + ' of ' + L.overview.CAP + ' picked. Picked numbers show in this order.' }));
+      ms.forEach(function (id, i) {
+        var lab = L.overview.label(id);
+        kBox.appendChild(h('div', { class: 'pickrow' }, check('ovp-k-' + id, lab, true, function () { ms = L.overview.toggle(ms, id, false); paintK(); }),
+          btn('Up', function () { ms = L.overview.move(ms, id, -1); paintK(); var b = document.querySelector('#ovp-kpis [data-up="' + id + '"]'); if (b && !b.disabled) b.focus(); }, 'sm', { 'data-up': id, 'aria-label': 'Move ' + lab + ' up', disabled: i === 0 }),
+          btn('Down', function () { ms = L.overview.move(ms, id, 1); paintK(); var b = document.querySelector('#ovp-kpis [data-down="' + id + '"]'); if (b && !b.disabled) b.focus(); }, 'sm', { 'data-down': id, 'aria-label': 'Move ' + lab + ' down', disabled: i === ms.length - 1 })));
+      });
+      L.overview.METRICS.forEach(function (d) {
+        if (ms.indexOf(d.id) >= 0) return;
+        kBox.appendChild(h('div', { class: 'pickrow' }, check('ovp-k-' + d.id, d.label, false, function () {
+          var n = L.overview.toggle(ms, d.id, true);
+          note.textContent = n.length === ms.length ? 'Up to ' + L.overview.CAP + ' key numbers. Untick one first.' : '';
+          ms = n; paintK();
+        })));
+      });
+    }
+    function paintC() {
+      cBox.replaceChildren(h('p', { class: 'small mut', text: 'For ' + (w === 'narrow' ? 'narrow screens (phone)' : 'wide screens (computer)') + '. Arrange changes the order and size.' }));
+      layout.forEach(function (m) {
+        cBox.appendChild(h('div', { class: 'pickrow' }, check('ovp-c-' + m.id, L.layout.label(m.id), !hidden[m.id], function (e) { hidden[m.id] = !e.target.checked; })));
+      });
+    }
+    function paintS() {
+      sBox.replaceChildren();
+      L.overview.shortcutKeys().forEach(function (k) {
+        var on = ss.indexOf(k) >= 0;
+        sBox.appendChild(h('div', { class: 'pickrow' }, check('ovp-s-' + k.replace(':', '-'), L.overview.shortcutLabel(k), on, function (e) {
+          var n = L.overview.toggle(ss, k, e.target.checked);
+          if (e.target.checked && n.length === ss.length) { e.target.checked = false; note.textContent = 'Up to ' + L.overview.CAP + ' shortcuts. Untick one first.'; return; }
+          note.textContent = ''; ss = n;
+        })));
+      });
+    }
+    paintK(); paintC(); paintS();
+    openDialog({
+      title: 'Choose what shows on your Overview', yes: 'Save',
+      body: [h('div', { class: 'ovp' },
+        h('details', { class: 'fold', open: true }, h('summary', { text: 'Key numbers' }), kBox),
+        h('details', { class: 'fold', open: true }, h('summary', { text: 'Cards' }), cBox),
+        h('details', { class: 'fold' }, h('summary', { text: 'Shortcuts' }), sBox),
+        note,
+        btn('Back to the defaults', function () {
+          ms = L.overview.DEFAULT_METRICS.slice(); ss = L.overview.DEFAULT_SHORTCUTS.slice();
+          L.layout.get({}, w, { state: mainState() }).forEach(function (m) { if (hidden[m.id] !== undefined) hidden[m.id] = m.hidden; });
+          paintK(); paintC(); paintS(); note.textContent = 'Defaults picked. Save to keep them.';
+        }, 'sm', { id: 'ovp-defaults' }))],
+      onYes: function () {
+        var next = layout.map(function (m) { return Object.assign({}, m, { hidden: !!hidden[m.id] }); });
+        return commit(function (x) { L.overview.save(x.settings, ms, ss); L.layout.set(x.settings, w, next); }, 'overview choices').then(function () { setNotice('ok', 'Overview saved.'); render(); });
+      }
+    });
   }
 
   // A module with no data, drawn as one line that opens the same place the full module does.
@@ -13301,7 +13618,7 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
           }, 'sm bad', { 'aria-label': 'Delete ' + en.title })));
     });
     var out = h('div', null,
-      opts.embed ? null : btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'),
+      opts.embed ? null : btn('Back to overview', function () { go('dashboard'); }, 'sm back'),
       opts.embed ? null : h('h1', { text: d.label }),
       opts.noForm ? null : h('div', { class: 'card' }, h('h2', { text: 'Add entry' }), form),
       d.id === 'social' && !opts.embed ? socialFromActivities(s, today()) : null,
@@ -13605,7 +13922,7 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
 
     var navMonth = function (k) { return btn(k < 0 ? 'Previous month' : 'Next month', function () { view.month = L.metrics.addMonths(month, k); render(); }, 'sm', { id: k < 0 ? 'mv-prev' : 'mv-next' }); };
     return h('div', null,
-      btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'),
+      btn('Back to overview', function () { go('dashboard'); }, 'sm back'),
       h('div', { class: 'row sp' }, h('h1', { text: 'Money' }), btn('Quick add', quickAdd, 'pri', { id: 'quick-add-money' })),
       h('div', { class: 'row sp' }, navMonth(-1), h('strong', { id: 'mv-month', text: monthLabel(month) }), navMonth(1)),
       h('div', { class: 'stats' },
@@ -13719,7 +14036,7 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
       }))) : h('p', { class: 'mut', text: 'No assets yet.' });
 
     return h('div', null,
-      btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'),
+      btn('Back to overview', function () { go('dashboard'); }, 'sm back'),
       h('h1', { text: 'Assets' }),
       h('div', { class: 'stats' },
         stat('Net worth', moneyFmt(nw.totalCents, cur), 'aw-net'),
@@ -14193,7 +14510,7 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
 
     var trend = h('div', { class: 'card' }, h('h2', { text: 'Outcomes completed, last 8 weeks' }), trendChart(L.metrics.series(s, 'work', 8, t)));
     var cc = carryCard(s, wk, render);
-    return h('div', null, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('div', { class: 'row sp' }, h('h1', { text: 'Work' }), h('span', { class: 'row' }, btn('Job search', function () { go('domain', { domain: 'work', jobs: true }); }, 'pri', { id: 'open-jobs' }), btn('Revenue', function () { go('domain', { domain: 'work', revenue: true }); }, 'pri', { id: 'open-revenue' }))), stats,
+    return h('div', null, btn('Back to overview', function () { go('dashboard'); }, 'sm back'), h('div', { class: 'row sp' }, h('h1', { text: 'Work' }), h('span', { class: 'row' }, btn('Job search', function () { go('domain', { domain: 'work', jobs: true }); }, 'pri', { id: 'open-jobs' }), btn('Revenue', function () { go('domain', { domain: 'work', revenue: true }); }, 'pri', { id: 'open-revenue' }))), stats,
       oCard, cc, pCard, lCard, trend,
       details('work-data', 'Entries and CSV', [
         h('div', { class: 'row' },
@@ -14716,7 +15033,7 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
       }, field('New type', kName), h('button', { type: 'submit', class: 'btn', id: 'kd-add', text: 'Add type' })));
     var setup = details('hl-setup', 'Targets, cycle and workout types', [fTargets, h('hr'), fCycle, h('hr'), fKinds], false);
 
-    return h('div', null, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Health' }),
+    return h('div', null, btn('Back to overview', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Health' }),
       h('p', { class: 'mut small', text: 'A tracker for your own numbers. It gives no medical advice.' }),
       todayCard, eatingCards(s, t), wkCard, bodyCard, sleepCard, habitCard, setup,
       h('h2', { text: 'All health entries' }),
@@ -14957,7 +15274,7 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
       lad.roots.length ? lad.roots.map(function (n) { return goalTree(s, n, t, 0); }) : h('p', { class: 'mut', text: 'No goals are linked yet. Pick a parent on a longer horizon when you add or edit a goal.' }));
     var unl = h('div', { class: 'card', id: 'goal-unlinked' }, h('h2', { text: 'Not linked (' + lad.unlinked.length + ')' }),
       lad.unlinked.length ? lad.unlinked.map(function (g) { return goalItem(s, g, t); }) : h('p', { class: 'mut', text: 'Nothing here.' }));
-    return h('div', null, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Goals' }),
+    return h('div', null, btn('Back to overview', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Goals' }),
       h('p', { class: 'mut small', text: 'Progress comes from your own numbers and pace is arithmetic. Nothing is marked achieved, dropped or rolled over unless you tap it.' }),
       stats, ladderCard, unl,
       details('goal-add', 'Add a goal', goalForm(s, t), !(s.goals || []).length),
@@ -15183,7 +15500,7 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
       return h('div', ROW({ class: 'item hist-row' }, 'maintenance', m), h('div', null, h('span', { class: 'entry-t', text: m.title }), h('div', { class: 'mut small', text: 'done ' + m.lastDone + (typeof m.cost === 'number' ? ' | ' + moneyFmt(m.cost, cur) : '') + (m.vendor ? ' | ' + m.vendor : '') })));
     }) : h('p', { class: 'mut', text: 'Nothing finished yet.' }), false);
 
-    return h('div', null, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Home' }),
+    return h('div', null, btn('Back to overview', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Home' }),
       h('p', { class: 'mut small', text: 'Dates and costs are your own numbers. Nothing repeats unless you confirm it.' }),
       stats, proposalsCard(s, sum.proposals, 'home'), starter, overdueCard, dueCard2, laterCard, addForm, billsCard,
       h('div', { class: 'card', id: 'hm-vehicle-card' }, h('h2', { text: 'Vehicles' }),
@@ -15325,7 +15642,7 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
         }, 'sm bad leg-del', { 'aria-label': 'Delete ' + e.title }));
     })], view.open === 'ad-legacy') : null;
 
-    return h('div', null, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Admin' }),
+    return h('div', null, btn('Back to overview', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Admin' }),
       h('p', { class: 'mut small', text: 'Dates and amounts are your own numbers. Nothing repeats unless you confirm it.' }),
       stats, tlCard, proposalsCard(s, A.pendingRenewals(s), 'admin'), subCard, renewals, docCard, taxCard, legacyCard);
   }
@@ -15622,7 +15939,7 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
         }, 'sm bad leg-del', { 'aria-label': 'Delete ' + e.title }));
     })], view.open === 'ln-legacy') : null;
 
-    return h('div', null, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Learning' }),
+    return h('div', null, btn('Back to overview', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Learning' }),
       h('p', { class: 'mut small', text: 'Certifications, degrees, skills, languages and more, each with progress and a next step. Minutes, progress and pace come from your own numbers. Nothing is paused, dropped or finished unless you tap it.' }),
       stats, targetCard, dueCardEl, activeCard, examCard, finCard, otherCard, addForm, tkCard, sessCard, legacyCard);
   }
@@ -15926,7 +16243,7 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
         }, 'sm bad leg-del', { 'aria-label': 'Delete ' + e.title }));
     })], view.open === 'act-legacy') : null;
 
-    return h('div', null, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Activities' }),
+    return h('div', null, btn('Back to overview', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Activities' }),
       h('p', { class: 'mut small', text: 'Outings, events, travel, hobbies, volunteering and classes. Nothing is marked done, skipped, rated or added to Money unless you tap it.' }),
       stats, offerCard, dupes, lateCard, upCard, laterCard, addCard, recentCard, roiCard, catCard, actImportCard(s), legacyCard);
   }
@@ -16259,7 +16576,7 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
       }))) : null,
       h('form', { onsubmit: function (e) { e.preventDefault(); act(function () { return commit(function (x) { A.addGroup(x, gn.value, gc.value); }, 'social group add').then(function () { view.open = 'soc-groups'; gn.value = ''; setNotice('ok', 'Group added.'); render(); }); }); } },
         field('New group name', gn), field('Days between contacts', gc), h('button', { type: 'submit', class: 'btn', id: 'soc-g-add', text: 'Add group' }))], view.open === 'soc-groups');
-    return h('div', null, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Social' }),
+    return h('div', null, btn('Back to overview', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Social' }),
       h('p', { class: 'mut small', text: 'Dates and counts only. Nothing is logged, snoozed or archived unless you tap it.' }), stats,
       A.ambiguousNames(s) ? h('p', { class: 'small', id: 'soc-ambiguous', text: 'Two or more people share a name, so activities naming it count for none of them. Rename one to fix this.' }) : null, odCard, soonCard, groupCard, gCard, peopleCard(s, t), unlinkedCard(s), olderCard(s));
   }
@@ -16337,7 +16654,7 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
     kids.push(details('soc-groups', 'Add a custom group', [h('form', { onsubmit: function (e) { e.preventDefault(); act(function () { return commit(function (x) { A.addGroup(x, gn.value, gc.value); }, 'social group add').then(function () { view.open = 'soc-groups'; setNotice('ok', 'Group added.'); render(); }); }); } },
       field('Group name', gn), field('Days between contacts', gc), h('button', { type: 'submit', class: 'btn', id: 'soc-g-add', text: 'Add group' }))], view.open === 'soc-groups'));
     kids.push(details('soc-add', 'Add a person', [addPersonForm(s, t)], true));
-    return h('div', null, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Social' }), kids, socialFromActivities(s, t), olderCard(s));
+    return h('div', null, btn('Back to overview', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Social' }), kids, socialFromActivities(s, t), olderCard(s));
   }
   // Weekly review step: who became overdue this week, who is due next week, contacts made. Offers only.
   function reviewSocialCard(s, wk, t) {
@@ -16510,7 +16827,7 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
       hit.length > 50 ? h('p', { class: 'mut small', text: 'Showing 50 of ' + hit.length + '. Narrow the search.' }) : null);
   }
   function privScreen(s) {
-    var b = mainState(), out = [btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Private vault' }),
+    var b = mainState(), out = [btn('Back to overview', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Private vault' }),
       h('p', { class: 'mut', text: 'A second lock inside LifeOS with its own passphrase. Unlocking the app does not open it. While it is closed, private items are missing from every screen, total, search, export and backup view. They never reach an AI prompt, the weekly digest or a CSV, even while it is open.' })];
     if (!L.priv.isSetUp(b)) { out.push(privSetupCard()); return h('div', null, out); }
     var secs = h('input', { type: 'number', id: 'priv-secs', min: '15', max: '1800', step: '1', value: String(b.settings.privAutoLockSec || 60) });
@@ -16681,7 +16998,7 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
       }, 'pri', { id: 'wb-old-move' }));
   }
   function wellbeingScreen(s) {
-    var out = [btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Wellbeing' })];
+    var out = [btn('Back to overview', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Wellbeing' })];
     var b = mainState();
     if (!L.priv.isSetUp(b)) {
       out.push(h('p', { class: 'mut', text: 'Wellbeing is kept only inside the private vault: a second lock with its own passphrase. It never reaches an AI request, the weekly digest, a CSV or a backup readable without that passphrase.' }));
@@ -17240,7 +17557,7 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
     }));
     var fn = { tax: bzTax, entries: bzEntries, invoices: bzInvoices, mileage: bzMileage, payees: bzPayees, budgets: bzBudgets, settings: bzSettings, 'export': bzExport }[tab] || bzTax;
     return h('div', { id: 'business' },
-      btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'),
+      btn('Back to overview', function () { go('dashboard'); }, 'sm back'),
       h('div', { class: 'row sp' }, h('h1', { text: 'Business' }), lockMark(['entries', 'projects', 'invoices', 'trips', 'payees', 'taxPayments'])),
       mediaLinks(), bzScopeBanner(s), tabs, fn(s));
   }
@@ -17791,7 +18108,7 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
     var f2 = clientFields(s, null, 'ca-');
     var form = h('form', { onsubmit: function (e) { e.preventDefault(); act(function () { var input = f2.read(); return commit(function (x) { C.addClient(x, input, t); }, 'client add').then(function () { setNotice('ok', 'Client added.'); render(); }); }); } },
       f2.nodes, h('button', { type: 'submit', class: 'btn pri', id: 'ca-add', text: 'Add client' }));
-    return h('div', { id: 'clients' }, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('div', { class: 'row sp' }, h('h1', { text: 'AYiN and clients' }), lockMark(['clients', 'people', 'contacts', 'invoices'])),
+    return h('div', { id: 'clients' }, btn('Back to overview', function () { go('dashboard'); }, 'sm back'), h('div', { class: 'row sp' }, h('h1', { text: 'AYiN and clients' }), lockMark(['clients', 'people', 'contacts', 'invoices'])),
       mediaLinks(), h('p', { class: 'mut small', text: 'Numbers come from your existing records. Client names, notes and money stay in this vault.' }),
       clientsRollupCard(s, t),
       h('div', { class: 'card', id: 'cl-flags' }, h('h2', null, 'Needs attention ', lockMark(['clients', 'invoices', 'people', 'contacts'])), h('div', { class: 'stats' }, stat('Clients with an overdue invoice', String(n.overdueInvoices), 'cl-n-overdue', n.overdueInvoices ? 'bad-t' : ''), stat('Clients with no recent contact', String(n.noContact), 'cl-n-contact', n.noContact ? 'bad-t' : '')), daysForm),
@@ -17939,7 +18256,7 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
     var M = L.media, t = today(), shows = (s.shows || []).slice().sort(function (a, b) { return a.name.localeCompare(b.name); }), f = showFields(s, null, 'sa-');
     var form = h('form', { onsubmit: function (e) { e.preventDefault(); act(function () { var input = f.read(); return commit(function (x) { M.addShow(x, input); }, 'show add').then(function () { setNotice('ok', 'Show added with the default platforms.'); render(); }); }); } },
       f.nodes, h('p', { class: 'mut small', text: 'A new show starts with these platforms, which you can rename, remove or add to: ' + M.DEFAULT_PLATFORMS.join(', ') + '.' }), h('button', { type: 'submit', class: 'btn pri', id: 'sa-add', text: 'Add show' }));
-    return h('div', { id: 'podcasts' }, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('div', { class: 'row sp' }, h('h1', { text: 'Podcasts' }), lockMark(['shows', 'episodes', 'platformStats', 'people'])),
+    return h('div', { id: 'podcasts' }, btn('Back to overview', function () { go('dashboard'); }, 'sm back'), h('div', { class: 'row sp' }, h('h1', { text: 'Podcasts' }), lockMark(['shows', 'episodes', 'platformStats', 'people'])),
       mediaLinks(), h('p', { class: 'mut small', text: 'Shows, episodes and the numbers you type per platform. Titles, platform names and numbers stay in this vault.' }),
       shows.length ? shows.map(function (sh) { return showCard(s, sh, t); }) : h('p', { class: 'mut', id: 'pc-none', text: 'No shows yet. Add one below.' }),
       details('pc-new', 'Add a show', form, !shows.length));
@@ -18013,7 +18330,7 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
     var M = L.media, t = today(), sites = (s.sites || []).slice().sort(function (a, b) { return a.hostname.localeCompare(b.hostname); }), f = siteFields(s, null, 'wa-');
     var form = h('form', { onsubmit: function (e) { e.preventDefault(); act(function () { var input = f.read(); return commit(function (x) { M.addSite(x, input, t); }, 'site add').then(function () { setNotice('ok', 'Site added.'); render(); }); }); } },
       f.nodes, h('button', { type: 'submit', class: 'btn pri', id: 'wa-add', text: 'Add site' }));
-    return h('div', { id: 'websites' }, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('div', { class: 'row sp' }, h('h1', { text: 'Websites' }), lockMark(['sites', 'siteTraffic', 'renewals', 'shows'])),
+    return h('div', { id: 'websites' }, btn('Back to overview', function () { go('dashboard'); }, 'sm back'), h('div', { class: 'row sp' }, h('h1', { text: 'Websites' }), lockMark(['sites', 'siteTraffic', 'renewals', 'shows'])),
       mediaLinks(), h('p', { class: 'mut small', text: 'Your sites, their renewals and the monthly traffic you type in. Domains, hosts and notes stay in this vault. A renewal made here is an Admin renewal with a generic title.' }),
       sites.length ? sites.map(function (x) { return siteCard(s, x, t); }) : h('p', { class: 'mut', id: 'ws-none', text: 'No sites yet. Add one below.' }),
       details('ws-new', 'Add a site', form, !sites.length));

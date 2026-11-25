@@ -103,12 +103,12 @@ async function run(label, viewport) {
       if ((await page.textContent('#setup-count')).trim() !== '0 of 6 done') throw new Error('count ' + (await page.textContent('#setup-count')));
       if (await page.locator('.setupitem[data-done="true"]').count()) throw new Error('an item is ticked on a new vault');
       await page.evaluate((M) => globalThis.LifeOS.store.commit((x) => { x.accounts.push({ id: 'acc-ph', name: M + ' account', kind: 'cash', liability: false, archived: false }); x.settings.currency = 'EUR'; }), MARK);
-      await navTo(page, 'Money'); await navTo(page, 'Home'); await page.waitForSelector('#setup-card', T);
+      await navTo(page, 'Money'); await navTo(page, 'Overview'); await page.waitForSelector('#setup-card', T);
       const done = await page.locator('.setupitem[data-done="true"]').evaluateAll((l) => l.map((e) => e.getAttribute('data-item')));
       if (done.sort().join() !== 'accounts,targets') throw new Error('ticked: ' + done.join());
       await page.click('.setupitem[data-item="storage"] button'); await page.waitForSelector('h1', T);
       if (!/settings/.test(String(await histState(page)))) throw new Error('Open did not go to Settings: ' + (await histState(page)));
-      await navTo(page, 'Home');
+      await navTo(page, 'Overview');
     });
     await s('dashboard defaults: ' + (mobile ? 'empty modules are one line and business modules stay hidden' : 'wide screens keep every module'), async () => {
       await page.waitForSelector('#dash-grid', T);
@@ -148,7 +148,7 @@ async function run(label, viewport) {
       });
       await s('every area is two taps from anywhere, and the history entry holds only a view name', async () => {
         const KEYS = await page.evaluate(() => globalThis.LifeOS.nav.MORE.map((m) => [m.label, m.key]));
-        for (const start of ['Home', 'Settings']) {
+        for (const start of ['Overview', 'Settings']) {
           for (const [label, key] of KEYS) {
             await navTo(page, start); await page.click('#nav-more'); await page.click('#more-list button[data-key="' + key + '"]');
             await page.waitForSelector('h1', T);
@@ -161,11 +161,11 @@ async function run(label, viewport) {
         if (await page.evaluate(() => location.hash + location.search)) throw new Error('the address carries more than the page');
       });
       await s('back stays in the app, steps through views and closes dialogs', async () => {
-        await navTo(page, 'Home'); await navTo(page, 'Money'); await navTo(page, 'Work'); await navTo(page, 'Review');
+        await navTo(page, 'Overview'); await navTo(page, 'Money'); await navTo(page, 'Work'); await navTo(page, 'Review');
         await page.goBack(); if ((await histState(page)) !== 'v:work') throw new Error('back from Review: ' + (await histState(page)));
         await page.goBack(); if ((await histState(page)) !== 'v:money') throw new Error('back from Work: ' + (await histState(page)));
         if (!(await page.locator('.nav').count())) throw new Error('the app was left');
-        await navTo(page, 'Home'); await page.click('#quick-add'); await page.waitForSelector('[role=dialog]', T);
+        await navTo(page, 'Overview'); await page.click('#quick-add'); await page.waitForSelector('[role=dialog]', T);
         if ((await histState(page)) !== 'dialog') throw new Error('dialog has no entry');
         const bad = await a11y(page); if (bad.length) throw new Error(bad.join('; '));
         await page.goBack(); await page.waitForSelector('[role=dialog]', { state: 'detached', timeout: 5000 });
@@ -187,7 +187,7 @@ async function run(label, viewport) {
       writeFileSync(path.join(tmp, 'backup.json'), backupFile);
     });
     await s('lock, then back and forward reveal nothing; a reload returns to the lock screen', async () => {
-      await navTo(page, 'Money'); await navTo(page, 'Home');
+      await navTo(page, 'Money'); await navTo(page, 'Overview');
       await page.click('.lockbtn'); await page.waitForSelector('#pass', T);
       if ((await histState(page)) !== 'lock') throw new Error('state after lock: ' + (await histState(page)));
       for (const dir of ['goBack', 'goForward', 'goBack']) {
@@ -275,7 +275,7 @@ async function pwa() {
       const keys = await page.evaluate(() => globalThis.LifeOS.nav.all());
       for (const k of keys) { await page.evaluate((key) => { const b = document.querySelector('.nav [data-key="' + key + '"]'); if (b) b.click(); }, k); if (!(await page.locator('.nav [data-key="' + k + '"]').count())) { await page.click('#nav-more'); await page.click('#more-list button[data-key="' + k + '"]'); } await page.waitForSelector('h1', T); }
       await navTo(page, 'Money'); if (!(await page.textContent('main')).includes(PRIVMARK)) throw new Error('the private marker is not shown, so the check would prove less');
-      await navTo(page, 'Home'); if (!(await page.textContent('main')).includes(ADV_MARK)) throw new Error('markers not shown on the dashboard');
+      await navTo(page, 'Overview'); if (!(await page.textContent('main')).includes(ADV_MARK)) throw new Error('markers not shown on the dashboard');
       await page.reload(); await page.waitForSelector('#pass', T); await unlockWith(page);
       const dump = await page.evaluate(async () => {
         const out = [];

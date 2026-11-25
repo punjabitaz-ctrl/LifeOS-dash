@@ -311,12 +311,12 @@ test('a NAS copy that comes back damaged is not a verified copy: nothing is remo
 
 // ---------------------------------------------------------------- schema 20
 test('schema 20: migrations from every older schema give an empty NAS record and empty host choices; bad values fail; the number after is refused', () => {
-  assert.equal(S.SCHEMA, 22);
+  assert.equal(S.SCHEMA, 23);
   const full = S.defaultState();
   for (let n = 1; n <= 19; n++) {
     const o = clone(full); o.schema = n; delete o.settings.nas; delete o.settings.aiHosts;
     const got = S.validateState(o);
-    assert.equal(got.schema, 22); assert.equal(got.sourceSchema, n);
+    assert.equal(got.schema, 23); assert.equal(got.sourceSchema, n);
     assert.deepEqual(got.settings.nas, { token: '', tokenAt: '', remoteRev: -1, srev: -1, fp: '', keySalt: '' });
     assert.deepEqual(got.settings.aiHosts, { nasModel: '', pcModel: '', fallback: '' });
   }
@@ -328,7 +328,7 @@ test('schema 20: migrations from every older schema give an empty NAS record and
   }
   for (const [k, v] of [['fallback', 'cloud'], ['nasModel', 'x'.repeat(101)], ['pcModel', 5]]) { const b = clone(ok); b.settings.aiHosts[k] = v; assert.throws(() => S.validateState(b), /Invalid data/, k); }
   const b2 = clone(ok); b2.settings.nas = 'x'; assert.throws(() => S.validateState(b2), /Invalid data/);
-  assert.throws(() => S.validateState(Object.assign(clone(full), { schema: 23 })), /schema/);
+  assert.throws(() => S.validateState(Object.assign(clone(full), { schema: 24 })), /schema/);
   const p = clone(full); p.settings.provider = { kind: 'nas', baseUrl: 'http://evil.example', model: 'm', apiKey: 'secret' };
   const pv = S.validateState(p).settings.provider; assert.deepEqual([pv.kind, pv.baseUrl, pv.apiKey, pv.model], ['nas', '', '', 'm'], 'a stored address or key is never kept for a home host');
 });

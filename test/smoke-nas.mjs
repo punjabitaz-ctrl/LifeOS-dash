@@ -101,7 +101,7 @@ try {
   });
   await step('archive 2021 to the NAS: the copy is read back, decrypted and counted as verified', async () => {
     await page.evaluate(() => globalThis.LifeOS.store.commit((x) => { x.entries.push(globalThis.LifeOS.metrics.validateEntry({ domain: 'money', type: 'expense', date: '2021-03-01', title: 'Old lunch', value: 5 })); }));
-    await navTo(page, 'Home'); await navTo(page, 'Settings'); await page.waitForSelector('#arch-year', T);
+    await navTo(page, 'Overview'); await navTo(page, 'Settings'); await page.waitForSelector('#arch-year', T);
     await page.selectOption('#arch-year', '2021'); await page.click('#arch-run'); await page.waitForSelector('#arch-pass', T);
     if (!(await page.locator('#arch-nas').isChecked()) || (await page.isDisabled('#arch-nas'))) throw new Error('the NAS copy should be offered and on');
     await page.locator('#arch-dl').uncheck();
@@ -137,7 +137,7 @@ try {
     await page.waitForSelector('.notice:has-text("different host")', T);
   });
   await step('SEC-134: after a restore on the NAS, Sync offers to replace the older copy (saved to a file first); the Drive step waits for that choice', async () => {
-    await navTo(page, 'Home'); await navTo(page, 'Settings'); await page.waitForSelector('#nas-card', T);
+    await navTo(page, 'Overview'); await navTo(page, 'Settings'); await page.waitForSelector('#nas-card', T);
     await page.click('#nas-sync-now');
     await page.waitForFunction(() => /Uploaded|already in sync/.test(document.querySelector('#nas-status').textContent), null, T);
     const H = { authorization: 'Bearer ' + token };
@@ -159,7 +159,7 @@ try {
   });
   await step('the service is switched off: the page says "Connect Tailscale and try again", and no raw network text appears', async () => {
     svc.server.closeAllConnections(); await new Promise((r) => svc.server.close(r));
-    await navTo(page, 'Home'); await navTo(page, 'Settings'); await page.waitForSelector('#nas-card', T);
+    await navTo(page, 'Overview'); await navTo(page, 'Settings'); await page.waitForSelector('#nas-card', T);
     await page.click('#nas-sync-now');
     await page.waitForFunction(() => /Connect Tailscale and try again/.test(document.querySelector('#nas-status').textContent), null, T);
     const t = await text('#nas-status');

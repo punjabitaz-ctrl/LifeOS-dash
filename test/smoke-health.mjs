@@ -79,7 +79,7 @@ async function run(label, viewport) {
     await layout(where + ' health');
   }
   async function checkTile(where) {
-    await nav('Home');
+    await nav('Overview');
     await page.waitForSelector('.tile', T);
     await expectText('.tile[data-domain="health"] .tile-value', WANT.tile.value);
     if (!(await text('.tile[data-domain="health"]')).includes(WANT.tile.sub)) throw new Error('tile text: ' + await text('.tile[data-domain="health"]'));

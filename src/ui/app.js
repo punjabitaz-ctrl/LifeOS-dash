@@ -413,7 +413,7 @@
       return h('nav', { class: 'nav bar', 'aria-label': 'Main' }, btns);
     }
     var cur = view.name === 'domain' ? (view.domain === 'money' || view.domain === 'assets' || view.domain === 'work' || view.domain === 'health' ? view.domain : 'dashboard') : view.name;
-    return h('nav', { class: 'nav', 'aria-label': 'Main' }, [['dashboard', 'Home'], ['money', 'Money'], ['assets', 'Assets'], ['work', 'Work'], ['health', 'Health'], ['business', 'Business'], ['clients', 'AYiN and clients'], ['review', 'Review'], ['memory', 'Memory'], ['settings', 'Settings']].map(function (n) {
+    return h('nav', { class: 'nav', 'aria-label': 'Main' }, [['dashboard', 'Overview'], ['money', 'Money'], ['assets', 'Assets'], ['work', 'Work'], ['health', 'Health'], ['business', 'Business'], ['clients', 'AYiN and clients'], ['review', 'Review'], ['memory', 'Memory'], ['settings', 'Settings']].map(function (n) {
       return h('button', { type: 'button', text: n[1], 'aria-current': n[0] === cur ? 'page' : null, onclick: function () { if (n[0] === 'money' || n[0] === 'assets' || n[0] === 'work' || n[0] === 'health') go('domain', { domain: n[0] }); else go(n[0]); } });
     }));
   }
@@ -821,6 +821,8 @@
     built['rev-net-line'] = revNetLineCard(s, t);
     built['rev-expected'] = revExpectedTile(s, t);
     built['tax-setaside'] = taxSetAsideMod(s); built['tax-next'] = taxNextMod(s); built['inv-open'] = invOpenMod(s); built['budget-pinned'] = budgetPinnedMod(s); built['payees-near'] = payeesNearMod(s);
+    built.kpis = kpiStrip(s, t);
+    built.shortcuts = shortcutStrip(s);
     var due = L.metrics.dueRecurring(s, t).length;
     var w = L.layout.which(window.innerWidth), list = L.layout.get(s.settings, w, { state: mainState() });
     var mods = [];
@@ -833,7 +835,8 @@
         dashEdit ? modBar(list, m, i, w) : null,
         h('div', { class: 'modbody', inert: dashEdit ? true : null }, el || h('p', { class: 'mut small', text: L.layout.label(m.id) + ' has nothing to show right now.' }))));
     });
-    return h('div', null, h('div', { class: 'row sp' }, h('h1', { text: 'Dashboard' }), h('div', { class: 'row' }, btn('Log study', function () { studyDialog(''); }, 'qa-btn', { id: 'quick-study' }), btn('Add activity', function () { go('domain', { domain: 'activities', open: 'act-add' }); }, 'qa-btn', { id: 'quick-activity' }), btn('Quick add', quickAdd, 'pri qa-btn', { id: 'quick-add' }), btn(dashEdit ? 'Done' : 'Customize', function () { dashEdit = !dashEdit; render(); }, 'qa-btn', { id: 'dash-customize' }))),
+    return h('div', null, h('div', { class: 'row sp pagehead' }, h('div', { class: 'ov-head' }, h('h1', { text: 'Overview' }), h('p', { class: 'mut small', id: 'ov-date', text: longDate(t) })),
+      h('div', { class: 'row' }, btn('Log study', function () { studyDialog(''); }, 'qa-btn', { id: 'quick-study' }), btn('Add activity', function () { go('domain', { domain: 'activities', open: 'act-add' }); }, 'qa-btn', { id: 'quick-activity' }), btn('Quick add', quickAdd, 'pri qa-btn', { id: 'quick-add' }), btn('Choose what shows', function () { overviewPicker(w); }, 'qa-btn', { id: 'ov-pick' }), btn(dashEdit ? 'Done' : 'Arrange', function () { dashEdit = !dashEdit; render(); }, 'qa-btn', { id: 'dash-customize' }))),
       reviewDueCard(mainState(), t),
       setupCard(mainState()),
       L.archiveUI ? L.archiveUI.proposal(archCtx()) : null,
@@ -842,6 +845,104 @@
       dashEdit ? h('div', { class: 'card', id: 'dash-edit' }, h('p', { class: 'small', id: 'dash-edit-note', text: 'Editing the layout for ' + (w === 'narrow' ? 'narrow screens (under 720 px wide)' : 'wide screens (720 px and over)') + '. Drag a module or use Move up and Move down. Hidden modules are dimmed.' }),
         btn('Reset to default', function () { act(function () { return commit(function (x) { L.layout.reset(x.settings, w); }).then(function () { setNotice('ok', 'Layout reset.'); render(); }); }); }, 'sm', { id: 'dash-reset' })) : null,
       h('div', { class: 'grid modgrid' + (dashEdit ? ' editing' : ''), id: 'dash-grid', 'data-layout': w }, mods));
+  }
+
+  // ---------- v2.3.0 Overview: key numbers, shortcuts and the picker ----------
+  var MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+  var WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+  function longDate(t) {
+    var p = t.split('-').map(Number), d = new Date(Date.UTC(p[0], p[1] - 1, p[2]));
+    return WEEKDAYS[d.getUTCDay()] + ', ' + MONTHS[p[1] - 1] + ' ' + p[2] + ', ' + p[0];
+  }
+  // The key numbers the owner picked, one compact card each; a tap opens the area the number comes from.
+  function kpiStrip(s, t) {
+    var ids = L.overview.metrics(s.settings);
+    var box = h('section', { class: 'card ov-card', id: 'ov-kpis', 'aria-label': 'Key numbers' },
+      h('div', { class: 'row sp ov-cardhead' }, h('h2', { text: 'Key numbers' }), btn('Edit', function () { overviewPicker(L.layout.which(window.innerWidth)); }, 'sm ghost', { id: 'ov-kpis-edit', 'aria-label': 'Choose key numbers' })));
+    if (!ids.length) { box.appendChild(h('p', { class: 'mut small', id: 'ov-kpis-none', text: 'No key numbers picked. Use Edit to add some.' })); return box; }
+    box.appendChild(h('div', { class: 'kpis' }, ids.map(function (id, i) {
+      var v = L.overview.value(s, id, t);
+      return h('button', { type: 'button', class: 'kpi', 'data-kpi': id, 'data-tone': String(i % 6), onclick: function () { goKey(v.key); }, 'aria-label': v.area + ': ' + v.label + ' ' + v.display },
+        h('span', { class: 'kpi-area' }, h('span', { class: 'kpi-dot', 'aria-hidden': 'true' }), v.area),
+        h('span', { class: 'kpi-value', text: v.display }),
+        h('span', { class: 'kpi-label', text: v.label }),
+        v.sub ? h('span', { class: 'kpi-sub', text: v.sub }) : null);
+    })));
+    return box;
+  }
+  // The tabs the owner pinned, one tap each.
+  function shortcutStrip(s) {
+    var keys = L.overview.shortcuts(s.settings);
+    var box = h('section', { class: 'card ov-card', id: 'ov-shortcuts', 'aria-label': 'Shortcuts' },
+      h('div', { class: 'row sp ov-cardhead' }, h('h2', { text: 'Shortcuts' }), btn('Edit', function () { overviewPicker(L.layout.which(window.innerWidth)); }, 'sm ghost', { id: 'ov-sc-edit', 'aria-label': 'Choose shortcuts' })));
+    if (!keys.length) { box.appendChild(h('p', { class: 'mut small', text: 'No shortcuts picked. Use Edit to add some.' })); return box; }
+    box.appendChild(h('div', { class: 'shortcuts' }, keys.map(function (k) {
+      return h('button', { type: 'button', class: 'shortcut', 'data-key': k, text: L.overview.shortcutLabel(k), onclick: function () { goKey(k); } });
+    })));
+    return box;
+  }
+  // One dialog for everything on the Overview: key numbers (picked and ordered), the cards on this screen width, and the shortcuts.
+  // Nothing is saved until Save; Cancel leaves the Overview as it was.
+  function overviewPicker(w) {
+    var s = st(), layout = L.layout.get(s.settings, w, { state: mainState() });
+    var ms = L.overview.metrics(s.settings), ss = L.overview.shortcuts(s.settings);
+    var hidden = {}; layout.forEach(function (m) { hidden[m.id] = m.hidden; });
+    var kBox = h('div', { id: 'ovp-kpis' }), cBox = h('div', { id: 'ovp-cards' }), sBox = h('div', { id: 'ovp-shortcuts' }), note = h('p', { class: 'small mut', id: 'ovp-note', role: 'status', text: '' });
+    function check(id, label, on, onchange, disabled) {
+      return h('label', { class: 'pick' }, h('input', { type: 'checkbox', id: id, checked: on, disabled: disabled || null, onchange: onchange }), h('span', { text: label }));
+    }
+    function paintK() {
+      kBox.replaceChildren(h('p', { class: 'small mut', text: ms.length + ' of ' + L.overview.CAP + ' picked. Picked numbers show in this order.' }));
+      ms.forEach(function (id, i) {
+        var lab = L.overview.label(id);
+        kBox.appendChild(h('div', { class: 'pickrow' }, check('ovp-k-' + id, lab, true, function () { ms = L.overview.toggle(ms, id, false); paintK(); }),
+          btn('Up', function () { ms = L.overview.move(ms, id, -1); paintK(); var b = document.querySelector('#ovp-kpis [data-up="' + id + '"]'); if (b && !b.disabled) b.focus(); }, 'sm', { 'data-up': id, 'aria-label': 'Move ' + lab + ' up', disabled: i === 0 }),
+          btn('Down', function () { ms = L.overview.move(ms, id, 1); paintK(); var b = document.querySelector('#ovp-kpis [data-down="' + id + '"]'); if (b && !b.disabled) b.focus(); }, 'sm', { 'data-down': id, 'aria-label': 'Move ' + lab + ' down', disabled: i === ms.length - 1 })));
+      });
+      L.overview.METRICS.forEach(function (d) {
+        if (ms.indexOf(d.id) >= 0) return;
+        kBox.appendChild(h('div', { class: 'pickrow' }, check('ovp-k-' + d.id, d.label, false, function () {
+          var n = L.overview.toggle(ms, d.id, true);
+          note.textContent = n.length === ms.length ? 'Up to ' + L.overview.CAP + ' key numbers. Untick one first.' : '';
+          ms = n; paintK();
+        })));
+      });
+    }
+    function paintC() {
+      cBox.replaceChildren(h('p', { class: 'small mut', text: 'For ' + (w === 'narrow' ? 'narrow screens (phone)' : 'wide screens (computer)') + '. Arrange changes the order and size.' }));
+      layout.forEach(function (m) {
+        cBox.appendChild(h('div', { class: 'pickrow' }, check('ovp-c-' + m.id, L.layout.label(m.id), !hidden[m.id], function (e) { hidden[m.id] = !e.target.checked; })));
+      });
+    }
+    function paintS() {
+      sBox.replaceChildren();
+      L.overview.shortcutKeys().forEach(function (k) {
+        var on = ss.indexOf(k) >= 0;
+        sBox.appendChild(h('div', { class: 'pickrow' }, check('ovp-s-' + k.replace(':', '-'), L.overview.shortcutLabel(k), on, function (e) {
+          var n = L.overview.toggle(ss, k, e.target.checked);
+          if (e.target.checked && n.length === ss.length) { e.target.checked = false; note.textContent = 'Up to ' + L.overview.CAP + ' shortcuts. Untick one first.'; return; }
+          note.textContent = ''; ss = n;
+        })));
+      });
+    }
+    paintK(); paintC(); paintS();
+    openDialog({
+      title: 'Choose what shows on your Overview', yes: 'Save',
+      body: [h('div', { class: 'ovp' },
+        h('details', { class: 'fold', open: true }, h('summary', { text: 'Key numbers' }), kBox),
+        h('details', { class: 'fold', open: true }, h('summary', { text: 'Cards' }), cBox),
+        h('details', { class: 'fold' }, h('summary', { text: 'Shortcuts' }), sBox),
+        note,
+        btn('Back to the defaults', function () {
+          ms = L.overview.DEFAULT_METRICS.slice(); ss = L.overview.DEFAULT_SHORTCUTS.slice();
+          L.layout.get({}, w, { state: mainState() }).forEach(function (m) { if (hidden[m.id] !== undefined) hidden[m.id] = m.hidden; });
+          paintK(); paintC(); paintS(); note.textContent = 'Defaults picked. Save to keep them.';
+        }, 'sm', { id: 'ovp-defaults' }))],
+      onYes: function () {
+        var next = layout.map(function (m) { return Object.assign({}, m, { hidden: !!hidden[m.id] }); });
+        return commit(function (x) { L.overview.save(x.settings, ms, ss); L.layout.set(x.settings, w, next); }, 'overview choices').then(function () { setNotice('ok', 'Overview saved.'); render(); });
+      }
+    });
   }
 
   // A module with no data, drawn as one line that opens the same place the full module does.
@@ -1071,7 +1172,7 @@
           }, 'sm bad', { 'aria-label': 'Delete ' + en.title })));
     });
     var out = h('div', null,
-      opts.embed ? null : btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'),
+      opts.embed ? null : btn('Back to overview', function () { go('dashboard'); }, 'sm back'),
       opts.embed ? null : h('h1', { text: d.label }),
       opts.noForm ? null : h('div', { class: 'card' }, h('h2', { text: 'Add entry' }), form),
       d.id === 'social' && !opts.embed ? socialFromActivities(s, today()) : null,
@@ -1375,7 +1476,7 @@
 
     var navMonth = function (k) { return btn(k < 0 ? 'Previous month' : 'Next month', function () { view.month = L.metrics.addMonths(month, k); render(); }, 'sm', { id: k < 0 ? 'mv-prev' : 'mv-next' }); };
     return h('div', null,
-      btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'),
+      btn('Back to overview', function () { go('dashboard'); }, 'sm back'),
       h('div', { class: 'row sp' }, h('h1', { text: 'Money' }), btn('Quick add', quickAdd, 'pri', { id: 'quick-add-money' })),
       h('div', { class: 'row sp' }, navMonth(-1), h('strong', { id: 'mv-month', text: monthLabel(month) }), navMonth(1)),
       h('div', { class: 'stats' },
@@ -1489,7 +1590,7 @@
       }))) : h('p', { class: 'mut', text: 'No assets yet.' });
 
     return h('div', null,
-      btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'),
+      btn('Back to overview', function () { go('dashboard'); }, 'sm back'),
       h('h1', { text: 'Assets' }),
       h('div', { class: 'stats' },
         stat('Net worth', moneyFmt(nw.totalCents, cur), 'aw-net'),
@@ -1963,7 +2064,7 @@
 
     var trend = h('div', { class: 'card' }, h('h2', { text: 'Outcomes completed, last 8 weeks' }), trendChart(L.metrics.series(s, 'work', 8, t)));
     var cc = carryCard(s, wk, render);
-    return h('div', null, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('div', { class: 'row sp' }, h('h1', { text: 'Work' }), h('span', { class: 'row' }, btn('Job search', function () { go('domain', { domain: 'work', jobs: true }); }, 'pri', { id: 'open-jobs' }), btn('Revenue', function () { go('domain', { domain: 'work', revenue: true }); }, 'pri', { id: 'open-revenue' }))), stats,
+    return h('div', null, btn('Back to overview', function () { go('dashboard'); }, 'sm back'), h('div', { class: 'row sp' }, h('h1', { text: 'Work' }), h('span', { class: 'row' }, btn('Job search', function () { go('domain', { domain: 'work', jobs: true }); }, 'pri', { id: 'open-jobs' }), btn('Revenue', function () { go('domain', { domain: 'work', revenue: true }); }, 'pri', { id: 'open-revenue' }))), stats,
       oCard, cc, pCard, lCard, trend,
       details('work-data', 'Entries and CSV', [
         h('div', { class: 'row' },
@@ -2486,7 +2587,7 @@
       }, field('New type', kName), h('button', { type: 'submit', class: 'btn', id: 'kd-add', text: 'Add type' })));
     var setup = details('hl-setup', 'Targets, cycle and workout types', [fTargets, h('hr'), fCycle, h('hr'), fKinds], false);
 
-    return h('div', null, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Health' }),
+    return h('div', null, btn('Back to overview', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Health' }),
       h('p', { class: 'mut small', text: 'A tracker for your own numbers. It gives no medical advice.' }),
       todayCard, eatingCards(s, t), wkCard, bodyCard, sleepCard, habitCard, setup,
       h('h2', { text: 'All health entries' }),
@@ -2727,7 +2828,7 @@
       lad.roots.length ? lad.roots.map(function (n) { return goalTree(s, n, t, 0); }) : h('p', { class: 'mut', text: 'No goals are linked yet. Pick a parent on a longer horizon when you add or edit a goal.' }));
     var unl = h('div', { class: 'card', id: 'goal-unlinked' }, h('h2', { text: 'Not linked (' + lad.unlinked.length + ')' }),
       lad.unlinked.length ? lad.unlinked.map(function (g) { return goalItem(s, g, t); }) : h('p', { class: 'mut', text: 'Nothing here.' }));
-    return h('div', null, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Goals' }),
+    return h('div', null, btn('Back to overview', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Goals' }),
       h('p', { class: 'mut small', text: 'Progress comes from your own numbers and pace is arithmetic. Nothing is marked achieved, dropped or rolled over unless you tap it.' }),
       stats, ladderCard, unl,
       details('goal-add', 'Add a goal', goalForm(s, t), !(s.goals || []).length),
@@ -2953,7 +3054,7 @@
       return h('div', ROW({ class: 'item hist-row' }, 'maintenance', m), h('div', null, h('span', { class: 'entry-t', text: m.title }), h('div', { class: 'mut small', text: 'done ' + m.lastDone + (typeof m.cost === 'number' ? ' | ' + moneyFmt(m.cost, cur) : '') + (m.vendor ? ' | ' + m.vendor : '') })));
     }) : h('p', { class: 'mut', text: 'Nothing finished yet.' }), false);
 
-    return h('div', null, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Home' }),
+    return h('div', null, btn('Back to overview', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Home' }),
       h('p', { class: 'mut small', text: 'Dates and costs are your own numbers. Nothing repeats unless you confirm it.' }),
       stats, proposalsCard(s, sum.proposals, 'home'), starter, overdueCard, dueCard2, laterCard, addForm, billsCard,
       h('div', { class: 'card', id: 'hm-vehicle-card' }, h('h2', { text: 'Vehicles' }),
@@ -3095,7 +3196,7 @@
         }, 'sm bad leg-del', { 'aria-label': 'Delete ' + e.title }));
     })], view.open === 'ad-legacy') : null;
 
-    return h('div', null, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Admin' }),
+    return h('div', null, btn('Back to overview', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Admin' }),
       h('p', { class: 'mut small', text: 'Dates and amounts are your own numbers. Nothing repeats unless you confirm it.' }),
       stats, tlCard, proposalsCard(s, A.pendingRenewals(s), 'admin'), subCard, renewals, docCard, taxCard, legacyCard);
   }
@@ -3392,7 +3493,7 @@
         }, 'sm bad leg-del', { 'aria-label': 'Delete ' + e.title }));
     })], view.open === 'ln-legacy') : null;
 
-    return h('div', null, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Learning' }),
+    return h('div', null, btn('Back to overview', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Learning' }),
       h('p', { class: 'mut small', text: 'Certifications, degrees, skills, languages and more, each with progress and a next step. Minutes, progress and pace come from your own numbers. Nothing is paused, dropped or finished unless you tap it.' }),
       stats, targetCard, dueCardEl, activeCard, examCard, finCard, otherCard, addForm, tkCard, sessCard, legacyCard);
   }
@@ -3696,7 +3797,7 @@
         }, 'sm bad leg-del', { 'aria-label': 'Delete ' + e.title }));
     })], view.open === 'act-legacy') : null;
 
-    return h('div', null, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Activities' }),
+    return h('div', null, btn('Back to overview', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Activities' }),
       h('p', { class: 'mut small', text: 'Outings, events, travel, hobbies, volunteering and classes. Nothing is marked done, skipped, rated or added to Money unless you tap it.' }),
       stats, offerCard, dupes, lateCard, upCard, laterCard, addCard, recentCard, roiCard, catCard, actImportCard(s), legacyCard);
   }
@@ -4029,7 +4130,7 @@
       }))) : null,
       h('form', { onsubmit: function (e) { e.preventDefault(); act(function () { return commit(function (x) { A.addGroup(x, gn.value, gc.value); }, 'social group add').then(function () { view.open = 'soc-groups'; gn.value = ''; setNotice('ok', 'Group added.'); render(); }); }); } },
         field('New group name', gn), field('Days between contacts', gc), h('button', { type: 'submit', class: 'btn', id: 'soc-g-add', text: 'Add group' }))], view.open === 'soc-groups');
-    return h('div', null, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Social' }),
+    return h('div', null, btn('Back to overview', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Social' }),
       h('p', { class: 'mut small', text: 'Dates and counts only. Nothing is logged, snoozed or archived unless you tap it.' }), stats,
       A.ambiguousNames(s) ? h('p', { class: 'small', id: 'soc-ambiguous', text: 'Two or more people share a name, so activities naming it count for none of them. Rename one to fix this.' }) : null, odCard, soonCard, groupCard, gCard, peopleCard(s, t), unlinkedCard(s), olderCard(s));
   }
@@ -4107,7 +4208,7 @@
     kids.push(details('soc-groups', 'Add a custom group', [h('form', { onsubmit: function (e) { e.preventDefault(); act(function () { return commit(function (x) { A.addGroup(x, gn.value, gc.value); }, 'social group add').then(function () { view.open = 'soc-groups'; setNotice('ok', 'Group added.'); render(); }); }); } },
       field('Group name', gn), field('Days between contacts', gc), h('button', { type: 'submit', class: 'btn', id: 'soc-g-add', text: 'Add group' }))], view.open === 'soc-groups'));
     kids.push(details('soc-add', 'Add a person', [addPersonForm(s, t)], true));
-    return h('div', null, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Social' }), kids, socialFromActivities(s, t), olderCard(s));
+    return h('div', null, btn('Back to overview', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Social' }), kids, socialFromActivities(s, t), olderCard(s));
   }
   // Weekly review step: who became overdue this week, who is due next week, contacts made. Offers only.
   function reviewSocialCard(s, wk, t) {
@@ -4280,7 +4381,7 @@
       hit.length > 50 ? h('p', { class: 'mut small', text: 'Showing 50 of ' + hit.length + '. Narrow the search.' }) : null);
   }
   function privScreen(s) {
-    var b = mainState(), out = [btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Private vault' }),
+    var b = mainState(), out = [btn('Back to overview', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Private vault' }),
       h('p', { class: 'mut', text: 'A second lock inside LifeOS with its own passphrase. Unlocking the app does not open it. While it is closed, private items are missing from every screen, total, search, export and backup view. They never reach an AI prompt, the weekly digest or a CSV, even while it is open.' })];
     if (!L.priv.isSetUp(b)) { out.push(privSetupCard()); return h('div', null, out); }
     var secs = h('input', { type: 'number', id: 'priv-secs', min: '15', max: '1800', step: '1', value: String(b.settings.privAutoLockSec || 60) });
@@ -4451,7 +4552,7 @@
       }, 'pri', { id: 'wb-old-move' }));
   }
   function wellbeingScreen(s) {
-    var out = [btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Wellbeing' })];
+    var out = [btn('Back to overview', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Wellbeing' })];
     var b = mainState();
     if (!L.priv.isSetUp(b)) {
       out.push(h('p', { class: 'mut', text: 'Wellbeing is kept only inside the private vault: a second lock with its own passphrase. It never reaches an AI request, the weekly digest, a CSV or a backup readable without that passphrase.' }));
@@ -5010,7 +5111,7 @@
     }));
     var fn = { tax: bzTax, entries: bzEntries, invoices: bzInvoices, mileage: bzMileage, payees: bzPayees, budgets: bzBudgets, settings: bzSettings, 'export': bzExport }[tab] || bzTax;
     return h('div', { id: 'business' },
-      btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'),
+      btn('Back to overview', function () { go('dashboard'); }, 'sm back'),
       h('div', { class: 'row sp' }, h('h1', { text: 'Business' }), lockMark(['entries', 'projects', 'invoices', 'trips', 'payees', 'taxPayments'])),
       mediaLinks(), bzScopeBanner(s), tabs, fn(s));
   }
@@ -5561,7 +5662,7 @@
     var f2 = clientFields(s, null, 'ca-');
     var form = h('form', { onsubmit: function (e) { e.preventDefault(); act(function () { var input = f2.read(); return commit(function (x) { C.addClient(x, input, t); }, 'client add').then(function () { setNotice('ok', 'Client added.'); render(); }); }); } },
       f2.nodes, h('button', { type: 'submit', class: 'btn pri', id: 'ca-add', text: 'Add client' }));
-    return h('div', { id: 'clients' }, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('div', { class: 'row sp' }, h('h1', { text: 'AYiN and clients' }), lockMark(['clients', 'people', 'contacts', 'invoices'])),
+    return h('div', { id: 'clients' }, btn('Back to overview', function () { go('dashboard'); }, 'sm back'), h('div', { class: 'row sp' }, h('h1', { text: 'AYiN and clients' }), lockMark(['clients', 'people', 'contacts', 'invoices'])),
       mediaLinks(), h('p', { class: 'mut small', text: 'Numbers come from your existing records. Client names, notes and money stay in this vault.' }),
       clientsRollupCard(s, t),
       h('div', { class: 'card', id: 'cl-flags' }, h('h2', null, 'Needs attention ', lockMark(['clients', 'invoices', 'people', 'contacts'])), h('div', { class: 'stats' }, stat('Clients with an overdue invoice', String(n.overdueInvoices), 'cl-n-overdue', n.overdueInvoices ? 'bad-t' : ''), stat('Clients with no recent contact', String(n.noContact), 'cl-n-contact', n.noContact ? 'bad-t' : '')), daysForm),
@@ -5709,7 +5810,7 @@
     var M = L.media, t = today(), shows = (s.shows || []).slice().sort(function (a, b) { return a.name.localeCompare(b.name); }), f = showFields(s, null, 'sa-');
     var form = h('form', { onsubmit: function (e) { e.preventDefault(); act(function () { var input = f.read(); return commit(function (x) { M.addShow(x, input); }, 'show add').then(function () { setNotice('ok', 'Show added with the default platforms.'); render(); }); }); } },
       f.nodes, h('p', { class: 'mut small', text: 'A new show starts with these platforms, which you can rename, remove or add to: ' + M.DEFAULT_PLATFORMS.join(', ') + '.' }), h('button', { type: 'submit', class: 'btn pri', id: 'sa-add', text: 'Add show' }));
-    return h('div', { id: 'podcasts' }, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('div', { class: 'row sp' }, h('h1', { text: 'Podcasts' }), lockMark(['shows', 'episodes', 'platformStats', 'people'])),
+    return h('div', { id: 'podcasts' }, btn('Back to overview', function () { go('dashboard'); }, 'sm back'), h('div', { class: 'row sp' }, h('h1', { text: 'Podcasts' }), lockMark(['shows', 'episodes', 'platformStats', 'people'])),
       mediaLinks(), h('p', { class: 'mut small', text: 'Shows, episodes and the numbers you type per platform. Titles, platform names and numbers stay in this vault.' }),
       shows.length ? shows.map(function (sh) { return showCard(s, sh, t); }) : h('p', { class: 'mut', id: 'pc-none', text: 'No shows yet. Add one below.' }),
       details('pc-new', 'Add a show', form, !shows.length));
@@ -5783,7 +5884,7 @@
     var M = L.media, t = today(), sites = (s.sites || []).slice().sort(function (a, b) { return a.hostname.localeCompare(b.hostname); }), f = siteFields(s, null, 'wa-');
     var form = h('form', { onsubmit: function (e) { e.preventDefault(); act(function () { var input = f.read(); return commit(function (x) { M.addSite(x, input, t); }, 'site add').then(function () { setNotice('ok', 'Site added.'); render(); }); }); } },
       f.nodes, h('button', { type: 'submit', class: 'btn pri', id: 'wa-add', text: 'Add site' }));
-    return h('div', { id: 'websites' }, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('div', { class: 'row sp' }, h('h1', { text: 'Websites' }), lockMark(['sites', 'siteTraffic', 'renewals', 'shows'])),
+    return h('div', { id: 'websites' }, btn('Back to overview', function () { go('dashboard'); }, 'sm back'), h('div', { class: 'row sp' }, h('h1', { text: 'Websites' }), lockMark(['sites', 'siteTraffic', 'renewals', 'shows'])),
       mediaLinks(), h('p', { class: 'mut small', text: 'Your sites, their renewals and the monthly traffic you type in. Domains, hosts and notes stay in this vault. A renewal made here is an Admin renewal with a generic title.' }),
       sites.length ? sites.map(function (x) { return siteCard(s, x, t); }) : h('p', { class: 'mut', id: 'ws-none', text: 'No sites yet. Add one below.' }),
       details('ws-new', 'Add a site', form, !sites.length));

@@ -52,7 +52,7 @@ async function run(label, viewport) {
     if (r.clipped.length) throw new Error(where + ': nav labels clipped: ' + r.clipped.join(', '));
   };
   const openFold = async (id) => { await page.waitForSelector('#' + id, T); if (!(await page.locator('#' + id).evaluate((el) => el.open))) await page.click('#' + id + ' > summary'); };
-  const dash = async () => { await nav('Home'); await page.waitForSelector('.tile', T); };
+  const dash = async () => { await nav('Overview'); await page.waitForSelector('.tile', T); };
   const tile = async (value, sub, where) => {
     await dash();
     await expectText('.tile[data-domain="social"] .tile-value', value);
@@ -246,7 +246,7 @@ async function run(label, viewport) {
     });
     await step('settings: version, and no Social text', async () => {
       await nav('Settings'); await page.waitForSelector('#app-version', T);
-      await expectText('#app-version', 'LifeOS v2.2.0');
+      await expectText('#app-version', 'LifeOS v2.3.0');
       const t = await text('main'); for (const secret of ['Peanuts', 'Acme deal', 'Neighbour BBQ']) if (t.includes(secret)) throw new Error('settings page shows ' + secret);
       await layout('settings');
     });

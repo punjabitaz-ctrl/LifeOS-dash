@@ -73,7 +73,7 @@ async function create(page) {
   await page.waitForSelector('.tile', T);
 }
 async function addRun(page, title) {
-  await navTo(page, 'Home');
+  await navTo(page, 'Overview');
   await page.click('.tile[data-domain="health"]');
   await page.selectOption('#f-type', 'workout');
   await page.fill('#f-title', title);
@@ -218,7 +218,7 @@ try {
     const [dl] = await Promise.all([B.page.waitForEvent('download'), B.page.click('.dialog button:has-text("Continue")')]);
     if (!/lifeos-local-copy/.test(dl.suggestedFilename())) throw new Error('no local backup download: ' + dl.suggestedFilename());
     await B.page.waitForSelector('.notice:has-text("Downloaded")', T);
-    await navTo(B.page, 'Home');
+    await navTo(B.page, 'Overview');
     await B.page.click('.tile[data-domain="health"]');
     await B.page.waitForSelector('.entry:has-text("Run A2")');
     if (await B.page.locator('.entry:has-text("Run B2")').count()) throw new Error('local copy should have been replaced');

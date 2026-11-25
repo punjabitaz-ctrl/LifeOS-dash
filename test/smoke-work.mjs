@@ -124,7 +124,7 @@ async function run(label, viewport) {
       await checkWork('work filled');
     });
     await step('dashboard tile', async () => {
-      await nav('Home');
+      await nav('Overview');
       await page.waitForSelector('.tile');
       await expectText('.tile[data-domain="work"] .tile-value', WANT.done);
       const sub = await text('.tile[data-domain="work"] .tile-sub >> nth=1');

@@ -67,7 +67,7 @@ async function run(label, viewport) {
     if (r.sw > r.iw) throw new Error(where + ': page scrolls horizontally (' + r.sw + ' > ' + r.iw + ')');
     if (r.clipped.length) throw new Error(where + ': nav labels clipped: ' + r.clipped.join(', '));
   };
-  const dash = async () => { await nav('Home'); await page.waitForSelector('.tile', T); };
+  const dash = async () => { await nav('Overview'); await page.waitForSelector('.tile', T); };
   const openAct = async () => { await dash(); await page.click('.tile[data-domain="activities"]'); await page.waitForSelector('#act-upcoming', T); };
   const tile = async (id, value, sub, where) => {
     await dash();
