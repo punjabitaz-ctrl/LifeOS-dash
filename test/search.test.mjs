@@ -48,10 +48,10 @@ test('special characters are literal and no RegExp is built from what is typed',
 test('every area is covered: titles, names, notes and facts, with area labels and navigation keys; results carry ids and collections', async () => {
   const { state } = buildAdversarial(L);
   state.pipeline.push(job({ id: 'jx', title: 'Role at JOBCO', role: 'JOBROLE', stage: 'applied' }));
-  await vault(null); await S.replaceState(S.validateState(clone(Object.assign(state, { schema: 22 }))));
+  await vault(null); await S.replaceState(S.validateState(clone(Object.assign(state, { schema: 24 }))));
   const r = Q.query(ADV_MARK);
   const areas = r.groups.map((g) => g.area);
-  for (const a of ['money', 'assets', 'work', 'health', 'goals', 'home', 'admin', 'learning', 'activities', 'social', 'business', 'jobs']) assert.ok(areas.includes(a), 'area ' + a + ' found: ' + areas);
+  for (const a of ['money', 'assets', 'work', 'health', 'goals', 'home', 'admin', 'learning', 'activities', 'social', 'business', 'jobs', 'countries']) assert.ok(areas.includes(a), 'area ' + a + ' found: ' + areas);
   assert.ok(!areas.includes('wellbeing'), 'a Wellbeing entry in the main state is not searched while the private vault is closed');
   assert.deepEqual(r.groups.map((g) => g.area), Q.ORDER.filter((a) => areas.includes(a)), 'fixed order');
   for (const g of r.groups) { assert.equal(g.label, Q.AREAS[g.area][0]); assert.equal(g.key, Q.AREAS[g.area][1]); for (const i of g.items) { assert.ok(i.label); assert.equal(typeof i.priv, 'boolean'); } }

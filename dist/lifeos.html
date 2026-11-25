@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-crukbQbljOhWPv/JZ9DeSdHmLSROjUGyuBRXst8B4Kk='; style-src 'sha256-J6ILUbq9kTkqF55HN4u9OjwhvIlKIb7FGHf3mZrzfL0='; connect-src https://api.anthropic.com https://www.googleapis.com https://sync.lifeos.tazabbas.com https://ai-nas.lifeos.tazabbas.com https://ai-pc.lifeos.tazabbas.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'; manifest-src 'self'; worker-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-JK3cRr2WV/0SIh4CKKRGuYJFNDqChJv0q4aX5QbOzaI='; style-src 'sha256-J6ILUbq9kTkqF55HN4u9OjwhvIlKIb7FGHf3mZrzfL0='; connect-src https://api.anthropic.com https://www.googleapis.com https://sync.lifeos.tazabbas.com https://ai-nas.lifeos.tazabbas.com https://ai-pc.lifeos.tazabbas.com http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'; manifest-src 'self'; worker-src 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#4f46e5">
-<meta name="lifeos-shell" content="2.3.0">
-<link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAA9zQYyAAAAEnRFWHRsaWZlb3Mtc2hlbGwAMi4zLjD+Z5h/AAADOUlEQVR42u3dzUkDQRiA4VTn1QI8WkBuqSCnVODFEjxYgmANYgOCGAiIIAjCyiesBIX4s7vj7DfPwAueJK6PyzibmSyOj+46KUsLF0FAS0BLQEtAC2gJaAloCWgJaAEtAS0BLQEtAS2gJaAloCWgJaAFtAS0BLQEtAS0gJaAloCWgJaAFtAS0BLQEtAS0AJaAloCWgJaQLsQAloCWgJ6eJv1rru+eu62D6/d0BHf5/zssTs9uQcI6PIFwClG/HGslluIgJ4/5n3U7tRAFynuniXG5cUTSEBPX0ArNUACevbTDaCBBlpAAy2ggQYa6PpBxxJh/5Do9ublywOf+Ee49bVxoGcAOiD/ZtUm1sfjaSbQQFcHOmB68AN0CtBj/QwxTQEa6H8FPfbrbwU10BWCHjLNODRamH4AXRnoQDfViJURoIEuCvrzctzYI/uyHtAVgZ7y7tzKXRroikBPNXduaS4NdEWgS73mzCseQFcEutSIawM00EADDTTQQAMNNNBA29gLtFUOoIG2Dg000J4UAt3mezmmPk/EezmATvNuu8yrG0BX/H7o+Kdt7NHKdiygG9mx0spucKAr3lM4xnw67sz2FAJdBeh++vHXg9pjRcOub6CrAr1/t/4p7IDc6oEzQM8E9P4dO3DHz9d/zEb/dTyYcXIS0LMCLaCBBhpooIEGWkADLaCBFtBAAw000EADLaCBFtBAC2iggQYaaKCBFtBAC2igBTTQQAMNNNBAC2igBTTQAhpooIEGGmigBTTQAhpooIEGGmiggQYaaAENtIAGGmigk484CD3OkAYa6FQj8ydiAQ010EDnGPHRFkADnWpODTTQqQbQQAMNNNBAAw000EADDTTQQAMNNNBAAw000EADDTTQQAMNNNBAAw000EADDTTQQBtAAw000EADDfSkxfYi4/CwY2VGrZZbYr8ZGY80SAvatOPwiF3fjjGAOg1m53LMuM169w47fpEtj7gGTk6SgJaAloCWgBbQEtAS0BLQEtACWgJaAloCWkC7CAJaAloCWgJaQEtAS0BLQEtAC2gJaAloCWgJaAEtAS0BLQEtAS2gJaAloCWgJaAFtAS0BLQEtPTRG9p/bUANqNX8AAAAAElFTkSuQmCC">
+<meta name="lifeos-shell" content="2.4.0">
+<link rel="apple-touch-icon" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAALQAAAC0CAYAAAA9zQYyAAAAEnRFWHRsaWZlb3Mtc2hlbGwAMi40LjD7KI76AAADOUlEQVR42u3dzUkDQRiA4VTn1QI8WkBuqSCnVODFEjxYgmANYgOCGAiIIAjCyiesBIX4s7vj7DfPwAueJK6PyzibmSyOj+46KUsLF0FAS0BLQEtAC2gJaAloCWgJaAEtAS0BLQEtAS2gJaAloCWgJaAFtAS0BLQEtAS0gJaAloCWgJaAFtAS0BLQEtAS0AJaAloCWgJaQLsQAloCWgJ6eJv1rru+eu62D6/d0BHf5/zssTs9uQcI6PIFwClG/HGslluIgJ4/5n3U7tRAFynuniXG5cUTSEBPX0ArNUACevbTDaCBBlpAAy2ggQYa6PpBxxJh/5Do9ublywOf+Ee49bVxoGcAOiD/ZtUm1sfjaSbQQFcHOmB68AN0CtBj/QwxTQEa6H8FPfbrbwU10BWCHjLNODRamH4AXRnoQDfViJURoIEuCvrzctzYI/uyHtAVgZ7y7tzKXRroikBPNXduaS4NdEWgS73mzCseQFcEutSIawM00EADDTTQQAMNNNBA29gLtFUOoIG2Dg000J4UAt3mezmmPk/EezmATvNuu8yrG0BX/H7o+Kdt7NHKdiygG9mx0spucKAr3lM4xnw67sz2FAJdBeh++vHXg9pjRcOub6CrAr1/t/4p7IDc6oEzQM8E9P4dO3DHz9d/zEb/dTyYcXIS0LMCLaCBBhpooIEGWkADLaCBFtBAAw000EADLaCBFtBAC2iggQYaaKCBFtBAC2igBTTQQAMNNNBAC2igBTTQAhpooIEGGmigBTTQAhpooIEGGmiggQYaaAENtIAGGmigk484CD3OkAYa6FQj8ydiAQ010EDnGPHRFkADnWpODTTQqQbQQAMNNNBAAw000EADDTTQQAMNNNBAAw000EADDTTQQAMNNNBAAw000EADDTTQQBtAAw000EADDfSkxfYi4/CwY2VGrZZbYr8ZGY80SAvatOPwiF3fjjGAOg1m53LMuM169w47fpEtj7gGTk6SgJaAloCWgBbQEtAS0BLQEtACWgJaAloCWkC7CAJaAloCWgJaQEtAS0BLQEtAC2gJaAloCWgJaAEtAS0BLQEtAS2gJaAloCWgJaAFtAS0BLQEtPTRG9p/bUANqNX8AAAAAElFTkSuQmCC">
 <title>LifeOS</title>
 <style>:root{color-scheme:light dark;--bg:#f5f7fb;--card:#fff;--fg:#0f172a;--mut:#5b6476;--line:#e4e8f0;--acc:#4f46e5;--acc-fg:#fff;--ok:#15803d;--warn:#a16207;--bad:#b91c1c;--r:16px;--sh:0 1px 2px rgba(16,24,40,.04),0 4px 14px rgba(16,24,40,.06);--font:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
 @media (prefers-color-scheme:dark){:root{--bg:#0b1020;--card:#131a2b;--fg:#e6e9f2;--mut:#9aa3b8;--line:#253047;--acc:#8b93ff;--acc-fg:#0b1020;--ok:#4ade80;--warn:#fbbf24;--bad:#f87171;--sh:0 1px 2px rgba(0,0,0,.3)}}
@@ -324,7 +324,7 @@ th{font-size:.78rem;text-transform:uppercase;letter-spacing:.05em;color:var(--mu
 <body>
 <div id="app"></div>
 <script>globalThis.LifeOS = globalThis.LifeOS || {};
-globalThis.LifeOS.VERSION = "2.3.0";
+globalThis.LifeOS.VERSION = "2.4.0";
 globalThis.LifeOS.HOSTS = {"app":"lifeos.tazabbas.com","sync":"sync.lifeos.tazabbas.com","ai-nas":"ai-nas.lifeos.tazabbas.com","ai-pc":"ai-pc.lifeos.tazabbas.com"};
 Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalThis.LifeOS.HOSTS), writable: false, configurable: false, enumerable: true });
 ;
@@ -827,7 +827,7 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
   const COUNT_KEYS = [['entries', 'Entries'], ['accounts', 'Accounts'], ['recurring', 'Recurring items'], ['budgets', 'Budgets'], ['projects', 'Projects'], ['pipeline', 'Pipeline items'], ['goals', 'Goals'],
     ['properties', 'Properties'], ['vehicles', 'Vehicles'], ['maintenance', 'Maintenance items'], ['renewals', 'Renewals'], ['documents', 'Documents'], ['taxItems', 'Tax items'],
     ['learningItems', 'Learning items'], ['studySessions', 'Study sessions'], ['takeaways', 'Takeaways'], ['activities', 'Activities'], ['groups', 'Groups'], ['people', 'People'], ['contacts', 'Contacts'],
-    ['payees', 'Payees'], ['invoices', 'Invoices'], ['trips', 'Mileage trips'], ['taxPayments', 'Tax payments'], ['clients', 'Clients'], ['shows', 'Shows'], ['episodes', 'Episodes'], ['platformStats', 'Platform numbers'], ['sites', 'Sites'], ['siteTraffic', 'Site traffic months'], ['habits', 'Daily checks'], ['habitLog', 'Daily check log'], ['meals', 'Saved meals'], ['mealLog', 'Meal log'], ['archives', 'Archived years']];
+    ['payees', 'Payees'], ['invoices', 'Invoices'], ['trips', 'Mileage trips'], ['taxPayments', 'Tax payments'], ['clients', 'Clients'], ['shows', 'Shows'], ['episodes', 'Episodes'], ['platformStats', 'Platform numbers'], ['sites', 'Sites'], ['siteTraffic', 'Site traffic months'], ['habits', 'Daily checks'], ['habitLog', 'Daily check log'], ['meals', 'Saved meals'], ['mealLog', 'Meal log'], ['countryTax', 'Country tax amounts'], ['countryTaxYears', 'Country tax years'], ['archives', 'Archived years']];
   const n = (a) => (Array.isArray(a) ? a.length : 0);
 
   // ---- verify a backup file: decrypt in memory, compare with the live vault, discard. Writes nothing anywhere. ----
@@ -869,10 +869,10 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
   // The browser's back button then moves between views, closes the open dialog, and never reaches a view while the app is locked.
   const L = (globalThis.LifeOS = globalThis.LifeOS || {});
   const DOMAINS = ['money', 'assets', 'work', 'health', 'goals', 'home', 'admin', 'learning', 'activities', 'social', 'wellbeing'];
-  const NAMES = ['dashboard', 'review', 'memory', 'settings', 'private', 'archive', 'business', 'clients', 'podcasts', 'websites'];
+  const NAMES = ['dashboard', 'review', 'memory', 'settings', 'private', 'archive', 'business', 'clients', 'podcasts', 'websites', 'countries'];
   // The phone bottom bar, and every other area (the More sheet). Each entry is { key, label }; a key is a view key.
   const BAR = Object.freeze([['dashboard', 'Overview'], ['v:money', 'Money'], ['v:work', 'Work'], ['v:health', 'Health']].map(([key, label]) => Object.freeze({ key: key === 'dashboard' ? 'dashboard' : key, label })));
-  const MORE = Object.freeze([['v:assets', 'Assets'], ['v:command', 'Command center'], ['v:jobs', 'Job search'], ['business', 'Business'], ['clients', 'AYiN and clients'], ['podcasts', 'Podcasts'], ['websites', 'Websites'], ['v:goals', 'Goals'], ['v:home', 'Home and property'], ['v:admin', 'Admin'],
+  const MORE = Object.freeze([['v:assets', 'Assets'], ['countries', 'By country'], ['v:command', 'Command center'], ['v:jobs', 'Job search'], ['business', 'Business'], ['clients', 'AYiN and clients'], ['podcasts', 'Podcasts'], ['websites', 'Websites'], ['v:goals', 'Goals'], ['v:home', 'Home and property'], ['v:admin', 'Admin'],
     ['v:learning', 'Learning'], ['v:activities', 'Activities'], ['v:social', 'Social'], ['private', 'Private vault'], ['v:wellbeing', 'Wellbeing'], ['review', 'Review'], ['memory', 'Memory'], ['settings', 'Settings']]
     .map(([key, label]) => Object.freeze({ key, label })));
   const KEYS = new Set(['dashboard', 'v:command', 'v:jobs'].concat(NAMES, DOMAINS.map((d) => 'v:' + d)));
@@ -978,7 +978,7 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
   'use strict';
   const L = (globalThis.LifeOS = globalThis.LifeOS || {});
   const KEY = 'envelope';
-  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 23, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
+  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 24, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
   const HABIT_CAP = 8, HABIT_LOG_CAP = 100000, KIND_CAP = 30;
   const RENEWAL_TOTAL_CAP = 2000;
   const ENTRY_CAP = 50000, INSIGHT_CAP = 5000, REVIEW_CAP = 1000, LESSON_CAP = 30, AUDIT_CAP = 200;
@@ -1117,6 +1117,10 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
       food: schema >= 21 ? L.food.cleanSettings(s.food) : {},
       // v2.3.0: the Overview's chosen key numbers and shortcuts. Older schemas get the defaults.
       overview: schema >= 23 ? L.overview.cleanSettings(s.overview) : L.overview.defaultSettings(),
+      // v2.4.0: the country list (home country first in meaning, not in order) and the exchange rates the owner typed. Older schemas get
+      // the United States as home and Spain on the list, and no rates.
+      countries: schema >= 24 ? L.countries.cleanSettings(s.countries) : L.countries.defaultSettings(),
+      fx: schema >= 24 ? L.countries.cleanFx(s.fx, s.currency) : [],
     };
   }
   function cleanSetup(x, schema) {
@@ -1696,7 +1700,7 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
   function validateStateRaw(o, opts) {
     if (!isObj(o)) fail('state must be an object');
     scan(o, 0, { n: 4e6 });
-    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, SCHEMA].includes(o.schema)) fail('unsupported schema');
+    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, SCHEMA].includes(o.schema)) fail('unsupported schema');
     if (!L.metrics) fail('metrics module missing');
     const settings = cleanSettings(o.settings, o.schema), entries = cleanEntries(o.entries);
     const out = { schema: SCHEMA, settings, entries };
@@ -1818,6 +1822,11 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
     // exists is dropped and the logged row is kept.
     out.meals = o.schema >= 21 ? L.food.cleanMeals(o.meals) : [];
     out.mealLog = o.schema >= 21 ? L.food.cleanLog(o.mealLog, out.meals) : [];
+    // Schema 24 (v2.4.0) adds a country and a currency to each account and a country to each Admin tax item (older formats take the
+    // home country and the vault currency, which is how they were read before), country tax records and country tax-year profiles.
+    out.countryTax = o.schema >= 24 ? L.countries.cleanRecords(o.countryTax) : [];
+    out.countryTaxYears = o.schema >= 24 ? L.countries.cleanProfiles(o.countryTaxYears) : [];
+    L.countries.fill(out, o, o.schema);
     // Schema 14 adds the archive index and the yearly summaries (numbers only). Older formats have neither.
     out.archives = o.schema >= 14 ? L.archive.cleanArchives(o.archives) : [];
     out.summaries = o.schema >= 14 ? L.archive.cleanSummaries(o.summaries, out.archives) : {};
@@ -1925,6 +1934,15 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
       const ov = cur.settings && cur.settings.overview;
       if (ov && ov.custom === true) out.push('Overview choices');
     }
+    if (src < 24) {
+      // v2.4.0: countries and currencies on accounts and tax items, country tax records and profiles, the country list and the rates.
+      const st = cur.settings || {}, home = st.countries ? st.countries.home : 'US';
+      if ((cur.accounts || []).some((a) => (a.country && a.country !== home) || (a.currency && a.currency !== st.currency))) out.push('account countries and currencies');
+      for (const [k, n] of [['countryTax', 'country tax records'], ['countryTaxYears', 'country tax profiles']]) if ((cur[k] || []).length) out.push(n);
+      if ((cur.taxItems || []).some((t) => t.country && t.country !== home)) out.push('countries on tax checklist items');
+      if ((st.fx || []).length) out.push('exchange rates');
+      if (st.countries && !sameJson(st.countries, L.countries.defaultSettings())) out.push('country list');
+    }
     if (src < 4) {
       if (cur.cycle) out.push('training cycle');
       if ((cur.habits || []).length) out.push('daily checks');
@@ -1937,7 +1955,7 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
   const dropsWork = (cur, next) => droppedData(cur, next).length > 0;
   const andList = (l) => (l.length > 1 ? l.slice(0, -1).join(', ') + ' and ' + l[l.length - 1] : l.join(''));
   // Plain-language list for warnings, with counts: "3 projects and 4 pipeline items". Names only, never values.
-  const COUNTED = { properties: 'properties', vehicles: 'vehicles', 'maintenance items': 'maintenance', renewals: 'renewals', documents: 'documents', 'tax items': 'taxItems', 'learning items': 'learningItems', 'study sessions': 'studySessions', takeaways: 'takeaways', activities: 'activities', 'social groups': 'groups', people: 'people', 'logged contacts': 'contacts', invoices: 'invoices', 'mileage trips': 'trips', payees: 'payees', 'estimated tax payments': 'taxPayments', clients: 'clients', shows: 'shows', episodes: 'episodes', 'platform numbers': 'platformStats', sites: 'sites', 'site traffic months': 'siteTraffic', 'saved meals': 'meals', 'logged meals': 'mealLog' };
+  const COUNTED = { properties: 'properties', vehicles: 'vehicles', 'maintenance items': 'maintenance', renewals: 'renewals', documents: 'documents', 'tax items': 'taxItems', 'learning items': 'learningItems', 'study sessions': 'studySessions', takeaways: 'takeaways', activities: 'activities', 'social groups': 'groups', people: 'people', 'logged contacts': 'contacts', invoices: 'invoices', 'mileage trips': 'trips', payees: 'payees', 'estimated tax payments': 'taxPayments', clients: 'clients', shows: 'shows', episodes: 'episodes', 'platform numbers': 'platformStats', sites: 'sites', 'site traffic months': 'siteTraffic', 'saved meals': 'meals', 'logged meals': 'mealLog', 'country tax records': 'countryTax', 'country tax profiles': 'countryTaxYears' };
   function lossText(cur, next, list) {
     return andList((list || droppedData(cur, next)).map((n) => (n === 'projects' ? cur.projects.length + ' projects' : n === 'pipeline items' ? cur.pipeline.length + ' pipeline items' : n === 'daily checks' ? cur.habits.length + ' daily checks' : n === 'goals' ? cur.goals.length + ' goals' : COUNTED[n] ? cur[COUNTED[n]].length + ' ' + n : 'your ' + n)));
   }
@@ -1969,6 +1987,7 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
         clients: { contactDays: 30 },
         food: {},
         overview: { custom: false, metrics: [], shortcuts: [] },
+        countries: L.countries.defaultSettings(), fx: [],
       },
       entries: [],
       accounts: [], recurring: [], budgets: [], categories: defaultCategories(),
@@ -1982,6 +2001,7 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
       archives: [], summaries: {}, ops: L.ops.defaultOps(),
       cycle: null, kinds: L.metrics.DEFAULT_KINDS.slice(), habits: [], habitLog: [],
       meals: [], mealLog: [],
+      countryTax: [], countryTaxYears: [],
       memory: { insights: [], lessons: [], reviews: [], lastReviewAt: '', mutes: [], startedOn: localToday() },
       audit: [],
     };
@@ -2413,6 +2433,8 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
     habits: {}, habitLog: { key: (r) => r.habitId + '|' + r.date },
     // v2.1.0: a saved meal moves with its logged rows (like a daily check and its ticks); a row logged for a private meal is private.
     meals: {}, mealLog: { refs: [['mealId', 'meals']] },
+    // v2.4.0: country tax records and a country's tax-year profile (keyed by country and year) can be private like any business record.
+    countryTax: {}, countryTaxYears: { key: (r) => r.country + '|' + r.year },
     // v1.1.0: business records. An invoice and its income entry move together (one-to-one money link, like an activity and its expense).
     invoices: { refs: [['projectId', 'projects'], ['incomeId', 'entries'], ['clientId', 'clients']] }, trips: { refs: [['projectId', 'projects']] }, payees: {}, taxPayments: {},
     // v1.7.0: clients, shows, episodes, platform numbers, sites and site traffic. A show moves with its episodes and numbers, an episode with
@@ -3720,7 +3742,7 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
     const ar = L.archive && L.archive.isArchivedYear(state, asOf.slice(0, 4)) && L.archive.netWorthAt(state, asOf);
     if (ar) {
       const totalC = ar.assets - ar.liab;
-      return { totalCents: totalC, assetsCents: ar.assets, liabilitiesCents: ar.liab, total: dollars(totalC), assets: dollars(ar.assets), liabilities: dollars(ar.liab), count: ar.count, byKind: [], rows: [] };
+      return { totalCents: totalC, assetsCents: ar.assets, liabilitiesCents: ar.liab, total: dollars(totalC), assets: dollars(ar.assets), liabilities: dollars(ar.liab), count: ar.count, byKind: [], rows: [], unconverted: [] };
     }
     const accts = state.accounts || [];
     const byId = new Map(accts.map((x) => [x.id, x]));
@@ -3736,21 +3758,30 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
       if (!cur || e.date >= cur.e.date) latest.set(k, { e, a });
     }
     let assetsC = 0, liabC = 0, count = 0;
-    const kinds = new Map(), rows = [];
+    const kinds = new Map(), rows = [], unconverted = [];
+    // v2.4.0: a balance is in its account's currency. Totals are in the vault currency: a balance in another currency is converted
+    // with the rate the owner typed (settings.fx) and left out, and listed in `unconverted`, while no rate is entered. Nothing is
+    // ever added across currencies without a rate. Rows keep the converted cents and the balance in its own currency.
+    const home = state.settings && state.settings.currency, C = L.countries;
     for (const { e, a } of latest.values()) {
       if (a && a.archived) continue;
       const v = cents(e.value);
       const liab = a ? a.liability : v < 0;
-      const signed = a ? (a.liability ? -Math.abs(v) : v) : v;
+      const native = a ? (a.liability ? -Math.abs(v) : v) : v;
       const kind = a ? a.kind : (v < 0 ? 'credit' : 'other');
+      const cur = a && a.currency && home ? a.currency : home;
+      const signed = !C || !home || cur === home ? native : C.toHome(state.settings, native, cur);
+      if (signed === null) { unconverted.push({ id: a.id, name: a.name, kind, liability: liab, nativeCents: native, currency: cur, date: e.date }); continue; }
       count++;
       if (liab) liabC += Math.abs(signed); else { assetsC += signed; if (signed > 0) kinds.set(kind, (kinds.get(kind) || 0) + signed); }
-      rows.push({ id: a ? a.id : null, name: a ? a.name : e.title, kind, liability: liab, cents: signed, date: e.date });
+      const row = { id: a ? a.id : null, name: a ? a.name : e.title, kind, liability: liab, cents: signed, date: e.date };
+      if (cur && cur !== home) { row.currency = cur; row.nativeCents = native; }
+      rows.push(row);
     }
     const pos = [...kinds.values()].reduce((x, y) => x + y, 0);
     const byKind = [...kinds.entries()].map(([kind, c]) => ({ kind, cents: c, share: pos ? c / pos : 0 })).sort((x, y) => y.cents - x.cents);
     const totalC = assetsC - liabC;
-    return { totalCents: totalC, assetsCents: assetsC, liabilitiesCents: liabC, total: dollars(totalC), assets: dollars(assetsC), liabilities: dollars(liabC), count, byKind, rows };
+    return { totalCents: totalC, assetsCents: assetsC, liabilitiesCents: liabC, total: dollars(totalC), assets: dollars(assetsC), liabilities: dollars(liabC), count, byKind, rows, unconverted };
   }
   function netWorthHistory(state, n, today) {
     n = Math.max(1, Math.min(120, Math.floor(Number(n)) || 12));
@@ -5146,6 +5177,8 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
     const o = { id: L.store.newId(), year: yr, title: input.title, state: input.state || 'needed', notes: input.notes || '' };
     if (input.dueDate) o.dueDate = input.dueDate;
     const clean = cleanTaxItems([o])[0];
+    // v2.4.0: the country the item belongs to (checked by store.validateState; the home country when none is picked).
+    if (input.country) { if (!/^[A-Z]{2}$/.test(String(input.country))) throw new Error('Pick a country.'); clean.country = input.country; }
     state.taxItems = list(state, 'taxItems').concat([clean]);
     return clean;
   }
@@ -8184,7 +8217,7 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
     SE_MIN_DEFAULT, SE_MIN_NOTE, mulDiv, ppm, defaultProfile, cleanProfile, cleanTaxYears, cleanHomeOffice, cleanTaxMap, cleanPayments, profileOf, years, blocked, refusal,
     shiftDue, dueDates, lineFor, rateFor, tripCents, homeOfficeCents, seTax, compute, installments, safeHarbor, payeeTotals, timelineRows, digest,
     proposeYear, applyNewYear, setProfile, startDefaultYear, setLineMap, addPayment, deletePayment, accountantPackage, exportPackage, LEFT_OUT_MESSAGE, exportCsv, money,
-    bizTest, centsOf, lineById,
+    bizTest, centsOf, lineById, paymentTotals,
   };
 })();
 
@@ -8613,6 +8646,328 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
     cleanPayees, addPayee, updatePayee, deletePayee, assignPayee,
     lineTotal, invoiceTotal, cleanInvoices, formatNumber, nextNumber, createInvoice, editDraft, unbilled, addBillable, markSent, createExpectedIncome, markPaid, settleIncome, voidInvoice, deleteInvoice, aging, bucketOf,
     cleanTrips, addTrip, deleteTrip, setHomeOffice, setBudget, budgetFor, budgetRollup, digest,
+  };
+})();
+
+;
+(function () {
+  'use strict';
+  // v2.4.0: taxes and assets by country. Each account carries the country it sits in and the currency its balances are in; tax records,
+  // tax-year profiles of a country and Admin tax checklist items carry a country too. The country list (US and Spain to start, more
+  // addable) and the exchange rates live in settings.countries and settings.fx.
+  // HONEST MONEY: a balance is always shown in its own currency. A total across currencies is only made when the owner has typed the
+  // rate for every currency in it; LifeOS never looks a rate up and never guesses one. An amount without a rate is left out of a
+  // combined total and named as left out. No tax rule or rate of any country is built in: a country's tax profile holds only what the
+  // owner types (residency, days, a filing date, a note), and its tax records are amounts the owner enters.
+  const L = (globalThis.LifeOS = globalThis.LifeOS || {});
+  const V = () => L.validate;
+  const COUNTRY_CAP = 20, FX_CAP = 20, RECORD_CAP = 2000, PROFILE_CAP = 400, MAX_CENTS = 1e13;
+  const CODE_RE = /^[A-Z]{2}$/, CUR_RE = /^[A-Z]{3}$/;
+  const RECORD_KINDS = Object.freeze(['paid', 'owed', 'refund']);
+  const RECORD_KIND_LABEL = Object.freeze({ paid: 'Tax paid', owed: 'Tax owed', refund: 'Refund' });
+  const RESIDENCY = Object.freeze(['unsure', 'resident', 'nonresident']);
+  const RESIDENCY_LABEL = Object.freeze({ unsure: 'Not set', resident: 'Tax resident', nonresident: 'Not a tax resident' });
+  const DEFAULT_LIST = Object.freeze([
+    Object.freeze({ code: 'US', name: 'United States', currency: 'USD' }),
+    Object.freeze({ code: 'ES', name: 'Spain', currency: 'EUR' }),
+  ]);
+  const defaultSettings = () => ({ home: 'US', list: DEFAULT_LIST.map((x) => Object.assign({}, x)) });
+  const isDate = (s) => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s) && L.home.dates.isDate(s);
+  const TEXT = (v, max, name, empty) => V().str(V().strip(v === undefined ? '' : String(v)).trim(), max, name, empty);
+  // A Spanish NIE (X1234567L) or DNI/NIF (12345678Z) is a government ID: refused like an SSN or EIN.
+  const ES_ID = /(?<![A-Z0-9])[XYZ][- ]?\d{7}[- ]?[A-Z](?![A-Z0-9])|(?<![A-Z0-9])\d{8}[- ]?[A-Z](?![A-Z0-9])/i;
+  const ID_MESSAGE = 'That looks like a tax ID or an ID number. LifeOS never stores tax IDs or ID numbers.';
+  function checkText(fields) {
+    for (const f of fields) if (typeof f === 'string' && f && ((L.admin && L.admin.looksTaxId(f)) || ES_ID.test(f))) throw new Error(ID_MESSAGE);
+  }
+
+  // ---- settings ----
+  function cleanSettings(x) {
+    if (x === undefined || x === null) return defaultSettings();
+    if (!V().isObj(x)) V().fail('countries');
+    const seen = new Set();
+    const list = V().arr(x.list, COUNTRY_CAP, 'countries').map((c) => {
+      if (!V().isObj(c)) V().fail('country');
+      if (typeof c.code !== 'string' || !CODE_RE.test(c.code)) V().fail('country code');
+      if (seen.has(c.code)) V().fail('duplicate country');
+      seen.add(c.code);
+      if (typeof c.currency !== 'string' || !CUR_RE.test(c.currency)) V().fail('country currency');
+      return { code: c.code, name: TEXT(c.name, 60, 'country name'), currency: c.currency };
+    });
+    if (!list.length) V().fail('countries needs at least one country');
+    if (typeof x.home !== 'string' || !seen.has(x.home)) V().fail('home country');
+    return { home: x.home, list };
+  }
+  // fx: [{ currency, rate, asOf }], rate = how many units of the home currency (settings.currency) one unit of `currency` is worth.
+  function cleanFx(list, home) {
+    if (list === undefined || list === null) return [];
+    const seen = new Set();
+    return V().arr(list, FX_CAP, 'exchange rates').map((r) => {
+      if (!V().isObj(r)) V().fail('exchange rate');
+      if (typeof r.currency !== 'string' || !CUR_RE.test(r.currency) || r.currency === home) V().fail('exchange rate currency');
+      if (seen.has(r.currency)) V().fail('duplicate exchange rate');
+      seen.add(r.currency);
+      const rate = V().num(r.rate, 0.000001, 1e6, 'exchange rate');
+      if (Math.round(rate * 1e6) / 1e6 !== rate) V().fail('exchange rate allows six decimals');
+      if (!isDate(r.asOf)) V().fail('exchange rate date');
+      return { currency: r.currency, rate, asOf: r.asOf };
+    });
+  }
+
+  // ---- records ----
+  const optCode = (v, name) => { if (typeof v !== 'string' || !CODE_RE.test(v)) V().fail(name); return v; };
+  function cleanRecords(list) {
+    if (list === undefined) return [];
+    const seen = new Set();
+    return V().arr(list, RECORD_CAP, 'country tax records').map((x) => {
+      if (!V().isObj(x)) V().fail('country tax record');
+      const id = V().str(x.id, 100, 'country tax record id');
+      if (seen.has(id)) V().fail('duplicate country tax record id');
+      seen.add(id);
+      if (typeof x.currency !== 'string' || !CUR_RE.test(x.currency)) V().fail('country tax record currency');
+      const o = {
+        id, country: optCode(x.country, 'country tax record country'), year: V().num(x.year, 1990, 2200, 'country tax record year', true),
+        kind: V().oneOf(x.kind, RECORD_KINDS, 'country tax record kind'), title: TEXT(x.title, 200, 'country tax record title'),
+        amountCents: V().num(x.amountCents, 0, MAX_CENTS, 'country tax record amount', true), currency: x.currency,
+      };
+      if (x.date !== undefined && x.date !== '' && x.date !== null) { if (!isDate(x.date)) V().fail('country tax record date'); o.date = x.date; }
+      o.notes = TEXT(x.notes, 1000, 'country tax record notes', true);
+      return o;
+    });
+  }
+  function cleanProfiles(list) {
+    if (list === undefined) return [];
+    const seen = new Set();
+    return V().arr(list, PROFILE_CAP, 'country tax profiles').map((x) => {
+      if (!V().isObj(x)) V().fail('country tax profile');
+      const country = optCode(x.country, 'country tax profile country'), year = V().num(x.year, 1990, 2200, 'country tax profile year', true);
+      const k = country + '|' + year;
+      if (seen.has(k)) V().fail('duplicate country tax profile');
+      seen.add(k);
+      const o = { country, year, residency: V().oneOf(x.residency === undefined ? 'unsure' : x.residency, RESIDENCY, 'residency') };
+      if (x.days !== undefined && x.days !== null && x.days !== '') o.days = V().num(x.days, 0, 366, 'days in the country', true);
+      if (x.filingDue !== undefined && x.filingDue !== null && x.filingDue !== '') { if (!isDate(x.filingDue)) V().fail('filing date'); o.filingDue = x.filingDue; }
+      o.note = TEXT(x.note, 1000, 'country tax profile note', true);
+      return o;
+    });
+  }
+
+  // ---- migration and filling (store.validateState calls this after accounts, tax items and settings are clean) ----
+  // Accounts and tax items written before schema 24 carry no country or currency: they take the home country and the vault currency,
+  // which is exactly how they were read before (nothing changes for them). In schema 24 a missing field gets the same default.
+  function fill(out, raw, schema) {
+    const home = out.settings.countries.home, cur = out.settings.currency;
+    const rawAcc = new Map(), rawTax = new Map();
+    if (schema >= 24) {
+      for (const a of Array.isArray(raw.accounts) ? raw.accounts : []) if (V().isObj(a) && typeof a.id === 'string') rawAcc.set(a.id, a);
+      for (const t of Array.isArray(raw.taxItems) ? raw.taxItems : []) if (V().isObj(t) && typeof t.id === 'string') rawTax.set(t.id, t);
+    }
+    for (const a of out.accounts) {
+      const r = rawAcc.get(a.id) || {};
+      a.country = r.country === undefined ? home : optCode(r.country, 'account country');
+      if (r.currency !== undefined && (typeof r.currency !== 'string' || !CUR_RE.test(r.currency))) V().fail('account currency');
+      a.currency = r.currency === undefined ? cur : r.currency;
+    }
+    for (const t of out.taxItems) {
+      const r = rawTax.get(t.id) || {};
+      t.country = r.country === undefined ? home : optCode(r.country, 'tax item country');
+    }
+  }
+
+  // ---- lookups ----
+  const list = (settings) => (settings && settings.countries && Array.isArray(settings.countries.list) ? settings.countries.list : DEFAULT_LIST);
+  const homeOf = (settings) => (settings && settings.countries && settings.countries.home) || 'US';
+  const find = (settings, code) => list(settings).find((c) => c.code === code) || null;
+  const nameOf = (settings, code) => { const c = find(settings, code); return c ? c.name : code; };
+  const currencyOf = (settings, code) => { const c = find(settings, code); return c ? c.currency : (settings && settings.currency) || 'USD'; };
+  const accountCountry = (state, a) => (a && a.country) || homeOf(state.settings);
+  const accountCurrency = (state, a) => (a && a.currency) || state.settings.currency;
+  // Every country the owner should see: the list, then any code a record uses that is not on it (shown by its code).
+  function inUse(state) {
+    const out = list(state.settings).map((c) => c.code), add = (c) => { if (c && !out.includes(c)) out.push(c); };
+    for (const a of state.accounts || []) add(a.country);
+    for (const r of state.countryTax || []) add(r.country);
+    for (const p of state.countryTaxYears || []) add(p.country);
+    for (const t of state.taxItems || []) add(t.country);
+    return out;
+  }
+  function rateOf(settings, currency) {
+    if (currency === settings.currency) return 1;
+    const r = (settings.fx || []).find((x) => x.currency === currency);
+    return r ? r.rate : null;
+  }
+  // Exact: cents times the rate (held as parts per million), rounded half away from zero to a whole cent. null when no rate is entered.
+  function toHome(settings, cents, currency) {
+    if (currency === settings.currency) return cents;
+    const r = rateOf(settings, currency);
+    if (r === null) return null;
+    let n = BigInt(Math.round(cents)) * BigInt(Math.round(r * 1e6));
+    const neg = n < 0n; if (neg) n = -n;
+    const q = (2n * n + 1000000n) / 2000000n;
+    // SEC-143: a result past the exact integer range is never shown as a number (it is treated like a missing rate).
+    if (q > BigInt(Number.MAX_SAFE_INTEGER)) return null;
+    return Number(neg ? -q : q);
+  }
+
+  // ---- figures ----
+  // Per-currency sums: [{ currency, assets, liabilities, net }] in cents, the home currency first, then by code.
+  function bucket(map, currency) { let b = map.get(currency); if (!b) { b = { currency, assets: 0, liabilities: 0, net: 0, count: 0 }; map.set(currency, b); } return b; }
+  const sorted = (map, home) => [...map.values()].sort((a, b) => (a.currency === home ? -1 : b.currency === home ? 1 : a.currency.localeCompare(b.currency)));
+  // A combined total in the home currency, made only when every currency in it has a rate. missing lists the currencies without one.
+  function combine(settings, buckets, fields) {
+    const missing = [], out = {};
+    for (const f of fields) out[f] = 0;
+    for (const b of buckets) {
+      if (b.currency !== settings.currency && rateOf(settings, b.currency) === null) { if (!missing.includes(b.currency)) missing.push(b.currency); continue; }
+      const conv = fields.map((f) => toHome(settings, b[f], b.currency));
+      if (conv.some((v) => v === null)) { if (!missing.includes(b.currency)) missing.push(b.currency); continue; }
+      fields.forEach((f, i) => { out[f] += conv[i]; });
+    }
+    for (const f of fields) if (!Number.isSafeInteger(out[f])) return { ok: false, missing, tooLarge: true, currency: settings.currency };
+    return missing.length ? { ok: false, missing, currency: settings.currency } : Object.assign({ ok: true, missing: [], currency: settings.currency }, out);
+  }
+  // Assets by country as of a date: each active account's latest balance, in its own currency (rows come from metrics.netWorthDetail).
+  function assets(state, asOf) {
+    const nw = L.metrics.netWorthDetail(state, asOf), byId = new Map((state.accounts || []).map((a) => [a.id, a]));
+    const countries = new Map();
+    for (const r of nw.rows.concat(nw.unconverted || [])) {
+      const a = r.id ? byId.get(r.id) : null, code = accountCountry(state, a), cur = r.currency || accountCurrency(state, a), cents = r.nativeCents === undefined ? r.cents : r.nativeCents;
+      let c = countries.get(code);
+      if (!c) { c = { code, accounts: [], byCurrency: new Map() }; countries.set(code, c); }
+      c.accounts.push({ id: r.id, name: r.name, kind: r.kind, liability: r.liability, cents, currency: cur, date: r.date });
+      const b = bucket(c.byCurrency, cur);
+      b.count++;
+      if (r.liability) b.liabilities += Math.abs(cents); else b.assets += cents;
+      b.net = b.assets - b.liabilities;
+    }
+    const home = state.settings.currency, out = [];
+    for (const code of inUse(state)) {
+      const c = countries.get(code) || { code, accounts: [], byCurrency: new Map() };
+      const totals = sorted(c.byCurrency, home);
+      out.push({ code, name: nameOf(state.settings, code), accounts: c.accounts, totals, combined: combine(state.settings, totals, ['assets', 'liabilities', 'net']) });
+    }
+    const all = new Map();
+    for (const c of out) for (const b of c.totals) { const x = bucket(all, b.currency); x.assets += b.assets; x.liabilities += b.liabilities; x.net += b.net; x.count += b.count; }
+    const allTotals = sorted(all, home);
+    return { countries: out, totals: allTotals, combined: combine(state.settings, allTotals, ['assets', 'liabilities', 'net']) };
+  }
+  // Taxes by country for a year: the owner's records (paid, owed, refunds per currency), the country's profile, its open checklist
+  // items, and for the home country the estimated federal and NJ payments already logged under Business (unless the tax figures of
+  // that year are refused while the private vault is closed).
+  function taxes(state, year) {
+    const home = homeOf(state.settings), out = [];
+    for (const code of inUse(state)) {
+      const recs = (state.countryTax || []).filter((r) => r.country === code && r.year === year);
+      const map = new Map();
+      for (const r of recs) { let b = map.get(r.currency); if (!b) { b = { currency: r.currency, paid: 0, owed: 0, refund: 0 }; map.set(r.currency, b); } b[r.kind] += r.amountCents; }
+      const totals = [...map.values()].sort((a, b) => (a.currency === state.settings.currency ? -1 : b.currency === state.settings.currency ? 1 : a.currency.localeCompare(b.currency)));
+      const profile = (state.countryTaxYears || []).find((p) => p.country === code && p.year === year) || null;
+      const items = (state.taxItems || []).filter((t) => (t.country || home) === code && t.year === year);
+      const o = { code, name: nameOf(state.settings, code), records: recs, totals, profile, openItems: items.filter((t) => t.state !== 'filed').length, items: items.length, combined: combine(state.settings, totals, ['paid', 'owed', 'refund']) };
+      if (code === home && L.tax) {
+        if (L.tax.blocked(state, year)) o.estimates = { blocked: true };
+        else { const p = L.tax.paymentTotals(state, year); o.estimates = { blocked: false, federal: p.federal, nj: p.nj, currency: state.settings.currency }; }
+      }
+      out.push(o);
+    }
+    return out;
+  }
+
+  // ---- mutators (inside a commit) ----
+  function addCountry(state, input) {
+    const s = state.settings, l = list(s);
+    const code = String(input && input.code || '').trim().toUpperCase(), name = String(input && input.name || '').trim(), currency = String(input && input.currency || '').trim().toUpperCase();
+    if (!CODE_RE.test(code)) throw new Error('Enter a two-letter country code, for example PT.');
+    if (!name) throw new Error('Enter the country name.');
+    if (!CUR_RE.test(currency)) throw new Error('Enter a three-letter currency code, for example EUR.');
+    if (l.some((c) => c.code === code)) throw new Error('That country is already on the list.');
+    if (l.length >= COUNTRY_CAP) throw new Error('You can keep up to ' + COUNTRY_CAP + ' countries.');
+    checkText([name]);
+    s.countries = cleanSettings({ home: homeOf(s), list: l.concat([{ code, name, currency }]) });
+    return code;
+  }
+  function usedBy(state, code) {
+    return (state.accounts || []).some((a) => a.country === code) || (state.countryTax || []).some((r) => r.country === code) ||
+      (state.countryTaxYears || []).some((p) => p.country === code) || (state.taxItems || []).some((t) => t.country === code);
+  }
+  function removeCountry(state, code) {
+    const s = state.settings;
+    if (code === homeOf(s)) throw new Error('Your home country stays on the list.');
+    if (!find(s, code)) throw new Error('Country not found.');
+    if (usedBy(state, code)) throw new Error('Accounts or tax records still use this country. Move or delete them first.');
+    s.countries = cleanSettings({ home: homeOf(s), list: list(s).filter((c) => c.code !== code) });
+  }
+  // rate: the owner's typed number (one unit of `currency` in the home currency); empty clears it.
+  function setRate(state, currency, rate, asOf) {
+    const s = state.settings, cur = String(currency || '').toUpperCase();
+    if (!CUR_RE.test(cur) || cur === s.currency) throw new Error('Pick a currency other than ' + s.currency + '.');
+    const rest = (s.fx || []).filter((x) => x.currency !== cur);
+    if (rate === '' || rate === null || rate === undefined) { s.fx = rest; return null; }
+    const n = typeof rate === 'number' ? rate : Number(String(rate).trim().replace(/,/g, ''));
+    if (!Number.isFinite(n) || n <= 0 || n > 1e6) throw new Error('Enter the rate as a number above 0, for example 1.08.');
+    if (Math.round(n * 1e6) / 1e6 !== n) throw new Error('A rate allows up to six decimals.');
+    if (!isDate(asOf)) throw new Error('Enter the date the rate is from.');
+    if (rest.length >= FX_CAP) throw new Error('You can keep up to ' + FX_CAP + ' exchange rates.');
+    s.fx = cleanFx(rest.concat([{ currency: cur, rate: n, asOf }]), s.currency);
+    return s.fx.find((x) => x.currency === cur);
+  }
+  function parseCents(v, name) {
+    const t = String(v === undefined || v === null ? '' : v).trim().replace(/[,\s]/g, '');
+    if (!/^\d+(\.\d{1,2})?$/.test(t)) throw new Error('Enter ' + name + ' as a number, for example 1250.00.');
+    const c = Math.round(Number(t) * 100);
+    if (!Number.isSafeInteger(c) || c > MAX_CENTS) throw new Error(name.charAt(0).toUpperCase() + name.slice(1) + ' is too large.');
+    return c;
+  }
+  function recordFrom(state, input, id) {
+    const code = String(input.country || ''), year = Number(input.year);
+    if (!CODE_RE.test(code)) throw new Error('Pick a country.');
+    if (!find(state.settings, code) && !(state.countryTax || []).some((r) => r.id === id && r.country === code)) throw new Error('Add this country to your list first.');
+    if (!Number.isInteger(year) || year < 1990 || year > 2200) throw new Error('Enter a tax year.');
+    const title = String(input.title || '').trim(), notes = String(input.notes || '').trim();
+    if (!title) throw new Error('Enter what this is, for example "Income tax return".');
+    checkText([title, notes]);
+    const currency = String(input.currency || currencyOf(state.settings, code)).toUpperCase();
+    const o = { id, country: code, year, kind: input.kind, title, amountCents: parseCents(input.amount, 'the amount'), currency, notes };
+    if (input.date) o.date = input.date;
+    return cleanRecords([o])[0];
+  }
+  function addRecord(state, input) {
+    if ((state.countryTax || []).length >= RECORD_CAP) throw new Error('You can keep up to ' + RECORD_CAP + ' tax records.');
+    const r = recordFrom(state, input, L.store.newId());
+    state.countryTax = (state.countryTax || []).concat([r]);
+    return r;
+  }
+  function editRecord(state, id, input) {
+    const i = (state.countryTax || []).findIndex((x) => x.id === id);
+    if (i < 0) throw new Error('Tax record not found.');
+    state.countryTax[i] = recordFrom(state, input, id);
+    return state.countryTax[i];
+  }
+  function deleteRecord(state, id) {
+    if (!(state.countryTax || []).some((x) => x.id === id)) throw new Error('Tax record not found.');
+    state.countryTax = state.countryTax.filter((x) => x.id !== id);
+  }
+  // One profile per country and year; every field the owner's own. All fields empty removes it.
+  function setProfile(state, code, year, input) {
+    if (!CODE_RE.test(String(code))) throw new Error('Pick a country.');
+    if (!find(state.settings, code) && !(state.countryTaxYears || []).some((p) => p.country === code)) throw new Error('Add this country to your list first.');
+    if (!Number.isInteger(year) || year < 1990 || year > 2200) throw new Error('Enter a tax year.');
+    const rest = (state.countryTaxYears || []).filter((p) => !(p.country === code && p.year === year));
+    const note = String(input.note || '').trim(), days = String(input.days === undefined || input.days === null ? '' : input.days).trim();
+    checkText([note]);
+    if (days !== '' && (!/^\d{1,3}$/.test(days) || Number(days) > 366)) throw new Error('Enter days as a whole number from 0 to 366.');
+    const empty = (input.residency || 'unsure') === 'unsure' && days === '' && !input.filingDue && !note;
+    if (empty) { state.countryTaxYears = rest; return null; }
+    if (rest.length >= PROFILE_CAP) throw new Error('You can keep up to ' + PROFILE_CAP + ' country tax profiles.');
+    const p = cleanProfiles([{ country: code, year, residency: input.residency || 'unsure', days: days === '' ? undefined : Number(days), filingDue: input.filingDue || undefined, note }])[0];
+    state.countryTaxYears = rest.concat([p]);
+    return p;
+  }
+
+  L.countries = {
+    COUNTRY_CAP, FX_CAP, RECORD_CAP, PROFILE_CAP, RECORD_KINDS, RECORD_KIND_LABEL, RESIDENCY, RESIDENCY_LABEL, DEFAULT_LIST, ID_MESSAGE,
+    defaultSettings, cleanSettings, cleanFx, cleanRecords, cleanProfiles, fill, list, homeOf, find, nameOf, currencyOf, accountCountry, accountCurrency,
+    inUse, rateOf, toHome, combine, assets, taxes, addCountry, removeCountry, usedBy, setRate, addRecord, editRecord, deleteRecord, setProfile, checkText,
   };
 })();
 
@@ -10967,7 +11322,7 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
 
   // area key -> [label, view key]. The view key is a navigation key (nav.js).
   const AREAS = Object.freeze({
-    money: ['Money', 'v:money'], assets: ['Assets', 'v:assets'], work: ['Work', 'v:work'], jobs: ['Job search', 'v:jobs'], health: ['Health', 'v:health'], goals: ['Goals', 'v:goals'],
+    money: ['Money', 'v:money'], assets: ['Assets', 'v:assets'], countries: ['By country', 'countries'], work: ['Work', 'v:work'], jobs: ['Job search', 'v:jobs'], health: ['Health', 'v:health'], goals: ['Goals', 'v:goals'],
     home: ['Home and property', 'v:home'], admin: ['Admin', 'v:admin'], learning: ['Learning', 'v:learning'], activities: ['Activities', 'v:activities'], social: ['Social', 'v:social'],
     business: ['Business', 'business'], clients: ['AYiN and clients', 'clients'], podcasts: ['Podcasts', 'podcasts'], websites: ['Websites', 'websites'], wellbeing: ['Wellbeing', 'v:wellbeing'],
   });
@@ -10977,10 +11332,11 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
     documents: 'admin', taxItems: 'admin', learningItems: 'learning', studySessions: 'learning', takeaways: 'learning', activities: 'activities', people: 'social', groups: 'social', contacts: 'social',
     habits: 'health', meals: 'health', invoices: 'business', trips: 'business', payees: 'business', taxPayments: 'business',
     clients: 'clients', shows: 'podcasts', episodes: 'podcasts', sites: 'websites',
+    countryTax: 'countries', countryTaxYears: 'countries', // v2.4.0
   };
   const ENTRY_AREA = { money: 'money', assets: 'assets', work: 'work', health: 'health', goals: 'goals', home: 'home', admin: 'admin', learning: 'learning', activities: 'activities', social: 'social', wellbeing: 'wellbeing' };
   // Fields that hold a fixed list value, an id, a key or a date are not typed text: they are left out of the index.
-  const SKIP = new Set(['id', 'importKey', 'createdAt', 'updatedAt', 'kind', 'type', 'state', 'status', 'stage', 'cadence', 'channel', 'scope', 'unit', 'locationType', 'lostReason', 'domain', 'monthDay', 'repeat', 'severity', 'format', 'measure', 'slot']);
+  const SKIP = new Set(['id', 'importKey', 'createdAt', 'updatedAt', 'kind', 'type', 'state', 'status', 'stage', 'cadence', 'channel', 'scope', 'unit', 'locationType', 'lostReason', 'domain', 'monthDay', 'repeat', 'severity', 'format', 'measure', 'slot', 'country', 'currency', 'residency']);
   const LABELS = ['title', 'name', 'hostname', 'text', 'label', 'role', 'org', 'category', 'number', 'nextAction', 'provider', 'notes'];
   const DATEISH = /^\d{4}-\d{2}(-\d{2})?(T[\d:.]+Z?)?$/;
   let index = null;
@@ -12683,7 +13039,7 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
   function areaOf() {
     if (!L.store.isUnlocked() || view.name === 'lock') return 'lock';
     if (view.name === 'domain') return L.ops.AREAS.indexOf(view.domain) >= 0 ? view.domain : 'app';
-    var a = { dashboard: 'dashboard', review: 'review', memory: 'memory', settings: 'settings', private: 'private', archive: 'archive', business: 'business', print: 'business', clients: 'business', podcasts: 'business', websites: 'business' }[view.name];
+    var a = { dashboard: 'dashboard', review: 'review', memory: 'memory', settings: 'settings', private: 'private', archive: 'archive', business: 'business', print: 'business', clients: 'business', podcasts: 'business', websites: 'business', countries: 'assets' }[view.name];
     return a || 'app';
   }
   function show(name, extra) {
@@ -12830,6 +13186,7 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
         : view.name === 'clients' ? clientsScreen(s)
         : view.name === 'podcasts' ? podcastsScreen(s)
         : view.name === 'websites' ? websitesScreen(s)
+        : view.name === 'countries' ? countriesScreen(s)
         : view.name === 'print' ? printScreen(s)
         : dashScreen(s);
     } catch (e) { L.ops.record('RENDER_ERROR'); body = h('p', { text: friendly(e) }); }
@@ -12904,7 +13261,7 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
     var colls = null;
     if (view.name === 'domain') { if (view.domain === 'wellbeing') return null; colls = view.jobs ? ['pipeline', 'people', 'contacts'] : DOMAIN_COLLS[view.domain]; }
     else if (view.name === 'dashboard' || view.name === 'settings' || view.name === 'memory' || view.name === 'private' || view.name === 'business' || view.name === 'print') return null;
-    else if (view.name === 'clients' || view.name === 'podcasts' || view.name === 'websites') return null; // these screens place their own lock markers
+    else if (view.name === 'clients' || view.name === 'podcasts' || view.name === 'websites' || view.name === 'countries') return null; // these screens place their own lock markers
     var m = lockMark(colls === undefined ? null : colls);
     return m ? h('p', { class: 'small mut lockrow' }, m, ' Some private items are hidden.') : null;
   }
@@ -13947,12 +14304,13 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
   }
 
   function assetsScreen(s) {
-    var cur = s.settings.currency, t = today();
+    var cur = s.settings.currency, t = today(), C = L.countries, home = C.homeOf(s.settings);
     var nw = L.metrics.netWorthDetail(s, t), hist = L.metrics.netWorthHistory(s, 12, t);
     var accts = s.accounts;
     var active = accts.filter(function (a) { return !a.archived; }), archived = accts.filter(function (a) { return a.archived; });
     var latest = {};
-    nw.rows.forEach(function (r) { if (r.id) latest[r.id] = r; });
+    // v2.4.0: a balance shows in its account's own currency; the totals above are in the vault currency (see countryNote).
+    nw.rows.concat(nw.unconverted || []).forEach(function (r) { if (r.id) latest[r.id] = r; });
     var bAcct = sel('bal-acct', active.map(function (a) { return { v: a.id, t: a.name }; }), view.acct || (active[0] && active[0].id));
     var bVal = h('input', { type: 'text', id: 'bal-value', inputmode: 'decimal', autocomplete: 'off', maxlength: '16' });
     var bDate = h('input', { type: 'date', id: 'bal-date', value: t, required: true });
@@ -13967,30 +14325,36 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
           return addEntry({ domain: 'assets', type: 'balance', date: bDate.value, title: a.name, value: v, accountId: a.id }).then(function () { setNotice('ok', 'Balance saved.'); render(); });
         });
       }
-    }, h('h2', { text: 'Update a balance' }), active.length ? [field('Account', bAcct), field('Balance (the amount owed, for a liability)', bVal), field('As of', bDate), h('button', { type: 'submit', class: 'btn pri', id: 'bal-save', text: 'Save balance' })] : h('p', { class: 'mut', text: 'Add an account below first.' }));
+    }, h('h2', { text: 'Update a balance' }), active.length ? [field('Account', bAcct), field('Balance (the amount owed, for a liability)', bVal, 'In the account\'s own currency.'), field('As of', bDate), h('button', { type: 'submit', class: 'btn pri', id: 'bal-save', text: 'Save balance' })] : h('p', { class: 'mut', text: 'Add an account below first.' }));
 
     function acctRow(a) {
-      var r = latest[a.id];
-      return h('div', ROW({ class: 'item acct', 'data-account': a.name }, 'accounts', a, true),
+      var r = latest[a.id], ac = C.accountCurrency(s, a), cc = C.accountCountry(s, a);
+      var native = r ? (r.nativeCents !== undefined ? r.nativeCents : r.cents) : 0;
+      return h('div', ROW({ class: 'item acct', 'data-account': a.name, 'data-country': cc }, 'accounts', a, true),
         h('div', null, h('div', { class: 'entry-t', text: a.name }),
           h('div', { class: 'mut small' }, h('span', { class: 'chip' + (a.liability ? ' bad' : ''), text: KIND_LABEL[a.kind] + (a.liability ? ' (owed)' : '') }),
-            r ? moneyFmt(Math.abs(r.cents), cur) + ' as of ' + r.date : 'No balance yet')),
+            cc !== home || ac !== cur ? h('span', { class: 'chip acct-country', text: C.nameOf(s.settings, cc) + (ac !== cur ? ', ' + ac : '') }) : null,
+            r ? moneyFmt(Math.abs(native), ac) + ' as of ' + r.date : 'No balance yet')),
         h('div', { class: 'row' },
           a.archived ? null : btn('Update', function () { view.acct = a.id; render(); var i = document.getElementById('bal-value'); if (i) i.focus(); }, 'sm', { 'aria-label': 'Update balance for ' + a.name }),
-          btn('Rename', function () { renameDialog(a); }, 'sm', { 'aria-label': 'Rename ' + a.name }),
+          btn('Edit', function () { renameDialog(a); }, 'sm', { 'aria-label': 'Edit ' + a.name }),
           btn(a.archived ? 'Restore' : 'Archive', function () {
             act(function () { return commit(function (x) { x.accounts.forEach(function (z) { if (z.id === a.id) z.archived = !z.archived; }); }, 'account archive').then(render); });
           }, 'sm', { 'aria-label': (a.archived ? 'Restore ' : 'Archive ') + a.name })));
     }
+    // v2.4.0: name, country and currency in one dialog. Balances already saved are read in the currency picked here.
     function renameDialog(a) {
       var inp = h('input', { type: 'text', id: 'ac-rename', maxlength: '200', value: a.name, autocomplete: 'off' });
+      var cSel = countrySel('ac-edit-country', s, C.accountCountry(s, a));
+      var curIn = h('input', { type: 'text', id: 'ac-edit-currency', maxlength: '3', value: C.accountCurrency(s, a), autocomplete: 'off', 'aria-label': 'Currency' });
       openDialog({
-        title: 'Rename account', yes: 'Save', body: [field('Name', inp), movePrivBtn('accounts', a)],
+        title: 'Edit account', yes: 'Save', body: [field('Name', inp), field('Country', cSel), field('Currency', curIn, 'Three letters, for example USD or EUR. Saved balances are read in this currency.'), movePrivBtn('accounts', a)],
         onYes: function () {
-          var n = inp.value.trim();
+          var n = inp.value.trim(), cc = cSel.value, cu = curIn.value.trim().toUpperCase();
           if (!n) throw new Error('Enter a name.');
+          if (!/^[A-Z]{3}$/.test(cu)) throw new Error('Enter a three-letter currency code, for example EUR.');
           if (accts.some(function (z) { return z.id !== a.id && z.name.toLowerCase() === n.toLowerCase(); })) throw new Error('You already have an account with that name.');
-          return commit(function (x) { x.accounts.forEach(function (z) { if (z.id === a.id) z.name = n; }); }, 'account rename').then(function () { render(); });
+          return commit(function (x) { x.accounts.forEach(function (z) { if (z.id === a.id) { z.name = n; z.country = cc; z.currency = cu; } }); }, 'account edit').then(function () { render(); });
         }
       });
     }
@@ -14000,6 +14364,9 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
     var aLiab = h('input', { type: 'checkbox', id: 'ac-liab' });
     var aBal = h('input', { type: 'text', id: 'ac-bal', inputmode: 'decimal', autocomplete: 'off', maxlength: '16' });
     var aDate = h('input', { type: 'date', id: 'ac-date', value: t, required: true });
+    var aCountry0 = view.acctCountry && C.inUse(s).indexOf(view.acctCountry) >= 0 ? view.acctCountry : home;
+    var aCur = h('input', { type: 'text', id: 'ac-currency', maxlength: '3', value: C.currencyOf(s.settings, aCountry0), autocomplete: 'off' });
+    var aCountry = countrySel('ac-country', s, aCountry0, function () { aCur.value = C.currencyOf(s.settings, aCountry.value); });
     var addForm = h('form', {
       class: 'card',
       onsubmit: function (e) {
@@ -14009,14 +14376,16 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
           if (!name) throw new Error('Enter an account name.');
           if (accts.some(function (z) { return z.name.toLowerCase() === name.toLowerCase(); })) throw new Error('You already have an account with that name.');
           var liab = L.metrics.LIAB_KINDS.indexOf(kind) >= 0 || aLiab.checked;
+          var acur = aCur.value.trim().toUpperCase();
+          if (!/^[A-Z]{3}$/.test(acur)) throw new Error('Enter a three-letter currency code, for example EUR.');
           var opening = aBal.value.trim() === '' ? null : parseAmount(aBal.value, { neg: !liab, zero: true });
-          var acct = { id: L.store.newId(), name: name, kind: kind, liability: liab, archived: false };
+          var acct = { id: L.store.newId(), name: name, kind: kind, liability: liab, archived: false, country: aCountry.value, currency: acur };
           var en = opening === null ? null : L.metrics.validateEntry({ domain: 'assets', type: 'balance', date: aDate.value, title: name, value: opening, accountId: acct.id });
           if (en) { en.id = en.id || L.store.newId(); en.createdAt = en.createdAt || new Date().toISOString(); }
           return commit(function (x) { x.accounts.push(acct); if (en) x.entries.push(en); }, 'account add').then(function () { setNotice('ok', 'Account added.'); render(); });
         });
       }
-    }, h('h2', { text: 'Add an account' }), field('Name', aName), field('Kind', aKind),
+    }, h('h2', { text: 'Add an account' }), field('Name', aName), field('Kind', aKind), field('Country', aCountry), field('Currency', aCur, 'Three letters, for example USD or EUR. Balances are entered in this currency.'),
       h('label', { class: 'field check' }, aLiab, h('span', { text: 'Treat as a liability (credit cards, loans and mortgages always are)' })),
       field('Current balance (the amount owed, for a liability)', aBal), field('As of', aDate),
       h('button', { type: 'submit', class: 'btn pri', id: 'ac-add', text: 'Add account' }));
@@ -14037,11 +14406,12 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
 
     return h('div', null,
       btn('Back to overview', function () { go('dashboard'); }, 'sm back'),
-      h('h1', { text: 'Assets' }),
+      h('div', { class: 'row sp' }, h('h1', { text: 'Assets' }), btn('By country', function () { go('countries'); }, 'sm', { id: 'aw-by-country' })),
       h('div', { class: 'stats' },
         stat('Net worth', moneyFmt(nw.totalCents, cur), 'aw-net'),
         stat('Assets', moneyFmt(nw.assetsCents, cur), 'aw-assets'),
         stat('Liabilities', moneyFmt(nw.liabilitiesCents, cur), 'aw-liab')),
+      countryNote(s, nw),
       h('div', { class: 'card' }, h('h2', { text: 'Net worth, 12 months' }), netWorthChart(hist),
         h('div', { class: 'legend small' }, h('span', { class: 'sw sw-net' }), ' Net worth ', h('span', { class: 'sw sw-assets' }), ' Assets ', h('span', { class: 'sw sw-liab' }), ' Liabilities'),
         h('div', { class: 'tablewrap' }, h('table', null,
@@ -14056,6 +14426,206 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
       archived.length ? details('archived', 'Archived accounts (' + archived.length + ')', archived.map(acctRow), view.open === 'archived') : null,
       h('h2', { text: 'Balance history' }),
       domainScreen(s, { embed: true, noForm: true }));
+  }
+
+  // ---------- v2.4.0 taxes and assets by country ----------
+  function countrySel(id, s, cur, onchange) {
+    var C = L.countries;
+    return sel(id, C.inUse(s).map(function (c) { return { v: c, t: C.nameOf(s.settings, c) }; }), cur, onchange);
+  }
+  // Amounts in more than one currency are listed side by side, never added together without a rate.
+  function curList(list, field) {
+    if (!list.length) return '';
+    return list.map(function (b) { return moneyFmt(b[field], b.currency); }).join(' and ');
+  }
+  function fxText(s, list) {
+    var fx = (s.settings.fx || []).filter(function (r) { return list.some(function (b) { return b.currency === r.currency; }); });
+    return fx.length ? ' At your ' + (fx.length === 1 ? 'rate' : 'rates') + ': ' + fx.map(function (r) { return '1 ' + r.currency + ' = ' + r.rate + ' ' + s.settings.currency + ' (' + r.asOf + ')'; }).join(', ') + '.' : '';
+  }
+  // One line under a set of totals: the combined figure in the vault currency when every currency has a rate the owner typed,
+  // otherwise which rates are missing. Nothing when every amount is already in the vault currency.
+  function combinedLine(s, comb, list, field, id) {
+    var cur = s.settings.currency;
+    if (!list.length || (list.length === 1 && list[0].currency === cur)) return null;
+    if (!comb.ok && comb.missing.length) return h('p', { class: 'small mut cn-combined', id: id, 'data-ok': 'false', text: 'No combined total in ' + cur + ' yet: enter an exchange rate for ' + comb.missing.join(' and ') + ' below.' });
+    if (!comb.ok) return h('p', { class: 'small mut cn-combined', id: id, 'data-ok': 'false', text: 'No combined total: the amounts are too large to add exactly.' });
+    return h('p', { class: 'small cn-combined', id: id, 'data-ok': 'true', text: 'Combined in ' + cur + ': ' + moneyFmt(comb[field], cur) + '.' + fxText(s, list) });
+  }
+  // Assets screen: balances in another currency without a rate are left out of the totals, and said so.
+  function countryNote(s, nw) {
+    var u = nw.unconverted || [];
+    if (!u.length) return null;
+    var curs = [];
+    u.forEach(function (r) { if (curs.indexOf(r.currency) < 0) curs.push(r.currency); });
+    return h('p', { class: 'warn small', id: 'aw-unconverted', role: 'status' }, h('span', { text: u.length + (u.length === 1 ? ' account in ' : ' accounts in ') + curs.join(' and ') + (u.length === 1 ? ' is' : ' are') + ' not in these totals. Enter an exchange rate to include ' + (u.length === 1 ? 'it' : 'them') + '. ' }),
+      btn('By country', function () { go('countries', { open: 'cn-settings' }); }, 'sm', { id: 'aw-unconverted-go' }));
+  }
+  function countriesScreen(s) {
+    var C = L.countries, t = today(), cur = s.settings.currency, home = C.homeOf(s.settings), codes = C.inUse(s);
+    var pick = view.country && codes.indexOf(view.country) >= 0 ? view.country : '';
+    var thisYear = Number(t.slice(0, 4)), yr = Number(view.cYear) || thisYear;
+    var A = C.assets(s, t), T = C.taxes(s, yr);
+    function chip(code, label) {
+      return h('button', { type: 'button', class: 'chipbtn cn-chip', 'data-country': code || 'all', 'aria-pressed': pick === code ? 'true' : 'false', text: label, onclick: function () { view.country = code; render(); } });
+    }
+    var chips = h('div', { class: 'chips', id: 'cn-chips', role: 'group', 'aria-label': 'Show one country or all' },
+      [chip('', 'All countries')].concat(codes.map(function (c) { return chip(c, C.nameOf(s.settings, c)); })));
+    var years = [];
+    for (var y = thisYear + 1; y >= thisYear - 4; y--) years.push(y);
+    (s.countryTax || []).concat(s.countryTaxYears || []).forEach(function (r) { if (years.indexOf(r.year) < 0) years.push(r.year); });
+    if (years.indexOf(yr) < 0) years.push(yr);
+    years.sort(function (a, b) { return b - a; });
+    var yearSel = labelled(sel('cn-year', years.map(function (v) { return { v: String(v), t: String(v) }; }), String(yr), function (e) { view.cYear = Number(e.target.value); render(); }), 'Tax year');
+    var mk = lockMark(['accounts', 'entries', 'countryTax', 'countryTaxYears', 'taxItems', 'taxPayments', 'business-*']);
+    var head = [btn('Back to Assets', function () { go('domain', { domain: 'assets' }); }, 'sm back'),
+      h('div', { class: 'row sp' }, h('h1', { text: 'Taxes and assets by country' }), mk),
+      h('p', { class: 'mut small', text: 'Every amount shows in its own currency. Totals across currencies use only exchange rates you type. LifeOS has no tax rules for any country here: tax amounts are your own numbers. Not tax advice.' }),
+      chips, h('div', { class: 'row' }, field('Tax year', yearSel))];
+    var body = pick ? oneCountry(pick) : allCountries();
+    return h('div', { id: 'countries', 'data-view': pick || 'all' }, head, body, countrySettings());
+
+    function allCountries() {
+      var aRows = A.countries.map(function (c) {
+        return h('tr', { 'data-country': c.code }, h('td', null, btn(c.name, function () { view.country = c.code; render(); }, 'sm', { 'aria-label': 'Show ' + c.name })),
+          h('td', { text: curList(c.totals, 'assets') || '-' }), h('td', { text: curList(c.totals, 'liabilities') || '-' }), h('td', { class: 'cn-net', text: curList(c.totals, 'net') || (c.accounts.length ? '-' : 'No accounts') }));
+      });
+      var assetsCard = h('div', { class: 'card', id: 'cn-assets' }, h('h2', { text: 'Assets by country' }),
+        h('div', { class: 'tablewrap' }, h('table', null,
+          h('thead', null, h('tr', null, ['Country', 'Assets', 'Owed', 'Net worth'].map(function (x) { return h('th', { text: x }); }))),
+          h('tbody', null, aRows, h('tr', { class: 'cn-total', 'data-country': 'all' }, h('th', { text: 'All countries' }), h('td', { text: curList(A.totals, 'assets') || '-' }), h('td', { text: curList(A.totals, 'liabilities') || '-' }), h('td', { text: curList(A.totals, 'net') || '-' }))))),
+        combinedLine(s, A.combined, A.totals, 'net', 'cn-all-combined'));
+      var tRows = T.map(function (c) {
+        return h('tr', { 'data-country': c.code }, h('td', { text: c.name }), h('td', { text: curList(c.totals, 'paid') || '-' }), h('td', { text: curList(c.totals, 'owed') || '-' }), h('td', { text: curList(c.totals, 'refund') || '-' }),
+          h('td', { text: c.items ? c.openItems + ' open of ' + c.items : '-' }), h('td', { text: c.profile ? C.RESIDENCY_LABEL[c.profile.residency] + (c.profile.days !== undefined ? ', ' + c.profile.days + ' days' : '') : '-' }));
+      });
+      var hm = T.filter(function (c) { return c.code === home; })[0];
+      var taxCard = h('div', { class: 'card', id: 'cn-taxes' }, h('h2', { text: 'Taxes ' + yr + ' by country' }),
+        h('div', { class: 'tablewrap' }, h('table', null,
+          h('thead', null, h('tr', null, ['Country', 'Paid', 'Owed', 'Refunds', 'Checklist', 'Residency'].map(function (x) { return h('th', { text: x }); }))),
+          h('tbody', null, tRows))),
+        hm ? estimatesLine(hm) : null);
+      return [assetsCard, taxCard];
+    }
+    function estimatesLine(c) {
+      var e = c.estimates;
+      if (!e) return null;
+      if (e.blocked) return lockedTax();
+      return h('p', { class: 'small', id: 'cn-estimates' }, h('span', { text: 'Estimated federal and NJ payments logged for ' + yr + ': ' + moneyFmt(e.federal, e.currency) + ' federal and ' + moneyFmt(e.nj, e.currency) + ' NJ (Business, Tax). ' }),
+        btn('Open Business', function () { go('business'); }, 'sm', { id: 'cn-go-business' }));
+    }
+    function oneCountry(code) {
+      var a = A.countries.filter(function (c) { return c.code === code; })[0], tx = T.filter(function (c) { return c.code === code; })[0], name = C.nameOf(s.settings, code);
+      var stats = a.totals.length ? h('div', { class: 'stats', id: 'cn-stats' }, a.totals.map(function (b) { return stat('Net worth (' + b.currency + ')', moneyFmt(b.net, b.currency), 'cn-net-' + b.currency); })) : h('p', { class: 'mut', id: 'cn-no-accounts', text: 'No accounts in ' + name + ' yet.' });
+      var acctCard = h('div', { class: 'card', id: 'cn-accounts' }, h('h2', { text: 'Accounts in ' + name + ' (' + a.accounts.length + ')' }),
+        a.accounts.map(function (r) {
+          return h('div', { class: 'item cn-acct', 'data-account': r.name }, h('div', null, h('div', { class: 'entry-t', text: r.name }),
+            h('div', { class: 'mut small' }, h('span', { class: 'chip' + (r.liability ? ' bad' : ''), text: KIND_LABEL[r.kind] + (r.liability ? ' (owed)' : '') }), moneyFmt(Math.abs(r.cents), r.currency) + ' as of ' + r.date)));
+        }),
+        combinedLine(s, a.combined, a.totals, 'net', 'cn-combined'),
+        h('div', { class: 'row' }, btn('Add an account in ' + name, function () { go('domain', { domain: 'assets', acctCountry: code }); var i = document.getElementById('ac-name'); if (i) i.focus(); }, 'sm', { id: 'cn-add-account' })));
+      // tax-year profile: only what the owner types
+      var p = tx.profile;
+      var profCard = h('div', ROW({ class: 'card', id: 'cn-profile' }, 'countryTaxYears', p, true), h('h2', { text: name + ' tax year ' + yr }),
+        p ? h('div', { class: 'small' }, h('p', { id: 'cn-residency', text: 'Residency: ' + C.RESIDENCY_LABEL[p.residency] + '.' }),
+          p.days !== undefined ? h('p', { id: 'cn-days', text: 'Days in ' + name + ': ' + p.days + '.' }) : null,
+          p.filingDue ? h('p', { id: 'cn-filing', text: 'Filing date: ' + p.filingDue + '.' }) : null,
+          p.note ? h('p', { class: 'mut', text: p.note }) : null) : h('p', { class: 'mut small', id: 'cn-no-profile', text: 'Nothing entered for ' + yr + ' yet.' }),
+        h('div', { class: 'row' }, btn(p ? 'Edit' : 'Add details', function () { profileDialog(code, p); }, 'sm', { id: 'cn-profile-edit' })));
+      // tax records
+      var recs = tx.records.slice().sort(function (x, y2) { return (y2.date || '').localeCompare(x.date || ''); });
+      var recCard = h('div', { class: 'card', id: 'cn-records' }, h('h2', { text: 'Tax amounts ' + yr + ' (' + recs.length + ')' }),
+        tx.totals.length ? h('p', { class: 'small', id: 'cn-tax-totals', text: 'Paid ' + curList(tx.totals, 'paid') + ', owed ' + curList(tx.totals, 'owed') + ', refunds ' + curList(tx.totals, 'refund') + '.' }) : null,
+        recs.map(function (r) {
+          return h('div', ROW({ class: 'item cn-rec', 'data-title': r.title, 'data-kind': r.kind }, 'countryTax', r, true), h('div', null, h('div', { class: 'entry-t', text: r.title }),
+            h('div', { class: 'mut small' }, h('span', { class: 'chip', text: C.RECORD_KIND_LABEL[r.kind] }), moneyFmt(r.amountCents, r.currency) + (r.date ? ' on ' + r.date : '')), r.notes ? h('p', { class: 'small mut', text: r.notes }) : null),
+            h('div', { class: 'row' }, btn('Edit', function () { recordDialog(code, r); }, 'sm', { 'aria-label': 'Edit ' + r.title }),
+              btn('Delete', function () {
+                openDialog({ title: 'Delete this tax amount?', yes: 'Delete', danger: true, body: [h('p', { class: 'mut', text: r.title })],
+                  onYes: function () { return commit(function (x) { C.deleteRecord(x, r.id); }, 'country tax delete').then(function () { render(); }); } });
+              }, 'sm bad', { 'aria-label': 'Delete ' + r.title })));
+        }),
+        recordForm(code));
+      var est = code === home ? h('div', { class: 'card', id: 'cn-us-tax' }, h('h2', { text: 'Estimated tax payments ' + yr }), estimatesLine(tx)) : null;
+      var chk = h('div', { class: 'card', id: 'cn-checklist' }, h('h2', { text: 'Tax checklist ' + yr }),
+        h('p', { class: 'small', text: tx.items ? tx.openItems + ' of ' + tx.items + (tx.items === 1 ? ' item is' : ' items are') + ' not done yet.' : 'No checklist items for ' + name + ' in ' + yr + '.' }),
+        btn('Open the tax checklist', function () { go('domain', { domain: 'admin', open: 'ad-tax' }); }, 'sm', { id: 'cn-go-admin' }));
+      return [stats, acctCard, profCard, recCard, est, chk];
+    }
+    function recordInputs(code, r) {
+      var kind = sel('cn-r-kind', C.RECORD_KINDS.map(function (k) { return { v: k, t: C.RECORD_KIND_LABEL[k] }; }), r ? r.kind : 'paid');
+      var title = h('input', { type: 'text', id: 'cn-r-title', maxlength: '200', value: r ? r.title : '' });
+      var amount = h('input', { type: 'text', id: 'cn-r-amount', inputmode: 'decimal', maxlength: '16', value: r ? (r.amountCents / 100).toFixed(2) : '' });
+      var currency = h('input', { type: 'text', id: 'cn-r-currency', maxlength: '3', value: r ? r.currency : C.currencyOf(s.settings, code) });
+      var date = h('input', { type: 'date', id: 'cn-r-date', value: r && r.date ? r.date : '' });
+      var notes = h('textarea', { id: 'cn-r-notes', maxlength: '1000', value: r ? r.notes : '' });
+      return { kind: kind, title: title, amount: amount, currency: currency, date: date, notes: notes,
+        nodes: [field('Kind', kind), field('What it is', title, 'For example "Income tax return". Do not enter tax IDs, ID numbers or account numbers.'), field('Amount', amount), field('Currency', currency), field('Date (optional)', date), field('Notes (optional)', notes)],
+        value: function () { return { country: code, year: yr, kind: kind.value, title: title.value, amount: amount.value, currency: currency.value.trim().toUpperCase(), date: date.value, notes: notes.value }; } };
+    }
+    function recordForm(code) {
+      var f = recordInputs(code, null);
+      return h('form', { id: 'cn-r-form', onsubmit: function (e) {
+        e.preventDefault();
+        act(function () { var v = f.value(); return commit(function (x) { C.addRecord(x, v); }, 'country tax add').then(function () { setNotice('ok', 'Tax amount added.'); render(); }); });
+      } }, h('h3', { text: 'Add a tax amount for ' + yr }), f.nodes, h('button', { type: 'submit', class: 'btn pri', id: 'cn-r-add', text: 'Add tax amount' }));
+    }
+    function recordDialog(code, r) {
+      var f = recordInputs(code, r);
+      openDialog({ title: 'Edit tax amount', yes: 'Save', body: [h('div', { class: 'form' }, f.nodes), movePrivBtn('countryTax', r)],
+        onYes: function () { var v = f.value(); return commit(function (x) { C.editRecord(x, r.id, v); }, 'country tax edit').then(function () { render(); }); } });
+    }
+    function profileDialog(code, p) {
+      var res = sel('cn-p-res', C.RESIDENCY.map(function (k) { return { v: k, t: C.RESIDENCY_LABEL[k] }; }), p ? p.residency : 'unsure');
+      var days = h('input', { type: 'text', id: 'cn-p-days', inputmode: 'numeric', maxlength: '3', value: p && p.days !== undefined ? String(p.days) : '' });
+      var due = h('input', { type: 'date', id: 'cn-p-due', value: p && p.filingDue ? p.filingDue : '' });
+      var note = h('textarea', { id: 'cn-p-note', maxlength: '1000', value: p ? p.note : '' });
+      openDialog({ title: C.nameOf(s.settings, code) + ' tax year ' + yr, yes: 'Save',
+        body: [h('p', { class: 'mut small', text: 'Your own entries. LifeOS does not decide residency or count days for you. Leave everything empty to remove these details.' }),
+          field('Residency', res), field('Days in ' + C.nameOf(s.settings, code) + ' (optional)', days), field('Filing date (optional)', due), field('Note (optional)', note, 'Do not enter tax IDs or ID numbers.'), movePrivBtn('countryTaxYears', p)],
+        onYes: function () {
+          var input = { residency: res.value, days: days.value, filingDue: due.value, note: note.value };
+          return commit(function (x) { C.setProfile(x, code, yr, input); }, 'country tax profile').then(function () { render(); });
+        } });
+    }
+    function countrySettings() {
+      var list = C.list(s.settings);
+      var rows = list.map(function (c) {
+        return h('div', { class: 'item cn-country', 'data-country': c.code }, h('div', null, h('span', { class: 'entry-t', text: c.name }), h('span', { class: 'mut small', text: ' ' + c.code + ', ' + c.currency + (c.code === home ? ', home country' : '') })),
+          c.code === home ? null : btn('Remove', function () {
+            act(function () {
+              // SEC-144: a private record may use this country; while the private vault is closed the check cannot see it.
+              if (L.store.isUnlocked() && !L.priv.isOpen() && lockMark(['accounts', 'countryTax', 'countryTaxYears', 'taxItems'])) throw new Error('Open the private vault first: a private item may use this country.');
+              return commit(function (x) { C.removeCountry(x, c.code); }, 'country remove').then(function () { if (view.country === c.code) view.country = ''; view.open = 'cn-settings'; setNotice('ok', c.name + ' removed from the list.'); render(); }); });
+          }, 'sm bad', { 'aria-label': 'Remove ' + c.name }));
+      });
+      var code = h('input', { type: 'text', id: 'cn-c-code', maxlength: '2', autocomplete: 'off' });
+      var name = h('input', { type: 'text', id: 'cn-c-name', maxlength: '60', autocomplete: 'off' });
+      var ccur = h('input', { type: 'text', id: 'cn-c-currency', maxlength: '3', autocomplete: 'off' });
+      var addForm = h('form', { id: 'cn-c-form', onsubmit: function (e) {
+        e.preventDefault();
+        act(function () { var v = { code: code.value, name: name.value, currency: ccur.value }; return commit(function (x) { C.addCountry(x, v); }, 'country add').then(function () { view.open = 'cn-settings'; setNotice('ok', 'Country saved.'); render(); }); });
+      } }, h('h3', { text: 'Add a country' }), field('Country code', code, 'Two letters, for example PT for Portugal.'), field('Name', name), field('Currency', ccur, 'Three letters, for example EUR.'),
+        h('button', { type: 'submit', class: 'btn pri', id: 'cn-c-save', text: 'Save country' }));
+      // a rate for each currency other than the vault's that is on the list or in use
+      var curs = [];
+      list.forEach(function (c) { if (c.currency !== cur && curs.indexOf(c.currency) < 0) curs.push(c.currency); });
+      (s.accounts || []).concat(s.countryTax || []).forEach(function (r) { if (r.currency && r.currency !== cur && curs.indexOf(r.currency) < 0) curs.push(r.currency); });
+      (s.settings.fx || []).forEach(function (r) { if (curs.indexOf(r.currency) < 0) curs.push(r.currency); });
+      var rates = curs.map(function (c) {
+        var r = (s.settings.fx || []).filter(function (x) { return x.currency === c; })[0];
+        var val = h('input', { type: 'text', id: 'cn-fx-' + c, inputmode: 'decimal', maxlength: '14', value: r ? String(r.rate) : '', 'aria-label': 'Value of 1 ' + c + ' in ' + cur });
+        var asOf = h('input', { type: 'date', id: 'cn-fx-date-' + c, value: r ? r.asOf : t, 'aria-label': 'Date of the ' + c + ' rate' });
+        return h('div', { class: 'item cn-fx', 'data-currency': c }, h('div', { class: 'row' }, h('span', { text: '1 ' + c + ' =' }), val, h('span', { text: cur + ' as of' }), asOf),
+          h('div', { class: 'row' }, btn('Save rate', function () {
+            act(function () { return commit(function (x) { C.setRate(x, c, val.value.trim(), asOf.value); }, 'exchange rate').then(function () { view.open = 'cn-settings'; setNotice('ok', val.value.trim() ? 'Rate saved.' : 'Rate cleared.'); render(); }); });
+          }, 'sm pri', { id: 'cn-fx-save-' + c }), r ? btn('Clear', function () {
+            act(function () { return commit(function (x) { C.setRate(x, c, '', ''); }, 'exchange rate').then(function () { view.open = 'cn-settings'; setNotice('ok', 'Rate cleared.'); render(); }); });
+          }, 'sm', { id: 'cn-fx-clear-' + c }) : null));
+      });
+      return details('cn-settings', 'Countries and exchange rates', [h('div', { id: 'cn-countries' }, rows), addForm,
+        h('h3', { text: 'Exchange rates' }), h('p', { class: 'mut small', text: 'Type each rate yourself, as the value of one unit in ' + cur + '. LifeOS never looks rates up. A total that mixes currencies is only shown once every currency in it has a rate.' }),
+        curs.length ? rates : h('p', { class: 'mut small', text: 'Every currency in use is ' + cur + '.' })], view.open === 'cn-settings');
+    }
   }
 
   // ---------- insights and AI ----------
@@ -15609,13 +16179,14 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
     var xT = h('input', { type: 'text', id: 'tx-title', maxlength: '200', autocomplete: 'off' });
     var xDue = h('input', { type: 'date', id: 'tx-due' });
     var years = A.taxByYear(s);
+    var xC = countrySel('tx-country', s, L.countries.homeOf(s.settings));
     var taxCard = details('ad-tax', 'Tax checklist (' + (s.taxItems || []).length + ')', [
       h('p', { class: 'mut small', text: 'A checklist of items by tax year. It records what you need, have received or have filed. It does not compute anything.' }),
       years.map(function (y) {
         return h('div', { class: 'tx-year', 'data-year': String(y.year) }, h('h3', { text: y.year + ' (' + y.needed + ' needed, ' + y.received + ' received, ' + y.filed + ' filed)' }),
           y.items.map(function (it) {
             return h('div', ROW({ class: 'item tx-row', 'data-title': it.title }, 'taxItems', it),
-              h('div', null, h('span', { class: 'entry-t' + (it.state === 'filed' ? ' done-t' : ''), text: it.title }), h('div', { class: 'mut small', text: it.state + (it.dueDate ? ' | due ' + it.dueDate : '') })),
+              h('div', null, h('span', { class: 'entry-t' + (it.state === 'filed' ? ' done-t' : ''), text: it.title }), h('div', { class: 'mut small', text: it.state + (it.dueDate ? ' | due ' + it.dueDate : '') + (it.country && it.country !== L.countries.homeOf(s.settings) ? ' | ' + L.countries.nameOf(s.settings, it.country) : '') })),
               h('div', { class: 'row' },
                 labelled(sel('tx-state-' + it.id, A.TAX_STATES.map(function (v) { return { v: v, t: v }; }), it.state, function (e) { var v = e.target.value; act(function () { return commit(function (x) { A.setTaxState(x, it.id, v); }, 'tax item state').then(function () { view.open = 'ad-tax'; render(); }); }); }), 'State of ' + it.title),
                 btn('Delete', function () { act(function () { return commit(function (x) { A.deleteTaxItem(x, it.id); }, 'tax item delete').then(function () { view.open = 'ad-tax'; render(); }); }); }, 'sm bad', { 'aria-label': 'Delete ' + it.title })));
@@ -15625,11 +16196,11 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
         onsubmit: function (e) {
           e.preventDefault();
           act(function () {
-            var input = { year: xYear.value, title: xT.value, dueDate: xDue.value };
+            var input = { year: xYear.value, title: xT.value, dueDate: xDue.value, country: xC.value };
             return commit(function (x) { A.addTaxItem(x, input); }, 'tax item add').then(function () { view.open = 'ad-tax'; setNotice('ok', 'Tax item added.'); render(); });
           });
         }
-      }, field('Tax year', xYear), field('Item', xT, 'Do not enter ID numbers, account numbers or passwords.'), field('Due date (optional)', xDue), h('button', { type: 'submit', class: 'btn pri', id: 'tx-add', text: 'Add tax item' }))], view.open === 'ad-tax' || !(s.taxItems || []).length);
+      }, field('Tax year', xYear), field('Item', xT, 'Do not enter ID numbers, account numbers or passwords.'), field('Due date (optional)', xDue), field('Country', xC), h('button', { type: 'submit', class: 'btn pri', id: 'tx-add', text: 'Add tax item' }))], view.open === 'ad-tax' || !(s.taxItems || []).length);
 
     // Older home/due entries the upgrade could not turn into renewals (notes too long, or past the cap). They count in the timeline,
     // so each can be deleted after a confirm; the list shows the 200 soonest.
@@ -16674,8 +17245,8 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
   var PRIV_LABEL = { entries: 'Entries', accounts: 'Accounts', recurring: 'Recurring items', budgets: 'Budgets', projects: 'Projects', pipeline: 'Pipeline', goals: 'Goals',
     maintenance: 'Maintenance', vehicles: 'Vehicles', properties: 'Properties', renewals: 'Renewals', documents: 'Documents', taxItems: 'Tax items', learningItems: 'Learning items',
     studySessions: 'Study sessions', takeaways: 'Takeaways', activities: 'Activities', people: 'People', groups: 'Groups', contacts: 'Logged contacts', habits: 'Daily checks',
-    habitLog: 'Daily check ticks', cycle: 'Training cycle', invoices: 'Invoices', trips: 'Mileage trips', payees: 'Payees', taxPayments: 'Tax payments', clients: 'Clients', shows: 'Shows', episodes: 'Episodes', platformStats: 'Platform numbers', sites: 'Sites', siteTraffic: 'Site traffic', meals: 'Saved meals', mealLog: 'Logged meals' };
-  function privKey(c, r) { return c === 'cycle' ? 'cycle' : c === 'budgets' ? r.category : c === 'habitLog' ? r.habitId + '|' + r.date : r.id; }
+    habitLog: 'Daily check ticks', cycle: 'Training cycle', invoices: 'Invoices', trips: 'Mileage trips', payees: 'Payees', taxPayments: 'Tax payments', clients: 'Clients', shows: 'Shows', episodes: 'Episodes', platformStats: 'Platform numbers', sites: 'Sites', siteTraffic: 'Site traffic', meals: 'Saved meals', mealLog: 'Logged meals', countryTax: 'Country tax amounts', countryTaxYears: 'Country tax years' };
+  function privKey(c, r) { return c === 'cycle' ? 'cycle' : c === 'budgets' ? r.category : c === 'habitLog' ? r.habitId + '|' + r.date : c === 'countryTaxYears' ? r.country + '|' + r.year : r.id; }
   function privList(s, c) { return c === 'cycle' ? (s.cycle ? [s.cycle] : []) : (s[c] || []); }
   function privText(c, r, s) {
     switch (c) {
@@ -16696,6 +17267,8 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
       case 'siteTraffic': return 'Traffic ' + r.month;
       case 'episodes': return r.title;
       case 'taxPayments': return 'Tax payment ' + r.year + ' ' + r.jurisdiction + ' quarter ' + r.quarter;
+      case 'countryTax': return r.title + ' (' + r.country + ' ' + r.year + ')';
+      case 'countryTaxYears': return 'Tax year ' + r.year + ' in ' + L.countries.nameOf(s.settings, r.country);
       default: return r.title || r.name || r.id;
     }
   }

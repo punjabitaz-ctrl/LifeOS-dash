@@ -16,6 +16,11 @@ export function stripJobFields(o) {
   // v2.1.0 (schema 21): saved meals, the meal log and the protein target do not exist in an older copy either.
   delete o.meals; delete o.mealLog;
   if (o.settings) delete o.settings.food;
+  // v2.4.0 (schema 24): country tax records, country tax profiles, account countries and currencies, tax item countries, the country list and rates.
+  delete o.countryTax; delete o.countryTaxYears;
+  for (const a of o.accounts || []) { delete a.country; delete a.currency; }
+  for (const t of o.taxItems || []) delete t.country;
+  if (o.settings) { delete o.settings.countries; delete o.settings.fx; }
   return o;
 }
 export function buildAdversarial(L) {
@@ -88,6 +93,9 @@ export function buildAdversarial(L) {
   s.meals.push({ id: 'ml1', name: m('meal "x"').slice(0, 60), protein: 187, slot: 'breakfast' });
   s.mealLog.push({ id: 'mg1', date: t, protein: 187, mealId: 'ml1', forHealth: true }, { id: 'mg2', date: t, protein: 173, oneOff: true });
   s.settings.food = { proteinTarget: 175 };
+  // v2.4.0: a tax amount and a tax-year profile for Spain, each with a marker in its free text and distinctive figures.
+  s.countryTax.push({ id: 'ct1', country: 'ES', year: 2026, kind: 'paid', title: m('country tax "x"').slice(0, 200), amountCents: 1234567, currency: 'EUR', date: t, notes: m("country tax note 'x'") });
+  s.countryTaxYears.push({ country: 'ES', year: 2026, residency: 'resident', days: 187, filingDue: '2027-06-30', note: m("country year note 'x'") });
   s.settings.provider = { kind: 'manual', baseUrl: '', model: '', apiKey: 'sk-ant-LEAK key 0123456789' };
   return { state: L.store.validateState(JSON.parse(JSON.stringify(s))), count: k };
 }

@@ -184,7 +184,7 @@
     const ar = L.archive && L.archive.isArchivedYear(state, asOf.slice(0, 4)) && L.archive.netWorthAt(state, asOf);
     if (ar) {
       const totalC = ar.assets - ar.liab;
-      return { totalCents: totalC, assetsCents: ar.assets, liabilitiesCents: ar.liab, total: dollars(totalC), assets: dollars(ar.assets), liabilities: dollars(ar.liab), count: ar.count, byKind: [], rows: [] };
+      return { totalCents: totalC, assetsCents: ar.assets, liabilitiesCents: ar.liab, total: dollars(totalC), assets: dollars(ar.assets), liabilities: dollars(ar.liab), count: ar.count, byKind: [], rows: [], unconverted: [] };
     }
     const accts = state.accounts || [];
     const byId = new Map(accts.map((x) => [x.id, x]));
@@ -200,21 +200,30 @@
       if (!cur || e.date >= cur.e.date) latest.set(k, { e, a });
     }
     let assetsC = 0, liabC = 0, count = 0;
-    const kinds = new Map(), rows = [];
+    const kinds = new Map(), rows = [], unconverted = [];
+    // v2.4.0: a balance is in its account's currency. Totals are in the vault currency: a balance in another currency is converted
+    // with the rate the owner typed (settings.fx) and left out, and listed in `unconverted`, while no rate is entered. Nothing is
+    // ever added across currencies without a rate. Rows keep the converted cents and the balance in its own currency.
+    const home = state.settings && state.settings.currency, C = L.countries;
     for (const { e, a } of latest.values()) {
       if (a && a.archived) continue;
       const v = cents(e.value);
       const liab = a ? a.liability : v < 0;
-      const signed = a ? (a.liability ? -Math.abs(v) : v) : v;
+      const native = a ? (a.liability ? -Math.abs(v) : v) : v;
       const kind = a ? a.kind : (v < 0 ? 'credit' : 'other');
+      const cur = a && a.currency && home ? a.currency : home;
+      const signed = !C || !home || cur === home ? native : C.toHome(state.settings, native, cur);
+      if (signed === null) { unconverted.push({ id: a.id, name: a.name, kind, liability: liab, nativeCents: native, currency: cur, date: e.date }); continue; }
       count++;
       if (liab) liabC += Math.abs(signed); else { assetsC += signed; if (signed > 0) kinds.set(kind, (kinds.get(kind) || 0) + signed); }
-      rows.push({ id: a ? a.id : null, name: a ? a.name : e.title, kind, liability: liab, cents: signed, date: e.date });
+      const row = { id: a ? a.id : null, name: a ? a.name : e.title, kind, liability: liab, cents: signed, date: e.date };
+      if (cur && cur !== home) { row.currency = cur; row.nativeCents = native; }
+      rows.push(row);
     }
     const pos = [...kinds.values()].reduce((x, y) => x + y, 0);
     const byKind = [...kinds.entries()].map(([kind, c]) => ({ kind, cents: c, share: pos ? c / pos : 0 })).sort((x, y) => y.cents - x.cents);
     const totalC = assetsC - liabC;
-    return { totalCents: totalC, assetsCents: assetsC, liabilitiesCents: liabC, total: dollars(totalC), assets: dollars(assetsC), liabilities: dollars(liabC), count, byKind, rows };
+    return { totalCents: totalC, assetsCents: assetsC, liabilitiesCents: liabC, total: dollars(totalC), assets: dollars(assetsC), liabilities: dollars(liabC), count, byKind, rows, unconverted };
   }
   function netWorthHistory(state, n, today) {
     n = Math.max(1, Math.min(120, Math.floor(Number(n)) || 12));

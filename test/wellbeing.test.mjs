@@ -450,7 +450,7 @@ describe('part A gaps', () => {
     assert.ok(/if \(!r \|\| !L\.priv\.isOpen\(\)\) return props;/.test(ui), 'nothing is tagged while closed');
   });
   test('gap 3: every collection has a "Move to private vault" / "Move out" control where the record is edited, via the existing move dialog', () => {
-    const edit = { accounts: 'accounts', goals: 'goals', learningItems: 'learningItems', activities: 'activities', people: 'people', cycle: 'cycle', meals: 'meals' };
+    const edit = { accounts: 'accounts', goals: 'goals', learningItems: 'learningItems', activities: 'activities', people: 'people', cycle: 'cycle', meals: 'meals', countryTax: 'countryTax', countryTaxYears: 'countryTaxYears' };
     for (const c of Object.keys(edit)) assert.ok(new RegExp("movePrivBtn\\('" + c + "'").test(ui), c + ' edit dialog has the move control');
     assert.ok(/'Move out' : 'Move to private vault'/.test(ui.slice(ui.indexOf('function movePrivBtn'), ui.indexOf('function pr('))));
     assert.ok(/privMoveDialog\(st\(\), c, r, isP \? 'out' : 'in'\)/.test(ui), 'it uses the existing confirm dialog and move manager');

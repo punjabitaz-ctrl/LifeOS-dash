@@ -126,7 +126,7 @@ async function run(label, viewport) {
       }, BACKUP);
       await page.setInputFiles('#vf-file', { name: 'lifeos-backup-newer.json', mimeType: 'application/json', buffer: Buffer.from(newer) });
       await page.fill('#vf-pass', BACKUP); await page.click('#verify-btn');
-      await page.waitForFunction(() => /newer version of LifeOS \(schema 24\)/.test((document.querySelector('#verify-fail') || {}).textContent || ''), null, T);
+      await page.waitForFunction(() => /newer version of LifeOS \(schema 25\)/.test((document.querySelector('#verify-fail') || {}).textContent || ''), null, T);
       if ((await envelope()) !== before) throw new Error('verify wrote to storage');
       if ((await page.evaluate(() => globalThis.LifeOS.store.getMeta().rev)) !== rev0) throw new Error('verify changed the revision');
       if (downloads !== 1) throw new Error('verify downloaded something');
@@ -164,7 +164,7 @@ async function run(label, viewport) {
       await page.click('#diag-copy'); await page.waitForSelector('.notice.ok:has-text("Diagnostics copied")', T);
       const copied = await page.evaluate(async () => { try { return await navigator.clipboard.readText(); } catch (e) { return window.__copied || ''; } });
       const lines = copied.split('\n');
-      if (lines[0] !== 'LifeOS diagnostics' || !/^Version: 2\.3\.0$/.test(lines[1]) || lines[2] !== 'Schema: 23' || lines[3] !== 'Browser: Chrome' || !/^Codes: \d+$/.test(lines[4])) throw new Error('header: ' + lines.slice(0, 5).join(' / '));
+      if (lines[0] !== 'LifeOS diagnostics' || !/^Version: 2\.3\.0$/.test(lines[1]) || lines[2] !== 'Schema: 24' || lines[3] !== 'Browser: Chrome' || !/^Codes: \d+$/.test(lines[4])) throw new Error('header: ' + lines.slice(0, 5).join(' / '));
       if (!lines.slice(5).some((l) => /UNCAUGHT_MONEY money$/.test(l)) || !lines.slice(5).some((l) => /REJECTION_MONEY money$/.test(l)) || !lines.slice(5).some((l) => /SYNC_409 sync$/.test(l))) throw new Error('codes missing: ' + copied);
       if (lines.slice(5).some((l) => !/^\d{4}-\d{2}-\d{2} [A-Z0-9_]+ [a-z]+$/.test(l))) throw new Error('a line is not a code line: ' + copied);
       if (copied.includes(MARK) || /lunch|account|LLC|Mozilla|HeadlessChrome|file:|\d+\.\d+\.\d+\.\d+/.test(copied)) throw new Error('data in the copied text: ' + copied);

@@ -969,3 +969,23 @@ Counts: 1 finding (Info 1); fixed with regression tests. No Critical, High, Medi
 - Drive: implicit flow with a nonce held in session storage, token shape and type checked, fragment stripped at load, token in memory only.
 - NAS service: every route but the CORS preflight needs a device token, checked by SHA-256 hash against every stored hash with `timingSafeEqual`; origins from a fixed list; URL length, body size, upload count, general, failed-token and write rate limits; envelope rebuilt from known outer fields with `__proto__` refused; version ids and archive names matched by strict patterns before any file name is formed; atomic writes with fsync and rename, mode 0600; logs hold no path value, header, token, address or body.
 - Not changed, noted for the owner: the default Anthropic model in src/core/ai.js is `claude-haiku-4-5`. Moving to a newer model is a cost and quality choice, not a security fix.
+
+## v2.4.0 audit (25 Nov 2026, taxes and assets by country)
+Audit of the v2.4.0 delta (src/core/countries.js, store.js schema 24, metrics.js net worth, admin.js, priv.js, search.js, ops.js counts, nav.js, the By country screen and the Assets and Admin changes in src/ui/app.js, SPEC.md addendum). Tests: test/v240.test.mjs, test/v240-render.test.mjs (the screens rendered from real state in a stand-in DOM), and the existing suites updated for schema 24.
+Counts: 2 findings (Low 1, Info 1); both fixed with a regression test. No Critical, High or Medium.
+
+### Findings
+- SEC-143 (Low, fixed): a converted amount could pass the range where whole cents are exact (a large balance times a large rate, or a large sum of converted amounts), and the screen would then show a rounded figure as if it were exact. A conversion past that range is now treated like a missing rate, and a combined total that would pass it is not shown ("the amounts are too large to add exactly").
+- SEC-144 (Info, fixed): while the private vault was closed, a country used only by private records could be removed from the list, because the in-use check sees only the main state. Nothing was lost (the record keeps its code and shows by code), but the owner was not told. Removing a country now needs the private vault open whenever private accounts, tax items, tax amounts or tax years exist.
+
+### Verified as specified (no finding)
+- Validation: the country list, rates, country tax records and profiles are rebuilt from whitelists with caps (20, 20, 2000, 400); codes and currencies by pattern; rates above 0, up to 1,000,000 and six decimals, never the vault currency; amounts in whole cents; titles, notes and names capped with bidi controls stripped; unknown fields dropped. Text that looks like an SSN, EIN, NIE or DNI is refused with a plain message and never stored.
+- Schema 24: migrations from 1 to 23 give US and USD on every account and tax item and empty new collections, so every total reads as before; country or currency fields in an older copy are dropped, not trusted; schema 25 is refused; downgrade guards name every new kind of data.
+- Honest money: nothing is added across currencies without the owner's rate; conversion is exact integer arithmetic with halves away from zero; the Assets screen says which accounts are left out; nothing is fetched (no network call in countries.js, no rate service).
+- Private vault: both new collections move in and out with their lock marks; the UI keys a tax year by country and year as priv.js does; an account keeps its country and currency through a move; with the vault closed no private record, total or count shows.
+- Leaks: country tax titles, notes and amounts never reach the weekly digest, a prompt, an insight, the audit log (fixed labels), errors, diagnostics (counts only), the calendar file or a URL. The screen's state in history holds a country code and a year only. Country names in settings are typed text, public by design like the business name, and checked for ID numbers.
+- Rendering: every new element is built with h() and text; no innerHTML or similar. No em dashes and no advice wording; the screen says "Not tax advice".
+
+### Not tested
+The browser smokes could not run here (no Chrome in this container). The new screens were rendered from real state in a stand-in DOM instead. Run `node test/smokes.mjs` on a machine with Chrome.
+

@@ -25,6 +25,8 @@
     habits: {}, habitLog: { key: (r) => r.habitId + '|' + r.date },
     // v2.1.0: a saved meal moves with its logged rows (like a daily check and its ticks); a row logged for a private meal is private.
     meals: {}, mealLog: { refs: [['mealId', 'meals']] },
+    // v2.4.0: country tax records and a country's tax-year profile (keyed by country and year) can be private like any business record.
+    countryTax: {}, countryTaxYears: { key: (r) => r.country + '|' + r.year },
     // v1.1.0: business records. An invoice and its income entry move together (one-to-one money link, like an activity and its expense).
     invoices: { refs: [['projectId', 'projects'], ['incomeId', 'entries'], ['clientId', 'clients']] }, trips: { refs: [['projectId', 'projects']] }, payees: {}, taxPayments: {},
     // v1.7.0: clients, shows, episodes, platform numbers, sites and site traffic. A show moves with its episodes and numbers, an episode with

@@ -103,12 +103,12 @@ test('protein target: typed by the owner, 1 to 1000 whole grams, empty clears, n
 });
 
 test('schema 21: migrations from 1 and 20 give empty eating data; strict validation of saved meals and the log', () => {
-  assert.equal(S.SCHEMA, 23);
+  assert.equal(S.SCHEMA, 24);
   for (const n of [1, 4, 19, 20]) {
     const o = clone(S.defaultState()); o.schema = n; delete o.meals; delete o.mealLog; delete o.settings.food;
     if (n === 1) { for (const k of ['accounts', 'recurring', 'budgets', 'categories']) delete o[k]; }
     const v = S.validateState(o);
-    assert.equal(v.schema, 23); assert.deepEqual(v.meals, []); assert.deepEqual(v.mealLog, []); assert.deepEqual(v.settings.food, {});
+    assert.equal(v.schema, 24); assert.deepEqual(v.meals, []); assert.deepEqual(v.mealLog, []); assert.deepEqual(v.settings.food, {});
   }
   // A schema 20 copy that somehow carries the new keys does not smuggle them in.
   const o20 = clone(sample().s); o20.schema = 20;

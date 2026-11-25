@@ -2,7 +2,7 @@
   'use strict';
   const L = (globalThis.LifeOS = globalThis.LifeOS || {});
   const KEY = 'envelope';
-  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 23, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
+  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 24, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
   const HABIT_CAP = 8, HABIT_LOG_CAP = 100000, KIND_CAP = 30;
   const RENEWAL_TOTAL_CAP = 2000;
   const ENTRY_CAP = 50000, INSIGHT_CAP = 5000, REVIEW_CAP = 1000, LESSON_CAP = 30, AUDIT_CAP = 200;
@@ -141,6 +141,10 @@
       food: schema >= 21 ? L.food.cleanSettings(s.food) : {},
       // v2.3.0: the Overview's chosen key numbers and shortcuts. Older schemas get the defaults.
       overview: schema >= 23 ? L.overview.cleanSettings(s.overview) : L.overview.defaultSettings(),
+      // v2.4.0: the country list (home country first in meaning, not in order) and the exchange rates the owner typed. Older schemas get
+      // the United States as home and Spain on the list, and no rates.
+      countries: schema >= 24 ? L.countries.cleanSettings(s.countries) : L.countries.defaultSettings(),
+      fx: schema >= 24 ? L.countries.cleanFx(s.fx, s.currency) : [],
     };
   }
   function cleanSetup(x, schema) {
@@ -720,7 +724,7 @@
   function validateStateRaw(o, opts) {
     if (!isObj(o)) fail('state must be an object');
     scan(o, 0, { n: 4e6 });
-    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, SCHEMA].includes(o.schema)) fail('unsupported schema');
+    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, SCHEMA].includes(o.schema)) fail('unsupported schema');
     if (!L.metrics) fail('metrics module missing');
     const settings = cleanSettings(o.settings, o.schema), entries = cleanEntries(o.entries);
     const out = { schema: SCHEMA, settings, entries };
@@ -842,6 +846,11 @@
     // exists is dropped and the logged row is kept.
     out.meals = o.schema >= 21 ? L.food.cleanMeals(o.meals) : [];
     out.mealLog = o.schema >= 21 ? L.food.cleanLog(o.mealLog, out.meals) : [];
+    // Schema 24 (v2.4.0) adds a country and a currency to each account and a country to each Admin tax item (older formats take the
+    // home country and the vault currency, which is how they were read before), country tax records and country tax-year profiles.
+    out.countryTax = o.schema >= 24 ? L.countries.cleanRecords(o.countryTax) : [];
+    out.countryTaxYears = o.schema >= 24 ? L.countries.cleanProfiles(o.countryTaxYears) : [];
+    L.countries.fill(out, o, o.schema);
     // Schema 14 adds the archive index and the yearly summaries (numbers only). Older formats have neither.
     out.archives = o.schema >= 14 ? L.archive.cleanArchives(o.archives) : [];
     out.summaries = o.schema >= 14 ? L.archive.cleanSummaries(o.summaries, out.archives) : {};
@@ -949,6 +958,15 @@
       const ov = cur.settings && cur.settings.overview;
       if (ov && ov.custom === true) out.push('Overview choices');
     }
+    if (src < 24) {
+      // v2.4.0: countries and currencies on accounts and tax items, country tax records and profiles, the country list and the rates.
+      const st = cur.settings || {}, home = st.countries ? st.countries.home : 'US';
+      if ((cur.accounts || []).some((a) => (a.country && a.country !== home) || (a.currency && a.currency !== st.currency))) out.push('account countries and currencies');
+      for (const [k, n] of [['countryTax', 'country tax records'], ['countryTaxYears', 'country tax profiles']]) if ((cur[k] || []).length) out.push(n);
+      if ((cur.taxItems || []).some((t) => t.country && t.country !== home)) out.push('countries on tax checklist items');
+      if ((st.fx || []).length) out.push('exchange rates');
+      if (st.countries && !sameJson(st.countries, L.countries.defaultSettings())) out.push('country list');
+    }
     if (src < 4) {
       if (cur.cycle) out.push('training cycle');
       if ((cur.habits || []).length) out.push('daily checks');
@@ -961,7 +979,7 @@
   const dropsWork = (cur, next) => droppedData(cur, next).length > 0;
   const andList = (l) => (l.length > 1 ? l.slice(0, -1).join(', ') + ' and ' + l[l.length - 1] : l.join(''));
   // Plain-language list for warnings, with counts: "3 projects and 4 pipeline items". Names only, never values.
-  const COUNTED = { properties: 'properties', vehicles: 'vehicles', 'maintenance items': 'maintenance', renewals: 'renewals', documents: 'documents', 'tax items': 'taxItems', 'learning items': 'learningItems', 'study sessions': 'studySessions', takeaways: 'takeaways', activities: 'activities', 'social groups': 'groups', people: 'people', 'logged contacts': 'contacts', invoices: 'invoices', 'mileage trips': 'trips', payees: 'payees', 'estimated tax payments': 'taxPayments', clients: 'clients', shows: 'shows', episodes: 'episodes', 'platform numbers': 'platformStats', sites: 'sites', 'site traffic months': 'siteTraffic', 'saved meals': 'meals', 'logged meals': 'mealLog' };
+  const COUNTED = { properties: 'properties', vehicles: 'vehicles', 'maintenance items': 'maintenance', renewals: 'renewals', documents: 'documents', 'tax items': 'taxItems', 'learning items': 'learningItems', 'study sessions': 'studySessions', takeaways: 'takeaways', activities: 'activities', 'social groups': 'groups', people: 'people', 'logged contacts': 'contacts', invoices: 'invoices', 'mileage trips': 'trips', payees: 'payees', 'estimated tax payments': 'taxPayments', clients: 'clients', shows: 'shows', episodes: 'episodes', 'platform numbers': 'platformStats', sites: 'sites', 'site traffic months': 'siteTraffic', 'saved meals': 'meals', 'logged meals': 'mealLog', 'country tax records': 'countryTax', 'country tax profiles': 'countryTaxYears' };
   function lossText(cur, next, list) {
     return andList((list || droppedData(cur, next)).map((n) => (n === 'projects' ? cur.projects.length + ' projects' : n === 'pipeline items' ? cur.pipeline.length + ' pipeline items' : n === 'daily checks' ? cur.habits.length + ' daily checks' : n === 'goals' ? cur.goals.length + ' goals' : COUNTED[n] ? cur[COUNTED[n]].length + ' ' + n : 'your ' + n)));
   }
@@ -993,6 +1011,7 @@
         clients: { contactDays: 30 },
         food: {},
         overview: { custom: false, metrics: [], shortcuts: [] },
+        countries: L.countries.defaultSettings(), fx: [],
       },
       entries: [],
       accounts: [], recurring: [], budgets: [], categories: defaultCategories(),
@@ -1006,6 +1025,7 @@
       archives: [], summaries: {}, ops: L.ops.defaultOps(),
       cycle: null, kinds: L.metrics.DEFAULT_KINDS.slice(), habits: [], habitLog: [],
       meals: [], mealLog: [],
+      countryTax: [], countryTaxYears: [],
       memory: { insights: [], lessons: [], reviews: [], lastReviewAt: '', mutes: [], startedOn: localToday() },
       audit: [],
     };
