@@ -4,6 +4,14 @@ Newest first. One line per change. Versions come from package.json (see docs/RUN
 
 ## Unreleased
 
+## 2.2.0 (schema 22): Learning goals
+- Learning gains two kinds, Degree and Language, beside Certification, Skill, Course, Book, Project and Other. Certifications, degrees and languages offer an exam date; only certifications an expiry date. Edit can change an item's kind and provider.
+- Each item can carry a next step (up to 200 characters) with an optional date, set from a "Next step" button, and its own minutes per week; each active row shows this week's minutes on it.
+- "Due in the next 30 days" card on the Learning screen: target dates and next steps of active and planned items, overdue first. Kind filter chips on the active list when more than one kind is active.
+- The Learning tile sub line adds overdue and due counts only when there are some. The weekly review lists the same dates. At a glance gains a Learning provider (target dates, next steps and exams within 30 days).
+- Schema 22 (degree and language kinds; `nextAction`, `nextDate`, `weeklyMinutes` on learning items) with migrations from 1 and downgrade guards. The digest and the AI boundary are unchanged. Decisions in SPEC.md "v2.2.0 addendum: Learning goals". Tests: test/v220.test.mjs and a new step in test/smoke-learning.mjs.
+- Existing tests: schema numbers 21 to 22, "newer schema" fixtures 22 to 23, version strings 2.1.0 to 2.2.0, the `[1..21, SCHEMA]` patterns.
+
 ## 2.1.0 (schema 21): Eating in Health
 - Health gains an Eating card: saved meals (fixed portions with one protein number, up to 50, grouped by breakfast, lunch, dinner, snack and any time), one tap logs a meal for the chosen day and copies its protein, a one-off meal by protein only, an optional "Ate for health?" yes or no per meal, and the day's protein against an optional target the owner sets (never suggested).
 - "Eating this week": average protein per logged day, days at or over the target, meals logged and the ate-for-health share; a week with nothing logged reads "no data". Search finds saved meal names.

@@ -4,6 +4,8 @@
   // mutator runs inside store.commit and changes only what the user tapped. Review actions (pause, drop, new target date) are
   // only offered, never taken. Dates are local YYYY-MM-DD strings handled as calendar days, so a time zone or DST change can
   // never move a week. Titles, providers, notes and takeaways never leave the vault: the digest holds numbers only.
+  // v2.2.0 (schema 22): learning goals of every kind the owner tracks (degree and language join the list), an optional next step
+  // with an optional date, optional minutes per week for one item, and the dates due in the next 30 days (targets and next steps).
   const L = (globalThis.LifeOS = globalThis.LifeOS || {});
   const V = () => L.validate;
   const H = () => L.home;
@@ -11,8 +13,13 @@
 
   const ITEM_CAP = 1000, SESSION_CAP = 20000, TAKEAWAY_CAP = 5000;
   const MAX_SESSION_MIN = 1440, SESSION_NOTE_MAX = 200, MAX_WEEK_MIN = 10080, MAX_UNITS = 1e6, TAKEAWAY_MAX = 1000, STALL_DAYS = 14, SEARCH_MAX = 100;
-  const KINDS = Object.freeze(['course', 'book', 'certification', 'skill', 'project', 'other']);
-  const KIND_LABEL = Object.freeze({ course: 'Course', book: 'Book', certification: 'Certification', skill: 'Skill', project: 'Project', other: 'Other' });
+  const NEXT_MAX = 200, DUE_DAYS = 30, GOALS_SCHEMA = 22;
+  const KINDS = Object.freeze(['course', 'book', 'certification', 'degree', 'skill', 'language', 'project', 'other']);
+  // The kinds a file written before schema 22 can hold; degree and language there are refused like any unknown kind.
+  const OLD_KINDS = Object.freeze(['course', 'book', 'certification', 'skill', 'project', 'other']);
+  const KIND_LABEL = Object.freeze({ course: 'Course', book: 'Book', certification: 'Certification', degree: 'Degree', skill: 'Skill', language: 'Language', project: 'Project', other: 'Other' });
+  // Kinds that usually end in an exam (the add form offers an exam date for these; the edit dialog offers it for every kind).
+  const EXAM_KINDS = Object.freeze(['certification', 'degree', 'language']);
   const STATES = Object.freeze(['planned', 'active', 'paused', 'done', 'dropped']);
   const STATE_LABEL = Object.freeze({ planned: 'Planned', active: 'Active', paused: 'Paused', done: 'Done', dropped: 'Dropped' });
   const SECRET_MESSAGE = 'That looks like an ID number or a card number. Do not enter ID numbers, account numbers or passwords here.';
@@ -30,12 +37,14 @@
     return { weeklyMinutes: x.weeklyMinutes === undefined ? 0 : V().num(x.weeklyMinutes, 0, MAX_WEEK_MIN, 'weekly study minutes', true) };
   }
   // A goal link that points at nothing is dropped and the item kept; a non-text link refuses the state.
-  function cleanItems(list_, goals) {
+  // `schema` is the format the list was written in (omitted: the current one). Before schema 22 the kinds are the older six, and
+  // the next step, its date and the item's weekly minutes are not read from the file (an older format cannot have them).
+  function cleanItems(list_, goals, schema) {
     if (list_ === undefined) return [];
-    const seen = new Set(), gids = new Set((goals || []).map((g) => g.id));
+    const seen = new Set(), gids = new Set((goals || []).map((g) => g.id)), goalsFmt = schema === undefined || schema >= GOALS_SCHEMA;
     return V().arr(list_, ITEM_CAP, 'learning items').map((x) => {
       const id = H().ident(x, seen, 'learning item');
-      const o = { id, title: T(x.title, 200, 'item title'), kind: V().oneOf(x.kind, KINDS, 'item kind'), provider: T(x.provider, 200, 'provider', true), state: V().oneOf(x.state, STATES, 'item state') };
+      const o = { id, title: T(x.title, 200, 'item title'), kind: V().oneOf(x.kind, goalsFmt ? KINDS : OLD_KINDS, 'item kind'), provider: T(x.provider, 200, 'provider', true), state: V().oneOf(x.state, STATES, 'item state') };
       const hasPct = given(x.progressPct), hasTot = given(x.totalUnits), hasDone = given(x.doneUnits);
       if (hasPct && (hasTot || hasDone)) V().fail('progress is a percent or units, not both');
       if (hasPct) o.progressPct = r2(V().num(x.progressPct, 0, 100, 'progress'));
@@ -51,6 +60,12 @@
       }
       if (typeof x.goalId === 'string' && x.goalId) { if (gids.has(x.goalId)) o.goalId = x.goalId; }
       else if (given(x.goalId)) V().fail('goal link must be text');
+      if (goalsFmt) {
+        // Kept only when set: an empty next step, a missing date and zero minutes are simply absent.
+        const nx = T(x.nextAction, NEXT_MAX, 'next step', true); if (nx) o.nextAction = nx;
+        const nd = H().optDate(x.nextDate, 'next step date'); if (nd) o.nextDate = nd;
+        if (given(x.weeklyMinutes)) { const wm = V().num(x.weeklyMinutes, 0, MAX_WEEK_MIN, 'item minutes per week', true); if (wm > 0) o.weeklyMinutes = wm; }
+      }
       o.notes = T(x.notes, 2000, 'notes', true);
       if (x.createdAt !== undefined && x.createdAt !== null) o.createdAt = V().ts(x.createdAt, 'createdAt');
       return o;
@@ -163,6 +178,36 @@
     const ps = list(state, 'learningItems').filter((i) => i.goalId === goalId && i.state !== 'dropped').map(progressOf).filter((p) => p !== null);
     return ps.length ? r2(ps.reduce((a, b) => a + b, 0) / ps.length) : null;
   }
+  // ---- learning goals (v2.2.0) ----
+  // Minutes logged per item in the week of `today`, up to `today`: one pass over the sessions, a Map of item id to minutes.
+  function weekMinutesByItem(state, today) {
+    const ws = weekStart(today), out = new Map();
+    for (const s of list(state, 'studySessions')) if (s.itemId && s.date >= ws && s.date <= today) out.set(s.itemId, (out.get(s.itemId) || 0) + s.minutes);
+    return out;
+  }
+  // Target dates and next-step dates of active and planned items that fall in the next 30 days (today and the 29 days after it),
+  // plus any such date already past (overdue). Exams have their own list. Sorted by date, then title, then target before next step.
+  const isOpenItem = (i) => i.state === 'active' || i.state === 'planned';
+  function dueSoon(state, today) {
+    const end = D().addDays(today, DUE_DAYS - 1), out = [];
+    for (const i of list(state, 'learningItems')) {
+      if (!isOpenItem(i)) continue;
+      for (const [k, what] of [['targetDate', 'target'], ['nextDate', 'next']]) {
+        const d = i[k];
+        if (!d || d > end) continue;
+        const o = { id: i.id, title: i.title, kind: i.kind, what, date: d, days: D().daysBetween(d, today), overdue: d < today };
+        if (what === 'next' && i.nextAction) o.step = i.nextAction;
+        out.push(o);
+      }
+    }
+    return out.sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title) || (a.what === b.what ? 0 : a.what === 'target' ? -1 : 1));
+  }
+  // Active items per kind, in the order of KINDS, kinds with none left out: [{kind, label, count}].
+  function kindCounts(state) {
+    const n = new Map();
+    for (const i of activeItems(state)) n.set(i.kind, (n.get(i.kind) || 0) + 1);
+    return KINDS.filter((k) => n.has(k)).map((k) => ({ kind: k, label: KIND_LABEL[k], count: n.get(k) }));
+  }
   const hasData = (state) => list(state, 'learningItems').length + list(state, 'studySessions').length + list(state, 'takeaways').length > 0 || target(state) > 0;
   // Study minutes drive the tile, digest and series once there is Learning data or no older learning entries; until then the older count of finished items.
   const current = (state) => hasData(state) || !list(state, 'entries').some((e) => e.domain === 'learning');
@@ -171,12 +216,19 @@
 
   // ---- summaries ----
   function summary(state, today) {
-    const w = studyWeek(state, today, today), ex = upcomingExams(state, today);
-    return { week: w, streak: streak(state, today), active: activeItems(state).length, stalled: stalled(state, today), nextExam: ex[0] || null, exams: ex };
+    const w = studyWeek(state, today, today), ex = upcomingExams(state, today), due = dueSoon(state, today);
+    return { week: w, streak: streak(state, today), active: activeItems(state).length, stalled: stalled(state, today), nextExam: ex[0] || null, exams: ex, due, overdue: due.filter((d) => d.overdue).length };
+  }
+  // The tile's sub line names overdue and coming dates only when there are some, so a vault without dates reads as before.
+  function dueText(s) {
+    const parts = [], soon = s.due.length - s.overdue;
+    if (s.overdue) parts.push(s.overdue + ' overdue');
+    if (soon) parts.push(soon + ' due in ' + DUE_DAYS + ' days');
+    return parts.length ? ', ' + parts.join(', ') : '';
   }
   function headline(state, today, R) {
     const s = summary(state, today), w = s.week;
-    const sub = s.active + (s.active === 1 ? ' active item' : ' active items') + ', ' + (s.nextExam ? 'next exam ' + s.nextExam.date : 'no exam dated');
+    const sub = s.active + (s.active === 1 ? ' active item' : ' active items') + ', ' + (s.nextExam ? 'next exam ' + s.nextExam.date : 'no exam dated') + dueText(s);
     return R('Study minutes this week', w.target > 0 ? w.minutes + ' of ' + w.target : String(w.minutes), w.minutes, sub);
   }
   const weekValue = (state, we) => studyWeek(state, we, we).minutes;
@@ -191,7 +243,7 @@
     for (const s of list(state, 'studySessions')) if (s.itemId && s.date >= ws && s.date <= now) per.set(s.itemId, (per.get(s.itemId) || 0) + s.minutes);
     const moved = list(state, 'learningItems').filter((i) => per.has(i.id) || (i.state === 'done' && i.finishedDate && i.finishedDate >= ws && i.finishedDate <= now))
       .map((i) => ({ item: i, minutes: per.get(i.id) || 0 })).sort((a, b) => b.minutes - a.minutes || byTitle(a.item, b.item));
-    return { week: w, moved, stalled: stalled(state, now), exams: upcomingExams(state, now).filter((e) => e.days <= 28), asOf: now };
+    return { week: w, moved, stalled: stalled(state, now), exams: upcomingExams(state, now).filter((e) => e.days <= 28), due: dueSoon(state, now), asOf: now };
   }
 
   // ---- search: plain substring, never a RegExp built from what was typed ----
@@ -228,8 +280,20 @@
     if (input.kind !== undefined) o.kind = input.kind;
     if ('provider' in input) o.provider = input.provider || '';
     if ('notes' in input) { o.notes = input.notes || ''; checkText(o.notes); }
-    for (const [k, name] of [['startDate', 'Start date'], ['targetDate', 'Target date'], ['examDate', 'Exam date'], ['expiresOn', 'Expiry date']]) {
+    for (const [k, name] of [['startDate', 'Start date'], ['targetDate', 'Target date'], ['examDate', 'Exam date'], ['expiresOn', 'Expiry date'], ['nextDate', 'Next step date']]) {
       if (k in input) { const d = dateOrNone(input[k], name); if (d) o[k] = d; else delete o[k]; }
+    }
+    if ('nextAction' in input) {
+      const nx = input.nextAction === undefined || input.nextAction === null ? '' : input.nextAction;
+      if (typeof nx !== 'string') throw new Error('The next step must be text');
+      if (nx.trim().length > NEXT_MAX) throw new Error('A next step can be up to ' + NEXT_MAX + ' characters');
+      checkText(nx);
+      if (nx.trim()) o.nextAction = nx; else delete o.nextAction;
+    }
+    if ('weeklyMinutes' in input) {
+      const v = given(input.weeklyMinutes) ? String(input.weeklyMinutes).trim() : '';
+      if (v && (!/^\d{1,5}$/.test(v) || +v > MAX_WEEK_MIN)) throw new Error('Minutes per week must be a whole number from 0 to ' + MAX_WEEK_MIN);
+      if (v && +v > 0) o.weeklyMinutes = +v; else delete o.weeklyMinutes;
     }
     if ('goalId' in input) {
       if (!given(input.goalId)) delete o.goalId;
@@ -264,7 +328,7 @@
     state.learningItems = list(state, 'learningItems').concat([clean]);
     return clean;
   }
-  const EDITABLE = ['title', 'kind', 'provider', 'notes', 'startDate', 'targetDate', 'examDate', 'expiresOn', 'goalId', 'progressPct', 'totalUnits', 'doneUnits', 'unitLabel'];
+  const EDITABLE = ['title', 'kind', 'provider', 'notes', 'startDate', 'targetDate', 'examDate', 'expiresOn', 'goalId', 'progressPct', 'totalUnits', 'doneUnits', 'unitLabel', 'nextAction', 'nextDate', 'weeklyMinutes'];
   function updateItem(state, id, patch) {
     const i = findItem(state, id);
     if (!V().isObj(patch)) throw new Error('Nothing to change');
@@ -284,6 +348,8 @@
     if (to === 'done') i.finishedDate = i.finishedDate || t; else delete i.finishedDate;
     return i;
   }
+  // The next step and its date, set together from one dialog; an empty step and an empty date clear them.
+  const setNextStep = (state, id, step, date) => updateItem(state, id, { nextAction: step, nextDate: date });
   const pauseItem = (state, id) => setState(state, id, 'paused');
   const dropItem = (state, id) => setState(state, id, 'dropped');
   function setTargetDate(state, id, date) {
@@ -348,6 +414,23 @@
     return +s;
   }
 
+  // ---- at a glance: target dates, next steps and exams in the next 30 days (an overdue date shows today) ----
+  function glanceItems(state, today) {
+    const out = dueSoon(state, today).map((x) => ({
+      id: x.id + ':' + x.what,
+      title: ((x.what === 'target' ? 'Learning target' : 'Next step for ' + x.title) + (x.overdue ? ' (overdue)' : '') + (x.what === 'target' ? ': ' + x.title : x.step ? ': ' + x.step : '')).slice(0, 200),
+      date: x.overdue ? today : x.date,
+    }));
+    const end = D().addDays(today, DUE_DAYS - 1);
+    for (const e of upcomingExams(state, today)) if (e.date <= end) out.push({ id: e.id + ':exam', title: ('Exam: ' + e.title).slice(0, 200), date: e.date });
+    return out;
+  }
+  // Registered by the app at start, like the client flags, so the provider list in the earlier tests stays as it was.
+  function registerGlance() {
+    if (!L.activities || !L.activities.registerGlanceProvider) return;
+    try { L.activities.registerGlanceProvider({ id: 'learning-dates', label: 'Learning', items: glanceItems }); } catch (e) { /* already registered */ }
+  }
+
   // ---- legacy: learning/item and learning/hours entries from before schema 7 become items and sessions ----
   // An item entry keeps its title, status, date, notes and createdAt (the date and notes are written into the item's notes). An
   // hours entry becomes a session when it is an exact whole number of minutes from 1 to 1440; its title, hours and notes go into
@@ -379,9 +462,10 @@
   }
 
   L.learning = {
-    ITEM_CAP, SESSION_CAP, TAKEAWAY_CAP, SESSION_NOTE_MAX, STALL_DAYS, KINDS, KIND_LABEL, STATES, STATE_LABEL, SECRET_MESSAGE,
+    ITEM_CAP, SESSION_CAP, TAKEAWAY_CAP, SESSION_NOTE_MAX, STALL_DAYS, NEXT_MAX, DUE_DAYS, GOALS_SCHEMA, KINDS, OLD_KINDS, KIND_LABEL, EXAM_KINDS, STATES, STATE_LABEL, SECRET_MESSAGE,
     cleanSettings, cleanItems, cleanSessions, cleanTakeaways, progressOf, paceOf, fmtProgress, unitsText, weekInfo, studyWeek, streak, activeItems, lastSession, stalled,
     upcomingExams, recentlyFinished, finishedBy, expiries, goalProgress, hasData, current, legacyEntries, linkedCount, summary, headline, weekValue, digest, reviewWeek, search,
-    addItem, updateItem, setState, pauseItem, dropItem, setTargetDate, deleteItem, addSession, deleteSession, addTakeaway, deleteTakeaway, setWeeklyTarget, legacy, target,
+    weekMinutesByItem, dueSoon, kindCounts, glanceItems, registerGlance,
+    addItem, updateItem, setState, pauseItem, dropItem, setTargetDate, setNextStep, deleteItem, addSession, deleteSession, addTakeaway, deleteTakeaway, setWeeklyTarget, legacy, target,
   };
 })();

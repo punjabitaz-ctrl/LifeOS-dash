@@ -23,7 +23,7 @@ const fresh = () => S.validateState(S.defaultState());
 // ---------- B6: one version source ----------
 test('B6 version: package.json is the only source; the app, README, HANDOFF and the built file all agree, and a mismatch is caught', () => {
   const v = JSON.parse(src('package.json')).version;
-  assert.equal(v, '2.1.0'); assert.equal(versionOf(ROOT), v);
+  assert.equal(v, '2.2.0'); assert.equal(versionOf(ROOT), v);
   const app = src('src/ui/app.js');
   assert.ok(!/LifeOS v\d/.test(app), 'no literal version in app.js');
   assert.ok(app.includes("text: 'LifeOS v' + L.VERSION"));
@@ -78,7 +78,7 @@ test('B6 runbook: the backfill runs name the real commits of v1.0.0, v1.1.0 and 
 test('B6 docs: CHANGELOG runs newest first from 1.3.0 to 0.1.0; no em dashes and no advice wording in the new docs and the UI copy', () => {
   const c = src('docs/CHANGELOG.md');
   const heads = [...c.matchAll(/^## (\d+\.\d+\.\d+)/gm)].map((m) => m[1]);
-  assert.equal(heads[0], '2.1.0'); assert.equal(heads[heads.length - 1], '0.1.0'); assert.equal(heads.length, 22);
+  assert.equal(heads[0], '2.2.0'); assert.equal(heads[heads.length - 1], '0.1.0'); assert.equal(heads.length, 23);
   const num = (v) => v.split('.').map(Number).reduce((a, n) => a * 1000 + n, 0);
   assert.deepEqual(heads.slice().sort((a, b) => num(b) - num(a)), heads);
   for (const f of ['docs/CHANGELOG.md', 'docs/RUNBOOK.md', 'docs/FIRST-RUN.md', 'docs/SYNC-SETUP.md', 'src/core/ops.js', 'src/ui/app.js', 'scripts/check-live.mjs']) assert.ok(!src(f).includes('—'), f + ' has an em dash');
@@ -109,12 +109,12 @@ test('schema 15: a schema 14 backup imports with default ops and settings; ops a
   const st14 = clone(S.getState()); st14.schema = 14; delete st14.ops; delete st14.settings.backupReminderDays; delete st14.settings.syncReminder;
   const salt = V.newSalt(), key = await V.deriveKey(PASS, salt);
   const imp = await V.importBackup(PASS, JSON.stringify(await V.makeEnvelope(key, salt, st14)));
-  assert.equal(imp.schema, 21); assert.equal(imp.sourceSchema, 14); assert.deepEqual(imp.ops, O.defaultOps()); assert.equal(imp.settings.backupReminderDays, 7); assert.equal(imp.settings.syncReminder, false);
+  assert.equal(imp.schema, 22); assert.equal(imp.sourceSchema, 14); assert.deepEqual(imp.ops, O.defaultOps()); assert.equal(imp.settings.backupReminderDays, 7); assert.equal(imp.settings.syncReminder, false);
   // a stored schema 14 vault migrates on unlock
   const ad = memAdapter(); S._setAdapter(ad); S.lock();
   const s2 = V.newSalt(), k2 = await V.deriveKey(PASS, s2);
   await ad.set('envelope', Object.assign(await V.makeEnvelope(k2, s2, Object.assign(clone(st14), { _meta: { rev: 3, updatedAt: '2026-11-01T00:00:00.000Z', deviceId: 'd' } })), { rev: 3, updatedAt: '2026-11-01T00:00:00.000Z', deviceId: 'd' }));
-  const st = await S.unlock(PASS); assert.equal(st.schema, 21); assert.deepEqual(st.ops, O.defaultOps());
+  const st = await S.unlock(PASS); assert.equal(st.schema, 22); assert.deepEqual(st.ops, O.defaultOps());
   // validation
   const bad = (f) => assert.throws(() => S.validateState(Object.assign(clone(fresh()), f(clone(fresh())))), /Invalid data/);
   for (const d of [0, 61, 1.5, '7', null]) bad((x) => ({ settings: Object.assign(x.settings, { backupReminderDays: d }) }));
@@ -138,7 +138,7 @@ test('schema 15: the sync fingerprint ignores ops (so backup dates and diagnosti
   assert.equal(await L.sync.fingerprint(S.getState()), fp);
   await S.commit((x) => { x.settings.backupReminderDays = 9; });
   assert.notEqual(await L.sync.fingerprint(S.getState()), fp, 'a setting is still a change');
-  assert.ok(/\[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, SCHEMA\]/.test(src('src/core/store.js')));
+  assert.ok(/\[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, SCHEMA\]/.test(src('src/core/store.js')));
 });
 
 // ---------- B1 persistent storage ----------
@@ -258,7 +258,7 @@ test('B2 verify: a good file shows schema, revision, date and counts against the
   await S.commit((x) => { x.entries.push(L.metrics.validateEntry({ domain: 'money', type: 'expense', date: '2026-11-11', title: 'Later', value: 1, category: 'Dining' })); });
   const before = adapterJson(ad), rev = S.getMeta().rev, pend = O._pending().length, live = clone(S.getState());
   const r = await O.verifyBackup('backup passphrase 1', file, S.getState());
-  assert.equal(r.ok, true); assert.equal(r.schema, 21); assert.equal(r.sourceSchema, 21); assert.equal(r.madeOn, '2026-11-09'); assert.equal(r.rev, copy.ops.backupRev); assert.ok(r.rev >= 1);
+  assert.equal(r.ok, true); assert.equal(r.schema, 22); assert.equal(r.sourceSchema, 22); assert.equal(r.madeOn, '2026-11-09'); assert.equal(r.rev, copy.ops.backupRev); assert.ok(r.rev >= 1);
   assert.deepEqual(r.rows.find((x) => x.key === 'entries'), { key: 'entries', label: 'Entries', backup: 1, live: 2 });
   assert.deepEqual(r.rows.find((x) => x.key === 'accounts'), { key: 'accounts', label: 'Accounts', backup: 1, live: 1 });
   assert.equal(r.priv, false); assert.equal(r.livePriv, false);
@@ -289,8 +289,8 @@ test('B2 verify: a wrong passphrase, a tampered file, a truncated file, a non-ba
   assert.equal((await O.verifyBackup('', file, live)).reason, 'NO_PASSPHRASE');
   // a newer schema: the contents are not read further, the schema number is reported
   const salt = V.newSalt(), key = await V.deriveKey('backup passphrase 1', salt);
-  const newer = await O.verifyBackup('backup passphrase 1', JSON.stringify(await V.makeEnvelope(key, salt, Object.assign(clone(live), { schema: 22, futureField: MARK }))), live);
-  assert.deepEqual([newer.ok, newer.reason, newer.schema], [false, 'NEWER_SCHEMA', 22]); assert.match(newer.message, /newer version of LifeOS \(schema 22\)/); assert.ok(!JSON.stringify(newer).includes(MARK));
+  const newer = await O.verifyBackup('backup passphrase 1', JSON.stringify(await V.makeEnvelope(key, salt, Object.assign(clone(live), { schema: 23, futureField: MARK }))), live);
+  assert.deepEqual([newer.ok, newer.reason, newer.schema], [false, 'NEWER_SCHEMA', 23]); assert.match(newer.message, /newer version of LifeOS \(schema 23\)/); assert.ok(!JSON.stringify(newer).includes(MARK));
   // decrypts but is not a vault
   const junk = await O.verifyBackup('backup passphrase 1', JSON.stringify(await V.makeEnvelope(key, salt, { schema: 15, entries: 'x' })), live);
   assert.deepEqual([junk.ok, junk.reason], [false, 'INVALID']);
@@ -368,7 +368,7 @@ test('B7: Copy diagnostics text holds codes, version, schema and browser family 
   const ua = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36 ' + MARK;
   const text = O.format(S.getState(), { version: '1.3.0', userAgent: ua });
   const lines = text.split('\n');
-  assert.deepEqual(lines.slice(0, 5), ['LifeOS diagnostics', 'Version: 1.3.0', 'Schema: 21', 'Browser: Chrome', 'Codes: 2']);
+  assert.deepEqual(lines.slice(0, 5), ['LifeOS diagnostics', 'Version: 1.3.0', 'Schema: 22', 'Browser: Chrome', 'Codes: 2']);
   assert.ok(/^\d{4}-\d{2}-\d{2} SYNC_409 sync$/.test(lines[5]) && /^\d{4}-\d{2}-\d{2} DECRYPT_FAIL lock$/.test(lines[6])); assert.equal(lines.length, 7);
   assert.ok(!text.includes(MARK) && !/Mozilla|Linux|537|130\.0/.test(text));
   assert.deepEqual(['Mozilla/5.0 Edg/120.0', 'Mozilla/5.0 Firefox/120.0', 'Mozilla/5.0 (iPhone) AppleWebKit Version/17 Safari/605.1', 'Mozilla/5.0 CriOS/120 Safari/604', 'curl/8', undefined, 'Mozilla/5.0 HeadlessChrome/130.0 Safari/537'].map(O.browserFamily), ['Edge', 'Firefox', 'Safari', 'Chrome', 'Other', 'Other', 'Chrome']);

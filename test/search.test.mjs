@@ -48,7 +48,7 @@ test('special characters are literal and no RegExp is built from what is typed',
 test('every area is covered: titles, names, notes and facts, with area labels and navigation keys; results carry ids and collections', async () => {
   const { state } = buildAdversarial(L);
   state.pipeline.push(job({ id: 'jx', title: 'Role at JOBCO', role: 'JOBROLE', stage: 'applied' }));
-  await vault(null); await S.replaceState(S.validateState(clone(Object.assign(state, { schema: 21 }))));
+  await vault(null); await S.replaceState(S.validateState(clone(Object.assign(state, { schema: 22 }))));
   const r = Q.query(ADV_MARK);
   const areas = r.groups.map((g) => g.area);
   for (const a of ['money', 'assets', 'work', 'health', 'goals', 'home', 'admin', 'learning', 'activities', 'social', 'business', 'jobs']) assert.ok(areas.includes(a), 'area ' + a + ' found: ' + areas);

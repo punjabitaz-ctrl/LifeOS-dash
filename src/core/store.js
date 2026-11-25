@@ -2,7 +2,7 @@
   'use strict';
   const L = (globalThis.LifeOS = globalThis.LifeOS || {});
   const KEY = 'envelope';
-  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 21, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
+  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 22, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
   const HABIT_CAP = 8, HABIT_LOG_CAP = 100000, KIND_CAP = 30;
   const RENEWAL_TOTAL_CAP = 2000;
   const ENTRY_CAP = 50000, INSIGHT_CAP = 5000, REVIEW_CAP = 1000, LESSON_CAP = 30, AUDIT_CAP = 200;
@@ -718,7 +718,7 @@
   function validateStateRaw(o, opts) {
     if (!isObj(o)) fail('state must be an object');
     scan(o, 0, { n: 4e6 });
-    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, SCHEMA].includes(o.schema)) fail('unsupported schema');
+    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, SCHEMA].includes(o.schema)) fail('unsupported schema');
     if (!L.metrics) fail('metrics module missing');
     const settings = cleanSettings(o.settings, o.schema), entries = cleanEntries(o.entries);
     const out = { schema: SCHEMA, settings, entries };
@@ -758,7 +758,8 @@
     // learning/hours entries become items and sessions (see learning.legacy; whatever cannot map stays as an entry).
     const Ln = L.learning;
     if (o.schema >= 7) {
-      out.learningItems = Ln.cleanItems(o.learningItems, out.goals);
+      // Schema 22 (v2.2.0): degree and language kinds, the next step and its date, and minutes per week on an item (see cleanItems).
+      out.learningItems = Ln.cleanItems(o.learningItems, out.goals, o.schema);
       out.studySessions = Ln.cleanSessions(o.studySessions, out.learningItems);
       out.takeaways = Ln.cleanTakeaways(o.takeaways, out.learningItems);
     } else {
@@ -933,6 +934,13 @@
       for (const [k, n] of [['meals', 'saved meals'], ['mealLog', 'logged meals']]) if ((cur[k] || []).length) out.push(n);
       const fd = cur.settings && cur.settings.food;
       if (fd && fd.proteinTarget !== undefined) out.push('protein target');
+    }
+    if (src < 22) {
+      // v2.2.0: degree and language learning items, next steps and their dates, and minutes per week on an item.
+      const li = cur.learningItems || [];
+      if (li.some((i) => i.kind === 'degree' || i.kind === 'language')) out.push('degree and language learning items');
+      if (li.some((i) => i.nextAction !== undefined || i.nextDate !== undefined)) out.push('learning next steps');
+      if (li.some((i) => i.weeklyMinutes !== undefined)) out.push('minutes per week on learning items');
     }
     if (src < 4) {
       if (cur.cycle) out.push('training cycle');
