@@ -34,7 +34,7 @@ function full() {
   s.activities.find((a) => a.id === 'a2').goalId = 'g2';
   return S.validateState(clone(s));
 }
-const keyOf = (c, r) => (c === 'cycle' ? 'cycle' : c === 'budgets' ? r.category : c === 'habitLog' ? r.habitId + '|' + r.date : r.id);
+const keyOf = (c, r) => (c === 'cycle' ? 'cycle' : c === 'budgets' ? r.category : c === 'habitLog' ? r.habitId + '|' + r.date : c === 'countryTaxYears' ? r.country + '|' + r.year : r.id);
 const rec = (st, c) => (c === 'cycle' ? (st.cycle ? [st.cycle] : []) : st[c]);
 const sorted = (st) => {
   const o = clone(st);
@@ -54,7 +54,7 @@ const text = (x) => JSON.stringify(x);
 // (v1.1.0: the business name, address and payment terms in settings are public by design, like every other setting)
 const nomark = (st) => text(Object.assign({}, st, { categories: 0, kinds: 0, activityCategories: 0, settings: Object.assign({}, st.settings, { business: 0 }) }));
 const ids = (st) => P.COLLECTIONS.map((c) => [c, rec(st, c).map((r) => keyOf(c, r))]);
-const pick = { entries: 'ex1', accounts: 'acc1', recurring: 'r1', budgets: 'Groceries', projects: 'p1', pipeline: 'pl1', goals: 'g1', maintenance: 'mt1', vehicles: 'v1', properties: 'pp1', renewals: 'rn1', documents: 'dc1', taxItems: 'tx1', learningItems: 'li1', studySessions: 'ss1', takeaways: 'tk1', invoices: 'iv1', trips: 'tr1', payees: 'pe1', taxPayments: 'tp1', activities: 'a2', people: 'sp1', groups: 'sg1', contacts: 'sc1', habits: 'h1', habitLog: 'h1|2026-11-10', cycle: 'cycle' , clients: 'cl1', shows: 'sh1', episodes: 'ep1', platformStats: 'ps1', sites: 'st1', siteTraffic: 'tf1', meals: 'ml1', mealLog: 'mg1' };
+const pick = { entries: 'ex1', accounts: 'acc1', recurring: 'r1', budgets: 'Groceries', projects: 'p1', pipeline: 'pl1', goals: 'g1', maintenance: 'mt1', vehicles: 'v1', properties: 'pp1', renewals: 'rn1', documents: 'dc1', taxItems: 'tx1', learningItems: 'li1', studySessions: 'ss1', takeaways: 'tk1', invoices: 'iv1', trips: 'tr1', payees: 'pe1', taxPayments: 'tp1', activities: 'a2', people: 'sp1', groups: 'sg1', contacts: 'sc1', habits: 'h1', habitLog: 'h1|2026-11-10', cycle: 'cycle' , clients: 'cl1', shows: 'sh1', episodes: 'ep1', platformStats: 'ps1', sites: 'st1', siteTraffic: 'tf1', meals: 'ml1', mealLog: 'mg1', countryTax: 'ct1', countryTaxYears: 'ES|2026' };
 
 describe('v0.11.0 part A: private vault', () => {
 beforeEach(() => { ORIG = L.vault.deriveKey; L.vault.deriveKey = fastDerive; });
@@ -629,7 +629,7 @@ test('schema 1 to 9 migrate into 10 with no loss: every text an old copy held is
   for (let n = 1; n <= 9; n++) {
     const old = asSchema(n, src), oldText = text(old);
     const got = S.validateState(clone(old));
-    assert.equal(got.schema, 23); assert.equal(got.sourceSchema, n); assert.ok(!got.priv); assert.equal(got.settings.privAutoLockSec, 60);
+    assert.equal(got.schema, 24); assert.equal(got.sourceSchema, n); assert.ok(!got.priv); assert.equal(got.settings.privAutoLockSec, 60);
     const gotText = text(got);
     for (const m of new Set(oldText.match(/LEAK mark \d+/g) || [])) assert.ok(gotText.includes(m), 'schema ' + n + ' lost ' + m);
     for (const c of P.COLLECTIONS) assert.ok(c === 'cycle' ? got.cycle === null || typeof got.cycle === 'object' : Array.isArray(got[c]), c);
@@ -646,15 +646,15 @@ test('a stored v0.10.0 vault unlocks, migrates and persists; a v0.10.0 backup im
   await ad.set('envelope', await V.makeEnvelope(key, salt, nine));
   S.lock();
   const st = await S.unlock(PASS);
-  assert.equal(st.schema, 23); assert.equal(st.people.length, 1);
+  assert.equal(st.schema, 24); assert.equal(st.people.length, 1);
   await S.commit(() => {});
-  assert.equal((await (await V.openEnvelope(await ad.get('envelope'), PASS)).raw).schema, 23);
+  assert.equal((await (await V.openEnvelope(await ad.get('envelope'), PASS)).raw).schema, 24);
   const backup = JSON.stringify(await V.makeEnvelope(await realDerive('backup passphrase 1', salt), salt, nine));
   const imp = await V.importBackup('backup passphrase 1', backup);
-  assert.equal(imp.schema, 23); assert.equal(imp.sourceSchema, 9);
+  assert.equal(imp.schema, 24); assert.equal(imp.sourceSchema, 9);
   assert.deepEqual(S.droppedData(S.getState(), imp), []);
   await S.replaceState(imp);
-  assert.equal(S.getState().schema, 23);
+  assert.equal(S.getState().schema, 24);
   // while a vault with a private vault would lose it
   await P.setUp(PRIV);
   assert.deepEqual(S.droppedData(S.getState(), imp), ['private vault']);
@@ -664,11 +664,11 @@ test('a stored v0.10.0 vault unlocks, migrates and persists; a v0.10.0 backup im
 test('an older app (v0.10.0, schema 9) refuses a schema 10 vault in unlock, backup and sync, so it can never strip the private vault', async () => {
   // Rebuild the v0.10.0 validateState gate (SCHEMA 9, accepted list 1 to 8 and SCHEMA) from the current source in a clean context.
   const read = (f) => readFileSync(new URL('../src/core/' + f, import.meta.url), 'utf8');
-  const store = read('store.js').replace('SCHEMA = 23,', 'SCHEMA = 9,').replace('[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, SCHEMA]', '[1, 2, 3, 4, 5, 6, 7, 8, SCHEMA]');
+  const store = read('store.js').replace('SCHEMA = 24,', 'SCHEMA = 9,').replace('[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, SCHEMA]', '[1, 2, 3, 4, 5, 6, 7, 8, SCHEMA]');
   assert.ok(/SCHEMA = 9,/.test(store) && /\[1, 2, 3, 4, 5, 6, 7, 8, SCHEMA\]/.test(store));
   const ctx = vm.createContext({ crypto: globalThis.crypto, TextEncoder, TextDecoder, btoa, atob, console, JSON, Promise, Uint8Array, Date, Math, Array, Object, Set, Map, Number, String, Error, WeakSet, WeakMap, setTimeout, clearTimeout, AbortController, URL, URLSearchParams, structuredClone });
   ctx.globalThis = ctx;
-  for (const f of ['vault.js', 'ops.js', 'csv.js', 'metrics.js', 'home.js', 'admin.js', 'learning.js', 'activities.js', 'social.js', 'revenue.js', 'tax.js', 'business.js', 'layout.js', 'goals.js', 'memory.js', 'ai.js', 'sync.js']) {
+  for (const f of ['vault.js', 'ops.js', 'csv.js', 'metrics.js', 'home.js', 'admin.js', 'learning.js', 'activities.js', 'social.js', 'revenue.js', 'tax.js', 'business.js', 'countries.js', 'layout.js', 'goals.js', 'memory.js', 'ai.js', 'sync.js']) {
     if (f === 'csv.js') vm.runInContext(store, ctx);
     vm.runInContext(read(f), ctx);
   }

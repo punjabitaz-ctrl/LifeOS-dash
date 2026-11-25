@@ -16,6 +16,7 @@ import '../src/core/social.js';
 import '../src/core/revenue.js';
 import '../src/core/tax.js';
 import '../src/core/business.js';
+import '../src/core/countries.js';
 import '../src/core/clients.js';
 import '../src/core/media.js';
 import '../src/core/layout.js';

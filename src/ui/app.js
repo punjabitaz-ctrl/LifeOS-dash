@@ -237,7 +237,7 @@
   function areaOf() {
     if (!L.store.isUnlocked() || view.name === 'lock') return 'lock';
     if (view.name === 'domain') return L.ops.AREAS.indexOf(view.domain) >= 0 ? view.domain : 'app';
-    var a = { dashboard: 'dashboard', review: 'review', memory: 'memory', settings: 'settings', private: 'private', archive: 'archive', business: 'business', print: 'business', clients: 'business', podcasts: 'business', websites: 'business' }[view.name];
+    var a = { dashboard: 'dashboard', review: 'review', memory: 'memory', settings: 'settings', private: 'private', archive: 'archive', business: 'business', print: 'business', clients: 'business', podcasts: 'business', websites: 'business', countries: 'assets' }[view.name];
     return a || 'app';
   }
   function show(name, extra) {
@@ -384,6 +384,7 @@
         : view.name === 'clients' ? clientsScreen(s)
         : view.name === 'podcasts' ? podcastsScreen(s)
         : view.name === 'websites' ? websitesScreen(s)
+        : view.name === 'countries' ? countriesScreen(s)
         : view.name === 'print' ? printScreen(s)
         : dashScreen(s);
     } catch (e) { L.ops.record('RENDER_ERROR'); body = h('p', { text: friendly(e) }); }
@@ -458,7 +459,7 @@
     var colls = null;
     if (view.name === 'domain') { if (view.domain === 'wellbeing') return null; colls = view.jobs ? ['pipeline', 'people', 'contacts'] : DOMAIN_COLLS[view.domain]; }
     else if (view.name === 'dashboard' || view.name === 'settings' || view.name === 'memory' || view.name === 'private' || view.name === 'business' || view.name === 'print') return null;
-    else if (view.name === 'clients' || view.name === 'podcasts' || view.name === 'websites') return null; // these screens place their own lock markers
+    else if (view.name === 'clients' || view.name === 'podcasts' || view.name === 'websites' || view.name === 'countries') return null; // these screens place their own lock markers
     var m = lockMark(colls === undefined ? null : colls);
     return m ? h('p', { class: 'small mut lockrow' }, m, ' Some private items are hidden.') : null;
   }
@@ -1501,12 +1502,13 @@
   }
 
   function assetsScreen(s) {
-    var cur = s.settings.currency, t = today();
+    var cur = s.settings.currency, t = today(), C = L.countries, home = C.homeOf(s.settings);
     var nw = L.metrics.netWorthDetail(s, t), hist = L.metrics.netWorthHistory(s, 12, t);
     var accts = s.accounts;
     var active = accts.filter(function (a) { return !a.archived; }), archived = accts.filter(function (a) { return a.archived; });
     var latest = {};
-    nw.rows.forEach(function (r) { if (r.id) latest[r.id] = r; });
+    // v2.4.0: a balance shows in its account's own currency; the totals above are in the vault currency (see countryNote).
+    nw.rows.concat(nw.unconverted || []).forEach(function (r) { if (r.id) latest[r.id] = r; });
     var bAcct = sel('bal-acct', active.map(function (a) { return { v: a.id, t: a.name }; }), view.acct || (active[0] && active[0].id));
     var bVal = h('input', { type: 'text', id: 'bal-value', inputmode: 'decimal', autocomplete: 'off', maxlength: '16' });
     var bDate = h('input', { type: 'date', id: 'bal-date', value: t, required: true });
@@ -1521,30 +1523,36 @@
           return addEntry({ domain: 'assets', type: 'balance', date: bDate.value, title: a.name, value: v, accountId: a.id }).then(function () { setNotice('ok', 'Balance saved.'); render(); });
         });
       }
-    }, h('h2', { text: 'Update a balance' }), active.length ? [field('Account', bAcct), field('Balance (the amount owed, for a liability)', bVal), field('As of', bDate), h('button', { type: 'submit', class: 'btn pri', id: 'bal-save', text: 'Save balance' })] : h('p', { class: 'mut', text: 'Add an account below first.' }));
+    }, h('h2', { text: 'Update a balance' }), active.length ? [field('Account', bAcct), field('Balance (the amount owed, for a liability)', bVal, 'In the account\'s own currency.'), field('As of', bDate), h('button', { type: 'submit', class: 'btn pri', id: 'bal-save', text: 'Save balance' })] : h('p', { class: 'mut', text: 'Add an account below first.' }));
 
     function acctRow(a) {
-      var r = latest[a.id];
-      return h('div', ROW({ class: 'item acct', 'data-account': a.name }, 'accounts', a, true),
+      var r = latest[a.id], ac = C.accountCurrency(s, a), cc = C.accountCountry(s, a);
+      var native = r ? (r.nativeCents !== undefined ? r.nativeCents : r.cents) : 0;
+      return h('div', ROW({ class: 'item acct', 'data-account': a.name, 'data-country': cc }, 'accounts', a, true),
         h('div', null, h('div', { class: 'entry-t', text: a.name }),
           h('div', { class: 'mut small' }, h('span', { class: 'chip' + (a.liability ? ' bad' : ''), text: KIND_LABEL[a.kind] + (a.liability ? ' (owed)' : '') }),
-            r ? moneyFmt(Math.abs(r.cents), cur) + ' as of ' + r.date : 'No balance yet')),
+            cc !== home || ac !== cur ? h('span', { class: 'chip acct-country', text: C.nameOf(s.settings, cc) + (ac !== cur ? ', ' + ac : '') }) : null,
+            r ? moneyFmt(Math.abs(native), ac) + ' as of ' + r.date : 'No balance yet')),
         h('div', { class: 'row' },
           a.archived ? null : btn('Update', function () { view.acct = a.id; render(); var i = document.getElementById('bal-value'); if (i) i.focus(); }, 'sm', { 'aria-label': 'Update balance for ' + a.name }),
-          btn('Rename', function () { renameDialog(a); }, 'sm', { 'aria-label': 'Rename ' + a.name }),
+          btn('Edit', function () { renameDialog(a); }, 'sm', { 'aria-label': 'Edit ' + a.name }),
           btn(a.archived ? 'Restore' : 'Archive', function () {
             act(function () { return commit(function (x) { x.accounts.forEach(function (z) { if (z.id === a.id) z.archived = !z.archived; }); }, 'account archive').then(render); });
           }, 'sm', { 'aria-label': (a.archived ? 'Restore ' : 'Archive ') + a.name })));
     }
+    // v2.4.0: name, country and currency in one dialog. Balances already saved are read in the currency picked here.
     function renameDialog(a) {
       var inp = h('input', { type: 'text', id: 'ac-rename', maxlength: '200', value: a.name, autocomplete: 'off' });
+      var cSel = countrySel('ac-edit-country', s, C.accountCountry(s, a));
+      var curIn = h('input', { type: 'text', id: 'ac-edit-currency', maxlength: '3', value: C.accountCurrency(s, a), autocomplete: 'off', 'aria-label': 'Currency' });
       openDialog({
-        title: 'Rename account', yes: 'Save', body: [field('Name', inp), movePrivBtn('accounts', a)],
+        title: 'Edit account', yes: 'Save', body: [field('Name', inp), field('Country', cSel), field('Currency', curIn, 'Three letters, for example USD or EUR. Saved balances are read in this currency.'), movePrivBtn('accounts', a)],
         onYes: function () {
-          var n = inp.value.trim();
+          var n = inp.value.trim(), cc = cSel.value, cu = curIn.value.trim().toUpperCase();
           if (!n) throw new Error('Enter a name.');
+          if (!/^[A-Z]{3}$/.test(cu)) throw new Error('Enter a three-letter currency code, for example EUR.');
           if (accts.some(function (z) { return z.id !== a.id && z.name.toLowerCase() === n.toLowerCase(); })) throw new Error('You already have an account with that name.');
-          return commit(function (x) { x.accounts.forEach(function (z) { if (z.id === a.id) z.name = n; }); }, 'account rename').then(function () { render(); });
+          return commit(function (x) { x.accounts.forEach(function (z) { if (z.id === a.id) { z.name = n; z.country = cc; z.currency = cu; } }); }, 'account edit').then(function () { render(); });
         }
       });
     }
@@ -1554,6 +1562,9 @@
     var aLiab = h('input', { type: 'checkbox', id: 'ac-liab' });
     var aBal = h('input', { type: 'text', id: 'ac-bal', inputmode: 'decimal', autocomplete: 'off', maxlength: '16' });
     var aDate = h('input', { type: 'date', id: 'ac-date', value: t, required: true });
+    var aCountry0 = view.acctCountry && C.inUse(s).indexOf(view.acctCountry) >= 0 ? view.acctCountry : home;
+    var aCur = h('input', { type: 'text', id: 'ac-currency', maxlength: '3', value: C.currencyOf(s.settings, aCountry0), autocomplete: 'off' });
+    var aCountry = countrySel('ac-country', s, aCountry0, function () { aCur.value = C.currencyOf(s.settings, aCountry.value); });
     var addForm = h('form', {
       class: 'card',
       onsubmit: function (e) {
@@ -1563,14 +1574,16 @@
           if (!name) throw new Error('Enter an account name.');
           if (accts.some(function (z) { return z.name.toLowerCase() === name.toLowerCase(); })) throw new Error('You already have an account with that name.');
           var liab = L.metrics.LIAB_KINDS.indexOf(kind) >= 0 || aLiab.checked;
+          var acur = aCur.value.trim().toUpperCase();
+          if (!/^[A-Z]{3}$/.test(acur)) throw new Error('Enter a three-letter currency code, for example EUR.');
           var opening = aBal.value.trim() === '' ? null : parseAmount(aBal.value, { neg: !liab, zero: true });
-          var acct = { id: L.store.newId(), name: name, kind: kind, liability: liab, archived: false };
+          var acct = { id: L.store.newId(), name: name, kind: kind, liability: liab, archived: false, country: aCountry.value, currency: acur };
           var en = opening === null ? null : L.metrics.validateEntry({ domain: 'assets', type: 'balance', date: aDate.value, title: name, value: opening, accountId: acct.id });
           if (en) { en.id = en.id || L.store.newId(); en.createdAt = en.createdAt || new Date().toISOString(); }
           return commit(function (x) { x.accounts.push(acct); if (en) x.entries.push(en); }, 'account add').then(function () { setNotice('ok', 'Account added.'); render(); });
         });
       }
-    }, h('h2', { text: 'Add an account' }), field('Name', aName), field('Kind', aKind),
+    }, h('h2', { text: 'Add an account' }), field('Name', aName), field('Kind', aKind), field('Country', aCountry), field('Currency', aCur, 'Three letters, for example USD or EUR. Balances are entered in this currency.'),
       h('label', { class: 'field check' }, aLiab, h('span', { text: 'Treat as a liability (credit cards, loans and mortgages always are)' })),
       field('Current balance (the amount owed, for a liability)', aBal), field('As of', aDate),
       h('button', { type: 'submit', class: 'btn pri', id: 'ac-add', text: 'Add account' }));
@@ -1591,11 +1604,12 @@
 
     return h('div', null,
       btn('Back to overview', function () { go('dashboard'); }, 'sm back'),
-      h('h1', { text: 'Assets' }),
+      h('div', { class: 'row sp' }, h('h1', { text: 'Assets' }), btn('By country', function () { go('countries'); }, 'sm', { id: 'aw-by-country' })),
       h('div', { class: 'stats' },
         stat('Net worth', moneyFmt(nw.totalCents, cur), 'aw-net'),
         stat('Assets', moneyFmt(nw.assetsCents, cur), 'aw-assets'),
         stat('Liabilities', moneyFmt(nw.liabilitiesCents, cur), 'aw-liab')),
+      countryNote(s, nw),
       h('div', { class: 'card' }, h('h2', { text: 'Net worth, 12 months' }), netWorthChart(hist),
         h('div', { class: 'legend small' }, h('span', { class: 'sw sw-net' }), ' Net worth ', h('span', { class: 'sw sw-assets' }), ' Assets ', h('span', { class: 'sw sw-liab' }), ' Liabilities'),
         h('div', { class: 'tablewrap' }, h('table', null,
@@ -1610,6 +1624,206 @@
       archived.length ? details('archived', 'Archived accounts (' + archived.length + ')', archived.map(acctRow), view.open === 'archived') : null,
       h('h2', { text: 'Balance history' }),
       domainScreen(s, { embed: true, noForm: true }));
+  }
+
+  // ---------- v2.4.0 taxes and assets by country ----------
+  function countrySel(id, s, cur, onchange) {
+    var C = L.countries;
+    return sel(id, C.inUse(s).map(function (c) { return { v: c, t: C.nameOf(s.settings, c) }; }), cur, onchange);
+  }
+  // Amounts in more than one currency are listed side by side, never added together without a rate.
+  function curList(list, field) {
+    if (!list.length) return '';
+    return list.map(function (b) { return moneyFmt(b[field], b.currency); }).join(' and ');
+  }
+  function fxText(s, list) {
+    var fx = (s.settings.fx || []).filter(function (r) { return list.some(function (b) { return b.currency === r.currency; }); });
+    return fx.length ? ' At your ' + (fx.length === 1 ? 'rate' : 'rates') + ': ' + fx.map(function (r) { return '1 ' + r.currency + ' = ' + r.rate + ' ' + s.settings.currency + ' (' + r.asOf + ')'; }).join(', ') + '.' : '';
+  }
+  // One line under a set of totals: the combined figure in the vault currency when every currency has a rate the owner typed,
+  // otherwise which rates are missing. Nothing when every amount is already in the vault currency.
+  function combinedLine(s, comb, list, field, id) {
+    var cur = s.settings.currency;
+    if (!list.length || (list.length === 1 && list[0].currency === cur)) return null;
+    if (!comb.ok && comb.missing.length) return h('p', { class: 'small mut cn-combined', id: id, 'data-ok': 'false', text: 'No combined total in ' + cur + ' yet: enter an exchange rate for ' + comb.missing.join(' and ') + ' below.' });
+    if (!comb.ok) return h('p', { class: 'small mut cn-combined', id: id, 'data-ok': 'false', text: 'No combined total: the amounts are too large to add exactly.' });
+    return h('p', { class: 'small cn-combined', id: id, 'data-ok': 'true', text: 'Combined in ' + cur + ': ' + moneyFmt(comb[field], cur) + '.' + fxText(s, list) });
+  }
+  // Assets screen: balances in another currency without a rate are left out of the totals, and said so.
+  function countryNote(s, nw) {
+    var u = nw.unconverted || [];
+    if (!u.length) return null;
+    var curs = [];
+    u.forEach(function (r) { if (curs.indexOf(r.currency) < 0) curs.push(r.currency); });
+    return h('p', { class: 'warn small', id: 'aw-unconverted', role: 'status' }, h('span', { text: u.length + (u.length === 1 ? ' account in ' : ' accounts in ') + curs.join(' and ') + (u.length === 1 ? ' is' : ' are') + ' not in these totals. Enter an exchange rate to include ' + (u.length === 1 ? 'it' : 'them') + '. ' }),
+      btn('By country', function () { go('countries', { open: 'cn-settings' }); }, 'sm', { id: 'aw-unconverted-go' }));
+  }
+  function countriesScreen(s) {
+    var C = L.countries, t = today(), cur = s.settings.currency, home = C.homeOf(s.settings), codes = C.inUse(s);
+    var pick = view.country && codes.indexOf(view.country) >= 0 ? view.country : '';
+    var thisYear = Number(t.slice(0, 4)), yr = Number(view.cYear) || thisYear;
+    var A = C.assets(s, t), T = C.taxes(s, yr);
+    function chip(code, label) {
+      return h('button', { type: 'button', class: 'chipbtn cn-chip', 'data-country': code || 'all', 'aria-pressed': pick === code ? 'true' : 'false', text: label, onclick: function () { view.country = code; render(); } });
+    }
+    var chips = h('div', { class: 'chips', id: 'cn-chips', role: 'group', 'aria-label': 'Show one country or all' },
+      [chip('', 'All countries')].concat(codes.map(function (c) { return chip(c, C.nameOf(s.settings, c)); })));
+    var years = [];
+    for (var y = thisYear + 1; y >= thisYear - 4; y--) years.push(y);
+    (s.countryTax || []).concat(s.countryTaxYears || []).forEach(function (r) { if (years.indexOf(r.year) < 0) years.push(r.year); });
+    if (years.indexOf(yr) < 0) years.push(yr);
+    years.sort(function (a, b) { return b - a; });
+    var yearSel = labelled(sel('cn-year', years.map(function (v) { return { v: String(v), t: String(v) }; }), String(yr), function (e) { view.cYear = Number(e.target.value); render(); }), 'Tax year');
+    var mk = lockMark(['accounts', 'entries', 'countryTax', 'countryTaxYears', 'taxItems', 'taxPayments', 'business-*']);
+    var head = [btn('Back to Assets', function () { go('domain', { domain: 'assets' }); }, 'sm back'),
+      h('div', { class: 'row sp' }, h('h1', { text: 'Taxes and assets by country' }), mk),
+      h('p', { class: 'mut small', text: 'Every amount shows in its own currency. Totals across currencies use only exchange rates you type. LifeOS has no tax rules for any country here: tax amounts are your own numbers. Not tax advice.' }),
+      chips, h('div', { class: 'row' }, field('Tax year', yearSel))];
+    var body = pick ? oneCountry(pick) : allCountries();
+    return h('div', { id: 'countries', 'data-view': pick || 'all' }, head, body, countrySettings());
+
+    function allCountries() {
+      var aRows = A.countries.map(function (c) {
+        return h('tr', { 'data-country': c.code }, h('td', null, btn(c.name, function () { view.country = c.code; render(); }, 'sm', { 'aria-label': 'Show ' + c.name })),
+          h('td', { text: curList(c.totals, 'assets') || '-' }), h('td', { text: curList(c.totals, 'liabilities') || '-' }), h('td', { class: 'cn-net', text: curList(c.totals, 'net') || (c.accounts.length ? '-' : 'No accounts') }));
+      });
+      var assetsCard = h('div', { class: 'card', id: 'cn-assets' }, h('h2', { text: 'Assets by country' }),
+        h('div', { class: 'tablewrap' }, h('table', null,
+          h('thead', null, h('tr', null, ['Country', 'Assets', 'Owed', 'Net worth'].map(function (x) { return h('th', { text: x }); }))),
+          h('tbody', null, aRows, h('tr', { class: 'cn-total', 'data-country': 'all' }, h('th', { text: 'All countries' }), h('td', { text: curList(A.totals, 'assets') || '-' }), h('td', { text: curList(A.totals, 'liabilities') || '-' }), h('td', { text: curList(A.totals, 'net') || '-' }))))),
+        combinedLine(s, A.combined, A.totals, 'net', 'cn-all-combined'));
+      var tRows = T.map(function (c) {
+        return h('tr', { 'data-country': c.code }, h('td', { text: c.name }), h('td', { text: curList(c.totals, 'paid') || '-' }), h('td', { text: curList(c.totals, 'owed') || '-' }), h('td', { text: curList(c.totals, 'refund') || '-' }),
+          h('td', { text: c.items ? c.openItems + ' open of ' + c.items : '-' }), h('td', { text: c.profile ? C.RESIDENCY_LABEL[c.profile.residency] + (c.profile.days !== undefined ? ', ' + c.profile.days + ' days' : '') : '-' }));
+      });
+      var hm = T.filter(function (c) { return c.code === home; })[0];
+      var taxCard = h('div', { class: 'card', id: 'cn-taxes' }, h('h2', { text: 'Taxes ' + yr + ' by country' }),
+        h('div', { class: 'tablewrap' }, h('table', null,
+          h('thead', null, h('tr', null, ['Country', 'Paid', 'Owed', 'Refunds', 'Checklist', 'Residency'].map(function (x) { return h('th', { text: x }); }))),
+          h('tbody', null, tRows))),
+        hm ? estimatesLine(hm) : null);
+      return [assetsCard, taxCard];
+    }
+    function estimatesLine(c) {
+      var e = c.estimates;
+      if (!e) return null;
+      if (e.blocked) return lockedTax();
+      return h('p', { class: 'small', id: 'cn-estimates' }, h('span', { text: 'Estimated federal and NJ payments logged for ' + yr + ': ' + moneyFmt(e.federal, e.currency) + ' federal and ' + moneyFmt(e.nj, e.currency) + ' NJ (Business, Tax). ' }),
+        btn('Open Business', function () { go('business'); }, 'sm', { id: 'cn-go-business' }));
+    }
+    function oneCountry(code) {
+      var a = A.countries.filter(function (c) { return c.code === code; })[0], tx = T.filter(function (c) { return c.code === code; })[0], name = C.nameOf(s.settings, code);
+      var stats = a.totals.length ? h('div', { class: 'stats', id: 'cn-stats' }, a.totals.map(function (b) { return stat('Net worth (' + b.currency + ')', moneyFmt(b.net, b.currency), 'cn-net-' + b.currency); })) : h('p', { class: 'mut', id: 'cn-no-accounts', text: 'No accounts in ' + name + ' yet.' });
+      var acctCard = h('div', { class: 'card', id: 'cn-accounts' }, h('h2', { text: 'Accounts in ' + name + ' (' + a.accounts.length + ')' }),
+        a.accounts.map(function (r) {
+          return h('div', { class: 'item cn-acct', 'data-account': r.name }, h('div', null, h('div', { class: 'entry-t', text: r.name }),
+            h('div', { class: 'mut small' }, h('span', { class: 'chip' + (r.liability ? ' bad' : ''), text: KIND_LABEL[r.kind] + (r.liability ? ' (owed)' : '') }), moneyFmt(Math.abs(r.cents), r.currency) + ' as of ' + r.date)));
+        }),
+        combinedLine(s, a.combined, a.totals, 'net', 'cn-combined'),
+        h('div', { class: 'row' }, btn('Add an account in ' + name, function () { go('domain', { domain: 'assets', acctCountry: code }); var i = document.getElementById('ac-name'); if (i) i.focus(); }, 'sm', { id: 'cn-add-account' })));
+      // tax-year profile: only what the owner types
+      var p = tx.profile;
+      var profCard = h('div', ROW({ class: 'card', id: 'cn-profile' }, 'countryTaxYears', p, true), h('h2', { text: name + ' tax year ' + yr }),
+        p ? h('div', { class: 'small' }, h('p', { id: 'cn-residency', text: 'Residency: ' + C.RESIDENCY_LABEL[p.residency] + '.' }),
+          p.days !== undefined ? h('p', { id: 'cn-days', text: 'Days in ' + name + ': ' + p.days + '.' }) : null,
+          p.filingDue ? h('p', { id: 'cn-filing', text: 'Filing date: ' + p.filingDue + '.' }) : null,
+          p.note ? h('p', { class: 'mut', text: p.note }) : null) : h('p', { class: 'mut small', id: 'cn-no-profile', text: 'Nothing entered for ' + yr + ' yet.' }),
+        h('div', { class: 'row' }, btn(p ? 'Edit' : 'Add details', function () { profileDialog(code, p); }, 'sm', { id: 'cn-profile-edit' })));
+      // tax records
+      var recs = tx.records.slice().sort(function (x, y2) { return (y2.date || '').localeCompare(x.date || ''); });
+      var recCard = h('div', { class: 'card', id: 'cn-records' }, h('h2', { text: 'Tax amounts ' + yr + ' (' + recs.length + ')' }),
+        tx.totals.length ? h('p', { class: 'small', id: 'cn-tax-totals', text: 'Paid ' + curList(tx.totals, 'paid') + ', owed ' + curList(tx.totals, 'owed') + ', refunds ' + curList(tx.totals, 'refund') + '.' }) : null,
+        recs.map(function (r) {
+          return h('div', ROW({ class: 'item cn-rec', 'data-title': r.title, 'data-kind': r.kind }, 'countryTax', r, true), h('div', null, h('div', { class: 'entry-t', text: r.title }),
+            h('div', { class: 'mut small' }, h('span', { class: 'chip', text: C.RECORD_KIND_LABEL[r.kind] }), moneyFmt(r.amountCents, r.currency) + (r.date ? ' on ' + r.date : '')), r.notes ? h('p', { class: 'small mut', text: r.notes }) : null),
+            h('div', { class: 'row' }, btn('Edit', function () { recordDialog(code, r); }, 'sm', { 'aria-label': 'Edit ' + r.title }),
+              btn('Delete', function () {
+                openDialog({ title: 'Delete this tax amount?', yes: 'Delete', danger: true, body: [h('p', { class: 'mut', text: r.title })],
+                  onYes: function () { return commit(function (x) { C.deleteRecord(x, r.id); }, 'country tax delete').then(function () { render(); }); } });
+              }, 'sm bad', { 'aria-label': 'Delete ' + r.title })));
+        }),
+        recordForm(code));
+      var est = code === home ? h('div', { class: 'card', id: 'cn-us-tax' }, h('h2', { text: 'Estimated tax payments ' + yr }), estimatesLine(tx)) : null;
+      var chk = h('div', { class: 'card', id: 'cn-checklist' }, h('h2', { text: 'Tax checklist ' + yr }),
+        h('p', { class: 'small', text: tx.items ? tx.openItems + ' of ' + tx.items + (tx.items === 1 ? ' item is' : ' items are') + ' not done yet.' : 'No checklist items for ' + name + ' in ' + yr + '.' }),
+        btn('Open the tax checklist', function () { go('domain', { domain: 'admin', open: 'ad-tax' }); }, 'sm', { id: 'cn-go-admin' }));
+      return [stats, acctCard, profCard, recCard, est, chk];
+    }
+    function recordInputs(code, r) {
+      var kind = sel('cn-r-kind', C.RECORD_KINDS.map(function (k) { return { v: k, t: C.RECORD_KIND_LABEL[k] }; }), r ? r.kind : 'paid');
+      var title = h('input', { type: 'text', id: 'cn-r-title', maxlength: '200', value: r ? r.title : '' });
+      var amount = h('input', { type: 'text', id: 'cn-r-amount', inputmode: 'decimal', maxlength: '16', value: r ? (r.amountCents / 100).toFixed(2) : '' });
+      var currency = h('input', { type: 'text', id: 'cn-r-currency', maxlength: '3', value: r ? r.currency : C.currencyOf(s.settings, code) });
+      var date = h('input', { type: 'date', id: 'cn-r-date', value: r && r.date ? r.date : '' });
+      var notes = h('textarea', { id: 'cn-r-notes', maxlength: '1000', value: r ? r.notes : '' });
+      return { kind: kind, title: title, amount: amount, currency: currency, date: date, notes: notes,
+        nodes: [field('Kind', kind), field('What it is', title, 'For example "Income tax return". Do not enter tax IDs, ID numbers or account numbers.'), field('Amount', amount), field('Currency', currency), field('Date (optional)', date), field('Notes (optional)', notes)],
+        value: function () { return { country: code, year: yr, kind: kind.value, title: title.value, amount: amount.value, currency: currency.value.trim().toUpperCase(), date: date.value, notes: notes.value }; } };
+    }
+    function recordForm(code) {
+      var f = recordInputs(code, null);
+      return h('form', { id: 'cn-r-form', onsubmit: function (e) {
+        e.preventDefault();
+        act(function () { var v = f.value(); return commit(function (x) { C.addRecord(x, v); }, 'country tax add').then(function () { setNotice('ok', 'Tax amount added.'); render(); }); });
+      } }, h('h3', { text: 'Add a tax amount for ' + yr }), f.nodes, h('button', { type: 'submit', class: 'btn pri', id: 'cn-r-add', text: 'Add tax amount' }));
+    }
+    function recordDialog(code, r) {
+      var f = recordInputs(code, r);
+      openDialog({ title: 'Edit tax amount', yes: 'Save', body: [h('div', { class: 'form' }, f.nodes), movePrivBtn('countryTax', r)],
+        onYes: function () { var v = f.value(); return commit(function (x) { C.editRecord(x, r.id, v); }, 'country tax edit').then(function () { render(); }); } });
+    }
+    function profileDialog(code, p) {
+      var res = sel('cn-p-res', C.RESIDENCY.map(function (k) { return { v: k, t: C.RESIDENCY_LABEL[k] }; }), p ? p.residency : 'unsure');
+      var days = h('input', { type: 'text', id: 'cn-p-days', inputmode: 'numeric', maxlength: '3', value: p && p.days !== undefined ? String(p.days) : '' });
+      var due = h('input', { type: 'date', id: 'cn-p-due', value: p && p.filingDue ? p.filingDue : '' });
+      var note = h('textarea', { id: 'cn-p-note', maxlength: '1000', value: p ? p.note : '' });
+      openDialog({ title: C.nameOf(s.settings, code) + ' tax year ' + yr, yes: 'Save',
+        body: [h('p', { class: 'mut small', text: 'Your own entries. LifeOS does not decide residency or count days for you. Leave everything empty to remove these details.' }),
+          field('Residency', res), field('Days in ' + C.nameOf(s.settings, code) + ' (optional)', days), field('Filing date (optional)', due), field('Note (optional)', note, 'Do not enter tax IDs or ID numbers.'), movePrivBtn('countryTaxYears', p)],
+        onYes: function () {
+          var input = { residency: res.value, days: days.value, filingDue: due.value, note: note.value };
+          return commit(function (x) { C.setProfile(x, code, yr, input); }, 'country tax profile').then(function () { render(); });
+        } });
+    }
+    function countrySettings() {
+      var list = C.list(s.settings);
+      var rows = list.map(function (c) {
+        return h('div', { class: 'item cn-country', 'data-country': c.code }, h('div', null, h('span', { class: 'entry-t', text: c.name }), h('span', { class: 'mut small', text: ' ' + c.code + ', ' + c.currency + (c.code === home ? ', home country' : '') })),
+          c.code === home ? null : btn('Remove', function () {
+            act(function () {
+              // SEC-144: a private record may use this country; while the private vault is closed the check cannot see it.
+              if (L.store.isUnlocked() && !L.priv.isOpen() && lockMark(['accounts', 'countryTax', 'countryTaxYears', 'taxItems'])) throw new Error('Open the private vault first: a private item may use this country.');
+              return commit(function (x) { C.removeCountry(x, c.code); }, 'country remove').then(function () { if (view.country === c.code) view.country = ''; view.open = 'cn-settings'; setNotice('ok', c.name + ' removed from the list.'); render(); }); });
+          }, 'sm bad', { 'aria-label': 'Remove ' + c.name }));
+      });
+      var code = h('input', { type: 'text', id: 'cn-c-code', maxlength: '2', autocomplete: 'off' });
+      var name = h('input', { type: 'text', id: 'cn-c-name', maxlength: '60', autocomplete: 'off' });
+      var ccur = h('input', { type: 'text', id: 'cn-c-currency', maxlength: '3', autocomplete: 'off' });
+      var addForm = h('form', { id: 'cn-c-form', onsubmit: function (e) {
+        e.preventDefault();
+        act(function () { var v = { code: code.value, name: name.value, currency: ccur.value }; return commit(function (x) { C.addCountry(x, v); }, 'country add').then(function () { view.open = 'cn-settings'; setNotice('ok', 'Country saved.'); render(); }); });
+      } }, h('h3', { text: 'Add a country' }), field('Country code', code, 'Two letters, for example PT for Portugal.'), field('Name', name), field('Currency', ccur, 'Three letters, for example EUR.'),
+        h('button', { type: 'submit', class: 'btn pri', id: 'cn-c-save', text: 'Save country' }));
+      // a rate for each currency other than the vault's that is on the list or in use
+      var curs = [];
+      list.forEach(function (c) { if (c.currency !== cur && curs.indexOf(c.currency) < 0) curs.push(c.currency); });
+      (s.accounts || []).concat(s.countryTax || []).forEach(function (r) { if (r.currency && r.currency !== cur && curs.indexOf(r.currency) < 0) curs.push(r.currency); });
+      (s.settings.fx || []).forEach(function (r) { if (curs.indexOf(r.currency) < 0) curs.push(r.currency); });
+      var rates = curs.map(function (c) {
+        var r = (s.settings.fx || []).filter(function (x) { return x.currency === c; })[0];
+        var val = h('input', { type: 'text', id: 'cn-fx-' + c, inputmode: 'decimal', maxlength: '14', value: r ? String(r.rate) : '', 'aria-label': 'Value of 1 ' + c + ' in ' + cur });
+        var asOf = h('input', { type: 'date', id: 'cn-fx-date-' + c, value: r ? r.asOf : t, 'aria-label': 'Date of the ' + c + ' rate' });
+        return h('div', { class: 'item cn-fx', 'data-currency': c }, h('div', { class: 'row' }, h('span', { text: '1 ' + c + ' =' }), val, h('span', { text: cur + ' as of' }), asOf),
+          h('div', { class: 'row' }, btn('Save rate', function () {
+            act(function () { return commit(function (x) { C.setRate(x, c, val.value.trim(), asOf.value); }, 'exchange rate').then(function () { view.open = 'cn-settings'; setNotice('ok', val.value.trim() ? 'Rate saved.' : 'Rate cleared.'); render(); }); });
+          }, 'sm pri', { id: 'cn-fx-save-' + c }), r ? btn('Clear', function () {
+            act(function () { return commit(function (x) { C.setRate(x, c, '', ''); }, 'exchange rate').then(function () { view.open = 'cn-settings'; setNotice('ok', 'Rate cleared.'); render(); }); });
+          }, 'sm', { id: 'cn-fx-clear-' + c }) : null));
+      });
+      return details('cn-settings', 'Countries and exchange rates', [h('div', { id: 'cn-countries' }, rows), addForm,
+        h('h3', { text: 'Exchange rates' }), h('p', { class: 'mut small', text: 'Type each rate yourself, as the value of one unit in ' + cur + '. LifeOS never looks rates up. A total that mixes currencies is only shown once every currency in it has a rate.' }),
+        curs.length ? rates : h('p', { class: 'mut small', text: 'Every currency in use is ' + cur + '.' })], view.open === 'cn-settings');
+    }
   }
 
   // ---------- insights and AI ----------
@@ -3163,13 +3377,14 @@
     var xT = h('input', { type: 'text', id: 'tx-title', maxlength: '200', autocomplete: 'off' });
     var xDue = h('input', { type: 'date', id: 'tx-due' });
     var years = A.taxByYear(s);
+    var xC = countrySel('tx-country', s, L.countries.homeOf(s.settings));
     var taxCard = details('ad-tax', 'Tax checklist (' + (s.taxItems || []).length + ')', [
       h('p', { class: 'mut small', text: 'A checklist of items by tax year. It records what you need, have received or have filed. It does not compute anything.' }),
       years.map(function (y) {
         return h('div', { class: 'tx-year', 'data-year': String(y.year) }, h('h3', { text: y.year + ' (' + y.needed + ' needed, ' + y.received + ' received, ' + y.filed + ' filed)' }),
           y.items.map(function (it) {
             return h('div', ROW({ class: 'item tx-row', 'data-title': it.title }, 'taxItems', it),
-              h('div', null, h('span', { class: 'entry-t' + (it.state === 'filed' ? ' done-t' : ''), text: it.title }), h('div', { class: 'mut small', text: it.state + (it.dueDate ? ' | due ' + it.dueDate : '') })),
+              h('div', null, h('span', { class: 'entry-t' + (it.state === 'filed' ? ' done-t' : ''), text: it.title }), h('div', { class: 'mut small', text: it.state + (it.dueDate ? ' | due ' + it.dueDate : '') + (it.country && it.country !== L.countries.homeOf(s.settings) ? ' | ' + L.countries.nameOf(s.settings, it.country) : '') })),
               h('div', { class: 'row' },
                 labelled(sel('tx-state-' + it.id, A.TAX_STATES.map(function (v) { return { v: v, t: v }; }), it.state, function (e) { var v = e.target.value; act(function () { return commit(function (x) { A.setTaxState(x, it.id, v); }, 'tax item state').then(function () { view.open = 'ad-tax'; render(); }); }); }), 'State of ' + it.title),
                 btn('Delete', function () { act(function () { return commit(function (x) { A.deleteTaxItem(x, it.id); }, 'tax item delete').then(function () { view.open = 'ad-tax'; render(); }); }); }, 'sm bad', { 'aria-label': 'Delete ' + it.title })));
@@ -3179,11 +3394,11 @@
         onsubmit: function (e) {
           e.preventDefault();
           act(function () {
-            var input = { year: xYear.value, title: xT.value, dueDate: xDue.value };
+            var input = { year: xYear.value, title: xT.value, dueDate: xDue.value, country: xC.value };
             return commit(function (x) { A.addTaxItem(x, input); }, 'tax item add').then(function () { view.open = 'ad-tax'; setNotice('ok', 'Tax item added.'); render(); });
           });
         }
-      }, field('Tax year', xYear), field('Item', xT, 'Do not enter ID numbers, account numbers or passwords.'), field('Due date (optional)', xDue), h('button', { type: 'submit', class: 'btn pri', id: 'tx-add', text: 'Add tax item' }))], view.open === 'ad-tax' || !(s.taxItems || []).length);
+      }, field('Tax year', xYear), field('Item', xT, 'Do not enter ID numbers, account numbers or passwords.'), field('Due date (optional)', xDue), field('Country', xC), h('button', { type: 'submit', class: 'btn pri', id: 'tx-add', text: 'Add tax item' }))], view.open === 'ad-tax' || !(s.taxItems || []).length);
 
     // Older home/due entries the upgrade could not turn into renewals (notes too long, or past the cap). They count in the timeline,
     // so each can be deleted after a confirm; the list shows the 200 soonest.
@@ -4228,8 +4443,8 @@
   var PRIV_LABEL = { entries: 'Entries', accounts: 'Accounts', recurring: 'Recurring items', budgets: 'Budgets', projects: 'Projects', pipeline: 'Pipeline', goals: 'Goals',
     maintenance: 'Maintenance', vehicles: 'Vehicles', properties: 'Properties', renewals: 'Renewals', documents: 'Documents', taxItems: 'Tax items', learningItems: 'Learning items',
     studySessions: 'Study sessions', takeaways: 'Takeaways', activities: 'Activities', people: 'People', groups: 'Groups', contacts: 'Logged contacts', habits: 'Daily checks',
-    habitLog: 'Daily check ticks', cycle: 'Training cycle', invoices: 'Invoices', trips: 'Mileage trips', payees: 'Payees', taxPayments: 'Tax payments', clients: 'Clients', shows: 'Shows', episodes: 'Episodes', platformStats: 'Platform numbers', sites: 'Sites', siteTraffic: 'Site traffic', meals: 'Saved meals', mealLog: 'Logged meals' };
-  function privKey(c, r) { return c === 'cycle' ? 'cycle' : c === 'budgets' ? r.category : c === 'habitLog' ? r.habitId + '|' + r.date : r.id; }
+    habitLog: 'Daily check ticks', cycle: 'Training cycle', invoices: 'Invoices', trips: 'Mileage trips', payees: 'Payees', taxPayments: 'Tax payments', clients: 'Clients', shows: 'Shows', episodes: 'Episodes', platformStats: 'Platform numbers', sites: 'Sites', siteTraffic: 'Site traffic', meals: 'Saved meals', mealLog: 'Logged meals', countryTax: 'Country tax amounts', countryTaxYears: 'Country tax years' };
+  function privKey(c, r) { return c === 'cycle' ? 'cycle' : c === 'budgets' ? r.category : c === 'habitLog' ? r.habitId + '|' + r.date : c === 'countryTaxYears' ? r.country + '|' + r.year : r.id; }
   function privList(s, c) { return c === 'cycle' ? (s.cycle ? [s.cycle] : []) : (s[c] || []); }
   function privText(c, r, s) {
     switch (c) {
@@ -4250,6 +4465,8 @@
       case 'siteTraffic': return 'Traffic ' + r.month;
       case 'episodes': return r.title;
       case 'taxPayments': return 'Tax payment ' + r.year + ' ' + r.jurisdiction + ' quarter ' + r.quarter;
+      case 'countryTax': return r.title + ' (' + r.country + ' ' + r.year + ')';
+      case 'countryTaxYears': return 'Tax year ' + r.year + ' in ' + L.countries.nameOf(s.settings, r.country);
       default: return r.title || r.name || r.id;
     }
   }

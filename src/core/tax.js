@@ -621,6 +621,6 @@
     SE_MIN_DEFAULT, SE_MIN_NOTE, mulDiv, ppm, defaultProfile, cleanProfile, cleanTaxYears, cleanHomeOffice, cleanTaxMap, cleanPayments, profileOf, years, blocked, refusal,
     shiftDue, dueDates, lineFor, rateFor, tripCents, homeOfficeCents, seTax, compute, installments, safeHarbor, payeeTotals, timelineRows, digest,
     proposeYear, applyNewYear, setProfile, startDefaultYear, setLineMap, addPayment, deletePayment, accountantPackage, exportPackage, LEFT_OUT_MESSAGE, exportCsv, money,
-    bizTest, centsOf, lineById,
+    bizTest, centsOf, lineById, paymentTotals,
   };
 })();

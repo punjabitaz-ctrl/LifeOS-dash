@@ -14,7 +14,7 @@
 
   // area key -> [label, view key]. The view key is a navigation key (nav.js).
   const AREAS = Object.freeze({
-    money: ['Money', 'v:money'], assets: ['Assets', 'v:assets'], work: ['Work', 'v:work'], jobs: ['Job search', 'v:jobs'], health: ['Health', 'v:health'], goals: ['Goals', 'v:goals'],
+    money: ['Money', 'v:money'], assets: ['Assets', 'v:assets'], countries: ['By country', 'countries'], work: ['Work', 'v:work'], jobs: ['Job search', 'v:jobs'], health: ['Health', 'v:health'], goals: ['Goals', 'v:goals'],
     home: ['Home and property', 'v:home'], admin: ['Admin', 'v:admin'], learning: ['Learning', 'v:learning'], activities: ['Activities', 'v:activities'], social: ['Social', 'v:social'],
     business: ['Business', 'business'], clients: ['AYiN and clients', 'clients'], podcasts: ['Podcasts', 'podcasts'], websites: ['Websites', 'websites'], wellbeing: ['Wellbeing', 'v:wellbeing'],
   });
@@ -24,10 +24,11 @@
     documents: 'admin', taxItems: 'admin', learningItems: 'learning', studySessions: 'learning', takeaways: 'learning', activities: 'activities', people: 'social', groups: 'social', contacts: 'social',
     habits: 'health', meals: 'health', invoices: 'business', trips: 'business', payees: 'business', taxPayments: 'business',
     clients: 'clients', shows: 'podcasts', episodes: 'podcasts', sites: 'websites',
+    countryTax: 'countries', countryTaxYears: 'countries', // v2.4.0
   };
   const ENTRY_AREA = { money: 'money', assets: 'assets', work: 'work', health: 'health', goals: 'goals', home: 'home', admin: 'admin', learning: 'learning', activities: 'activities', social: 'social', wellbeing: 'wellbeing' };
   // Fields that hold a fixed list value, an id, a key or a date are not typed text: they are left out of the index.
-  const SKIP = new Set(['id', 'importKey', 'createdAt', 'updatedAt', 'kind', 'type', 'state', 'status', 'stage', 'cadence', 'channel', 'scope', 'unit', 'locationType', 'lostReason', 'domain', 'monthDay', 'repeat', 'severity', 'format', 'measure', 'slot']);
+  const SKIP = new Set(['id', 'importKey', 'createdAt', 'updatedAt', 'kind', 'type', 'state', 'status', 'stage', 'cadence', 'channel', 'scope', 'unit', 'locationType', 'lostReason', 'domain', 'monthDay', 'repeat', 'severity', 'format', 'measure', 'slot', 'country', 'currency', 'residency']);
   const LABELS = ['title', 'name', 'hostname', 'text', 'label', 'role', 'org', 'category', 'number', 'nextAction', 'provider', 'notes'];
   const DATEISH = /^\d{4}-\d{2}(-\d{2})?(T[\d:.]+Z?)?$/;
   let index = null;

@@ -4,10 +4,10 @@
   // The browser's back button then moves between views, closes the open dialog, and never reaches a view while the app is locked.
   const L = (globalThis.LifeOS = globalThis.LifeOS || {});
   const DOMAINS = ['money', 'assets', 'work', 'health', 'goals', 'home', 'admin', 'learning', 'activities', 'social', 'wellbeing'];
-  const NAMES = ['dashboard', 'review', 'memory', 'settings', 'private', 'archive', 'business', 'clients', 'podcasts', 'websites'];
+  const NAMES = ['dashboard', 'review', 'memory', 'settings', 'private', 'archive', 'business', 'clients', 'podcasts', 'websites', 'countries'];
   // The phone bottom bar, and every other area (the More sheet). Each entry is { key, label }; a key is a view key.
   const BAR = Object.freeze([['dashboard', 'Overview'], ['v:money', 'Money'], ['v:work', 'Work'], ['v:health', 'Health']].map(([key, label]) => Object.freeze({ key: key === 'dashboard' ? 'dashboard' : key, label })));
-  const MORE = Object.freeze([['v:assets', 'Assets'], ['v:command', 'Command center'], ['v:jobs', 'Job search'], ['business', 'Business'], ['clients', 'AYiN and clients'], ['podcasts', 'Podcasts'], ['websites', 'Websites'], ['v:goals', 'Goals'], ['v:home', 'Home and property'], ['v:admin', 'Admin'],
+  const MORE = Object.freeze([['v:assets', 'Assets'], ['countries', 'By country'], ['v:command', 'Command center'], ['v:jobs', 'Job search'], ['business', 'Business'], ['clients', 'AYiN and clients'], ['podcasts', 'Podcasts'], ['websites', 'Websites'], ['v:goals', 'Goals'], ['v:home', 'Home and property'], ['v:admin', 'Admin'],
     ['v:learning', 'Learning'], ['v:activities', 'Activities'], ['v:social', 'Social'], ['private', 'Private vault'], ['v:wellbeing', 'Wellbeing'], ['review', 'Review'], ['memory', 'Memory'], ['settings', 'Settings']]
     .map(([key, label]) => Object.freeze({ key, label })));
   const KEYS = new Set(['dashboard', 'v:command', 'v:jobs'].concat(NAMES, DOMAINS.map((d) => 'v:' + d)));

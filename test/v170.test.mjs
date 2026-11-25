@@ -29,9 +29,9 @@ const stripMedia = (o) => { for (const c of MEDIA_COLLECTIONS) delete o[c]; for 
 
 // ---------------------------------------------------------------- schema 19
 test('schema 19: the schema, the version and the build order', () => {
-  assert.equal(S.SCHEMA, 23); assert.equal(S.defaultState().schema, 23);
-  assert.equal(JSON.parse(src('package.json')).version, '2.3.0');
-  assert.match(src('build.mjs'), /'business', 'clients', 'media', 'layout'/);
+  assert.equal(S.SCHEMA, 24); assert.equal(S.defaultState().schema, 24);
+  assert.equal(JSON.parse(src('package.json')).version, '2.4.0');
+  assert.match(src('build.mjs'), /'business', 'countries', 'clients', 'media', 'layout'/);
   assert.deepEqual(MEDIA_COLLECTIONS.filter((c) => !Array.isArray(S.defaultState()[c])), []);
   assert.deepEqual(S.defaultState().settings.clients, { contactDays: 30 });
 });
@@ -55,7 +55,7 @@ test('migrations 1 to 18 into 19: every old text survives, no client, show, epis
     stripMedia(o); // an older format never held them; here they are present in the input only if a copy was tampered with, so put them back
     for (const c of MEDIA_COLLECTIONS) o[c] = clone(state[c]);
     const got = S.validateState(o);
-    assert.equal(got.schema, 23); assert.equal(got.sourceSchema, n);
+    assert.equal(got.schema, 24); assert.equal(got.sourceSchema, n);
     for (const c of MEDIA_COLLECTIONS) assert.deepEqual(got[c], [], 'schema ' + n + ' carries no ' + c);
     assert.deepEqual(got.settings.clients, { contactDays: 30 });
     assert.ok((got.invoices || []).every((i) => i.clientId === undefined), 'no client link on an invoice at schema ' + n);
@@ -71,7 +71,7 @@ test('a v1.6.0 backup (schema 18) imports cleanly and a stored schema 18 vault m
   st.pipeline.push({ id: 'a', title: 'Backup job', org: 'C', kind: 'job', stage: 'interview', source: '', nextStep: '', updatedAt: '2026-11-01', notes: 'kept', role: 'AE' });
   const salt = V.newSalt(); realKeys(); const key = await V.deriveKey('backup passphrase 1', salt); fastKeys();
   const imp = await V.importBackup('backup passphrase 1', JSON.stringify(await V.makeEnvelope(key, salt, st)));
-  assert.equal(imp.schema, 23); assert.equal(imp.sourceSchema, 18); assert.equal(imp.pipeline[0].role, 'AE'); assert.deepEqual(imp.clients, []);
+  assert.equal(imp.schema, 24); assert.equal(imp.sourceSchema, 18); assert.equal(imp.pipeline[0].role, 'AE'); assert.deepEqual(imp.clients, []);
   await vault(null);
   assert.deepEqual(S.droppedData(S.getState(), imp), []);
   const ad = memAdapter(); S._setAdapter(ad); S.lock(); await S.init(PASS);
@@ -81,9 +81,9 @@ test('a v1.6.0 backup (schema 18) imports cleanly and a stored schema 18 vault m
   await ad.set('envelope', await V.makeEnvelope(key2, salt2, st));
   S.lock();
   const un = await S.unlock(PASS);
-  assert.equal(un.schema, 23); assert.equal(un.pipeline.length, 1); assert.deepEqual(un.shows, []);
+  assert.equal(un.schema, 24); assert.equal(un.pipeline.length, 1); assert.deepEqual(un.shows, []);
   await S.commit(() => {});
-  assert.equal((await (await V.openEnvelope(await ad.get('envelope'), PASS)).raw).schema, 23);
+  assert.equal((await (await V.openEnvelope(await ad.get('envelope'), PASS)).raw).schema, 24);
 });
 test('downgrade guards: an older-format copy names every new detail it would drop; a newer schema is refused', async () => {
   const { state } = buildAdversarial(L);
@@ -100,12 +100,12 @@ test('downgrade guards: an older-format copy names every new detail it would dro
   assert.deepEqual(one((s) => { s.clients.push({ id: 'c', name: 'N', status: 'active', personIds: [], notes: '' }); s.invoices.push(inv('i', '1', '2026-12-01', 100, 'sent', { clientId: 'c' })); }), ['clients', 'client links on invoices']);
   assert.deepEqual(one((s) => { s.invoices.push(inv('i', '1', '2026-12-01', 100, 'sent')); }), [], 'a plain invoice loses nothing');
   assert.deepEqual(S.droppedData(state, S.validateState(clone(state))), []);
-  assert.throws(() => S.validateState(Object.assign(S.defaultState(), { schema: 24 })), /schema/);
+  assert.throws(() => S.validateState(Object.assign(S.defaultState(), { schema: 25 })), /schema/);
   await vault(state);
   const salt = V.newSalt(); realKeys(); const key = await V.deriveKey('backup passphrase 1', salt); fastKeys();
   const imp = await V.importBackup('backup passphrase 1', JSON.stringify(await V.makeEnvelope(key, salt, Object.assign(clone(state), { schema: 18 }))));
   assert.equal(imp.sourceSchema, 18); assert.ok(S.dropsWork(S.getState(), imp));
-  await assert.rejects(V.importBackup('backup passphrase 1', JSON.stringify(await V.makeEnvelope(key, salt, Object.assign(clone(state), { schema: 24 })))), /schema/);
+  await assert.rejects(V.importBackup('backup passphrase 1', JSON.stringify(await V.makeEnvelope(key, salt, Object.assign(clone(state), { schema: 25 })))), /schema/);
 });
 
 // ---------------------------------------------------------------- validateState for every new field

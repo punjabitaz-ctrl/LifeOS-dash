@@ -750,3 +750,33 @@ The owner asked for a visual style update and "an overview screen that shows you
 - Brighter light theme (cool off-white background, white cards, indigo accent with a violet gradient on primary buttons and the brand mark), softer shadows, larger radii, Inter where installed with system fonts as fallback (nothing is downloaded), a frosted top bar and phone bar, pill nav, tinted notices and chips. Dark theme follows the same tokens.
 - Text, muted text, accent and status colours keep WCAG AA (4.5:1) on cards and background in both themes (tested). Hover lift and transitions are off under prefers-reduced-motion. The app icons and theme colour follow the new accent.
 - No em dashes; no advice wording.
+
+## v2.4.0 addendum: Taxes and assets by country (owner request, 25 Nov 2026)
+The owner asked for "a section within taxes and assets that allows me to view by country eg: US and Spain". Defaults chosen in the build where the request left room are marked (default).
+
+### Where it lives
+- A "By country" screen, reached from More (right after Assets) and from a "By country" button on Assets (default). Tax checklist items stay in Admin; US estimated payments stay in Business. By country reads both and links to them.
+- Chips: All countries, then each country on the list (and any country code a record uses that is no longer on the list, shown by its code). A tax year picker (next year back to four years ago, plus any year with records).
+- All countries: a table of assets, owed and net worth per country with an All countries row, and a table of tax paid, owed, refunds, checklist (open of total) and residency per country for the year.
+- One country: net worth per currency, its accounts, its tax-year details, its tax amounts with add, edit and delete, the US estimated payments for the home country, and its checklist count with a link to Admin.
+- A "Countries and exchange rates" section: the list (code, name, currency; the home country cannot be removed; a country still used cannot be removed), a form to add one, and one rate row per currency in use.
+
+### Data
+- `settings.countries = { home, list: [{ code, name, currency }] }`: codes are two capital letters, currencies three, names up to 60 characters; 20 countries at most; the home country must be on the list. Default: United States (USD) and Spain (EUR), home United States (default).
+- `settings.fx = [{ currency, rate, asOf }]`: the value of one unit in the vault currency, above 0 and up to 1,000,000, up to six decimals, with the date the owner gives; never the vault currency itself; 20 at most. Nothing is fetched.
+- Accounts gain `country` and `currency`; tax checklist items gain `country`.
+- `countryTax`: `{ id, country, year, kind: paid | owed | refund, title (1 to 200), amountCents (whole cents, 0 to 10^13), currency, date?, notes (up to 1000) }`, 2000 at most.
+- `countryTaxYears`: `{ country, year, residency: unsure | resident | nonresident, days? (0 to 366), filingDue?, note (up to 1000) }`, one per country and year, 400 at most. All fields empty removes it.
+- Text that looks like a tax ID or an ID number (the existing SSN and EIN check, plus a Spanish NIE or DNI) is refused in titles, notes and country names.
+
+### Money across currencies
+- A balance is in its account's currency. Net worth and every total on Assets and the Overview stay in the vault currency: a balance in another currency is converted only with the owner's rate, exactly (whole cents, integer arithmetic, halves away from zero), and left out of the totals, with a line that says which accounts and currencies, while there is no rate.
+- By country shows every amount in its own currency, side by side, and a combined total in the vault currency only when every currency in it has a rate, with the rates used and their dates.
+- No tax rules, rates or estimates are added for any country. The tax amounts and the residency are the owner's own entries. "Not tax advice."
+
+### Migration and safety
+- Schema 24. From any older schema every account and tax item becomes the home country and the vault currency (US and USD), the list is the default and there are no rates, records or profiles: totals read exactly as before. Fields an older copy cannot hold are dropped, not trusted.
+- Downgrade guard: an older copy over a vault with any of the new data names "account countries and currencies", "country tax records", "country tax profiles", "countries on tax checklist items", "exchange rates" and "country list" before replacing.
+- Private vault: country tax amounts and tax years can be moved in and out; an account keeps its country and currency through a move. The screen shows the lock mark when private items are hidden.
+- Search: a By country area for tax amount titles and notes and tax-year notes. Codes, currencies and residency are not indexed. Nothing new reaches the weekly digest, an AI prompt, the audit log, diagnostics (counts only) or a URL.
+

@@ -1,6 +1,6 @@
 # LifeOS
 
-Version <!--version-->2.3.0<!--/version--> (set by package.json; `node build.mjs` writes it here).
+Version <!--version-->2.4.0<!--/version--> (set by package.json; `node build.mjs` writes it here).
 
 LifeOS (Living Independent and Free Everyday Operating System) is a single-file, offline, local-first life dashboard. It tracks eleven areas (money, assets, work, health and more) plus business records and tax estimates, keeps a private vault with its own passphrase (Wellbeing lives there), builds weekly reviews, and keeps a memory of insights you approve. Vanilla JS, no dependencies.
 

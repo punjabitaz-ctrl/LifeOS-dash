@@ -96,14 +96,14 @@ test('layout: Key numbers and Shortcuts lead the default order; an older saved l
 });
 
 test('schema 23: older vaults migrate with the default Overview and lifted layouts; a newer one is refused', async () => {
-  assert.equal(S.SCHEMA, 23);
+  assert.equal(S.SCHEMA, 24);
   for (const n of [1, 11, 21, 22]) {
     const o = clone(S.defaultState()); o.schema = n; delete o.settings.overview;
     if (n === 1) { for (const k of ['accounts', 'recurring', 'budgets', 'categories']) delete o[k]; }
     if (n < 21) { delete o.meals; delete o.mealLog; delete o.settings.food; }
     if (n >= 11) o.settings.layouts = { narrow: [{ id: 'priorities', size: 'wide', hidden: false }], wide: [] };
     const v = S.validateState(o);
-    assert.equal(v.schema, 23, 'from ' + n);
+    assert.equal(v.schema, 24, 'from ' + n);
     assert.deepEqual(v.settings.overview, Ov.defaultSettings());
     if (n >= 11) assert.deepEqual(v.settings.layouts.narrow.map((x) => x.id), ['kpis', 'shortcuts', 'priorities']);
   }
@@ -113,7 +113,7 @@ test('schema 23: older vaults migrate with the default Overview and lifted layou
   // Strict in the current format.
   const bad = clone(S.defaultState()); bad.settings.overview = { custom: 1, metrics: [], shortcuts: [] };
   assert.throws(() => S.validateState(bad), /Invalid data/);
-  const newer = clone(S.defaultState()); newer.schema = 24;
+  const newer = clone(S.defaultState()); newer.schema = 25;
   assert.throws(() => S.validateState(newer), /schema/);
 });
 

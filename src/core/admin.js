@@ -263,6 +263,8 @@
     const o = { id: L.store.newId(), year: yr, title: input.title, state: input.state || 'needed', notes: input.notes || '' };
     if (input.dueDate) o.dueDate = input.dueDate;
     const clean = cleanTaxItems([o])[0];
+    // v2.4.0: the country the item belongs to (checked by store.validateState; the home country when none is picked).
+    if (input.country) { if (!/^[A-Z]{2}$/.test(String(input.country))) throw new Error('Pick a country.'); clean.country = input.country; }
     state.taxItems = list(state, 'taxItems').concat([clean]);
     return clean;
   }
