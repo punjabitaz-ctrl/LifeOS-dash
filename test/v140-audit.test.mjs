@@ -44,9 +44,9 @@ test('SEC-98 (apple-touch-icon): the page carries a 180 px opaque PNG as a data:
   const idat = []; let o = 8; while (o < b.length) { const n = b.readUInt32BE(o), t = b.subarray(o + 4, o + 8).toString('latin1'); if (t === 'IDAT') idat.push(b.subarray(o + 8, o + 8 + n)); o += 12 + n; }
   const px = inflateSync(Buffer.concat(idat)), alpha = (x, y) => px[y * (180 * 4 + 1) + 1 + x * 4 + 3];
   for (const [x, y] of [[0, 0], [179, 0], [0, 179], [179, 179], [90, 90]]) assert.equal(alpha(x, y), 255, 'opaque at ' + x + ',' + y);
-  // the policy is not loosened: images stay data: only, and the directives are the v1.4.0 list
+  // the policy is not loosened: images stay data: only, and the directives are the v1.4.0 list plus the design language's font-src data: (built-in typefaces)
   const dirs = all.csp.split('; '); assert.equal(dirs.find((d) => d.startsWith('img-src')), 'img-src data:');
-  assert.deepEqual(dirs.map((d) => d.split(' ')[0]), ['default-src', 'script-src', 'style-src', 'connect-src', 'img-src', 'base-uri', 'form-action', 'manifest-src', 'worker-src']);
+  assert.deepEqual(dirs.map((d) => d.split(' ')[0]), ['default-src', 'script-src', 'style-src', 'connect-src', 'font-src', 'img-src', 'base-uri', 'form-action', 'manifest-src', 'worker-src']);
   assert.ok(!JSON.parse(all.manifest).icons.some((i) => /apple|data:/.test(i.src)) && !/apple/.test(swFor(ROOT)));
   assert.ok(!src('src/ui/shell.html').includes('base64') && src('src/ui/shell.html').includes('href="__APPLE_ICON__"'));
 });

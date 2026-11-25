@@ -4,6 +4,13 @@ Newest first. One line per change. Versions come from package.json (see docs/RUN
 
 ## Unreleased
 
+### Shared design language v1.1 (same look as Resume Engine and ChannelVu)
+- New look from tazabbas.com and ayinadvisors.com (docs/DESIGN.md): a navy top bar with a gold ring mark and a serif wordmark, a warm white page with a faint gold wash, white cards, serif page titles (Cormorant Garamond), Hanken Grotesk for everything else, gold main buttons with navy text, blue for links, focus and selection, green for good news, a colour per area on the key numbers, and a gold underline on the current tab. The indigo gradient is gone.
+- Theme switch in the top bar: Auto (follows the device), Light, Dark; one button that steps through them on phones. The choice is kept on the device under one key (`lifeos-theme`), outside the vault, because it holds no personal data and the lock screen should open in the same theme.
+- The Overview opens on a navy welcome band with the title, the date and the quick actions.
+- The two typefaces are built into the page (SIL OFL, src/fonts); the CSP adds `font-src data:` only. The browser bar colour and the app icons turn navy.
+- No feature, screen, data field or schema changed. Tests: test/design.test.mjs; existing CSP directive lists gain font-src, and the dark-token test reads the switch-aware selector.
+
 ## 2.4.0 (schema 24): Taxes and assets by country
 - New "By country" screen (under More, and a button on Assets): chips for All countries, United States and Spain, and a tax year picker. All countries shows assets, amounts owed and net worth per country, and paid, owed, refunds, checklist and residency per country for the year. One country shows its accounts, its tax-year details, its tax amounts and its checklist count.
 - Every account now has a country and a currency, set when it is added and changed with Edit (it was Rename). A balance is entered and shown in the account's own currency. Tax checklist items in Admin get a country.

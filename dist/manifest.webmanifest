@@ -5,8 +5,8 @@
   "start_url": "./lifeos",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f5f7fb",
-  "theme_color": "#4f46e5",
+  "background_color": "#f8f7f3",
+  "theme_color": "#0d2742",
   "icons": [
     {
       "src": "icons/icon-192.png",

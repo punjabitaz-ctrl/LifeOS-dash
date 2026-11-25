@@ -61,20 +61,35 @@ export function hostsOf(root = dirname(fileURLToPath(import.meta.url))) {
   for (const k of ['sync', 'ai-nas', 'ai-pc']) { if (seen.has(out[k])) throw new Error('Build failed: config/hosts.json names must be different from each other and from the built-in hosts'); seen.add(out[k]); }
   return out;
 }
+// The two typefaces of the shared design language (SIL Open Font License, src/fonts) go into the page as data: fonts, so the
+// single file still loads nothing from another site. The policy allows fonts from data: only. A build root without the folder gets none.
+export const FONTS = [['Hanken Grotesk', 'hanken-grotesk.woff2', '100 900'], ['Cormorant Garamond', 'cormorant-garamond.woff2', '400 700']];
+// Shared design language: the theme switch (src/ui/theme.js) sets data-theme="dark" on <html>. Every dark block in styles.css is written once, for the
+// device setting, as @media (prefers-color-scheme:dark){:root:not([data-theme=light]){...}}; this repeats their tokens under
+// :root[data-theme=dark] so the switch needs no second copy to keep in step.
+export function darkTheme(css) {
+  const body = [...css.matchAll(/@media \(prefers-color-scheme:dark\)\{:root:not\(\[data-theme=light\]\)\{([^}]*)\}\}/g)].map((m) => m[1].replace(/;\s*$/, '')).join(';');
+  return body ? `\n:root[data-theme=dark]{color-scheme:dark;${body}}` : '';
+}
+export function fontFaces(root) {
+  return FONTS.filter(([, f]) => existsSync(join(root, 'src/fonts', f))).map(([name, f, w]) =>
+    `\n@font-face{font-family:"${name}";font-style:normal;font-weight:${w};font-display:swap;src:url(data:font/woff2;base64,${readFileSync(join(root, 'src/fonts', f)).toString('base64')}) format("woff2")}`).join('');
+}
 const sha = (s) => 'sha256-' + createHash('sha256').update(s, 'utf8').digest('base64');
 
 function assemble(root) {
   let html = read(root, 'src/ui/shell.html');
   let css = read(root, 'src/ui/styles.css');
+  css += fontFaces(root) + darkTheme(css);
   const optional = (f) => (existsSync(join(root, f)) ? [f] : []);
-  const files = [...CORE, ...optional('src/core/sync.js'), ...optional('src/core/nas.js'), ...optional('src/core/archive.js'), 'src/ui/app.js', ...optional('src/ui/sync-ui.js'), ...optional('src/ui/nas-ui.js'), ...optional('src/ui/pwa.js'), ...optional('src/ui/archive-ui.js'), ...optional('src/ui/recovery-ui.js'), ...optional('src/ui/guide-ui.js')];
+  const files = [...CORE, ...optional('src/core/sync.js'), ...optional('src/core/nas.js'), ...optional('src/core/archive.js'), ...optional('src/ui/theme.js'), 'src/ui/app.js', ...optional('src/ui/sync-ui.js'), ...optional('src/ui/nas-ui.js'), ...optional('src/ui/pwa.js'), ...optional('src/ui/archive-ui.js'), ...optional('src/ui/recovery-ui.js'), ...optional('src/ui/guide-ui.js')];
   const hosts = hostsOf(root);
   const head = `globalThis.LifeOS = globalThis.LifeOS || {};\nglobalThis.LifeOS.VERSION = ${JSON.stringify(versionOf(root))};` + (hosts ? `\nglobalThis.LifeOS.HOSTS = ${JSON.stringify(hosts)};\nObject.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalThis.LifeOS.HOSTS), writable: false, configurable: false, enumerable: true });` : '');
   const js = [head].concat(files.map((f) => read(root, f))).join('\n;\n').replace(/<\/script/gi, (m) => '<\\' + m.slice(1)).replace(/<!--/g, '<\\!--').replace(/<script/gi, (m) => '<\\' + m.slice(1));
   // Neutralise </style in CSS: in a CSS escape, \3c is '<', so the text stays inert but the HTML parser never sees the tag.
   css = css.replace(/<\/style/gi, (m) => '\\3c ' + m.slice(1));
   if (!html.includes('__CSP__')) throw new Error('Build failed: shell.html is missing the __CSP__ placeholder');
-  const csp = `default-src 'none'; script-src '${sha(js)}'; style-src '${sha(css)}'; connect-src https://api.anthropic.com https://www.googleapis.com${hosts ? ' ' + ['sync', 'ai-nas', 'ai-pc'].map((k) => 'https://' + hosts[k]).join(' ') : ''} http://localhost:* http://127.0.0.1:*; img-src data:; base-uri 'none'; form-action 'none'; manifest-src 'self'; worker-src 'self'`;
+  const csp = `default-src 'none'; script-src '${sha(js)}'; style-src '${sha(css)}'; connect-src https://api.anthropic.com https://www.googleapis.com${hosts ? ' ' + ['sync', 'ai-nas', 'ai-pc'].map((k) => 'https://' + hosts[k]).join(' ') : ''} http://localhost:* http://127.0.0.1:*; font-src data:; img-src data:; base-uri 'none'; form-action 'none'; manifest-src 'self'; worker-src 'self'`;
   html = html.split('__CSP__').join(csp).split('__VERSION__').join(versionOf(root)).split('__APPLE_ICON__').join(appleIconDataUrl(versionOf(root)));
   html = inline(html, 'style', '/*__CSS__*/', css);
   html = inline(html, 'script', '/*__JS__*/', js);
