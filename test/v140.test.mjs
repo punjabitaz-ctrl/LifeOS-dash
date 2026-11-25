@@ -258,7 +258,9 @@ test('CSP and headers: exactly manifest-src and worker-src are added; the servic
   const csp = all.csp.split('; ');
   assert.ok(csp.includes("manifest-src 'self'") && csp.includes("worker-src 'self'"));
   const dirs = csp.map((d) => d.split(' ')[0]);
-  assert.deepEqual(dirs, ['default-src', 'script-src', 'style-src', 'connect-src', 'img-src', 'base-uri', 'form-action', 'manifest-src', 'worker-src']);
+  // The shared design language adds font-src data: and nothing else: the two typefaces are built into the page, so no font comes from another site.
+  assert.ok(csp.includes('font-src data:'));
+  assert.deepEqual(dirs, ['default-src', 'script-src', 'style-src', 'connect-src', 'font-src', 'img-src', 'base-uri', 'form-action', 'manifest-src', 'worker-src']);
   assert.ok(all.html.includes('content="' + all.csp + '"'));
   const h = headersFor(all.csp);
   assert.ok(h.includes('/dist/sw.js') && h.includes('! Content-Security-Policy') && h.includes(SW_CSP) && /Cache-Control: no-cache/.test(h.split('/dist/sw.js')[1]));
@@ -443,7 +445,7 @@ function vars(block) { const o = {}; for (const m of block.matchAll(/--([a-z0-9-
 const lum = (hex) => { const h = hex.length === 4 ? '#' + [...hex.slice(1)].map((c) => c + c).join('') : hex; const c = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4)); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
 const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
 test('accessibility: text colours meet WCAG AA contrast in light and dark', () => {
-  const light = vars(css.split('\n')[0]), darkBlock = /prefers-color-scheme:dark\)\{:root\{([^}]*)\}/.exec(css)[1], dark = Object.assign({}, light, vars(darkBlock));
+  const light = vars(css.split('\n')[0]), darkBlock = /prefers-color-scheme:dark\)\{:root(?::not\(\[data-theme=light\]\))?\{([^}]*)\}/.exec(css)[1], dark = Object.assign({}, light, vars(darkBlock));
   for (const [name, v] of [['light', light], ['dark', dark]]) {
     for (const [fg, bg] of [['fg', 'bg'], ['fg', 'card'], ['mut', 'bg'], ['mut', 'card'], ['acc', 'card'], ['acc', 'bg'], ['acc-fg', 'acc'], ['ok', 'card'], ['warn', 'card'], ['bad', 'card']]) {
       const r = ratio(v[fg], v[bg]); assert.ok(r >= 4.5, name + ' ' + fg + ' on ' + bg + ' is ' + r.toFixed(2));

@@ -2,8 +2,8 @@
 // and a dot. Output is a plain PNG with a tEXt chunk carrying the shell marker the service worker checks ("lifeos-shell", NUL, version).
 import { deflateSync } from 'node:zlib';
 
-export const ACCENT = [79, 70, 229]; // #4f46e5, the app's accent (v2.3.0)
-export const BACKGROUND = '#f5f7fb', THEME = '#4f46e5';
+export const ACCENT = [13, 39, 66]; // #0d2742, navy from the shared design language
+export const BACKGROUND = '#f8f7f3', THEME = '#0d2742';
 const CRC = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xedb88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
 const crc32 = (buf) => { let c = 0xffffffff; for (const b of buf) c = CRC[(c ^ b) & 255] ^ (c >>> 8); return (c ^ 0xffffffff) >>> 0; };
 function chunk(type, data) {

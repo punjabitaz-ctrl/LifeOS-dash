@@ -780,3 +780,11 @@ The owner asked for "a section within taxes and assets that allows me to view by
 - Private vault: country tax amounts and tax years can be moved in and out; an account keeps its country and currency through a move. The screen shows the lock mark when private items are hidden.
 - Search: a By country area for tax amount titles and notes and tax-year notes. Codes, currencies and residency are not indexed. Nothing new reaches the weekly digest, an AI prompt, the audit log, diagnostics (counts only) or a URL.
 
+## Addendum: shared design language v1.1 (owner request, 25 Nov 2026)
+
+Owner: "I want the look, feel and flow of all the projects we are working on - Resume Engine, ChannelVu and LifeOS Dashboard to share a design language", with tazabbas.com and ayinadvisors.com as references and "not too cluttered"; then "keep gold buttons", "offer a toggle for dark/light mode". The spec is docs/DESIGN.md. This replaces the v2.3.0 "Look" section; the Overview, its data and every other screen are unchanged.
+
+- Colours: navy band (#0d2742) for the top bar and the Overview welcome band, warm white page, white cards, gold (#c6a15c, #ddbd7e in dark) for the one main button with navy text, blue (#1f55d6) for links, focus, selection and pressed chips, green for good news, six area colours for the key numbers. AA contrast is tested for text, the gold button and the top bar in both themes.
+- Type: Hanken Grotesk for text and Cormorant Garamond for page titles and the wordmark, both SIL OFL and built into the page as data: fonts. The CSP gains `font-src data:` and nothing else; no request leaves the page for a font.
+- Theme: Auto (device), Light or Dark from a switch in the top bar. The choice is the only thing LifeOS keeps outside the vault on purpose: one key, `lifeos-theme`, holding `light` or `dark` (removed for Auto), so the lock screen opens in the chosen theme. It carries no personal data and is not synced or backed up.
+- No em dashes; no advice wording.

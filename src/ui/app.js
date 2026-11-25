@@ -391,7 +391,7 @@
     var nav = mainNav();
     root.appendChild(h('div', { class: 'app' },
       h('header', { class: 'top' }, h('span', { class: 'brand', text: 'LifeOS' }),
-        h('span', { class: 'row' }, isNarrow() ? null : searchBox('hs'), btn(L.priv.isOpen() ? 'Private (open)' : 'Private', function () { go('private'); }, 'sm', { id: 'nav-private', 'aria-current': view.name === 'private' ? 'page' : null }),
+        h('span', { class: 'row' }, isNarrow() ? null : searchBox('hs'), L.theme ? L.theme.control(isNarrow()) : null, btn(L.priv.isOpen() ? 'Private (open)' : 'Private', function () { go('private'); }, 'sm', { id: 'nav-private', 'aria-current': view.name === 'private' ? 'page' : null }),
           btn('Lock', function () { lockNow(); }, 'sm lockbtn'))),
       nav,
       h('main', { class: 'main' }, noticeEl, updateBanner(), view.name === 'print' ? null : backupBanner(), privBar(), screenMark(), body)));
@@ -836,7 +836,7 @@
         dashEdit ? modBar(list, m, i, w) : null,
         h('div', { class: 'modbody', inert: dashEdit ? true : null }, el || h('p', { class: 'mut small', text: L.layout.label(m.id) + ' has nothing to show right now.' }))));
     });
-    return h('div', null, h('div', { class: 'row sp pagehead' }, h('div', { class: 'ov-head' }, h('h1', { text: 'Overview' }), h('p', { class: 'mut small', id: 'ov-date', text: longDate(t) })),
+    return h('div', null, h('div', { class: 'row sp pagehead ov-hero' }, h('div', { class: 'ov-head' }, h('h1', { text: 'Overview' }), h('p', { class: 'mut small', id: 'ov-date', text: longDate(t) })),
       h('div', { class: 'row' }, btn('Log study', function () { studyDialog(''); }, 'qa-btn', { id: 'quick-study' }), btn('Add activity', function () { go('domain', { domain: 'activities', open: 'act-add' }); }, 'qa-btn', { id: 'quick-activity' }), btn('Quick add', quickAdd, 'pri qa-btn', { id: 'quick-add' }), btn('Choose what shows', function () { overviewPicker(w); }, 'qa-btn', { id: 'ov-pick' }), btn(dashEdit ? 'Done' : 'Arrange', function () { dashEdit = !dashEdit; render(); }, 'qa-btn', { id: 'dash-customize' }))),
       reviewDueCard(mainState(), t),
       setupCard(mainState()),
