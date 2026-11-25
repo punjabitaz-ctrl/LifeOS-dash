@@ -8,6 +8,7 @@ import path from 'node:path';
 import { navTo } from './_nav.mjs';
 import { readFileSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { skipTour } from './_tour.mjs';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const file = path.resolve(here, '..', 'dist', 'lifeos.html');
 let pw;
@@ -49,7 +50,7 @@ const unesc = (v) => v.replace(/\\([\\;,nN])/g, (m, c) => (c === 'n' || c === 'N
 
 async function run(label, viewport) {
   const ctx = await browser.newContext(viewport ? { viewport, isMobile: true, hasTouch: true, acceptDownloads: true } : { viewport: { width: 1280, height: 900 }, acceptDownloads: true });
-  const page = await ctx.newPage();
+  const page = await ctx.newPage(); await skipTour(page);
   page.setDefaultTimeout(15000);
   const requests = [];
   page.on('console', (m) => { if (m.type() === 'error' || /content security policy|refused to/i.test(m.text())) problems.push(label + ' console: ' + m.text()); });

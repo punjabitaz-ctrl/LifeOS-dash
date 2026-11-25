@@ -8,6 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { navTo } from './_nav.mjs';
 import { loadConfig } from '../server/lib/config.mjs';
 import { createApp } from '../server/lib/app.mjs';
+import { skipTour } from './_tour.mjs';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const file = path.resolve(here, '..', 'dist', 'lifeos.html');
 if (!existsSync(file)) { console.error('dist/lifeos.html missing: run node build.mjs first'); process.exit(1); }
@@ -41,7 +42,7 @@ for (const host of ['ai-nas.lifeos.tazabbas.com', 'ai-pc.lifeos.tazabbas.com']) 
     return route.fulfill({ status: 200, headers: { ...cors, 'content-type': 'application/json' }, body: JSON.stringify({ choices: [{ message: { content: 'OK' } }] }) });
   });
 }
-const page = await ctx.newPage();
+const page = await ctx.newPage(); await skipTour(page);
 page.on('console', (m) => { if ((m.type() === 'error' && !/Failed to load resource|ERR_CONNECTION/.test(m.text())) || /content security policy|refused to/i.test(m.text())) problems.push('console: ' + m.text()); });
 page.on('pageerror', (e) => problems.push('pageerror: ' + e.message));
 page.on('request', (r) => requests.push({ url: r.url(), headers: r.headers(), body: r.postData() }));

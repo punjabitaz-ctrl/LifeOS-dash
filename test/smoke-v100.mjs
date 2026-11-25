@@ -10,6 +10,7 @@ import { readFileSync, rmSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { skipTour } from './_tour.mjs';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const file = path.resolve(here, '..', 'dist', 'lifeos.html');
 let pw;
@@ -29,7 +30,7 @@ const base = 'http://127.0.0.1:' + srv.address().port;
 const prof = mkdtempSync(path.join(tmpdir(), 'lifeos-v100-'));
 let ctx;
 try { ctx = await pw.chromium.launchPersistentContext(prof, { executablePath: EXE, headless: true }); } catch { console.log('SKIPPED: chrome unavailable'); srv.close(); process.exit(0); }
-const page = await ctx.newPage();
+const page = await ctx.newPage(); await skipTour(page);
 page.on('console', (m) => { if (m.type() === 'error' || /content security policy|refused to/i.test(m.text())) problems.push('console: ' + m.text()); });
 page.on('pageerror', (e) => problems.push('pageerror: ' + e.message));
 async function step(name, fn) { if (process.env.SMOKE_VERBOSE) console.log('step', name); try { await fn(); } catch (e) { problems.push(name + ': ' + String(e.message).split('\n').slice(0, 6).join(' | ')); } }
@@ -118,7 +119,7 @@ try {
   });
 
   await step('CR-9 framed page refuses to run', async () => {
-    const fp = await ctx.newPage();
+    const fp = await ctx.newPage(); await skipTour(fp);
     await fp.goto(base + '/frame');
     const fr = fp.frameLocator('#f');
     await fr.locator('text=cannot run inside a frame').waitFor(T);

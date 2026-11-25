@@ -370,7 +370,7 @@
     if (L.recoveryUI && (view.name !== 'print' || view.kind !== 'recovery')) L.recoveryUI.dropSheet();
     root.replaceChildren();
     noticeEl = h('div', { class: 'notice' + (notice ? ' ' + notice.kind : ''), role: 'status', 'aria-live': 'polite', text: notice ? notice.text : '' });
-    if (!L.store.isUnlocked() || view.name === 'lock') { root.appendChild(lockScreen()); return; }
+    if (!L.store.isUnlocked() || view.name === 'lock') { if (L.guideUI) L.guideUI.onLock(); root.appendChild(lockScreen()); return; }
     var s = st();
     var body;
     try {
@@ -397,6 +397,8 @@
       h('main', { class: 'main' }, noticeEl, updateBanner(), view.name === 'print' ? null : backupBanner(), privBar(), screenMark(), body)));
     markAddForms();
     decorateRows();
+    // The first-run tour (guide-ui.js) draws its card over the finished screen.
+    if (L.guideUI) L.guideUI.afterRender(tourCtx());
   }
 
 
@@ -624,6 +626,10 @@
       enter: function (action) { return enterNew(action); },
       main: { left: function () { return leftOf(mainFail); }, bad: function () { bumpOf(mainFail); }, ok: function () { mainFail = { n: 0, until: 0 }; } },
       priv: { left: function () { return leftOf(privFail); }, bad: function () { bumpOf(privFail); }, ok: function () { privFail = { n: 0, until: 0 }; } } };
+  }
+  // What the first-run tour needs: open screens, save its one flag, and know where the app is.
+  function tourCtx() {
+    return { h: h, btn: btn, go: go, commit: commit, view: function () { return view; }, state: mainState, dialogOpen: function () { return !!dlgEl; } };
   }
   function syncCtx() {
     return { h: h, field: field, btn: btn, openDialog: openDialog, commit: commit, download: download, setNotice: setNotice, render: render };
@@ -4940,7 +4946,8 @@
     }, h('h2', { text: 'Change passphrase' }), field('Current passphrase', o), field('New passphrase (12 characters or more)', n1), field('Confirm new passphrase', n2), rcf.nodes, passNote(),
       h('button', { type: 'submit', class: 'btn', text: 'Change passphrase' })));
     out.push(L.recoveryUI.mainCard(recCtx()));
-    if (L.guideUI) out.push(h('div', { class: 'card', id: 'guide-card' }, h('h2', { text: 'Getting started' }), h('p', { class: 'mut small', text: 'The first-time steps in order.' }), btn('Open Getting started', function () { L.guideUI.open(recCtx()); }, 'sm', { id: 'settings-guide' })));
+    if (L.guideUI) out.push(h('div', { class: 'card', id: 'guide-card' }, h('h2', { text: 'Getting started' }), h('p', { class: 'mut small', text: 'A short tour of where each area is, and the first-time setup steps in order.' }),
+      h('div', { class: 'row' }, btn('Rerun getting started guide', function () { L.guideUI.start(tourCtx()); }, 'sm pri', { id: 'settings-tour' }), btn('Open setup steps', function () { L.guideUI.open(recCtx()); }, 'sm', { id: 'settings-guide' }))));
 
     // storage, reminders, verify and diagnostics (v1.3.0)
     out.push(safetySettings(mainState()));

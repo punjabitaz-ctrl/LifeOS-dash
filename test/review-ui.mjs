@@ -13,6 +13,7 @@ import { readFileSync, rmSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { skipTour } from './_tour.mjs';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const file = path.resolve(here, '..', 'dist', 'lifeos.html');
 let pw;
@@ -37,7 +38,7 @@ async function p1() {
   const prof = mkdtempSync(path.join(tmpdir(), 'lifeos-af-'));
   try {
     const ctx = await pw.chromium.launchPersistentContext(prof, { executablePath: EXE, headless: true });
-    const page = await ctx.newPage();
+    const page = await ctx.newPage(); await skipTour(page);
     await page.goto(url);
     await create(page);
     await page.click('.tile[data-domain="money"]');
@@ -87,7 +88,7 @@ async function overflow(page, where) {
 }
 async function p234(browser, label, viewport) {
   const ctx = await browser.newContext(viewport ? { viewport, isMobile: true, hasTouch: true } : {});
-  const page = await ctx.newPage();
+  const page = await ctx.newPage(); await skipTour(page);
   page.on('console', (m) => { if (m.type() === 'error' || /content security policy|refused to/i.test(m.text())) note(label + ' console: ' + m.text()); });
   page.on('pageerror', (e) => note(label + ' pageerror: ' + e.message));
   await page.goto(pathToFileURL(file).href);
@@ -129,7 +130,7 @@ async function p234(browser, label, viewport) {
 // "New items are private" note is shown on the chip; after closing, the public habit shows as not done today.
 async function p5(browser) {
   const ctx = await browser.newContext();
-  const page = await ctx.newPage();
+  const page = await ctx.newPage(); await skipTour(page);
   await page.goto(pathToFileURL(file).href);
   await create(page);
   await page.evaluate(`(async () => { await LifeOS.store.commit((s) => { LifeOS.metrics.addHabit(s, 'Stretch'); }); })()`);
