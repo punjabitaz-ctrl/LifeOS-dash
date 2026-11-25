@@ -1,4 +1,4 @@
-// v0.8.0 Learning smoke: desktop and 390x844. Fails on console errors, CSP violations, horizontal scroll.
+// v0.8.0 Learning smoke (with the v2.2.0 learning goals step): desktop and 390x844. Fails on console errors, CSP violations, horizontal scroll.
 // Run `node build.mjs` first. Needs Playwright (`npm i --no-save playwright`) and Chrome at /usr/bin/google-chrome.
 import path from 'node:path';
 import { navTo } from './_nav.mjs';
@@ -259,7 +259,7 @@ async function run(label, viewport) {
     await step('settings: version, study target, and no learning text', async () => {
       await nav('Settings');
       await page.waitForSelector('#app-version', T);
-      await expectText('#app-version', 'LifeOS v2.1.0');
+      await expectText('#app-version', 'LifeOS v2.2.0');
       if ((await page.inputValue('#t-study')) !== '150') throw new Error('study target in settings');
       const t = await text('main');
       for (const secret of ['Rust course', 'Systems book', 'Cloud cert', 'Old topic', 'Ownership means', 'Borrowing is']) if (t.includes(secret)) throw new Error('settings page shows ' + secret);
@@ -288,6 +288,51 @@ async function run(label, viewport) {
       await page.click('#ln-legacy .leg-del'); await page.click('.dialog button:has-text("Delete")');
       await expectCount('#ln-legacy', 0);
       await layout('learning after legacy delete');
+    });
+    // v2.2.0 learning goals: a degree with credits, a next step that is past, the due card, the kind filter, the next step dialog,
+    // a kind change with minutes per week, the review list and at a glance. Today is 2026-11-14, so the window ends 2026-12-13.
+    await step('learning goals: degree, next step, due card, kind filter, review and at a glance', async () => {
+      await openLearning(); await openFold('ln-add');
+      await page.fill('#ln-title', 'MBA'); await page.selectOption('#ln-kind', 'degree');
+      if (await page.locator('#ln-exam').isHidden()) throw new Error('a degree offers an exam date');
+      if (!(await page.locator('#ln-expires').isHidden())) throw new Error('only a certification offers an expiry date');
+      await page.fill('#ln-total', '48'); await page.fill('#ln-done-units', '12'); await page.fill('#ln-unit', 'credits');
+      await page.fill('#ln-start', '2026-11-01'); await page.fill('#ln-tdate', '2026-12-01');
+      await page.fill('#ln-next', 'Register for spring term'); await page.fill('#ln-next-date', '2026-11-08');
+      await page.click('#ln-add-btn'); await ok('Item added.');
+      await page.waitForSelector(row('MBA'), T);
+      await expectText(row('MBA') + ' .ln-progress', '25% (12 of 48 credits)');
+      await expectText(row('MBA') + ' .ln-next', 'Next step: Register for spring term (by 2026-11-08, overdue)');
+      await expectText(row('MBA') + ' .ln-week-min', 'This week: 0 min');
+      await expectText('#ln-due h2', 'Due in the next 30 days (2)');
+      await expectText('#ln-overdue', '1 date is past. Nothing changes until you tap it.');
+      await expectCount('#ln-due .ln-overdue', 1);
+      await layout('learning due card');
+      // the kind filter: All plus one chip per active kind; held for this visit only
+      await expectCount('#ln-kinds .ln-kind-chip', 4);
+      await page.click('#ln-kinds .ln-kind-chip[data-kind="degree"]'); await expectCount('#ln-active .ln-item', 1);
+      await page.click('#ln-kinds .ln-kind-chip[data-kind="all"]'); await expectCount('#ln-active .ln-item', 3);
+      await layout('learning kind filter');
+      await page.click(row('MBA') + ' .ln-nextbtn'); await page.waitForSelector('.dialog #ns-step', T);
+      if ((await page.getAttribute('#ns-step', 'maxlength')) !== '200') throw new Error('next step maxlength');
+      await page.fill('#ns-step', 'Pay the deposit'); await page.fill('#ns-date', '2026-11-20');
+      await saveDialog('Next step saved.');
+      await expectText(row('MBA') + ' .ln-next', 'Next step: Pay the deposit (by 2026-11-20)');
+      await expectCount('#ln-overdue', 0);
+      await page.click(row('MBA') + ' button:has-text("Edit")'); await page.waitForSelector('.dialog #ei-kind', T);
+      if (!(await page.locator('#ei-expires-box').isHidden())) throw new Error('expiry shown for a degree');
+      await page.selectOption('#ei-kind', 'language'); await page.fill('#ei-weekly', '120');
+      await saveDialog('Item saved.');
+      await expectText(row('MBA') + ' .ln-week-min', 'This week: 0 of 120 min');
+      await logItem('MBA', '2026-11-13', '40');
+      await expectText(row('MBA') + ' .ln-week-min', 'This week: 40 of 120 min');
+      await tile('learning', '190 of 150', '3 active items, next exam 2026-12-05, 2 due in 30 days', 'learning goals');
+      await page.waitForSelector('#dash-glance .gl-item[data-source="learning-dates"]', T);
+      await expectCount('#dash-glance .gl-item[data-source="learning-dates"]', 3);
+      await nav('Review'); await page.waitForSelector('#rv-learning', T);
+      await expectText('#rv-ln-due-h', 'Target dates and next steps in the next 30 days (2)');
+      await expectCount('.rv-ln-due', 2);
+      await layout('review learning goals');
     });
   } catch { /* recorded in problems */ }
   await ctx.close();

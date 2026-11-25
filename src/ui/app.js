@@ -3167,19 +3167,40 @@
       }
     });
   }
+  function kindOptions() { return L.learning.KINDS.map(function (k) { return { v: k, t: L.learning.KIND_LABEL[k] }; }); }
   function editItemDialog(s, it) {
     var title = h('input', { type: 'text', id: 'ei-title', maxlength: '200', autocomplete: 'off', value: it.title });
+    var kind = sel('ei-kind', kindOptions(), it.kind);
+    var provider = h('input', { type: 'text', id: 'ei-provider', maxlength: '200', autocomplete: 'off', value: it.provider || '' });
     var tdate = h('input', { type: 'date', id: 'ei-target', value: it.targetDate || '' });
     var exam = h('input', { type: 'date', id: 'ei-exam', value: it.examDate || '' });
-    var expires = it.kind === 'certification' ? h('input', { type: 'date', id: 'ei-expires', value: it.expiresOn || '' }) : null;
+    // v2.2.0: the kind can change here; the expiry date belongs to certifications and shows only for that kind.
+    var expires = h('input', { type: 'date', id: 'ei-expires', value: it.expiresOn || '' });
+    var expBox = h('div', { id: 'ei-expires-box', class: it.kind === 'certification' ? '' : 'hidden' }, field('Certification expires', expires));
+    kind.addEventListener('change', function () { expBox.setAttribute('class', kind.value === 'certification' ? '' : 'hidden'); });
+    var weekly = h('input', { type: 'text', id: 'ei-weekly', inputmode: 'numeric', maxlength: '5', autocomplete: 'off', value: it.weeklyMinutes ? String(it.weeklyMinutes) : '' });
     var goal = sel('ei-goal', goalOptions(s), it.goalId || '');
     openDialog({
       title: 'Edit item', yes: 'Save',
-      body: [field('Title', title), field('Target date', tdate), field('Exam date', exam), expires ? field('Certification expires', expires) : null, field('Linked goal', goal), movePrivBtn('learningItems', it)],
+      body: [field('Title', title), field('Kind', kind), field('Provider or school (optional)', provider), field('Target date', tdate), field('Exam date', exam), expBox,
+        field('Minutes per week for this item (optional)', weekly, 'Your own number. Blank or 0 for none.'), field('Linked goal', goal), movePrivBtn('learningItems', it)],
       onYes: function () {
-        var patch = { title: title.value, targetDate: tdate.value, examDate: exam.value, goalId: goal.value };
-        if (expires) patch.expiresOn = expires.value;
+        var patch = { title: title.value, kind: kind.value, provider: provider.value, targetDate: tdate.value, examDate: exam.value, weeklyMinutes: weekly.value, goalId: goal.value };
+        if (kind.value === 'certification') patch.expiresOn = expires.value;
         return commit(function (x) { L.learning.updateItem(x, it.id, patch); }, 'learning edit').then(function () { setNotice('ok', 'Item saved.'); render(); });
+      }
+    });
+  }
+  // v2.2.0: the next step of one learning item and an optional date for it. Both blank clears them.
+  function nextStepDialog(s, it) {
+    var step = h('input', { type: 'text', id: 'ns-step', maxlength: String(L.learning.NEXT_MAX), autocomplete: 'off', value: it.nextAction || '' });
+    var date = h('input', { type: 'date', id: 'ns-date', value: it.nextDate || '' });
+    openDialog({
+      title: 'Next step', yes: 'Save',
+      body: [h('p', { class: 'mut', text: it.title }), field('Next step', step, 'For example: book the exam, finish chapter 4. Do not enter ID numbers, account numbers or passwords.'),
+        field('By (optional)', date), h('p', { class: 'small', text: 'Leave both blank to clear.' })],
+      onYes: function () {
+        return commit(function (x) { L.learning.setNextStep(x, it.id, step.value, date.value); }, 'learning next step').then(function () { setNotice('ok', 'Next step saved.'); render(); });
       }
     });
   }
@@ -3191,11 +3212,11 @@
       onYes: function () { return commit(function (x) { L.learning.deleteItem(x, it.id); }, 'learning item delete').then(function () { setNotice('ok', 'Item deleted. Its sessions and takeaways are kept.'); render(); }); }
     });
   }
-  function itemRow(s, it, t) {
-    var Ln = L.learning, pace = it.state === 'active' ? Ln.paceOf(it, t) : 'no-data', p = Ln.progressOf(it);
+  function itemRow(s, it, t, wm) {
+    var Ln = L.learning, pace = it.state === 'active' ? Ln.paceOf(it, t) : 'no-data', p = Ln.progressOf(it), open = it.state === 'active' || it.state === 'planned';
     var sub = [Ln.KIND_LABEL[it.kind]];
     if (it.provider) sub.push(it.provider);
-    if (it.targetDate) sub.push('target ' + it.targetDate);
+    if (it.targetDate) sub.push('target ' + it.targetDate + (open && it.targetDate < t ? ' (overdue)' : ''));
     if (it.examDate) { var dd = L.home.dates.daysBetween(it.examDate, t); sub.push('exam ' + it.examDate + (dd > 0 ? ' (in ' + dd + (dd === 1 ? ' day)' : ' days)') : dd === 0 ? ' (today)' : '')); }
     if (it.expiresOn) sub.push('expires ' + it.expiresOn);
     var chips = [h('span', { class: 'chip ln-state', text: Ln.STATE_LABEL[it.state] })];
@@ -3204,9 +3225,19 @@
       h('p', { class: 'mut small', text: sub.join(' | ') }),
       h('p', { class: 'small ln-progress', text: Ln.fmtProgress(it) + (Ln.unitsText(it) ? ' (' + Ln.unitsText(it) + ')' : '') })];
     if (p !== null) kids.push(svgBar(Math.round(p), pace === 'behind' ? 'bar-over' : 'bar-fill'));
+    // v2.2.0: the next step (open and paused items, or any item that has one) and this week's minutes on an active item.
+    if (open || it.state === 'paused' || it.nextAction || it.nextDate) {
+      var nd = it.nextDate ? (it.nextDate < t && open ? 'by ' + it.nextDate + ', overdue' : 'by ' + it.nextDate) : '';
+      kids.push(h('p', { class: 'small ln-next' + (it.nextAction ? '' : ' mut'), text: it.nextAction ? 'Next step: ' + it.nextAction + (nd ? ' (' + nd + ')' : '') : (nd ? 'Next step ' + nd : 'No next step set') }));
+    }
+    if (it.state === 'active') {
+      var mins = (wm || Ln.weekMinutesByItem(s, t)).get(it.id) || 0;
+      kids.push(h('p', { class: 'small mut ln-week-min', text: 'This week: ' + mins + (it.weeklyMinutes ? ' of ' + it.weeklyMinutes : '') + ' min' }));
+    }
     var acts = [];
     if (it.state === 'active' || it.state === 'planned') acts.push(btn('Log time', function () { studyDialog(it.id); }, 'sm pri ln-logitem', { 'aria-label': 'Log time for ' + it.title }));
     acts.push(btn('Progress', function () { progressDialog(s, it); }, 'sm ln-progbtn', { 'aria-label': 'Update progress for ' + it.title }));
+    if (open || it.state === 'paused') acts.push(btn('Next step', function () { nextStepDialog(s, it); }, 'sm ln-nextbtn', { 'aria-label': 'Set the next step for ' + it.title }));
     if (it.state !== 'done') acts.push(btn('Mark done', function () { act(function () { return commit(function (x) { Ln.setState(x, it.id, 'done', t); }, 'learning done').then(function () { setNotice('ok', 'Marked done.'); render(); }); }); }, 'sm ln-done', { 'aria-label': 'Mark ' + it.title + ' done' }));
     if (it.state === 'active') acts.push(btn('Pause', function () { act(function () { return commit(function (x) { Ln.pauseItem(x, it.id); }, 'learning pause').then(render); }); }, 'sm', { 'aria-label': 'Pause ' + it.title }));
     if (it.state === 'paused' || it.state === 'planned' || it.state === 'done' || it.state === 'dropped') acts.push(btn(it.state === 'planned' ? 'Start' : 'Reopen', function () { act(function () { return commit(function (x) { Ln.setState(x, it.id, 'active', t); }, 'learning reopen').then(render); }); }, 'sm', { 'aria-label': 'Make ' + it.title + ' active' }));
@@ -3235,10 +3266,31 @@
       field('Study minutes per week (0 for none)', tg),
       h('div', { class: 'row' }, h('button', { type: 'submit', class: 'btn pri', id: 'ln-target-save', text: 'Save target' }), btn('Log study time', function () { studyDialog(''); }, '', { id: 'ln-log' })));
 
-    var active = Ln.activeItems(s);
+    var active = Ln.activeItems(s), wm = Ln.weekMinutesByItem(s, t), kc = Ln.kindCounts(s);
+    // v2.2.0: a kind filter when active items span more than one kind. Held in memory for this visit only.
+    var kf = view.lnKind && kc.some(function (k) { return k.kind === view.lnKind; }) ? view.lnKind : '';
+    function kindChip(k, label) {
+      return h('button', { type: 'button', class: 'chipbtn ln-kind-chip', 'data-kind': k || 'all', 'aria-pressed': kf === k ? 'true' : 'false', text: label, onclick: function () { view.lnKind = k; render(); } });
+    }
+    var kindRow = kc.length > 1 ? h('div', { class: 'chips', id: 'ln-kinds', role: 'group', 'aria-label': 'Show active items of one kind' },
+      [kindChip('', 'All (' + active.length + ')')].concat(kc.map(function (k) { return kindChip(k.kind, k.label + ' (' + k.count + ')'); }))) : null;
+    var shown = kf ? active.filter(function (i) { return i.kind === kf; }) : active;
     var activeCard = h('div', { class: 'card', id: 'ln-active' }, h('h2', { text: 'Active (' + active.length + ')' }),
       sum.stalled.length ? h('p', { class: 'small', id: 'ln-stalled', text: sum.stalled.length + (sum.stalled.length === 1 ? ' active item has' : ' active items have') + ' no session in ' + Ln.STALL_DAYS + ' days.' }) : null,
-      active.length ? active.map(function (i) { return itemRow(s, i, t); }) : h('p', { class: 'mut', text: 'Nothing active. Add an item below.' }));
+      kindRow,
+      active.length ? shown.map(function (i) { return itemRow(s, i, t, wm); }) : h('p', { class: 'mut', text: 'Nothing active. Add an item below.' }));
+    // v2.2.0: target dates and next steps in the next 30 days, overdue first. Exams keep their own card.
+    var lnDue = sum.due, overdueN = sum.overdue;
+    function dueLine(x) {
+      var when = x.overdue ? 'overdue' : x.days === 0 ? 'today' : 'in ' + x.days + (x.days === 1 ? ' day' : ' days');
+      return h('div', { class: 'item ln-due' + (x.overdue ? ' ln-overdue' : ''), 'data-title': x.title, 'data-what': x.what },
+        h('div', null, h('span', { class: 'entry-t', text: x.title }),
+          h('span', { class: 'mut small', text: ' ' + (x.what === 'target' ? 'target date ' : 'next step ' + (x.step ? '"' + x.step + '" ' : '')) + x.date + ', ' + when })));
+    }
+    // dueSoon sorts by date, so the overdue dates already come first. The card shows once there is any learning item.
+    var dueCardEl = !(s.learningItems || []).length ? null : h('div', { class: 'card', id: 'ln-due' }, h('h2', { text: 'Due in the next ' + Ln.DUE_DAYS + ' days (' + lnDue.length + ')' }),
+      overdueN ? h('p', { class: 'small', id: 'ln-overdue', text: overdueN + (overdueN === 1 ? ' date is' : ' dates are') + ' past. Nothing changes until you tap it.' }) : null,
+      lnDue.length ? lnDue.map(dueLine) : h('p', { class: 'mut', id: 'ln-due-none', text: 'No target dates or next steps in the next ' + Ln.DUE_DAYS + ' days.' }));
     var exams = sum.exams;
     var examCard = h('div', { class: 'card', id: 'ln-exams' }, h('h2', { text: 'Upcoming exams (' + exams.length + ')' }),
       exams.length ? exams.map(function (x) { return h('div', { class: 'item ln-exam', 'data-title': x.title }, h('div', null, h('span', { class: 'entry-t', text: x.title }), h('span', { class: 'mut small', text: ' ' + x.date + ', ' + (x.days === 0 ? 'today' : 'in ' + x.days + (x.days === 1 ? ' day' : ' days')) }))); }) : h('p', { class: 'mut', text: 'No exam dates ahead.' }));
@@ -3246,12 +3298,12 @@
     var finCard = h('div', { class: 'card', id: 'ln-finished' }, h('h2', { text: 'Recently finished (' + fin.length + ')' }),
       fin.length ? fin.map(function (i) { return h('div', { class: 'item ln-fin', 'data-title': i.title }, h('div', null, h('span', { class: 'entry-t', text: i.title }), h('span', { class: 'mut small', text: ' ' + (i.finishedDate || '') })), btn('Reopen', function () { act(function () { return commit(function (x) { Ln.setState(x, i.id, 'active', t); }, 'learning reopen').then(render); }); }, 'sm', { 'aria-label': 'Reopen ' + i.title })); }) : h('p', { class: 'mut', text: 'Nothing finished yet.' }));
     var others = (s.learningItems || []).filter(function (i) { return i.state === 'planned' || i.state === 'paused' || i.state === 'dropped'; }).sort(function (a, b) { return a.title.localeCompare(b.title); });
-    var otherCard = others.length ? details('ln-other', 'Planned, paused and dropped (' + others.length + ')', others.map(function (i) { return itemRow(s, i, t); }), view.open === 'ln-other') : null;
+    var otherCard = others.length ? details('ln-other', 'Planned, paused and dropped (' + others.length + ')', others.map(function (i) { return itemRow(s, i, t, wm); }), view.open === 'ln-other') : null;
 
     // add an item
     var f = {
       title: h('input', { type: 'text', id: 'ln-title', maxlength: '200', autocomplete: 'off', required: true }),
-      kind: sel('ln-kind', L.learning.KINDS.map(function (k) { return { v: k, t: Ln.KIND_LABEL[k] }; }), 'course'),
+      kind: sel('ln-kind', kindOptions(), 'course'),
       provider: h('input', { type: 'text', id: 'ln-provider', maxlength: '200', autocomplete: 'off' }),
       pct: h('input', { type: 'text', id: 'ln-pct', inputmode: 'decimal', maxlength: '6', autocomplete: 'off' }),
       total: h('input', { type: 'text', id: 'ln-total', inputmode: 'numeric', maxlength: '7', autocomplete: 'off' }),
@@ -3262,27 +3314,40 @@
       exam: h('input', { type: 'date', id: 'ln-exam' }),
       expires: h('input', { type: 'date', id: 'ln-expires' }),
       goal: sel('ln-goal', goalOptions(s), ''),
+      next: h('input', { type: 'text', id: 'ln-next', maxlength: String(Ln.NEXT_MAX), autocomplete: 'off' }),
+      nextDate: h('input', { type: 'date', id: 'ln-next-date' }),
+      weekly: h('input', { type: 'text', id: 'ln-weekly', inputmode: 'numeric', maxlength: '5', autocomplete: 'off' }),
       notes: h('textarea', { id: 'ln-notes', maxlength: '2000' })
     };
-    var certBox = h('div', { id: 'ln-cert-box', class: 'hidden' }, field('Exam date (optional)', f.exam), field('Certification expires (optional)', f.expires));
-    f.kind.addEventListener('change', function () { certBox.setAttribute('class', f.kind.value === 'certification' ? '' : 'hidden'); });
+    // v2.2.0: certifications, degrees and languages offer an exam date; only certifications offer an expiry date.
+    var expBox = h('div', { id: 'ln-expires-box', class: 'hidden' }, field('Certification expires (optional)', f.expires));
+    var certBox = h('div', { id: 'ln-cert-box', class: 'hidden' }, field('Exam date (optional)', f.exam), expBox);
+    function kindBoxes() {
+      certBox.setAttribute('class', Ln.EXAM_KINDS.indexOf(f.kind.value) >= 0 ? '' : 'hidden');
+      expBox.setAttribute('class', f.kind.value === 'certification' ? '' : 'hidden');
+    }
+    f.kind.addEventListener('change', kindBoxes);
     var addForm = details('ln-add', 'Add a learning item', [h('form', {
       id: 'ln-form',
       onsubmit: function (e) {
         e.preventDefault();
         act(function () {
           var input = { title: f.title.value, kind: f.kind.value, provider: f.provider.value, progressPct: f.pct.value, totalUnits: f.total.value, doneUnits: f.done.value, unitLabel: f.unit.value,
-            startDate: f.start.value, targetDate: f.target.value, goalId: f.goal.value, notes: f.notes.value };
-          if (f.kind.value === 'certification') { input.examDate = f.exam.value; input.expiresOn = f.expires.value; }
+            startDate: f.start.value, targetDate: f.target.value, goalId: f.goal.value, nextAction: f.next.value, nextDate: f.nextDate.value, weeklyMinutes: f.weekly.value, notes: f.notes.value };
+          if (Ln.EXAM_KINDS.indexOf(f.kind.value) >= 0) input.examDate = f.exam.value;
+          if (f.kind.value === 'certification') input.expiresOn = f.expires.value;
           return commit(function (x) { L.learning.addItem(x, input, t); }, 'learning item add').then(function () { view.open = 'ln-add'; setNotice('ok', 'Item added.'); render(); });
         });
       }
-    }, field('Title', f.title), field('Kind', f.kind), field('Provider (optional)', f.provider),
+    }, field('Title', f.title), field('Kind', f.kind, 'Certification, degree, skill, language, course, book, project or other.'), field('Provider or school (optional)', f.provider),
       h('p', { class: 'mut small', text: 'Progress is a percent or units done out of a total, not both.' }),
-      field('Percent done (optional)', f.pct), field('Total units (optional)', f.total), field('Units done', f.done), field('Unit name (for example chapters)', f.unit),
-      field('Start date', f.start), field('Target date (optional)', f.target), certBox, field('Linked goal (optional)', f.goal),
+      field('Percent done (optional)', f.pct), field('Total units (optional)', f.total, 'For example 120 credits, 12 modules or 300 lessons.'), field('Units done', f.done), field('Unit name (for example chapters)', f.unit),
+      field('Start date', f.start), field('Target date (optional)', f.target), certBox,
+      field('Next step (optional)', f.next, 'One concrete action. Do not enter ID numbers, account numbers or passwords.'), field('Next step by (optional)', f.nextDate),
+      field('Minutes per week for this item (optional)', f.weekly, 'Your own number. Blank or 0 for none.'), field('Linked goal (optional)', f.goal),
       field('Notes (optional)', f.notes, 'Do not enter ID numbers, account numbers or passwords.'),
       h('button', { type: 'submit', class: 'btn pri', id: 'ln-add-btn', text: 'Add item' }))], view.open === 'ln-add' || !(s.learningItems || []).length);
+    kindBoxes();
 
     // takeaways with plain substring search
     var tkItem = sel('ln-tk-item', itemOptions(s), '');
@@ -3328,8 +3393,8 @@
     })], view.open === 'ln-legacy') : null;
 
     return h('div', null, btn('Back to dashboard', function () { go('dashboard'); }, 'sm back'), h('h1', { text: 'Learning' }),
-      h('p', { class: 'mut small', text: 'Minutes, progress and pace come from your own numbers. Nothing is paused, dropped or finished unless you tap it.' }),
-      stats, targetCard, activeCard, examCard, finCard, otherCard, addForm, tkCard, sessCard, legacyCard);
+      h('p', { class: 'mut small', text: 'Certifications, degrees, skills, languages and more, each with progress and a next step. Minutes, progress and pace come from your own numbers. Nothing is paused, dropped or finished unless you tap it.' }),
+      stats, targetCard, dueCardEl, activeCard, examCard, finCard, otherCard, addForm, tkCard, sessCard, legacyCard);
   }
   // Weekly review step: minutes vs target, items that moved, items with no session in 14 days. Actions are offered; a tap takes them.
   function reviewLearningCard(s, wk, t) {
@@ -3349,6 +3414,14 @@
           btn('Pause', function () { act(function () { return commit(function (x) { Ln.pauseItem(x, i.id); }, 'learning pause').then(render); }); }, 'sm rv-ln-pause', { 'aria-label': 'Pause ' + i.title }),
           btn('Drop', function () { act(function () { return commit(function (x) { Ln.dropItem(x, i.id); }, 'learning drop').then(render); }); }, 'sm rv-ln-drop', { 'aria-label': 'Drop ' + i.title }))));
     });
+    // v2.2.0: target dates and next steps in the next 30 days in date order (overdue first); shown only, nothing is offered here.
+    if (r.due.length) {
+      kids.push(h('p', { class: 'small', id: 'rv-ln-due-h', text: 'Target dates and next steps in the next ' + Ln.DUE_DAYS + ' days (' + r.due.length + ')' }));
+      r.due.forEach(function (x) {
+        kids.push(h('div', { class: 'item rv-ln-due', 'data-title': x.title }, h('div', null, h('span', { class: 'entry-t', text: x.title }),
+          h('span', { class: 'mut small', text: ' ' + (x.what === 'target' ? 'target date ' : 'next step ') + x.date + (x.overdue ? ', overdue' : '') }))));
+      });
+    }
     if (r.exams.length) {
       kids.push(h('p', { class: 'small', id: 'rv-ln-exams-h', text: 'Exams in the next 28 days (' + r.exams.length + ')' }));
       r.exams.forEach(function (x) { kids.push(h('div', { class: 'item', 'data-title': x.title }, h('div', null, h('span', { class: 'entry-t', text: x.title }), h('span', { class: 'mut small', text: ' ' + x.date + ', in ' + x.days + (x.days === 1 ? ' day' : ' days') })))); });
@@ -3508,7 +3581,7 @@
     var g = L.activities.glance(s, t), now = g.today.concat(g.week), srcs = {};
     now.concat(g.later).forEach(function (x) { srcs[x.source] = true; });
     var many = Object.keys(srcs).length > 1;
-    var kids = [h('h2', null, 'At a glance ', lockMark(['activities', 'people', 'entries', 'pipeline', 'clients', 'invoices', 'renewals', 'contacts'])),
+    var kids = [h('h2', null, 'At a glance ', lockMark(['activities', 'people', 'entries', 'pipeline', 'clients', 'invoices', 'renewals', 'contacts', 'learningItems'])),
       h('p', { class: 'mut small', id: id + '-sum', text: g.count ? g.count + (g.count === 1 ? ' item' : ' items') + ' in the next 30 days.' : 'Nothing planned in the next 30 days.' })];
     if (g.today.length) kids.push(h('h3', { text: 'Today' }), g.today.map(function (x) { return glanceItem(s, x, many); }));
     if (g.week.length) kids.push(h('h3', { text: 'This week' }), g.week.map(function (x) { return glanceItem(s, x, many); }));
@@ -5718,6 +5791,7 @@
 
   function boot() {
     if (L.clients) L.clients.registerGlance();
+    if (L.learning) L.learning.registerGlance();
     // CR-9: frame-ancestors only exists in the HTTP header (Cloudflare); on any other host or file:// the page must refuse to run framed.
     var framed = true;
     try { framed = window.top !== window.self; } catch (e) { framed = true; }

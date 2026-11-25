@@ -102,7 +102,7 @@ async function run(label, viewport) {
       await page.click('button:has-text("Create vault")'); await page.waitForSelector('.tile', T);
       await openAct();
       await page.waitForSelector('#actimp-card', T); await page.waitForSelector('#exp-activities', T);
-      if (!/LifeOS v2\.1\.0/.test(await (async () => { await nav('Settings'); await page.waitForSelector('#app-version', T); return text('#app-version'); })())) throw new Error('version');
+      if (!/LifeOS v2\.2\.0/.test(await (async () => { await nav('Settings'); await page.waitForSelector('#app-version', T); return text('#app-version'); })())) throw new Error('version');
       await openAct();
     });
     await step('map the file, pick DD/MM, preview: 5 to add, 2 rejected with reasons, an unknown category offered, the offer counted', async () => {

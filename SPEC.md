@@ -702,3 +702,30 @@ The owner asked for one place for activity, exercise and eating on phone and PC,
 
 ## Amendment (full review after v2.1.0)
 1. `LifeOS.HOSTS` is frozen and read-only in the built page, and the test hook `ai._setHosts` keeps a frozen copy of only `ai-nas` and `ai-pc` (SEC-142). This is how v2.0.0 item 12 is now met.
+
+## v2.2.0 addendum: Learning goals (owner request, 25 Nov 2026)
+The owner asked for a learning tab "if it doesn't exist yet" to stay on top of learning goals, whether a certification, a degree, skills or a language. Learning has existed since v0.8.0, so this build extends it rather than adding a second tab. Schema 22 with tested migrations from 1 to 21 and the downgrade guards (SEC-27/28) extended to the new data.
+
+### Kinds
+- `kind` gains `degree` and `language`, so the list is course, book, certification, degree, skill, language, project, other. A file written before schema 22 is read with the older six kinds only.
+- Certifications, degrees and languages offer an exam date on the add form; only certifications offer an expiry date (the Admin timeline row is unchanged). Any kind can be changed later in Edit.
+
+### Per item (all optional, absent when empty)
+- `nextAction`: the next step, one line of up to 200 characters, the owner's own words. The secrets guard (SEC-44/45) applies.
+- `nextDate`: the date the owner wants the next step done by.
+- `weeklyMinutes`: the owner's own minutes per week for this item, whole minutes 1 to 10080 (0 or empty is none). It sits beside the overall weekly study target and is not added to it.
+- A "Next step" button on active, planned and paused items sets the step and its date in one dialog; both blank clears them. Each active row shows this week's minutes on the item, against its own minutes per week when set.
+- A file written before schema 22 never carries these fields, even if they are present in it.
+
+### Due in the next 30 days
+- Target dates and next-step dates of active and planned items that fall today or in the 29 days after it, plus any such date already past (overdue). Exams keep their own card. Paused, done and dropped items are left out.
+- Learning screen: a "Due in the next 30 days" card above the active items, overdue first. Nothing changes until the owner taps it.
+- Kind filter: when active items span more than one kind, chips (All and one per kind with its count) filter the active list; the choice is held in memory for the visit only.
+- Tile sub line adds "N overdue" and "M due in 30 days" only when they are above zero, so a vault without dates reads as before.
+- Weekly review, Learning step: lists the same dates, overdue marked; shown only, nothing is offered or changed.
+- At a glance: a "Learning" provider (registered by the app at start) lists target dates, next steps and exams within 30 days; an overdue date shows under today.
+
+### Privacy and AI
+- The new fields move with their item into and out of the private vault; with the vault closed, a private item's dates are not shown anywhere. Search finds next steps (Learning area).
+- The weekly digest is unchanged: numbers only, no titles, next steps, providers or kinds, and nothing new reaches an AI provider.
+- No advice wording; dates and the owner's own numbers only. No em dashes.
