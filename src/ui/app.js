@@ -404,27 +404,22 @@
 
   // ---------- navigation (v1.4.0 B5) ----------
   function isNarrow() { try { return !!(narrowMQ ? narrowMQ.matches : window.innerWidth < 820); } catch (e) { return window.innerWidth < 820; } }
-  // Under 820 px: the bottom bar (Home, Money, Work, Health, More). Wider: the full bar of earlier versions.
+  // Under 820 px: the bottom bar (Overview, Money, Work, Health, More). Wider: tabs for the main areas (L.nav.TABS) and More for the rest.
   function mainNav() {
     var key = L.nav.keyOf(view);
-    if (isNarrow()) {
-      var inBar = L.nav.BAR.some(function (x) { return x.key === key; });
-      var btns = L.nav.BAR.map(function (n) {
-        return h('button', { type: 'button', class: 'navbtn', text: n.label, 'data-key': n.key, 'aria-current': n.key === key ? 'page' : null, onclick: function () { goKey(n.key); } });
-      });
-      btns.push(h('button', { type: 'button', class: 'navbtn', id: 'nav-more', text: 'More', 'aria-haspopup': 'dialog', 'aria-current': inBar ? null : 'page', onclick: moreSheet }));
-      return h('nav', { class: 'nav bar', 'aria-label': 'Main' }, btns);
-    }
-    var cur = view.name === 'domain' ? (view.domain === 'money' || view.domain === 'assets' || view.domain === 'work' || view.domain === 'health' ? view.domain : 'dashboard') : view.name;
-    return h('nav', { class: 'nav', 'aria-label': 'Main' }, [['dashboard', 'Overview'], ['money', 'Money'], ['assets', 'Assets'], ['work', 'Work'], ['health', 'Health'], ['business', 'Business'], ['clients', 'AYiN and clients'], ['review', 'Review'], ['memory', 'Memory'], ['settings', 'Settings']].map(function (n) {
-      return h('button', { type: 'button', text: n[1], 'aria-current': n[0] === cur ? 'page' : null, onclick: function () { if (n[0] === 'money' || n[0] === 'assets' || n[0] === 'work' || n[0] === 'health') go('domain', { domain: n[0] }); else go(n[0]); } });
-    }));
+    var narrow = isNarrow(), list = narrow ? L.nav.BAR : L.nav.TABS, rest = narrow ? L.nav.MORE : L.nav.TABS_MORE;
+    var inList = list.some(function (x) { return x.key === key; });
+    var btns = list.map(function (n) {
+      return h('button', { type: 'button', class: 'navbtn', text: n.label, 'data-key': n.key, 'aria-current': n.key === key ? 'page' : null, onclick: function () { goKey(n.key); } });
+    });
+    btns.push(h('button', { type: 'button', class: 'navbtn', id: 'nav-more', text: 'More', 'aria-haspopup': 'dialog', 'aria-current': inList ? null : 'page', onclick: function () { moreSheet(rest); } }));
+    return h('nav', { class: narrow ? 'nav bar' : 'nav', 'aria-label': 'Main' }, btns);
   }
-  function moreSheet() {
+  function moreSheet(list) {
     var key = L.nav.keyOf(view);
     openDialog({
       title: 'More', sheet: true,
-      body: [searchBox('ms', function () { closeDialog(); }), h('ul', { class: 'sheetlist', id: 'more-list' }, L.nav.MORE.map(function (n) {
+      body: [searchBox('ms', function () { closeDialog(); }), h('ul', { class: 'sheetlist', id: 'more-list' }, (Array.isArray(list) ? list : L.nav.MORE).map(function (n) {
         return h('li', null, h('button', { type: 'button', class: 'btn sheetbtn', text: n.label, 'data-key': n.key, 'aria-current': n.key === key ? 'page' : null, onclick: function () { closeDialog(); goKey(n.key); } }));
       }))]
     });

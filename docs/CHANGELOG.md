@@ -4,6 +4,15 @@ Newest first. One line per change. Versions come from package.json (see docs/RUN
 
 ## Unreleased
 
+### Navigation fixes after the final review (25 Nov 2026)
+- Phone: the bottom bar stays on screen. The progress bar rule (`.bar`, 8px tall) also matched the bottom bar (`nav.nav.bar`), so its buttons sat below the screen; the rule now targets `svg.bar` only.
+- Wide screens: the tabs now include By country, Job search, Learning, Goals, Admin and Podcasts, which could only be reached by search or shortcuts, and a More button lists every other area. The tabs wrap to a second row instead of scrolling sideways out of sight. The phone keeps its bar of Overview, Money, Work and Health plus More.
+- Tour: the "Key numbers" and "Getting around" steps describe what is on screen. No schema change, no version bump. Tests: test/v240-nav.test.mjs.
+
+### First-run tour (getting started guide)
+- A 16-step tour starts once per vault on the first Overview and walks the real screens: Overview, key numbers, shortcuts, choose what shows, getting around, Money, Assets, By country, Health and eating, Learning, Admin and taxes, weekly review, Settings, Drive sync. Back, Next, Skip tour, Escape; locking ends it.
+- Rerun it any time from Settings, Getting started, "Rerun getting started guide". One optional vault flag (`settings.setup.tour`), no schema change, no records read, no network call. Details in docs/TOUR.md. Tests: test/tour.test.mjs, test/smoke-tour.mjs.
+
 ### Shared design language v1.1 (same look as Resume Engine and ChannelVu)
 - New look from tazabbas.com and ayinadvisors.com (docs/DESIGN.md): a navy top bar with a gold ring mark and a serif wordmark, a warm white page with a faint gold wash, white cards, serif page titles (Cormorant Garamond), Hanken Grotesk for everything else, gold main buttons with navy text, blue for links, focus and selection, green for good news, a colour per area on the key numbers, and a gold underline on the current tab. The indigo gradient is gone.
 - Theme switch in the top bar: Auto (follows the device), Light, Dark; one button that steps through them on phones. The choice is kept on the device under one key (`lifeos-theme`), outside the vault, because it holds no personal data and the lock screen should open in the same theme.
