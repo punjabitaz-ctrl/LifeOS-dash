@@ -4,6 +4,11 @@ Newest first. One line per change. Versions come from package.json (see docs/RUN
 
 ## Unreleased
 
+### Navigation fixes after the final review (25 Nov 2026)
+- Phone: the bottom bar stays on screen. The progress bar rule (`.bar`, 8px tall) also matched the bottom bar (`nav.nav.bar`), so its buttons sat below the screen; the rule now targets `svg.bar` only.
+- Wide screens: the tabs now include By country, Job search, Learning, Goals, Admin and Podcasts, which could only be reached by search or shortcuts, and a More button lists every other area. The tabs wrap to a second row instead of scrolling sideways out of sight. The phone keeps its bar of Overview, Money, Work and Health plus More.
+- Tour: the "Key numbers" and "Getting around" steps describe what is on screen. No schema change, no version bump. Tests: test/v240-nav.test.mjs.
+
 ### First-run tour (getting started guide)
 - A 16-step tour starts once per vault on the first Overview and walks the real screens: Overview, key numbers, shortcuts, choose what shows, getting around, Money, Assets, By country, Health and eating, Learning, Admin and taxes, weekly review, Settings, Drive sync. Back, Next, Skip tour, Escape; locking ends it.
 - Rerun it any time from Settings, Getting started, "Rerun getting started guide". One optional vault flag (`settings.setup.tour`), no schema change, no records read, no network call. Details in docs/TOUR.md. Tests: test/tour.test.mjs, test/smoke-tour.mjs.

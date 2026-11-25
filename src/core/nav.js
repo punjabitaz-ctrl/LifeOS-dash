@@ -10,6 +10,12 @@
   const MORE = Object.freeze([['v:assets', 'Assets'], ['countries', 'By country'], ['v:command', 'Command center'], ['v:jobs', 'Job search'], ['business', 'Business'], ['clients', 'AYiN and clients'], ['podcasts', 'Podcasts'], ['websites', 'Websites'], ['v:goals', 'Goals'], ['v:home', 'Home and property'], ['v:admin', 'Admin'],
     ['v:learning', 'Learning'], ['v:activities', 'Activities'], ['v:social', 'Social'], ['private', 'Private vault'], ['v:wellbeing', 'Wellbeing'], ['review', 'Review'], ['memory', 'Memory'], ['settings', 'Settings']]
     .map(([key, label]) => Object.freeze({ key, label })));
+  // The tabs across the top on a wide screen: the main areas, in the order of the old desktop bar with the six areas it lacked
+  // (By country, Job search, Learning, Goals, Admin, Podcasts). Every other area sits behind More, as on the phone.
+  const TABS = Object.freeze([['dashboard', 'Overview'], ['v:money', 'Money'], ['v:assets', 'Assets'], ['countries', 'By country'], ['v:work', 'Work'], ['v:jobs', 'Job search'],
+    ['v:health', 'Health'], ['v:learning', 'Learning'], ['v:goals', 'Goals'], ['business', 'Business'], ['v:admin', 'Admin'], ['clients', 'AYiN and clients'], ['podcasts', 'Podcasts'],
+    ['review', 'Review'], ['memory', 'Memory'], ['settings', 'Settings']].map(([key, label]) => Object.freeze({ key, label })));
+  const TABS_MORE = Object.freeze(MORE.filter((x) => !TABS.some((t) => t.key === x.key)));
   const KEYS = new Set(['dashboard', 'v:command', 'v:jobs'].concat(NAMES, DOMAINS.map((d) => 'v:' + d)));
   // A view object ({ name, domain, revenue }) to its key, and back. Anything unknown maps to the dashboard.
   function keyOf(view) {
@@ -79,5 +85,5 @@
     }
     return { start, reset, push, dialogOpened, dialogClosed, lock, onPop, _depth: () => depth };
   }
-  L.nav = { DOMAINS, BAR, MORE, KEYS, keyOf, viewOf, entryOk, all, create };
+  L.nav = { DOMAINS, BAR, MORE, TABS, TABS_MORE, KEYS, keyOf, viewOf, entryOk, all, create };
 })();

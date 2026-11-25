@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-/s738m2ynrQuepd63tHcop+4dE8VCq2m86HUDQKbzrk='; style-src 'sha256-K0Q5OTm5IcWH3c7MTflJHZHHgEshsLIZxvZfHVxbbJI='; connect-src https://api.anthropic.com https://www.googleapis.com https://sync.lifeos.tazabbas.com https://ai-nas.lifeos.tazabbas.com https://ai-pc.lifeos.tazabbas.com http://localhost:* http://127.0.0.1:*; font-src data:; img-src data:; base-uri 'none'; form-action 'none'; manifest-src 'self'; worker-src 'self'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'sha256-NcyYX33nJ+nm4iCHNitn/5IR6uYYpmN4uFNhs/aHCHM='; style-src 'sha256-ssr/rS/imtrOlVPqhKITqXyrw38Oj+f8sex5yMcUNvM='; connect-src https://api.anthropic.com https://www.googleapis.com https://sync.lifeos.tazabbas.com https://ai-nas.lifeos.tazabbas.com https://ai-pc.lifeos.tazabbas.com http://localhost:* http://127.0.0.1:*; font-src data:; img-src data:; base-uri 'none'; form-action 'none'; manifest-src 'self'; worker-src 'self'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#0d2742">
 <meta name="lifeos-shell" content="2.4.0">
@@ -91,7 +91,7 @@ input[type=checkbox]{width:auto;min-height:0;flex:none}
 .catrow{padding:8px 0;border-bottom:1px solid var(--line)}
 .catrow:last-child{border-bottom:0}
 .bad-t{color:var(--bad)}
-.bar{display:block;width:100%;height:8px;margin-top:4px}
+svg.bar{display:block;width:100%;height:8px;margin-top:4px}
 .bar-bg{fill:var(--line)}
 .bar-fill{fill:var(--acc)}
 .bar-over{fill:var(--bad)}
@@ -336,7 +336,7 @@ tbody tr:hover td{background:color-mix(in srgb,var(--surface2) 60%,transparent)}
 .privbar{border-radius:10px;background:var(--ok-soft);border-color:transparent}
 /* navigation: text tabs under the top bar on wide screens (gold underline marks the current area), a bottom bar on phones */
 @media (min-width:820px){
-  .nav{justify-content:flex-start;gap:24px;padding:0 max(20px,calc((100% - 1160px)/2));background:var(--card);border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+  .nav{justify-content:flex-start;flex-wrap:wrap;gap:0 22px;padding:0 max(20px,calc((100% - 1160px)/2));background:var(--card);border-bottom:1px solid var(--line)}
   .nav button{flex:none;font-size:.93rem;font-weight:500;color:var(--mut);padding:12px 0;min-height:46px;border-radius:0;border:0;background:none;white-space:nowrap}
   .nav button:hover{color:var(--fg);background:none}
   .nav button[aria-current=page]{color:var(--fg);font-weight:600;background:none;border:0;box-shadow:inset 0 -2px 0 var(--act)}
@@ -945,6 +945,12 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
   const MORE = Object.freeze([['v:assets', 'Assets'], ['countries', 'By country'], ['v:command', 'Command center'], ['v:jobs', 'Job search'], ['business', 'Business'], ['clients', 'AYiN and clients'], ['podcasts', 'Podcasts'], ['websites', 'Websites'], ['v:goals', 'Goals'], ['v:home', 'Home and property'], ['v:admin', 'Admin'],
     ['v:learning', 'Learning'], ['v:activities', 'Activities'], ['v:social', 'Social'], ['private', 'Private vault'], ['v:wellbeing', 'Wellbeing'], ['review', 'Review'], ['memory', 'Memory'], ['settings', 'Settings']]
     .map(([key, label]) => Object.freeze({ key, label })));
+  // The tabs across the top on a wide screen: the main areas, in the order of the old desktop bar with the six areas it lacked
+  // (By country, Job search, Learning, Goals, Admin, Podcasts). Every other area sits behind More, as on the phone.
+  const TABS = Object.freeze([['dashboard', 'Overview'], ['v:money', 'Money'], ['v:assets', 'Assets'], ['countries', 'By country'], ['v:work', 'Work'], ['v:jobs', 'Job search'],
+    ['v:health', 'Health'], ['v:learning', 'Learning'], ['v:goals', 'Goals'], ['business', 'Business'], ['v:admin', 'Admin'], ['clients', 'AYiN and clients'], ['podcasts', 'Podcasts'],
+    ['review', 'Review'], ['memory', 'Memory'], ['settings', 'Settings']].map(([key, label]) => Object.freeze({ key, label })));
+  const TABS_MORE = Object.freeze(MORE.filter((x) => !TABS.some((t) => t.key === x.key)));
   const KEYS = new Set(['dashboard', 'v:command', 'v:jobs'].concat(NAMES, DOMAINS.map((d) => 'v:' + d)));
   // A view object ({ name, domain, revenue }) to its key, and back. Anything unknown maps to the dashboard.
   function keyOf(view) {
@@ -1014,7 +1020,7 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
     }
     return { start, reset, push, dialogOpened, dialogClosed, lock, onPop, _depth: () => depth };
   }
-  L.nav = { DOMAINS, BAR, MORE, KEYS, keyOf, viewOf, entryOk, all, create };
+  L.nav = { DOMAINS, BAR, MORE, TABS, TABS_MORE, KEYS, keyOf, viewOf, entryOk, all, create };
 })();
 
 ;
@@ -13346,27 +13352,22 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
 
   // ---------- navigation (v1.4.0 B5) ----------
   function isNarrow() { try { return !!(narrowMQ ? narrowMQ.matches : window.innerWidth < 820); } catch (e) { return window.innerWidth < 820; } }
-  // Under 820 px: the bottom bar (Home, Money, Work, Health, More). Wider: the full bar of earlier versions.
+  // Under 820 px: the bottom bar (Overview, Money, Work, Health, More). Wider: tabs for the main areas (L.nav.TABS) and More for the rest.
   function mainNav() {
     var key = L.nav.keyOf(view);
-    if (isNarrow()) {
-      var inBar = L.nav.BAR.some(function (x) { return x.key === key; });
-      var btns = L.nav.BAR.map(function (n) {
-        return h('button', { type: 'button', class: 'navbtn', text: n.label, 'data-key': n.key, 'aria-current': n.key === key ? 'page' : null, onclick: function () { goKey(n.key); } });
-      });
-      btns.push(h('button', { type: 'button', class: 'navbtn', id: 'nav-more', text: 'More', 'aria-haspopup': 'dialog', 'aria-current': inBar ? null : 'page', onclick: moreSheet }));
-      return h('nav', { class: 'nav bar', 'aria-label': 'Main' }, btns);
-    }
-    var cur = view.name === 'domain' ? (view.domain === 'money' || view.domain === 'assets' || view.domain === 'work' || view.domain === 'health' ? view.domain : 'dashboard') : view.name;
-    return h('nav', { class: 'nav', 'aria-label': 'Main' }, [['dashboard', 'Overview'], ['money', 'Money'], ['assets', 'Assets'], ['work', 'Work'], ['health', 'Health'], ['business', 'Business'], ['clients', 'AYiN and clients'], ['review', 'Review'], ['memory', 'Memory'], ['settings', 'Settings']].map(function (n) {
-      return h('button', { type: 'button', text: n[1], 'aria-current': n[0] === cur ? 'page' : null, onclick: function () { if (n[0] === 'money' || n[0] === 'assets' || n[0] === 'work' || n[0] === 'health') go('domain', { domain: n[0] }); else go(n[0]); } });
-    }));
+    var narrow = isNarrow(), list = narrow ? L.nav.BAR : L.nav.TABS, rest = narrow ? L.nav.MORE : L.nav.TABS_MORE;
+    var inList = list.some(function (x) { return x.key === key; });
+    var btns = list.map(function (n) {
+      return h('button', { type: 'button', class: 'navbtn', text: n.label, 'data-key': n.key, 'aria-current': n.key === key ? 'page' : null, onclick: function () { goKey(n.key); } });
+    });
+    btns.push(h('button', { type: 'button', class: 'navbtn', id: 'nav-more', text: 'More', 'aria-haspopup': 'dialog', 'aria-current': inList ? null : 'page', onclick: function () { moreSheet(rest); } }));
+    return h('nav', { class: narrow ? 'nav bar' : 'nav', 'aria-label': 'Main' }, btns);
   }
-  function moreSheet() {
+  function moreSheet(list) {
     var key = L.nav.keyOf(view);
     openDialog({
       title: 'More', sheet: true,
-      body: [searchBox('ms', function () { closeDialog(); }), h('ul', { class: 'sheetlist', id: 'more-list' }, L.nav.MORE.map(function (n) {
+      body: [searchBox('ms', function () { closeDialog(); }), h('ul', { class: 'sheetlist', id: 'more-list' }, (Array.isArray(list) ? list : L.nav.MORE).map(function (n) {
         return h('li', null, h('button', { type: 'button', class: 'btn sheetbtn', text: n.label, 'data-key': n.key, 'aria-current': n.key === key ? 'page' : null, onclick: function () { closeDialog(); goKey(n.key); } }));
       }))]
     });
@@ -20053,13 +20054,13 @@ Object.defineProperty(globalThis.LifeOS, 'HOSTS', { value: Object.freeze(globalT
     { name: 'overview', key: 'dashboard', at: ['.ov-head', 'main h1'], title: 'Overview',
       text: 'Your home screen. It opens each time you unlock and puts your numbers, cards and shortcuts in one place.' },
     { name: 'kpis', key: 'dashboard', at: ['.mod[data-mod="kpis"]', '#ov-pick'], title: 'Key numbers',
-      text: 'The strip of numbers at the top of the Overview. You pick which ones show.' },
+      text: 'The strip of numbers near the top of the Overview. You pick which ones show.' },
     { name: 'shortcuts', key: 'dashboard', at: ['.mod[data-mod="shortcuts"]', '#ov-pick'], title: 'Shortcuts',
       text: 'One tap to the areas you use most. You pick these too.' },
     { name: 'choose', key: 'dashboard', at: ['#ov-pick'], title: 'Choose what shows',
       text: 'Picks the key numbers, cards and shortcuts on the Overview. Arrange, next to it, moves or hides cards. Quick add logs an entry from here.' },
     { name: 'nav', key: 'dashboard', at: ['#nav-more', 'nav.nav'], title: 'Getting around',
-      text: 'The main bar opens Overview, Money, Work and Health. On a phone, More lists every other area and has search.' },
+      text: 'On a wide screen, the tabs at the top open the main areas. On a phone, the bar at the bottom opens Overview, Money, Work and Health. More lists every other area and has search.' },
     { name: 'money', key: 'v:money', at: ['main h1'], title: 'Money',
       text: 'Your entries, spending by category and cash flow. Quick add here logs income or spending.' },
     { name: 'assets', key: 'v:assets', at: ['main h1'], title: 'Assets',
