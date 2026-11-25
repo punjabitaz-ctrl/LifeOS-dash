@@ -2,7 +2,7 @@
   'use strict';
   const L = (globalThis.LifeOS = globalThis.LifeOS || {});
   const KEY = 'envelope';
-  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 22, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
+  const ACCOUNT_CAP = 200, RECURRING_CAP = 500, BUDGET_CAP = 100, CATEGORY_CAP = 50, SCHEMA = 23, GOAL_CAP = 300, PROJECT_CAP = 200, PROJECT_TOTAL_CAP = 2000, PIPELINE_CAP = 1000;
   const HABIT_CAP = 8, HABIT_LOG_CAP = 100000, KIND_CAP = 30;
   const RENEWAL_TOTAL_CAP = 2000;
   const ENTRY_CAP = 50000, INSIGHT_CAP = 5000, REVIEW_CAP = 1000, LESSON_CAP = 30, AUDIT_CAP = 200;
@@ -126,7 +126,7 @@
       home: schema >= 6 ? cleanHomeSettings(s.home) : { starterDone: false },
       learning: schema >= 7 ? L.learning.cleanSettings(s.learning) : { weeklyMinutes: 0 },
       privAutoLockSec: schema >= 10 && s.privAutoLockSec !== undefined ? num(s.privAutoLockSec, 15, 1800, 'privAutoLockSec', true) : 60,
-      layouts: schema >= 11 ? L.layout.cleanLayouts(s.layouts) : { narrow: [], wide: [] },
+      layouts: schema >= 11 ? L.layout.cleanLayouts(s.layouts, schema) : { narrow: [], wide: [] },
       // v1.1.0: business settings. Migrating from an older schema asks the owner to confirm the business or personal scope once.
       business: schema >= 12 ? L.business.cleanSettings(s.business) : L.business.defaultSettings(false),
       // v1.2.0 part B: the vault size (MB) that makes the dashboard propose archiving.
@@ -139,6 +139,8 @@
       clients: schema >= 19 ? L.clients.cleanSettings(s.clients) : L.clients.cleanSettings(undefined),
       // v2.1.0: the daily protein target (whole grams, typed by the owner). Older schemas have none.
       food: schema >= 21 ? L.food.cleanSettings(s.food) : {},
+      // v2.3.0: the Overview's chosen key numbers and shortcuts. Older schemas get the defaults.
+      overview: schema >= 23 ? L.overview.cleanSettings(s.overview) : L.overview.defaultSettings(),
     };
   }
   function cleanSetup(x, schema) {
@@ -718,7 +720,7 @@
   function validateStateRaw(o, opts) {
     if (!isObj(o)) fail('state must be an object');
     scan(o, 0, { n: 4e6 });
-    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, SCHEMA].includes(o.schema)) fail('unsupported schema');
+    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, SCHEMA].includes(o.schema)) fail('unsupported schema');
     if (!L.metrics) fail('metrics module missing');
     const settings = cleanSettings(o.settings, o.schema), entries = cleanEntries(o.entries);
     const out = { schema: SCHEMA, settings, entries };
@@ -942,6 +944,11 @@
       if (li.some((i) => i.nextAction !== undefined || i.nextDate !== undefined)) out.push('learning next steps');
       if (li.some((i) => i.weeklyMinutes !== undefined)) out.push('minutes per week on learning items');
     }
+    if (src < 23) {
+      // v2.3.0: the Overview's chosen key numbers and shortcuts (an older version shows its own dashboard instead).
+      const ov = cur.settings && cur.settings.overview;
+      if (ov && ov.custom === true) out.push('Overview choices');
+    }
     if (src < 4) {
       if (cur.cycle) out.push('training cycle');
       if ((cur.habits || []).length) out.push('daily checks');
@@ -985,6 +992,7 @@
         setup: { dismissed: false, targetsSaved: false },
         clients: { contactDays: 30 },
         food: {},
+        overview: { custom: false, metrics: [], shortcuts: [] },
       },
       entries: [],
       accounts: [], recurring: [], budgets: [], categories: defaultCategories(),

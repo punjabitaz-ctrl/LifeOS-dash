@@ -79,7 +79,7 @@ async function run(label, viewport) {
     await page.waitForSelector(G(f.title), T);
   }
   async function checkTile(where, want) {
-    await nav('Home');
+    await nav('Overview');
     await page.waitForSelector('.tile', T);
     await expectText('.tile[data-domain="goals"] .tile-value', want.value);
     const t = await text('.tile[data-domain="goals"]');
@@ -87,7 +87,7 @@ async function run(label, viewport) {
     if ((await page.locator('.tile').count()) !== 11) throw new Error('expected 11 tiles');
     await layout(where + ' dashboard');
   }
-  const openGoals = async () => { await nav('Home'); await page.click('.tile[data-domain="goals"]'); await page.waitForSelector('#goal-ladder', T); };
+  const openGoals = async () => { await nav('Overview'); await page.click('.tile[data-domain="goals"]'); await page.waitForSelector('#goal-ladder', T); };
 
   try {
     await page.clock.install({ time: new Date(2026, 10, 12, 10, 0, 0) });
@@ -241,7 +241,7 @@ async function run(label, viewport) {
     await step('settings: version and audit log hold no goal text', async () => {
       await nav('Settings');
       await page.waitForSelector('#app-version', T);
-      await expectText('#app-version', 'LifeOS v2.2.0');
+      await expectText('#app-version', 'LifeOS v2.3.0');
       const t = await text('main');
       for (const secret of ['Grow net worth', 'Save 10k', 'Train four', 'Read 12']) if (t.includes(secret)) throw new Error('settings page shows ' + secret);
       await layout('settings');

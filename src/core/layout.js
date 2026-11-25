@@ -9,7 +9,10 @@
   const mod = (id, label, sizes, size) => Object.freeze({ id, label, sizes: Object.freeze(sizes), size });
   const TILE_DOMAINS = [['money', 'Money'], ['assets', 'Assets'], ['work', 'Work'], ['health', 'Health'], ['activities', 'Activities'], ['social', 'Social'], ['learning', 'Learning'], ['home', 'Home'], ['admin', 'Admin'], ['goals', 'Goals'], ['wellbeing', 'Wellbeing']];
   // The default order is the order the dashboard had before: at a glance, priorities, the domain tiles; then the revenue modules.
+  // v2.3.0: the Overview's key numbers and shortcuts come first.
   const MODULES = Object.freeze([
+    mod('kpis', 'Key numbers', ['wide'], 'wide'),
+    mod('shortcuts', 'Shortcuts', ['wide'], 'wide'),
     mod('glance', 'At a glance', ['wide'], 'wide'),
     mod('priorities', 'Priorities', ['small', 'wide'], 'wide'),
   ].concat(
@@ -44,10 +47,18 @@
     }
     return out;
   }
-  function cleanLayouts(x) {
+  // v2.3.0: a layout saved before schema 23 gets the two new Overview modules at the top, where a new vault has them (resolve() alone
+  // would add them at the end). schema is the saved data's schema; without it nothing is added.
+  const NEW_23 = Object.freeze(['kpis', 'shortcuts']);
+  function lift(list, schema) {
+    if (!(Number(schema) < 23) || !list.length) return list;
+    const add = NEW_23.filter((id) => !list.some((x) => x.id === id)).map((id) => ({ id, size: BY_ID.get(id).size, hidden: false }));
+    return add.concat(list);
+  }
+  function cleanLayouts(x, schema) {
     if (x === undefined || x === null) return { narrow: [], wide: [] };
     if (!isObj(x)) fail('layouts');
-    return { narrow: clean(x.narrow), wide: clean(x.wide) };
+    return { narrow: lift(clean(x.narrow), schema), wide: lift(clean(x.wide), schema) };
   }
   const defaultList = () => MODULES.map((m) => ({ id: m.id, size: m.size, hidden: false }));
   // The full ordered list to draw: the saved order, then any module the saved list lacks.

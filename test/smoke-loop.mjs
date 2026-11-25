@@ -62,7 +62,7 @@ async function run(label, viewport) {
     if (r.sw > r.iw) throw new Error(where + ': page scrolls horizontally (' + r.sw + ' > ' + r.iw + ')');
   };
   const state = (fn, arg) => page.evaluate(fn, arg);
-  const home = async () => { await nav('Home'); await page.waitForSelector('.tile', T); };
+  const home = async () => { await nav('Overview'); await page.waitForSelector('.tile', T); };
   const rejectWith = async (cardText, code, typed) => {
     const card = '.card[data-insight]:has-text("' + cardText + '")';
     await page.click(card + ' button:has-text("Reject")');
@@ -179,10 +179,10 @@ async function run(label, viewport) {
       // SEC-105: the provider here is "None (rules only)", so the message says so (it said "Manual mode" before the audit).
       if (!/Rules only: no AI is set up, so there is no connection to test/.test(await page.textContent('#p-test-out'))) throw new Error('rules-only message: ' + await page.textContent('#p-test-out'));
       await state(() => globalThis.LifeOS.store.commit((x) => { x.settings.provider = { kind: 'manual', baseUrl: '', model: '', apiKey: '' }; }));
-      await nav('Home'); await nav('Settings'); await page.waitForSelector('#p-test', T); await page.click('#p-test');
+      await nav('Overview'); await nav('Settings'); await page.waitForSelector('#p-test', T); await page.click('#p-test');
       if (!/Manual mode has no connection to test/.test(await page.textContent('#p-test-out'))) throw new Error('manual mode message: ' + await page.textContent('#p-test-out'));
       await state((k) => globalThis.LifeOS.store.commit((x) => { x.settings.provider = { kind: 'anthropic', baseUrl: '', model: 'claude-haiku-4-5', apiKey: k }; }), KEY);
-      await nav('Home'); await nav('Settings'); await page.waitForSelector('#p-test', T);
+      await nav('Overview'); await nav('Settings'); await page.waitForSelector('#p-test', T);
       const bodies = []; let mode = 'bad';
       const cors = { 'access-control-allow-origin': '*', 'access-control-allow-headers': '*', 'access-control-allow-methods': 'POST, OPTIONS' };
       await page.route('https://api.anthropic.com/**', (route) => {
@@ -208,7 +208,7 @@ async function run(label, viewport) {
       await state(() => globalThis.LifeOS.store.commit((x) => { x.settings.provider = { kind: 'none', baseUrl: '', model: '', apiKey: '' }; }));
     });
     await step('calendar file: generic by default, real titles only with the tick and a warning; both valid, escaped, folded, with the same stable UIDs', async () => {
-      await nav('Home'); await nav('Settings'); await page.waitForSelector('#cal-download', T);
+      await nav('Overview'); await nav('Settings'); await page.waitForSelector('#cal-download', T);
       if (await page.locator('#cal-priv').count()) throw new Error('the private tick is offered while the vault is closed');
       if ((await page.isChecked('#cal-real')) || !(await page.isHidden('#cal-real-warn'))) throw new Error('real titles are on or the warning shows by default');
       const generic = await calFile();

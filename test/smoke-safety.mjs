@@ -59,7 +59,7 @@ async function run(label, viewport) {
         x.accounts.push({ id: 'acc-safety', name: M + ' account', kind: 'cash', liability: false, archived: false });
         x.settings.business.name = M + ' LLC';
       }), MARK);
-      await nav('Settings'); await nav('Home'); await page.waitForSelector('#safety-card', T);
+      await nav('Settings'); await nav('Overview'); await page.waitForSelector('#safety-card', T);
       if (!/Last backup: none yet/.test(await text('#safety-backup')) || !/Last sync: none yet/.test(await text('#safety-sync'))) throw new Error('dashboard dates');
       await page.waitForFunction(() => !/checking/.test(document.querySelector('#safety-storage').textContent), null, T);
       if (!/^Storage: (kept by the browser|may be cleared by the browser)$/.test(await text('#safety-storage'))) throw new Error('storage line: ' + await text('#safety-storage'));
@@ -81,7 +81,7 @@ async function run(label, viewport) {
       await noHScroll('settings');
     });
     await step('export a backup from the banner: nothing happens until the dialog is confirmed; the date is stamped and the banner clears', async () => {
-      await nav('Home'); await page.waitForSelector('#banner-export', T);
+      await nav('Overview'); await page.waitForSelector('#banner-export', T);
       await page.click('#banner-export'); await page.waitForSelector('#rem-pass', T);
       await page.fill('#rem-pass', BACKUP); await page.fill('#rem-pass2', BACKUP + 'x');
       await page.click('.dialog button.pri');
@@ -126,7 +126,7 @@ async function run(label, viewport) {
       }, BACKUP);
       await page.setInputFiles('#vf-file', { name: 'lifeos-backup-newer.json', mimeType: 'application/json', buffer: Buffer.from(newer) });
       await page.fill('#vf-pass', BACKUP); await page.click('#verify-btn');
-      await page.waitForFunction(() => /newer version of LifeOS \(schema 23\)/.test((document.querySelector('#verify-fail') || {}).textContent || ''), null, T);
+      await page.waitForFunction(() => /newer version of LifeOS \(schema 24\)/.test((document.querySelector('#verify-fail') || {}).textContent || ''), null, T);
       if ((await envelope()) !== before) throw new Error('verify wrote to storage');
       if ((await page.evaluate(() => globalThis.LifeOS.store.getMeta().rev)) !== rev0) throw new Error('verify changed the revision');
       if (downloads !== 1) throw new Error('verify downloaded something');
@@ -138,14 +138,14 @@ async function run(label, viewport) {
       await page.waitForSelector('.notice.ok:has-text("Reminder settings saved.")', T);
       if ((await page.evaluate(() => globalThis.LifeOS.store.getState().settings.backupReminderDays)) !== 1) throw new Error('interval not saved');
       await page.evaluate(() => globalThis.LifeOS.store.commit((x) => { x.ops.lastBackupAt = '2026-11-15'; }, { quiet: true }));
-      await nav('Home'); await page.waitForSelector('#backup-banner', T);
+      await nav('Overview'); await page.waitForSelector('#backup-banner', T);
       if (!/last backup or sync was 3 days ago/.test(await text('#backup-banner'))) throw new Error('banner text: ' + await text('#backup-banner'));
       if (!(await page.isVisible('#banner-export')) || !(await page.isVisible('#banner-snooze'))) throw new Error('banner buttons');
       await noHScroll('banner');
       await nav('Settings'); await page.waitForSelector('#backup-banner', T);
       await page.click('#banner-snooze'); await page.waitForSelector('#backup-banner', { state: 'detached', ...T });
       const o = await ops(); if (o.snoozeUntil !== '2026-11-19') throw new Error('snooze ' + o.snoozeUntil);
-      await nav('Home'); await page.waitForSelector('#safety-card', T);
+      await nav('Overview'); await page.waitForSelector('#safety-card', T);
       if (await page.$('#backup-banner')) throw new Error('banner back while snoozed');
       await page.waitForTimeout(300);
       if (downloads !== 1) throw new Error('a download started without a tap');
@@ -164,7 +164,7 @@ async function run(label, viewport) {
       await page.click('#diag-copy'); await page.waitForSelector('.notice.ok:has-text("Diagnostics copied")', T);
       const copied = await page.evaluate(async () => { try { return await navigator.clipboard.readText(); } catch (e) { return window.__copied || ''; } });
       const lines = copied.split('\n');
-      if (lines[0] !== 'LifeOS diagnostics' || !/^Version: 2\.2\.0$/.test(lines[1]) || lines[2] !== 'Schema: 22' || lines[3] !== 'Browser: Chrome' || !/^Codes: \d+$/.test(lines[4])) throw new Error('header: ' + lines.slice(0, 5).join(' / '));
+      if (lines[0] !== 'LifeOS diagnostics' || !/^Version: 2\.3\.0$/.test(lines[1]) || lines[2] !== 'Schema: 23' || lines[3] !== 'Browser: Chrome' || !/^Codes: \d+$/.test(lines[4])) throw new Error('header: ' + lines.slice(0, 5).join(' / '));
       if (!lines.slice(5).some((l) => /UNCAUGHT_MONEY money$/.test(l)) || !lines.slice(5).some((l) => /REJECTION_MONEY money$/.test(l)) || !lines.slice(5).some((l) => /SYNC_409 sync$/.test(l))) throw new Error('codes missing: ' + copied);
       if (lines.slice(5).some((l) => !/^\d{4}-\d{2}-\d{2} [A-Z0-9_]+ [a-z]+$/.test(l))) throw new Error('a line is not a code line: ' + copied);
       if (copied.includes(MARK) || /lunch|account|LLC|Mozilla|HeadlessChrome|file:|\d+\.\d+\.\d+\.\d+/.test(copied)) throw new Error('data in the copied text: ' + copied);

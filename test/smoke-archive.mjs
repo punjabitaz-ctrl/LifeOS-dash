@@ -123,7 +123,7 @@ async function run(label, viewport) {
   // What the screens show: dashboard tiles, the money month walked back to 2021, net worth and the goals.
   async function screens() {
     const out = {};
-    await nav('Home'); await page.waitForSelector('.tile', T);
+    await nav('Overview'); await page.waitForSelector('.tile', T);
     out.tiles = await page.$$eval('.tile', (t) => t.map((x) => x.textContent));
     await page.click('.tile[data-domain="goals"]'); await page.waitForSelector('h1', T);
     out.goals = await page.textContent('main');
@@ -158,11 +158,11 @@ async function run(label, viewport) {
       await assertFields('dashboard'); await assertNoScroll('dashboard');
       // v1.2.0 audit: every screen and tile, not only the archive screens, carries spell check off on every field
       const tiles = await page.$$eval('.tile', (t) => t.map((x) => x.getAttribute('data-domain')));
-      for (const id of tiles) { await nav('Home'); await page.waitForSelector('.tile', T); await page.click('.tile[data-domain="' + id + '"]'); await page.waitForSelector('h1', T); await assertFields('tile ' + id); }
+      for (const id of tiles) { await nav('Overview'); await page.waitForSelector('.tile', T); await page.click('.tile[data-domain="' + id + '"]'); await page.waitForSelector('h1', T); await assertFields('tile ' + id); }
       for (const n of ['Money', 'Assets', 'Work', 'Health', 'Review', 'Memory', 'Settings', 'Business']) { await nav(n); await page.waitForSelector('h1', T); await assertFields(n); }
       await nav('Business'); for (const t of ['entries', 'invoices', 'mileage', 'payees', 'budgets', 'settings', 'export']) { await page.click('#bz-tab-' + t); await page.waitForSelector('#bz-tab-' + t + '[aria-pressed="true"]', T); await assertFields('business ' + t); }
       await page.click('#nav-private'); await page.waitForSelector('#priv-pass', T); await assertFields('private vault');
-      await nav('Home'); await page.waitForSelector('.tile', T);
+      await nav('Overview'); await page.waitForSelector('.tile', T);
     });
     await step('the proposal names the years and removes nothing', async () => {
       await page.waitForSelector('#archive-proposal', T);

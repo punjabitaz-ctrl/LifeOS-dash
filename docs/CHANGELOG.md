@@ -4,6 +4,14 @@ Newest first. One line per change. Versions come from package.json (see docs/RUN
 
 ## Unreleased
 
+## 2.3.0 (schema 23): Overview and a brighter look
+- The Dashboard becomes the Overview, one screen for everything: a Key numbers card (up to 12 numbers the owner picks from 16, such as savings rate, net worth, revenue this month, net this month, expected income, workouts, learning, goals, applications this week, the next 30 days and the review streak) and a Shortcuts card (up to 12 areas, one tap each) sit above the existing cards. A tap on a number opens its area. Wellbeing has no key number; it stays in the private vault.
+- "Choose what shows" opens one dialog for the key numbers (tick, untick, move up and down), the cards on this screen width (show or hide) and the shortcuts, with "Back to the defaults". Nothing is saved until Save. "Customize" is now "Arrange" (order and size, unchanged).
+- The bottom bar and the top bar call the screen Overview (it was Home, easily confused with Home and property); "Back to dashboard" buttons read "Back to overview".
+- New look: bright, modern SaaS style. Indigo accent with a soft gradient brand mark, a light blue-grey page, white cards with soft layered shadows and larger radius, pill navigation, tinted key number cards, hover lift on tiles, clearer buttons and inputs, a frosted sticky header. Dark mode follows the system with the same structure. No feature was removed and no screen changed its layout beyond the Overview.
+- Schema 23 (`settings.overview` = custom flag, key number ids, shortcut keys; ids whitelisted, 12 each at most) with migrations from 1 and a downgrade guard ("Overview choices"). A layout saved before schema 23 gets Key numbers and Shortcuts at the top, where a new vault has them. The digest and the AI boundary are unchanged. Decisions in SPEC.md "v2.3.0 addendum: Overview and visual refresh". Tests: test/v230.test.mjs and test/smoke-overview.mjs.
+- Existing tests: schema numbers 22 to 23, "newer schema" fixtures 23 to 24, version strings 2.2.0 to 2.3.0, the `[1..22, SCHEMA]` patterns, 21 to 23 dashboard modules, nav('Home') to nav('Overview') in the smokes.
+
 ## 2.2.0 (schema 22): Learning goals
 - Learning gains two kinds, Degree and Language, beside Certification, Skill, Course, Book, Project and Other. Certifications, degrees and languages offer an exam date; only certifications an expiry date. Edit can change an item's kind and provider.
 - Each item can carry a next step (up to 200 characters) with an optional date, set from a "Next step" button, and its own minutes per week; each active row shows this week's minutes on it.

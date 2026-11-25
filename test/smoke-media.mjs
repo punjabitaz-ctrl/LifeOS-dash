@@ -178,14 +178,14 @@ async function run(label, viewport) {
       const p = await search('pilot'); if (p.join() !== 'podcasts:Pilot talk') throw new Error('pilot: ' + p);
     });
     await step('at a glance and the weekly review carry generic labels and numbers; the guest sees the episode on the Social record', async () => {
-      await navTo(page, 'Home'); await page.waitForSelector('#dash-glance', T);
+      await navTo(page, 'Overview'); await page.waitForSelector('#dash-glance', T);
       const g = await text('#dash-glance');
       if (!g.includes('Clients with an overdue invoice: 1')) throw new Error('glance: ' + g);
       if (g.includes('Acme')) throw new Error('a client name is at a glance');
       await navTo(page, 'Review'); await page.waitForSelector('#rv-clients', T);
       await expectText('#rv-cl-stats', 'Clients with an overdue invoice: 1. Clients with no recent contact: 0.');
       await expectText('#rv-media-stats', 'Episodes published this month: 1. Sites with a renewal in the next 30 days: 1.');
-      await navTo(page, 'Home'); await page.waitForSelector('.tile', T); await page.click('.tile[data-domain="social"]'); await page.waitForSelector('.soc-person-row[data-person="Pat Client"]', { state: 'attached', ...T });
+      await navTo(page, 'Overview'); await page.waitForSelector('.tile', T); await page.click('.tile[data-domain="social"]'); await page.waitForSelector('.soc-person-row[data-person="Pat Client"]', { state: 'attached', ...T });
       await page.evaluate(() => { for (const d of document.querySelectorAll('details')) d.open = true; });
       await page.click('.soc-person-row[data-person="Pat Client"] button'); await page.waitForSelector('#soc-episodes', T);
       if (!(await text('#soc-episodes')).includes('Pilot talk')) throw new Error('the guest episode is not on the person page');
@@ -235,7 +235,7 @@ async function run(label, viewport) {
       if (!(await page.locator('.pc-show h3:has-text("Costs and revenue") .lockmark').count())) throw new Error('show costs and revenue have no lock marker');
       await media('Websites', 'websites'); await page.waitForSelector('#websites h1 + .lockmark, #websites .lockmark', T);
       await navTo(page, 'Review'); await page.waitForSelector('#rv-clients h2 .lockmark', T); await page.waitForSelector('#rv-media h2 .lockmark', T);
-      await navTo(page, 'Home'); await page.waitForSelector('#dash-glance', T);
+      await navTo(page, 'Overview'); await page.waitForSelector('#dash-glance', T);
       if (!(await page.locator('#dash-glance h2 .lockmark').count())) throw new Error('at a glance has no lock marker with a private contact');
       await layout('review with markers');
     });

@@ -55,7 +55,7 @@ async function run(label, viewport) {
     if (r.clipped.length) throw new Error(where + ': nav labels clipped: ' + r.clipped.join(', '));
   };
   const openFold = async (id) => { await page.waitForSelector('#' + id, T); if (!(await page.locator('#' + id).evaluate((el) => el.open))) await page.click('#' + id + ' > summary'); };
-  const dash = async () => { await nav('Home'); await page.waitForSelector('.tile', T); };
+  const dash = async () => { await nav('Overview'); await page.waitForSelector('.tile', T); };
   const tile = async (id, value, sub, where) => {
     await dash();
     await expectText('.tile[data-domain="' + id + '"] .tile-value', value);
@@ -147,7 +147,7 @@ async function run(label, viewport) {
       await openFold('hl-q-workout'); await page.fill('#qw-date', '2026-11-13'); await page.click('#qw-add'); await noticeIs('Workout logged.');
       await expectText('#hl-sessions', '2 of 4'); await expectCount('.hl-dupe', 1);
       await page.click('.hl-dupe .hl-dupe-keep'); await expectCount('.hl-dupe', 0); await expectText('#hl-sessions', '2 of 4');
-      await nav('Home'); await nav('Health'); await expectCount('.hl-dupe', 1);
+      await nav('Overview'); await nav('Health'); await expectCount('.hl-dupe', 1);
       await page.click('.hl-dupe .hl-dupe-remove'); await expectCount('.hl-dupe', 0); await expectText('#hl-sessions', '1 of 4'); await expectText('#hl-minutes', '120');
     });
     await step('ROI tables against hand-computed values', async () => {
@@ -264,7 +264,7 @@ async function run(label, viewport) {
     await step('settings: version, and no activity text', async () => {
       await nav('Settings');
       await page.waitForSelector('#app-version', T);
-      await expectText('#app-version', 'LifeOS v2.2.0');
+      await expectText('#app-version', 'LifeOS v2.3.0');
       const t = await text('main');
       for (const secret of ['Kayak day', 'Pottery class', 'Museum visit']) if (t.includes(secret)) throw new Error('settings page shows ' + secret);
       await layout('settings');

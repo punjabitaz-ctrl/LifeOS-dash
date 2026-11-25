@@ -81,12 +81,12 @@ try {
     await page.click('#finish-review');
     await page.waitForSelector('.tile', T);
     for (const d of ['goals', 'home', 'admin', 'learning', 'activities', 'social']) {
-      await nav('Home'); await page.click('.tile[data-domain="' + d + '"]'); await page.waitForTimeout(200); await audit(d);
+      await nav('Overview'); await page.click('.tile[data-domain="' + d + '"]'); await page.waitForTimeout(200); await audit(d);
     }
   });
 
   await step('UI-10 Customize: module bodies are inert, Drag is pointer only', async () => {
-    await nav('Home'); await page.click('#dash-customize'); await page.waitForSelector('#dash-edit', T);
+    await nav('Overview'); await page.click('#dash-customize'); await page.waitForSelector('#dash-edit', T);
     const r = await page.evaluate(() => ({
       inert: Array.from(document.querySelectorAll('.modbody')).every((b) => b.inert),
       drag: Array.from(document.querySelectorAll('.drag')).every((b) => b.tabIndex === -1 && b.getAttribute('aria-hidden') === 'true'),

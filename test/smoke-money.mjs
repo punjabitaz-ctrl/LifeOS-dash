@@ -93,7 +93,7 @@ async function run(label, viewport) {
       await noHScroll('assets');
     });
     await step('quick-add money', async () => {
-      await nav('Home');
+      await nav('Overview');
       await page.waitForSelector('#quick-add');
       await quick('income', '4000', 'Salary');
       await quick('expense', '120.10', 'Groceries');
@@ -131,7 +131,7 @@ async function run(label, viewport) {
       await page.click('button:has-text("Add recurring")');
       await page.waitForSelector('#due-card:has-text("Gym")');
       await expectText('#mv-spend', usd(SPEND0));          // proposed, never auto-posted
-      await nav('Home');
+      await nav('Overview');
       await page.waitForSelector('#due-review');
       await page.click('#due-review');
       await page.waitForSelector('#due-card');

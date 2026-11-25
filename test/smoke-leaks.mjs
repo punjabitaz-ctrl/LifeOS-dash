@@ -85,7 +85,7 @@ async function run(label, viewport) {
       await page.waitForSelector('.tile', T);
       const n = await page.evaluate('(async () => { const r = ' + SRC + '; await globalThis.LifeOS.store.replaceState(r.state); return r.count; })()');
       if (n < 60) throw new Error('only ' + n + ' markers');
-      await nav('Settings'); await nav('Home'); await page.waitForSelector('.tile', T);
+      await nav('Settings'); await nav('Overview'); await page.waitForSelector('.tile', T);
       const body = await page.textContent('main');
       if (!body.includes(ADV_MARK)) throw new Error('markers not shown on the dashboard, so the check would prove nothing');
       await grab('dashboard');
@@ -94,7 +94,7 @@ async function run(label, viewport) {
       const ids = await page.$$eval('.tile', (t) => t.map((x) => x.getAttribute('data-domain')));
       if (ids.length !== 11) throw new Error('tiles ' + ids.length);
       for (const id of ids) {
-        await nav('Home'); await page.waitForSelector('.tile', T);
+        await nav('Overview'); await page.waitForSelector('.tile', T);
         await page.click('.tile[data-domain="' + id + '"]');
         await page.waitForSelector('h1', T);
         await page.waitForTimeout(50);
@@ -168,7 +168,7 @@ async function run(label, viewport) {
       if (!au.includes('calendar export') || au.includes('LEAK')) throw new Error('calendar audit entry');
     });
     await step('an error with a marker in the input is reported without the marker', async () => {
-      await nav('Home'); await page.waitForSelector('.tile', T); await page.click('.tile[data-domain="activities"]');
+      await nav('Overview'); await page.waitForSelector('.tile', T); await page.click('.tile[data-domain="activities"]');
       await page.waitForSelector('#act-upcoming', T);
       if (!(await page.locator('#act-add').evaluate((el) => el.open))) await page.click('#act-add > summary');
       await page.fill('#act-title', ADV_MARK + 'typed title'); await page.fill('#act-place', ADV_MARK + 'typed place');
@@ -189,7 +189,7 @@ async function run(label, viewport) {
       await grab('activities');
     });
     await step('Social: errors and saves with a marker in the input are reported without the marker', async () => {
-      await nav('Home'); await page.waitForSelector('.tile', T); await page.click('.tile[data-domain="social"]');
+      await nav('Overview'); await page.waitForSelector('.tile', T); await page.click('.tile[data-domain="social"]');
       await page.waitForSelector('#soc-people-card', T);
       if (!(await page.locator('#soc-add').evaluate((el) => el.open))) await page.click('#soc-add > summary');
       await page.fill('#soc-p-name', ADV_MARK + 'typed person'); await page.fill('#soc-p-notes', ADV_MARK + 'card 4111 1111 1111 1111'); await page.click('#soc-p-add');
@@ -212,7 +212,7 @@ async function run(label, viewport) {
       await grab('social person');
     });
     await step('Social (audit v0.10.0): the adversarial person detail, search, Work cards, review and a marked group name', async () => {
-      await nav('Home'); await page.waitForSelector('.tile', T);
+      await nav('Overview'); await page.waitForSelector('.tile', T);
       const glance = await page.textContent('#dash-glance').catch(() => '');
       if (!glance.includes(ADV_MARK)) throw new Error('the important date with a marker is not on the glance card, so the check proves nothing');
       await page.click('.tile[data-domain="social"]'); await page.waitForSelector('#soc-people-card', T);
@@ -228,7 +228,7 @@ async function run(label, viewport) {
       await page.waitForSelector('.notice.err', T);
       if ((await page.textContent('.notice.err')).includes(ADV_MARK)) throw new Error('group error echoes input');
       await page.fill('#soc-g-days', '12'); await page.click('#soc-g-add'); await page.waitForSelector('.notice:has-text("Group added.")', T);
-      await nav('Home'); await page.waitForSelector('.tile', T); await page.click('.tile[data-domain="work"]'); await page.waitForSelector('.wk-person', T);
+      await nav('Overview'); await page.waitForSelector('.tile', T); await page.click('.tile[data-domain="work"]'); await page.waitForSelector('.wk-person', T);
       await nav('Review'); await page.waitForSelector('#rv-social, #rv-soc-none', T);
       await grab('social work and review');
     });
@@ -304,7 +304,7 @@ async function run(label, viewport) {
       if (!shown.includes(ADV_MARK) && !shown.length) throw new Error('nothing shown');
     });
     await step('Activity import (v1.2.0): marked text in every imported field, the preview, the rejected reason, the created lists, the Money offer, the prompt and the audit hold numbers only', async () => {
-      await nav('Home'); await page.waitForSelector('.tile', T); await page.click('.tile[data-domain="activities"]'); await page.waitForSelector('#actimp-card', T);
+      await nav('Overview'); await page.waitForSelector('.tile', T); await page.click('.tile[data-domain="activities"]'); await page.waitForSelector('#actimp-card', T);
       await page.setInputFiles('#actimp-file', { name: 'activities.csv', mimeType: 'text/csv', buffer: Buffer.from(ACT_CSV()) });
       await page.waitForSelector('#actimp-preview', T); await page.click('#actimp-preview'); await page.waitForSelector('#actimp-summary', T);
       const sum = await page.textContent('#actimp-summary');
@@ -555,10 +555,10 @@ async function runPriv(label, viewport) {
     return t;
   });
   const sweep = async (bucket) => {
-    await nav('Home'); await page.waitForSelector('.tile', T);
+    await nav('Overview'); await page.waitForSelector('.tile', T);
     const ids = await page.$$eval('.tile', (t) => t.map((x) => x.getAttribute('data-domain')));
     bucket.push(await dom());
-    for (const id of ids) { await nav('Home'); await page.waitForSelector('.tile', T); await page.click('.tile[data-domain="' + id + '"]'); await page.waitForSelector('h1', T); await page.waitForTimeout(40); bucket.push(await dom()); }
+    for (const id of ids) { await nav('Overview'); await page.waitForSelector('.tile', T); await page.click('.tile[data-domain="' + id + '"]'); await page.waitForSelector('h1', T); await page.waitForTimeout(40); bucket.push(await dom()); }
     for (const n of ['Money', 'Assets', 'Work', 'Health', 'Review', 'Memory', 'Settings']) { await nav(n); await page.waitForTimeout(40); bucket.push(await dom()); }
     // v1.1.0 audit: every Business tab and the tax print view; closed, every tax view refuses with the lock marker
     const closed = !(await page.$('#priv-bar'));
@@ -621,7 +621,7 @@ async function runPriv(label, viewport) {
       await page.click('button:has-text("Create vault")'); await page.waitForSelector('.tile', T);
       const r = await page.evaluate(PRIV_SETUP);
       if (r.count < 60 || r.left.length || r.marks < 20) throw new Error('setup: ' + JSON.stringify(r));
-      await nav('Settings'); await nav('Home'); await page.waitForSelector('.tile', T);
+      await nav('Settings'); await nav('Overview'); await page.waitForSelector('.tile', T);
     });
     await step('closed: every screen, the prompts, errors, backup and Drive upload hold no marker; markers show where affected', async () => {
       await sweep(doms);
@@ -629,13 +629,13 @@ async function runPriv(label, viewport) {
       await artefacts('closed');
       await page.click('#nav-private'); await page.fill('#priv-pass', 'not the private passphrase'); await page.click('#priv-open');
       await page.waitForSelector('.notice.err', T); notices.push(await page.textContent('.notice.err'));
-      await nav('Home'); await page.waitForSelector('.tile[data-domain="social"] [aria-label="Some private items are hidden"]', T);
+      await nav('Overview'); await page.waitForSelector('.tile[data-domain="social"] [aria-label="Some private items are hidden"]', T);
       // Wellbeing closed: the tile says Locked with the marker; the screen asks for the passphrase and holds no note or rating
       if ((await page.textContent('.tile[data-domain="wellbeing"] .tile-value')).trim() !== 'Locked') throw new Error('wellbeing tile is not Locked while closed');
       await page.waitForSelector('.tile[data-domain="wellbeing"] [aria-label="Locked"]', T);
       await page.click('.tile[data-domain="wellbeing"]'); await page.waitForSelector('#wb-locked', T);
       if ((await page.locator('.wb-area, #wb-ck, .rate').count()) !== 0) throw new Error('wellbeing content shown while closed');
-      await nav('Home');
+      await nav('Overview');
       await nav('Money'); await page.waitForSelector('.lockrow', T);
       const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), page.click('button:has-text("Export CSV")')]);
       extra['closed csv'] = readFileSync(await dl.path(), 'utf8');
@@ -647,10 +647,10 @@ async function runPriv(label, viewport) {
       const open = [];
       await sweep(open);
       if (!open.join('\n').includes(ADV_MARK)) throw new Error('markers not shown while open, so the check proves nothing');
-      await nav('Home'); await page.waitForSelector('.tile', T);
+      await nav('Overview'); await page.waitForSelector('.tile', T);
       await page.click('.tile[data-domain="social"]'); await page.waitForSelector('h1:has-text("Social")', T);
       if (!(await dom()).includes(ADV_MARK)) throw new Error('private people not shown while open');
-      await nav('Home'); await page.waitForSelector('.tile', T);
+      await nav('Overview'); await page.waitForSelector('.tile', T);
       await page.click('.tile[data-domain="wellbeing"]'); await page.waitForSelector('.wb-area', T);
       const wd = await dom();
       if (!wd.includes('LEAK mark WB1') || !wd.includes('LEAK mark WB2')) throw new Error('wellbeing notes not shown while open, so the check proves nothing');
@@ -688,12 +688,12 @@ async function runPriv(label, viewport) {
       await page.click('#priv-close'); await page.waitForSelector('#priv-bar', { state: 'detached', ...T });
     });
     await step('Activity import (v1.2.0) as private: closed, the preview refuses; open and ticked, the rows live in the vault only', async () => {
-      await nav('Home'); await page.waitForSelector('.tile', T); await page.click('.tile[data-domain="activities"]'); await page.waitForSelector('#actimp-locked', T);
+      await nav('Overview'); await page.waitForSelector('.tile', T); await page.click('.tile[data-domain="activities"]'); await page.waitForSelector('#actimp-locked', T);
       if (await page.locator('#actimp-file').count()) throw new Error('the import file picker is shown while private activities are hidden');
       doms.push(await dom());
       await page.click('#nav-private'); await page.waitForSelector('#priv-pass', T);
       await page.fill('#priv-pass', PRIVPASS); await page.click('#priv-open'); await page.waitForSelector('#priv-bar', T);
-      await nav('Home'); await page.waitForSelector('.tile', T); await page.click('.tile[data-domain="activities"]'); await page.waitForSelector('#actimp-file', T);
+      await nav('Overview'); await page.waitForSelector('.tile', T); await page.click('.tile[data-domain="activities"]'); await page.waitForSelector('#actimp-file', T);
       // UI-5: "New items are private" is ticked, but an import is public unless "Import as private" is ticked
       await page.click('#priv-new'); if (!(await page.locator('#priv-new').isChecked())) throw new Error('the New items are private toggle did not tick');
       await page.setInputFiles('#actimp-file', { name: 'plain.csv', mimeType: 'text/csv', buffer: Buffer.from('title,date\nPublic import row,2026-11-02') });
@@ -721,7 +721,7 @@ async function runPriv(label, viewport) {
       const where = await page.evaluate(() => { const s = globalThis.LifeOS.store.getState(); return JSON.stringify({ a: s.activities, e: s.entries, p: s.people, c: s.activityCategories, k: s.kinds }); });
       if (where.includes('imp title') || where.includes('imp who') || where.includes('imp cat') || where.includes('imp kind')) throw new Error('imported text reached the main state');
       await page.click('#priv-close'); await page.waitForSelector('#priv-bar', { state: 'detached', ...T });
-      await nav('Home'); await page.waitForSelector('.tile', T); await page.click('.tile[data-domain="activities"]'); await page.waitForSelector('#actimp-locked', T);
+      await nav('Overview'); await page.waitForSelector('.tile', T); await page.click('.tile[data-domain="activities"]'); await page.waitForSelector('#actimp-locked', T);
       doms.push(await dom());
       await artefacts('after import');
     });

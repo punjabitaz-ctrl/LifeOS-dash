@@ -136,13 +136,13 @@ test('at a glance: learning targets, next steps and exams within 30 days; an ove
 });
 
 test('schema 22: migrations from 1 and 21 keep every item; an older format cannot carry the new kinds or fields', () => {
-  assert.equal(S.SCHEMA, 22); assert.equal(Ln.GOALS_SCHEMA, 22);
+  assert.equal(S.SCHEMA, 23); assert.equal(Ln.GOALS_SCHEMA, 22);
   for (const n of [1, 7, 20, 21]) {
     const o = clone(S.defaultState()); o.schema = n;
     if (n === 1) { for (const k of ['accounts', 'recurring', 'budgets', 'categories']) delete o[k]; }
     if (n < 21) { delete o.meals; delete o.mealLog; delete o.settings.food; }
     const v = S.validateState(o);
-    assert.equal(v.schema, 22); assert.deepEqual(v.learningItems, []);
+    assert.equal(v.schema, 23); assert.deepEqual(v.learningItems, []);
   }
   const { s } = sample();
   const cur = S.validateState(clone(s));
@@ -189,7 +189,7 @@ test('a newer schema is refused by unlock and backup import, and nothing is writ
   const { s } = sample();
   await vault(s);
   const before = S.getState().learningItems.length;
-  const newer = clone(S.getState()); newer.schema = 23;
+  const newer = clone(S.getState()); newer.schema = 24;
   assert.throws(() => S.validateState(newer), /schema/);
   realKeys(); // backup files are opened with the real derivation
   const salt = L.vault.newSalt(), key = await L.vault.deriveKey(PASS, salt);

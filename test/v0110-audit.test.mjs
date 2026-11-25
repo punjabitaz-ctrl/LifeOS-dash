@@ -227,7 +227,7 @@ test('settings cannot carry private or wellbeing data: only whitelisted numbers,
   await assert.rejects(P.write((x) => { x.settings.sync.fileId = 'has spaces ' + ADV_MARK; }), /Invalid data/);
   await assert.rejects(P.write((x) => { x.settings.currency = 'LEAK MARK'; }), /Invalid data/);
   // the only free text left in settings is what the user types into the AI provider form
-  assert.deepEqual(Object.keys(S.getState().settings).sort(), ['aiHosts', 'archiveSuggestMB', 'autoLockMin', 'backupReminderDays', 'business', 'clients', 'currency', 'food', 'health', 'home', 'layouts', 'learning', 'nas', 'privAutoLockSec', 'provider', 'setup', 'sync', 'syncReminder', 'targets']);
+  assert.deepEqual(Object.keys(S.getState().settings).sort(), ['aiHosts', 'archiveSuggestMB', 'autoLockMin', 'backupReminderDays', 'business', 'clients', 'currency', 'food', 'health', 'home', 'layouts', 'learning', 'nas', 'overview', 'privAutoLockSec', 'provider', 'setup', 'sync', 'syncReminder', 'targets']);
 });
 
 // ---------------------------------------------------------------- SEC-68

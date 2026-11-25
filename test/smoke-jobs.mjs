@@ -82,7 +82,7 @@ async function run(label, viewport) {
       await layout('jobs, empty');
     });
     await step('a person and a Money entry for the search, added through the screens and the store', async () => {
-      await nav('Home'); await page.waitForSelector('.tile', T); await page.click('.tile[data-domain="social"]'); await page.waitForSelector('#soc-p-name', T);
+      await nav('Overview'); await page.waitForSelector('.tile', T); await page.click('.tile[data-domain="social"]'); await page.waitForSelector('#soc-p-name', T);
       await page.fill('#soc-p-name', 'Pat Recruiter'); await page.click('#soc-p-add'); await page.waitForSelector('.notice.ok', T);
       await page.evaluate(() => { const L = globalThis.LifeOS; return L.store.commit((x) => { x.entries.push(L.metrics.validateEntry({ domain: 'money', type: 'expense', date: '2026-11-12', title: 'Zebra groceries', value: 12 })); }, { quiet: true }); });
     });

@@ -96,7 +96,7 @@ async function p234(browser, label, viewport) {
   await navTo(page, 'Work'); // re-render with the seed
   const found = new Set();
   const scan = async (where) => { for (const u of await unlabeled(page)) found.add(where + ': ' + u); if (viewport) await overflow(page, where); };
-  await navTo(page, 'Home');
+  await navTo(page, 'Overview');
   await page.click('#dash-customize');
   await page.waitForSelector('#dash-edit');
   await scan('dashboard (Customize)');
@@ -113,11 +113,11 @@ async function p234(browser, label, viewport) {
   await page.click('#open-revenue');
   await page.waitForSelector('#rev-lines');
   await scan('Revenue');
-  await navTo(page, 'Home');
+  await navTo(page, 'Overview');
   await page.click('.tile[data-domain="home"]');
   await page.waitForSelector('#hm-bills');
-  await scan('Home');
-  await navTo(page, 'Home');
+  await scan('Overview');
+  await navTo(page, 'Overview');
   await page.click('.tile[data-domain="admin"]');
   await page.click('#ad-tax summary').catch(() => {});
   await scan('Admin');

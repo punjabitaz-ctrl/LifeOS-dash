@@ -63,7 +63,7 @@ async function run(label, viewport) {
     for (const el of document.querySelectorAll('body *')) { if (['SCRIPT', 'STYLE'].includes(el.tagName)) continue; for (const a of el.attributes) t += a.value + '\n'; if ('value' in el && typeof el.value === 'string') t += el.value + '\n'; }
     return t;
   });
-  const dash = async () => { await nav('Home'); await page.waitForSelector('.tile', T); };
+  const dash = async () => { await nav('Overview'); await page.waitForSelector('.tile', T); };
   const wellbeing = async () => { await dash(); await page.click('.tile[data-domain="wellbeing"]'); await page.waitForSelector('h1:has-text("Wellbeing")', T); };
   const openVaultHere = async () => { await page.fill('#priv-pass', PRIV); await page.click('#priv-open'); await page.waitForSelector('#priv-bar', T); };
   // The check-in panel asks which kind of update every time; one check-in is made for `date`.
@@ -179,7 +179,7 @@ async function run(label, viewport) {
       if (/walked|checkins|Mood 4|recovery/i.test(stored)) throw new Error('wellbeing reached the review record or audit: ' + stored.slice(0, 200));
     });
     await step('goals: a wellbeing metric needs a private goal', async () => {
-      await nav('Home'); await page.waitForSelector('.tile', T);
+      await nav('Overview'); await page.waitForSelector('.tile', T);
       await page.click('.tile[data-domain="goals"]'); await page.waitForSelector('#goal-form', T);
       if (!(await page.locator('#g-metric option[value="wbMood"]').count())) throw new Error('wellbeing metric not offered while open');
       await page.fill('#g-title', 'Mood goal'); await page.selectOption('#g-metric', 'wbMood'); await page.fill('#g-target', '4');

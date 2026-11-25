@@ -76,7 +76,7 @@ async function run(label, viewport) {
     for (const s of SECRETS) if (t.includes(s)) throw new Error(where + ': page holds ' + s);
     for (const n of [money[2], money[1]]) if (t.includes(n)) throw new Error(where + ': page holds the private figure ' + n);
   };
-  const dash = async () => { await nav('Home'); await page.waitForSelector('.tile', T); };
+  const dash = async () => { await nav('Overview'); await page.waitForSelector('.tile', T); };
   const tileVal = (d) => text('.tile[data-domain="' + d + '"] .tile-value');
   const markCount = (sel) => page.locator(sel + ' [aria-label="' + MARK + '"]').count();
   const privScreen = async () => { await page.click('#nav-private'); await page.waitForSelector('h1:has-text("Private vault")', T); };
