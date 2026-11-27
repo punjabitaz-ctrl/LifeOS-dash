@@ -1,0 +1,6 @@
+# LifeOS (repo punjabitaz-ctrl/LifeOS-dash, public only while building; make private at end) — PRIVATE, no public demo ever unless Taz says
+Tasks now run in the lyfe channel. Full state: repo docs/HANDOFF.md "Current step"; project guide is a Claude Doc (updated through v1.8.0).
+Built: v2.0.0 (schema 20) pushed + tagged Nov 22: all domains deep (Money, Assets, Work, Health, Goals, Home, Admin, Learning, Activities, Social, Wellbeing in private vault), command center (job search, AYiN/clients, podcasts, websites), business/NJ tax, recovery keys, NAS-first sync + Drive backup. Audits SEC-01..139 fixed; 907 unit, 27 server, 27 smokes.
+After Nov 24: eating log in Health, bright 2026 SaaS style + Overview pane (Taz said merge). Next asked: taxes/assets by country (US, Spain). Shared design language with Resume Engine + ChannelVu.
+Live copy behind Cloudflare Access: lfs-dsh.punjabitaz.workers.dev/dist/lifeos. Target home: subdomain of tazabbas.com.
+Never run for real: Google sign-in/Drive, physical phone, AI call. Taz's steps: TrueNAS install after NAS rebuild, Drive sync setup (docs/SYNC-SETUP.md), backfill tags v1.0.0-v1.2.0, first real run. Open: rename "AYiN and clients"; demo branches Taz's to delete.
